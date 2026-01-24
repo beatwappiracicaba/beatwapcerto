@@ -1,0 +1,170 @@
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { LayoutDashboard, Upload, Settings, LogOut, Music, Shield, Users, Bell, BarChart2 } from 'lucide-react';
+import { clsx } from 'clsx';
+import logo from '../assets/images/beatwap-logo.png';
+import { NotificationBell } from './Notifications/NotificationBell';
+import { ChatButton } from './FloatingChat/ChatButton';
+import { ChatWindow } from './FloatingChat/ChatWindow';
+import { useAuth } from '../context/AuthContext';
+
+const SidebarItem = ({ icon: Icon, label, to, active }) => (
+  <Link to={to}>
+    <motion.div 
+      className={clsx(
+        "flex items-center gap-3 px-4 py-3 rounded-xl transition-colors relative overflow-hidden",
+        active ? "text-beatwap-black font-bold" : "text-gray-400 hover:bg-white/5 hover:text-white"
+      )}
+      whileHover={{ x: 5 }}
+      whileTap={{ scale: 0.95 }}
+    >
+      {active && (
+        <motion.div
+          layoutId="activeTab"
+          className="absolute inset-0 bg-beatwap-gold z-0"
+          initial={false}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        />
+      )}
+      <div className="relative z-10 flex items-center gap-3">
+        <Icon size={20} />
+        <span>{label}</span>
+      </div>
+    </motion.div>
+  </Link>
+);
+
+export const DashboardLayout = ({ children, isAdmin = false }) => {
+  const location = useLocation();
+  const { user, profile, signOut } = useAuth();
+  const currentUserId = user?.id;
+
+  return (
+    <div className="flex min-h-screen bg-beatwap-black text-white font-sans selection:bg-beatwap-gold selection:text-black">
+      {/* Sidebar */}
+      <div className="w-64 border-r border-white/5 p-6 flex flex-col fixed h-full bg-beatwap-black z-20">
+        <div className="mb-10 flex items-center gap-2 px-2">
+          <div className="w-8 h-8 flex items-center justify-center">
+            <img src={logo} alt="BeatWap Logo" className="w-full h-full object-contain" />
+          </div>
+          <span className="font-bold text-xl tracking-tight">BeatWap</span>
+        </div>
+
+        <nav className="space-y-2 flex-1">
+          {isAdmin ? (
+            // Admin Menu
+            <>
+              <SidebarItem 
+                icon={LayoutDashboard} 
+                label="Visão Geral" 
+                to="/admin" 
+                active={location.pathname === '/admin'} 
+              />
+              <SidebarItem 
+                icon={Users} 
+                label="Artistas" 
+                to="/admin/artists" 
+                active={location.pathname.includes('/admin/artists')} 
+              />
+              <SidebarItem 
+                icon={Music} 
+                label="Músicas" 
+                to="/admin/music" 
+                active={location.pathname.includes('/admin/music')} 
+              />
+              <SidebarItem 
+                icon={BarChart2} 
+                label="Métricas" 
+                to="/admin/metrics" 
+                active={location.pathname.includes('/admin/metrics')} 
+              />
+              <SidebarItem 
+                icon={Bell} 
+                label="Notificações" 
+                to="/admin/notifications" 
+                active={location.pathname.includes('/admin/notifications')} 
+              />
+              <SidebarItem 
+                icon={Settings} 
+                label="Configurações" 
+                to="/admin/settings" 
+                active={location.pathname.includes('/admin/settings')} 
+              />
+            </>
+          ) : (
+            // Artist Menu
+            <>
+              <SidebarItem 
+                icon={LayoutDashboard} 
+                label="Visão Geral" 
+                to="/dashboard" 
+                active={location.pathname === '/dashboard'} 
+              />
+              <SidebarItem 
+                icon={Upload} 
+                label="Meus Lançamentos" 
+                to="/dashboard/uploads" 
+                active={location.pathname.includes('uploads')} 
+              />
+              <SidebarItem 
+                icon={Settings} 
+                label="Configurações" 
+                to="/settings" 
+                active={location.pathname === '/settings'} 
+              />
+            </>
+          )}
+        </nav>
+
+        <div className="mt-auto pt-6 border-t border-white/5">
+          <button onClick={signOut} className="flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 w-full rounded-xl transition-colors">
+            <LogOut size={20} />
+            <span>Sair</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <main className="flex-1 ml-64">
+        {/* Top Header */}
+        <header className="h-20 border-b border-white/5 flex items-center justify-between px-8 bg-beatwap-black/50 backdrop-blur-md sticky top-0 z-10">
+          <h2 className="font-bold text-lg text-gray-400">
+            {isAdmin ? 'Painel Administrativo' : 'Área do Artista'}
+          </h2>
+          <div className="flex items-center gap-4">
+            <NotificationBell userId={currentUserId} />
+            <div className="flex items-center gap-3 pl-4 border-l border-white/10">
+              <div className="text-right hidden md:block">
+                <div className="text-sm font-bold text-white">{profile?.name || 'Usuário'}</div>
+                <div className="text-xs text-gray-400">{isAdmin ? 'Admin' : 'Artista'}</div>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-beatwap-gold to-yellow-300 border-2 border-black flex items-center justify-center text-black font-bold">
+                {profile?.name?.charAt(0).toUpperCase() || 'U'}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="p-8">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            {children}
+          </motion.div>
+        </div>
+      </main>
+
+      {user && (
+        <>
+          <ChatButton isAdmin={isAdmin} currentUserId={currentUserId} />
+          <ChatWindow isAdmin={isAdmin} currentUserId={currentUserId} />
+        </>
+      )}
+    </div>
+  );
+};
