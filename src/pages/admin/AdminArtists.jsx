@@ -132,7 +132,13 @@ export const AdminArtists = () => {
           >
             <Card className="p-4 flex flex-col md:flex-row items-center justify-between gap-4 hover:bg-white/5 transition-colors">
               <div className="flex items-center gap-4 w-full md:w-auto">
-                <img src={artist.avatar} alt={artist.name} className="w-12 h-12 rounded-full bg-gray-800" />
+                <div className="w-12 h-12 rounded-full bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center">
+                  {artist.avatar_url ? (
+                    <img src={artist.avatar_url} alt={artist.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-gray-400 font-bold text-lg">{artist.name?.charAt(0).toUpperCase()}</span>
+                  )}
+                </div>
                 <div>
                   <h3 className="font-bold text-lg">{artist.name}</h3>
                   <p className="text-sm text-gray-400">{artist.email}</p>
