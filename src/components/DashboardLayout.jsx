@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LayoutDashboard, Upload, Settings, LogOut, Music, Shield, Users, Bell, BarChart2, Edit2, Camera } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -40,12 +40,18 @@ const SidebarItem = ({ icon: Icon, label, to, active }) => (
 
 export const DashboardLayout = ({ children, isAdmin = false }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
   const { addToast } = useToast();
   const currentUserId = user?.id;
   
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
 
   const handleSaveProfile = async (croppedImageBlob) => {
     if (!croppedImageBlob) {
@@ -172,7 +178,7 @@ export const DashboardLayout = ({ children, isAdmin = false }) => {
         </nav>
 
         <div className="mt-auto pt-6 border-t border-white/5">
-          <button onClick={signOut} className="flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 w-full rounded-xl transition-colors">
+          <button onClick={handleSignOut} className="flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 w-full rounded-xl transition-colors">
             <LogOut size={20} />
             <span>Sair</span>
           </button>
