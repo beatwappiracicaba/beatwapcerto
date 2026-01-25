@@ -36,8 +36,26 @@ export const DataProvider = ({ children }) => {
         if (musicError) throw musicError;
 
         setArtists(formattedArtists || []);
-        setMusic(musicData || []);
-      } catch (error) {
+
+      // Normalização de dados para o frontend (camelCase)
+      const normalizedMusic = (musicData || []).map(m => ({
+        ...m,
+        id: m.id,
+        title: m.title,
+        artist: m.artist_name, // Mapeia artist_name -> artist
+        artistId: m.artist_id, // Mapeia artist_id -> artistId
+        cover: m.cover_url, // Mapeia cover_url -> cover
+        audioFile: m.audio_url, // Mapeia audio_url -> audioFile
+        status: m.status,
+        genre: m.genre,
+        releaseDate: new Date(m.created_at).toLocaleDateString('pt-BR'),
+        isrc: m.isrc || 'Pendente',
+        upc: m.upc || 'Pendente',
+        date: new Date(m.created_at).toLocaleDateString('pt-BR') // Campo auxiliar para datas
+      }));
+
+      setMusic(normalizedMusic);
+    } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
@@ -127,14 +145,20 @@ export const DataProvider = ({ children }) => {
 
       if (error) throw error;
 
-      // Map back to frontend structure if needed, or just use DB structure
-      // Assuming frontend can adapt or we map it here
+      // Map back to frontend structure (Consistent with normalized fetch)
       const newMusic = {
         ...data,
+        id: data.id,
         artistId: data.artist_id,
         artist: data.artist_name,
         audioFile: data.audio_url,
-        cover: data.cover_url
+        cover: data.cover_url,
+        status: data.status,
+        genre: data.genre,
+        releaseDate: new Date(data.created_at).toLocaleDateString('pt-BR'),
+        isrc: data.isrc || 'Pendente',
+        upc: data.upc || 'Pendente',
+        date: new Date(data.created_at).toLocaleDateString('pt-BR')
       };
 
       setMusic(prev => [newMusic, ...prev]);

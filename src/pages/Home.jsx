@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Header from '../components/landing/Header';
 import Hero from '../components/landing/Hero';
 import FeaturedUsers from '../components/landing/FeaturedUsers';
@@ -8,18 +8,82 @@ import Transparency from '../components/landing/Transparency';
 import Contact from '../components/landing/Contact';
 import FAQ from '../components/landing/FAQ';
 import Footer from '../components/landing/Footer';
+import { supabase } from '../services/supabaseClient';
+import { Card } from '../components/ui/Card';
+import { Play } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const Home = () => {
+  const [latestReleases, setLatestReleases] = useState([]);
+
   // Reset scroll on mount
   useEffect(() => {
     window.scrollTo(0, 0);
+    fetchLatestReleases();
   }, []);
+
+  const fetchLatestReleases = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('musics')
+        .select('*')
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false })
+        .limit(8);
+
+      if (error) throw error;
+      setLatestReleases(data || []);
+    } catch (error) {
+      console.error('Error fetching releases:', error);
+    }
+  };
 
   return (
     <div className="bg-beatwap-dark min-h-screen text-white font-sans selection:bg-beatwap-gold selection:text-black">
       <Header />
       <main>
         <Hero />
+        
+        {/* Latest Releases Section */}
+        {latestReleases.length > 0 && (
+          <section className="py-20 px-6 bg-black/30">
+            <div className="max-w-7xl mx-auto">
+              <div className="text-center mb-12">
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">Lançamentos Recentes</h2>
+                <p className="text-gray-400">Ouça o que os nossos artistas estão produzindo</p>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {latestReleases.map((release, index) => (
+                  <motion.div 
+                    key={release.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="group relative"
+                  >
+                    <div className="aspect-square rounded-2xl overflow-hidden mb-4 relative shadow-lg">
+                      <img 
+                        src={release.cover_url} 
+                        alt={release.title} 
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white">
+                          <Play fill="currentColor" className="ml-1" />
+                        </button>
+                      </div>
+                    </div>
+                    <h3 className="font-bold text-lg truncate">{release.title}</h3>
+                    <p className="text-sm text-gray-400 truncate">{release.artist_name}</p>
+                    <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider">{release.genre}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
         <FeaturedUsers />
         <HowItWorks />
         <Benefits />
