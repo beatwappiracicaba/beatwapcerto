@@ -103,9 +103,7 @@ export const DashboardLayout = ({ children, isAdmin = false }) => {
         }
 
         // 3. Update Profile
-        const updates = {
-            updated_at: new Date().toISOString(),
-        };
+        const updates = {};
 
         if (publicUrl) updates.avatar_url = publicUrl;
         if (name) {
