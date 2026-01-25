@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, CheckCircle } from 'lucide-react';
+import { Mail, Lock, User, CheckCircle, Key } from 'lucide-react';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Card } from '../components/ui/Card';
@@ -11,6 +11,8 @@ const Register = () => {
   const navigate = useNavigate();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState('register'); // 'register' | 'verify'
+  const [otp, setOtp] = useState('');
   const [formData, setFormData] = useState({ 
     name: '', 
     email: '', 
@@ -42,12 +44,14 @@ const Register = () => {
       
       if (authError) throw authError;
       
-      if (authData.user) {
-        // Profile creation is now handled by Supabase Database Triggers
-        // to avoid RLS issues and ensure consistency.
-        
+      if (authData.session) {
+        // Logged in immediately (Email confirmation disabled)
         addToast('Conta criada com sucesso!', 'success');
         navigate('/dashboard');
+      } else if (authData.user) {
+        // Needs verification
+        setStep('verify');
+        addToast('Código de verificação enviado para seu email.', 'info');
       }
 
     } catch (error) {
@@ -57,6 +61,71 @@ const Register = () => {
       setLoading(false);
     }
   };
+
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: formData.email,
+        token: otp,
+        type: 'signup'
+      });
+
+      if (error) throw error;
+
+      if (data.session) {
+        addToast('Email verificado com sucesso!', 'success');
+        navigate('/dashboard');
+      }
+    } catch (error) {
+      console.error('Verification error:', error);
+      addToast(error.message || 'Código inválido ou expirado.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (step === 'verify') {
+    return (
+      <div className="space-y-8">
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-bold text-white">Verificar Email</h1>
+          <p className="text-gray-400">Digite o código enviado para {formData.email}</p>
+        </div>
+
+        <Card className="space-y-6">
+          <form onSubmit={handleVerify} className="space-y-4">
+            <AnimatedInput
+              label="Código de Verificação"
+              type="text"
+              placeholder="123456"
+              icon={Key}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+            />
+
+            <AnimatedButton 
+              fullWidth 
+              type="submit" 
+              isLoading={loading}
+            >
+              Verificar Código
+            </AnimatedButton>
+            
+            <button
+              type="button"
+              onClick={() => setStep('register')}
+              className="w-full text-sm text-gray-400 hover:text-white transition-colors"
+            >
+              Voltar para cadastro
+            </button>
+          </form>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
