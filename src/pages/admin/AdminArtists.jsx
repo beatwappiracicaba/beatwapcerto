@@ -6,7 +6,7 @@ import { AnimatedInput } from '../../components/ui/AnimatedInput';
 import { AnimatedButton } from '../../components/ui/AnimatedButton';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../context/ToastContext';
-import { ArtistContentManager } from '../../components/Admin/ArtistContentManager';
+import { ArtistContentManager } from '../../components/admin/ArtistContentManager';
 import { supabase } from '../../services/supabaseClient';
 
 export const AdminArtists = () => {

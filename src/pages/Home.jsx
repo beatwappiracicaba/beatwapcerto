@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import Header from '../components/landing/Header';
 import Hero from '../components/landing/Hero';
+import FeaturedUsers from '../components/landing/FeaturedUsers';
 import HowItWorks from '../components/landing/HowItWorks';
 import Benefits from '../components/landing/Benefits';
 import Transparency from '../components/landing/Transparency';
@@ -19,6 +20,7 @@ const Home = () => {
       <Header />
       <main>
         <Hero />
+        <FeaturedUsers />
         <HowItWorks />
         <Benefits />
         <Transparency />

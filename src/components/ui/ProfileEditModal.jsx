@@ -2,7 +2,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Cropper from 'react-easy-crop';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, Save, Check, Camera } from 'lucide-react';
+import { X, Upload, Save, Check, Camera, User } from 'lucide-react';
 import { AnimatedButton } from './AnimatedButton';
 import { getCroppedImg } from '../../utils/cropImage';
 
@@ -130,12 +130,16 @@ export const ProfileEditModal = ({ isOpen, onClose, currentAvatar, currentName, 
               <div className="space-y-6">
                 {/* Avatar Section */}
                 <div className="flex flex-col items-center justify-center space-y-4">
-                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-beatwap-gold/20 relative group">
-                      <img 
-                        src={previewUrl || currentAvatar || 'https://via.placeholder.com/150'} 
-                        alt="Profile" 
-                        className="w-full h-full object-cover" 
-                      />
+                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-beatwap-gold/20 relative group bg-gray-800 flex items-center justify-center">
+                      {previewUrl || currentAvatar ? (
+                        <img 
+                          src={previewUrl || currentAvatar} 
+                          alt="Profile" 
+                          className="w-full h-full object-cover" 
+                        />
+                      ) : (
+                        <User size={64} className="text-gray-500" />
+                      )}
                       <div 
                         onClick={() => fileInputRef.current.click()}
                         className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
