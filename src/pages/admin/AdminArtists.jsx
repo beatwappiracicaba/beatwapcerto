@@ -6,7 +6,7 @@ import { AnimatedInput } from '../../components/ui/AnimatedInput';
 import { AnimatedButton } from '../../components/ui/AnimatedButton';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../context/ToastContext';
-import { ArtistContentManager } from '../../components/Admin/ArtistContentManager';
+import { ArtistContentManager } from '../../components/admin/ArtistContentManager';
 
 export const AdminArtists = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,8 +30,9 @@ export const AdminArtists = () => {
   };
 
   const filteredArtists = artists.filter(artist => 
-    (artist.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (artist.email || '').toLowerCase().includes(searchTerm.toLowerCase())
+    artist.role !== 'admin' && // Exclude admins
+    ((artist.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (artist.email || '').toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const openMetricsModal = (artist) => {
