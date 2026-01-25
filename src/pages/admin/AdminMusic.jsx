@@ -156,7 +156,7 @@ export const AdminMusic = () => {
                   <span className="hidden md:inline">Detalhes</span>
                 </button>
                 
-                {music.status === 'pending' ? (
+                {['pending', 'review'].includes(music.status) ? (
                   <>
                     <button 
                       onClick={() => handleApproveClick(music)}
@@ -286,10 +286,11 @@ export const AdminMusic = () => {
                         Baixar Original
                       </a>
                     </div>
-                    <audio controls className="w-full h-10 custom-audio-player">
-                      <source src={selectedMusic.audioFile} type="audio/mpeg" />
-                      Seu navegador não suporta o elemento de áudio.
-                    </audio>
+                    <AudioPlayer 
+                      src={selectedMusic.audioFile} 
+                      title={selectedMusic.title} 
+                      artist={selectedMusic.artist} 
+                    />
                   </div>
                 </div>
               </div>

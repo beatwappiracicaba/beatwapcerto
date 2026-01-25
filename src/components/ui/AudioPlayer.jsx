@@ -5,20 +5,44 @@ import { Play, Pause, Volume2 } from 'lucide-react';
 export const AudioPlayer = ({ src, title, artist, minimal = false }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
-  
-  // Simulation of audio playing
+  const audioRef = useRef(null);
+
   useEffect(() => {
-    let interval;
-    if (isPlaying) {
-      interval = setInterval(() => {
-        setProgress((prev) => (prev >= 100 ? 0 : prev + 1));
-      }, 100);
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.play().catch(e => {
+            console.error("Playback failed", e);
+            setIsPlaying(false);
+        });
+      } else {
+        audioRef.current.pause();
+      }
     }
-    return () => clearInterval(interval);
   }, [isPlaying]);
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      const current = audioRef.current.currentTime;
+      const total = audioRef.current.duration;
+      if (total > 0) {
+        setProgress((current / total) * 100);
+      }
+    }
+  };
+
+  const handleEnded = () => {
+    setIsPlaying(false);
+    setProgress(0);
+  };
 
   return (
     <div className={`bg-beatwap-graphite/50 border border-white/5 rounded-xl overflow-hidden ${minimal ? 'p-2' : 'p-4'}`}>
+      <audio 
+        ref={audioRef} 
+        src={src} 
+        onTimeUpdate={handleTimeUpdate}
+        onEnded={handleEnded}
+      />
       <div className="flex items-center gap-4">
         <motion.button
           whileTap={{ scale: 0.9 }}
@@ -36,7 +60,7 @@ export const AudioPlayer = ({ src, title, artist, minimal = false }) => {
             </div>
           )}
           
-          {/* Waveform Visualization (Simulated) */}
+          {/* Waveform Visualization (Real) */}
           <div className="h-8 flex items-end gap-1 overflow-hidden">
             {[...Array(30)].map((_, i) => (
               <motion.div

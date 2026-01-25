@@ -107,10 +107,30 @@ const DashboardArtist = () => {
              </div>
         ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Badge icon={Music} label="Primeiro Lançamento" unlocked delay={0.1} />
-              <Badge icon={Rocket} label="5 Músicas Enviadas" unlocked delay={0.2} />
-              <Badge icon={Globe} label="Primeira Publicação" unlocked delay={0.3} />
-              <Badge icon={TrendingUp} label="10k Plays" delay={0.4} />
+              <Badge 
+                icon={Music} 
+                label="Primeiro Lançamento" 
+                unlocked={artistMusic.length > 0} 
+                delay={0.1} 
+              />
+              <Badge 
+                icon={Rocket} 
+                label="5 Músicas Enviadas" 
+                unlocked={artistMusic.length >= 5} 
+                delay={0.2} 
+              />
+              <Badge 
+                icon={Globe} 
+                label="Primeira Publicação" 
+                unlocked={artistMusic.some(m => m.status === 'approved')} 
+                delay={0.3} 
+              />
+              <Badge 
+                icon={TrendingUp} 
+                label="10k Plays" 
+                unlocked={parseInt((artistMetrics?.plays || '0').replace(/\D/g, '')) >= 10000}
+                delay={0.4} 
+              />
             </div>
         )}
       </div>
@@ -138,6 +158,7 @@ const DashboardArtist = () => {
                     <th className="p-4 font-medium">Capa</th>
                     <th className="p-4 font-medium">Título</th>
                     <th className="p-4 font-medium">Status</th>
+                    <th className="p-4 font-medium">Áudio</th>
                     <th className="p-4 font-medium">Data</th>
                     <th className="p-4 font-medium">Ações</th>
                   </tr>
@@ -176,6 +197,11 @@ const DashboardArtist = () => {
                           {release.status === 'approved' ? 'Aprovado' :
                            release.status === 'rejected' ? 'Rejeitado' : 'Em Análise'}
                         </span>
+                      </td>
+                      <td className="p-4">
+                        <div className="w-32">
+                          <AudioPlayer src={release.audioFile} minimal={true} />
+                        </div>
                       </td>
                       <td className="p-4 text-gray-400 text-sm">{new Date(release.created_at).toLocaleDateString('pt-BR')}</td>
                       <td className="p-4">

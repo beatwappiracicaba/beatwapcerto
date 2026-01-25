@@ -46,6 +46,8 @@ export const DataProvider = ({ children }) => {
         artistId: m.artist_id, // Mapeia artist_id -> artistId
         cover: m.cover_url, // Mapeia cover_url -> cover
         audioFile: m.audio_url, // Mapeia audio_url -> audioFile
+        authorizationFile: m.authorization_url, // Mapeia authorization_url -> authorizationFile
+        isOriginal: m.is_original, // Mapeia is_original -> isOriginal
         status: m.status,
         genre: m.genre,
         releaseDate: new Date(m.created_at).toLocaleDateString('pt-BR'),
@@ -120,6 +122,8 @@ export const DataProvider = ({ children }) => {
         artist_name: newMusicData.artist,
         audio_url: newMusicData.audioFile,
         cover_url: newMusicData.cover,
+        authorization_url: newMusicData.authorizationUrl,
+        is_original: newMusicData.isOriginal,
         songwriter: newMusicData.songwriter,
         has_featuring: newMusicData.hasFeaturing,
         featuring_artist: newMusicData.featuringArtist,
@@ -131,7 +135,10 @@ export const DataProvider = ({ children }) => {
       delete musicPayload.artist;
       delete musicPayload.audioFile;
       delete musicPayload.cover;
+      delete musicPayload.authorizationUrl;
+      delete musicPayload.isOriginal;
       delete musicPayload.coverFile; // Remove File object
+      delete musicPayload.authorizationFile; // Remove File object
       delete musicPayload.hasFeaturing;
       delete musicPayload.featuringArtist;
       delete musicPayload.distributeAll;
@@ -153,6 +160,8 @@ export const DataProvider = ({ children }) => {
         artist: data.artist_name,
         audioFile: data.audio_url,
         cover: data.cover_url,
+        authorizationFile: data.authorization_url,
+        isOriginal: data.is_original,
         status: data.status,
         genre: data.genre,
         releaseDate: new Date(data.created_at).toLocaleDateString('pt-BR'),

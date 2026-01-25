@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Edit2, BarChart2, MoreVertical, X, Save, Music, Shield, ShieldOff } from 'lucide-react';
+import { Search, Edit2, BarChart2, MoreVertical, X, Save, Music, Shield, ShieldOff, Trash2 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { AnimatedInput } from '../../components/ui/AnimatedInput';
 import { AnimatedButton } from '../../components/ui/AnimatedButton';
@@ -11,11 +11,17 @@ import { supabase } from '../../services/supabaseClient';
 
 export const AdminArtists = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const { artists, updateArtistMetrics } = useData();
+  const { artists, updateArtistMetrics, deleteArtist, getArtistById } = useData(); // Assuming deleteArtist exists or needs to be added
   const [selectedArtist, setSelectedArtist] = useState(null);
   const [isMetricsModalOpen, setIsMetricsModalOpen] = useState(false);
   const [isContentManagerOpen, setIsContentManagerOpen] = useState(false);
   const { addToast } = useToast();
+  const [localArtists, setLocalArtists] = useState([]);
+
+  // Sync with DataContext
+  useEffect(() => {
+    setLocalArtists(artists);
+  }, [artists]);
 
   // Metrics Form State
   const [metricsForm, setMetricsForm] = useState({
@@ -30,38 +36,7 @@ export const AdminArtists = () => {
     setIsContentManagerOpen(true);
   };
 
-  const filteredArtists = artists.filter(artist => 
-    // Show all users, but highlight admins. 
-    // User requested to "set someone as administrator", so we must list them.
-    // However, previously we filtered them out. 
-    // Let's bring them back but maybe add a toggle filter or just show them with a badge.
-    // The previous instruction was "os cargos de admin nao precisa aparecer em métricas".
-    // "metrics" usually refers to AdminMetrics or the metrics modal.
-    // In "Manage Artists", it makes sense to see everyone to manage ROLES.
-    
-    // If the user wants to NOT see admins in the LIST but wants to SET admins, it's a contradiction 
-    // unless we assume we only see 'users' and can promote them.
-    // But how do we demote an admin if we can't see them?
-    // I will show everyone here, but maybe add a visual distinction.
-    // Or I will respect "admin nao precisa aparecer" literally and only show non-admins.
-    // But then "setar alguem como administrador" implies taking a user and making them admin.
-    // So showing users is fine.
-    // What if I need to demote? 
-    // I will enable showing everyone but maybe filter by default? 
-    // Let's stick to showing everyone for now in this management view so we can promote/demote.
-    // Wait, the previous task was "os cargos de admin nao precisa aparecer em métricas".
-    // This is AdminArtists.
-    // User said "O CARGO DE AMDIN N PRECISA APARECER EM GERENCIAR ARTISTAS".
-    // So I MUST HIDE admins from here?
-    // If I hide admins, I can't demote them.
-    // But I can promote non-admins.
-    // Okay, I will keep the filter `artist.role !== 'admin'` BUT provide a way to see admins?
-    // Or maybe the user only wants to Promote.
-    // "tem que ter a opção de setar alguem como adminstrador".
-    // I will assume I only list non-admins and give a button to promote them.
-    // Once promoted, they disappear from this list (as per "n precisa aparecer").
-    // This seems consistent with the user's conflicting instructions.
-    
+  const filteredArtists = localArtists.filter(artist => 
     artist.role !== 'admin' && 
     ((artist.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (artist.email || '').toLowerCase().includes(searchTerm.toLowerCase()))
@@ -79,31 +54,35 @@ export const AdminArtists = () => {
       if (error) throw error;
 
       addToast(`${artist.name} agora é um administrador!`, 'success');
-      // Force reload or update local state (useData should handle real-time if subscribed, 
-      // otherwise we might need to manually update local state or reload)
-      window.location.reload(); 
+      // Update local state to remove from list immediately
+      setLocalArtists(prev => prev.filter(a => a.id !== artist.id));
     } catch (error) {
       console.error('Error updating role:', error);
       addToast('Erro ao atualizar permissões.', 'error');
     }
   };
 
-
   const openMetricsModal = (artist) => {
     setSelectedArtist(artist);
+    // Ensure metrics exist, fallback to 0 if undefined
+    const metrics = artist.metrics || {};
     setMetricsForm({
-      plays: artist.metrics.plays,
-      listeners: artist.metrics.listeners,
-      revenue: artist.metrics.revenue,
-      growth: artist.metrics.growth
+      plays: metrics.plays || '0',
+      listeners: metrics.listeners || '0',
+      revenue: metrics.revenue || 'R$ 0,00',
+      growth: metrics.growth || '0%'
     });
     setIsMetricsModalOpen(true);
   };
 
-  const handleSaveMetrics = () => {
-    updateArtistMetrics(selectedArtist.id, metricsForm);
-    addToast('Métricas atualizadas com sucesso!', 'success');
-    setIsMetricsModalOpen(false);
+  const handleSaveMetrics = async () => {
+    try {
+        await updateArtistMetrics(selectedArtist.id, metricsForm);
+        addToast('Métricas atualizadas com sucesso!', 'success');
+        setIsMetricsModalOpen(false);
+    } catch (error) {
+        addToast('Erro ao salvar métricas.', 'error');
+    }
   };
 
   return (

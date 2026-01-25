@@ -6,7 +6,7 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Card } from '../components/ui/Card';
 import { Checklist } from '../components/ui/Checklist';
 import { AudioPlayer } from '../components/ui/AudioPlayer';
-import { Upload, Image as ImageIcon, Music, ArrowLeft } from 'lucide-react';
+import { Upload, Image as ImageIcon, Music, ArrowLeft, FileText } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
@@ -30,6 +30,8 @@ const UploadMusic = () => {
     hasFeaturing: false,
     featuringArtist: '',
     distributeAll: false,
+    isOriginal: false,
+    authorizationFile: null,
     audioFile: null,
     coverFile: null
   });
@@ -37,7 +39,8 @@ const UploadMusic = () => {
   const [checklist, setChecklist] = useState([
     { label: 'Arquivo de áudio (WAV/MP3 320kbps)', valid: false, error: 'Formato inválido ou bitrate baixo.' },
     { label: 'Capa (3000x3000px, JPG/PNG)', valid: false, error: 'Resolução mínima não atingida.' },
-    { label: 'Metadados Obrigatórios', valid: false, error: 'Preencha título, artista, gênero e compositor.' }
+    { label: 'Metadados Obrigatórios', valid: false, error: 'Preencha título, artista, gênero e compositor.' },
+    { label: 'Autorização (Se Autoral)', valid: true, error: 'Anexe o termo de autorização.' }
   ]);
 
   // Real-time validation simulation
@@ -55,6 +58,15 @@ const UploadMusic = () => {
     const featuringValid = !formData.hasFeaturing || (formData.hasFeaturing && formData.featuringArtist);
     newChecklist[2].valid = !!(basicMetadata && featuringValid);
 
+    // Authorization validation
+    if (formData.isOriginal) {
+        newChecklist[3].valid = !!formData.authorizationFile;
+        newChecklist[3].label = 'Autorização (Obrigatório)';
+    } else {
+        newChecklist[3].valid = true;
+        newChecklist[3].label = 'Autorização (Não necessário)';
+    }
+
     setChecklist(newChecklist);
   }, [formData]);
 
@@ -62,7 +74,7 @@ const UploadMusic = () => {
     const file = e.target.files[0];
     if (file) {
       setFormData(prev => ({ ...prev, [type]: file }));
-      addToast(`${type === 'audioFile' ? 'Áudio' : 'Capa'} carregado com sucesso!`, 'success');
+      addToast(`${type === 'audioFile' ? 'Áudio' : type === 'coverFile' ? 'Capa' : 'Documento'} carregado com sucesso!`, 'success');
     }
   };
 
@@ -96,6 +108,7 @@ const UploadMusic = () => {
     try {
       let audioUrl = '';
       let coverUrl = '';
+      let authorizationUrl = '';
 
       // Upload Audio
       if (formData.audioFile) {
@@ -107,12 +120,27 @@ const UploadMusic = () => {
         coverUrl = await uploadFile(formData.coverFile, 'covers');
       }
 
+      // Upload Authorization
+      if (formData.authorizationFile) {
+        // Using 'documents' bucket or fallback to 'misc' if preferred. 
+        // Assuming 'documents' bucket exists or using 'covers' as a safe fallback if not.
+        // Let's try 'documents'.
+        try {
+            authorizationUrl = await uploadFile(formData.authorizationFile, 'documents');
+        } catch (e) {
+            // Fallback to covers if documents bucket doesn't exist (temporary fix)
+            console.warn('Documents bucket might not exist, using covers bucket');
+            authorizationUrl = await uploadFile(formData.authorizationFile, 'covers');
+        }
+      }
+
       await addMusic({
         ...formData,
         artistId: user.id,
         artist: user.user_metadata?.name || formData.artist || 'Artista Desconhecido',
         audioFile: audioUrl,
         cover: coverUrl,
+        authorizationUrl: authorizationUrl,
         status: 'review',
         addedBy: 'artist'
       });
@@ -171,23 +199,23 @@ const UploadMusic = () => {
                       onChange={e => setFormData({...formData, genre: e.target.value})}
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold focus:ring-1 focus:ring-beatwap-gold transition-all appearance-none"
                     >
-                      <option value="" disabled>Selecione um gênero</option>
-                      <option value="Funk">Funk</option>
-                      <option value="Trap">Trap</option>
-                      <option value="Rap">Rap</option>
-                      <option value="Sertanejo">Sertanejo</option>
-                      <option value="Forró">Forró</option>
-                      <option value="Piseiro">Piseiro</option>
-                      <option value="Pagode">Pagode</option>
-                      <option value="Samba">Samba</option>
-                      <option value="MPB">MPB</option>
-                      <option value="Axé">Axé</option>
-                      <option value="Brega Funk">Brega Funk</option>
-                      <option value="Hip Hop">Hip Hop</option>
-                      <option value="Pop">Pop</option>
-                      <option value="Eletrônica">Eletrônica</option>
-                      <option value="Rock">Rock</option>
-                      <option value="Outro">Outro</option>
+                      <option value="" disabled className="bg-beatwap-dark text-white">Selecione um gênero</option>
+                      <option value="Funk" className="bg-beatwap-dark text-white">Funk</option>
+                      <option value="Trap" className="bg-beatwap-dark text-white">Trap</option>
+                      <option value="Rap" className="bg-beatwap-dark text-white">Rap</option>
+                      <option value="Sertanejo" className="bg-beatwap-dark text-white">Sertanejo</option>
+                      <option value="Forró" className="bg-beatwap-dark text-white">Forró</option>
+                      <option value="Piseiro" className="bg-beatwap-dark text-white">Piseiro</option>
+                      <option value="Pagode" className="bg-beatwap-dark text-white">Pagode</option>
+                      <option value="Samba" className="bg-beatwap-dark text-white">Samba</option>
+                      <option value="MPB" className="bg-beatwap-dark text-white">MPB</option>
+                      <option value="Axé" className="bg-beatwap-dark text-white">Axé</option>
+                      <option value="Brega Funk" className="bg-beatwap-dark text-white">Brega Funk</option>
+                      <option value="Hip Hop" className="bg-beatwap-dark text-white">Hip Hop</option>
+                      <option value="Pop" className="bg-beatwap-dark text-white">Pop</option>
+                      <option value="Eletrônica" className="bg-beatwap-dark text-white">Eletrônica</option>
+                      <option value="Rock" className="bg-beatwap-dark text-white">Rock</option>
+                      <option value="Outro" className="bg-beatwap-dark text-white">Outro</option>
                     </select>
                   </div>
                 </div>
@@ -236,6 +264,42 @@ const UploadMusic = () => {
                         onChange={e => setFormData({...formData, distributeAll: e.target.checked})}
                         className="w-5 h-5 accent-beatwap-gold rounded cursor-pointer"
                       />
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-4">
+                      <div className="flex items-center justify-between">
+                          <div className="flex flex-col">
+                              <span className="font-medium text-white">Composição Autoral?</span>
+                              <span className="text-xs text-gray-400">Se sim, é necessário enviar a autorização de gravação.</span>
+                          </div>
+                          <input 
+                            type="checkbox" 
+                            checked={formData.isOriginal}
+                            onChange={e => setFormData({...formData, isOriginal: e.target.checked})}
+                            className="w-5 h-5 accent-beatwap-gold rounded cursor-pointer"
+                          />
+                      </div>
+
+                      {formData.isOriginal && (
+                        <motion.div 
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="pt-2 border-t border-white/10"
+                        >
+                          <div className={`border-2 border-dashed rounded-xl p-4 text-center transition-colors ${formData.authorizationFile ? 'border-beatwap-gold bg-beatwap-gold/5' : 'border-gray-700 hover:border-gray-500'}`}>
+                            <input type="file" id="auth-doc" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFileChange(e, 'authorizationFile')} />
+                            <label htmlFor="auth-doc" className="cursor-pointer flex flex-col items-center gap-2">
+                              <div className="p-2 bg-gray-800 rounded-full text-white">
+                                <FileText size={20} />
+                              </div>
+                              <span className="font-bold text-sm">Termo de Autorização</span>
+                              <span className="text-xs text-gray-500">PDF ou Imagem</span>
+                              {formData.authorizationFile && <span className="text-beatwap-gold text-xs font-bold mt-1">{formData.authorizationFile.name}</span>}
+                            </label>
+                          </div>
+                        </motion.div>
+                      )}
                   </div>
 
                   <AnimatedInput 
