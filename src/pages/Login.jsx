@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock } from 'lucide-react';
+import { Mail, Lock, MessageCircle } from 'lucide-react';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Card } from '../components/ui/Card';
@@ -95,9 +95,14 @@ const Login = () => {
 
       <div className="text-center text-sm text-gray-500">
         Não tem uma conta?{' '}
-        <Link to="/register" className="text-beatwap-gold font-bold hover:underline">
-          Criar conta
-        </Link>
+        <a 
+          href="https://wa.me/5519981880590?text=Ol%C3%A1%2C%20gostaria%20de%20criar%20uma%20conta%20de%20artista%20na%20BeatWap." 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-beatwap-gold font-bold hover:underline inline-flex items-center gap-1"
+        >
+          Solicitar acesso <MessageCircle size={14} />
+        </a>
       </div>
     </div>
   );
