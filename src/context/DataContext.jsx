@@ -122,7 +122,6 @@ export const DataProvider = ({ children }) => {
         artist_name: newMusicData.artist,
         audio_url: newMusicData.audioFile,
         cover_url: newMusicData.cover,
-        authorization_url: newMusicData.authorizationUrl,
         is_original: newMusicData.isOriginal,
         songwriter: newMusicData.songwriter,
         has_featuring: newMusicData.hasFeaturing,
