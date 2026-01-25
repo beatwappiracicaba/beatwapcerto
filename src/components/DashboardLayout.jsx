@@ -295,6 +295,7 @@ export const DashboardLayout = ({ children, isAdmin = false }) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
+            className="max-w-7xl mx-auto w-full"
           >
             {children}
           </motion.div>
