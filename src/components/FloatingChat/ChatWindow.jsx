@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, ArrowLeft, Search, User } from 'lucide-react';
+import { MessageCircle, X, Send, ArrowLeft, Search, User, UserCheck, Lock } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import { MessageBubble } from './MessageBubble';
 import { AnimatedInput } from '../ui/AnimatedInput';
 
-export const ChatWindow = ({ isAdmin = false, currentUserId = 1 }) => {
+export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
   const { 
     chats, 
     isOpen, 
@@ -14,7 +14,9 @@ export const ChatWindow = ({ isAdmin = false, currentUserId = 1 }) => {
     setActiveChatId, 
     sendMessage, 
     getChatByArtist,
-    createChat 
+    createChat,
+    admins,
+    assignChat
   } = useChat();
   
   const [inputText, setInputText] = useState('');
@@ -30,17 +32,13 @@ export const ChatWindow = ({ isAdmin = false, currentUserId = 1 }) => {
   }, [chats, activeChatId, isOpen]);
 
   // Determine which chat is active
-  // If Artist: There is only one chat (Artist <-> Admin). If it doesn't exist, we might need to create it.
-  // If Admin: activeChatId determines the chat.
-  
   const activeChat = isAdmin 
     ? chats.find(c => c.id === activeChatId)
     : getChatByArtist(currentUserId);
 
   // If artist has no chat, create one placeholder or real one
   useEffect(() => {
-    if (!isAdmin && !activeChat && isOpen) {
-       // Auto-create chat for artist if opened
+    if (!isAdmin && !activeChat && isOpen && currentUserId) {
        createChat(currentUserId);
     }
   }, [isAdmin, activeChat, isOpen, currentUserId, createChat]);
@@ -59,18 +57,34 @@ export const ChatWindow = ({ isAdmin = false, currentUserId = 1 }) => {
     }
   };
 
+  const handleAssign = async () => {
+    if (activeChatId) {
+      try {
+        await assignChat(activeChatId);
+      } catch (error) {
+        console.error("Failed to assign chat", error);
+      }
+    }
+  };
+
   // Filter chats for Admin list
   const filteredChats = isAdmin 
     ? chats.filter(c => 
-        // In a real app we'd filter by artist name from a separate user list, 
-        // here we just have IDs in mockChats. 
-        // Let's assume we can search by ID or last message for now.
         c.lastMessage.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.artistId.toString().includes(searchTerm)
       ) 
     : [];
 
+  const getAssignedAdminName = (adminId) => {
+    const admin = admins.find(a => a.id === adminId);
+    return admin ? admin.name : 'Admin';
+  };
+
   if (!isOpen) return null;
+
+  const isAssignedToMe = activeChat?.assignedTo === currentUserId;
+  const isAssignedToOther = activeChat?.assignedTo && activeChat?.assignedTo !== currentUserId;
+  const isUnassigned = !activeChat?.assignedTo;
 
   return (
     <motion.div
@@ -88,14 +102,40 @@ export const ChatWindow = ({ isAdmin = false, currentUserId = 1 }) => {
              </button>
           ) : null}
           <div>
-            <h3 className="font-bold text-white">
+            <h3 className="font-bold text-white flex items-center gap-2">
               {isAdmin 
-                ? (activeChatId ? `Artista #${activeChat?.artistId}` : 'Atendimento') 
+                ? (activeChatId ? `Artista` : 'Atendimento') 
                 : 'Suporte BeatWap'}
             </h3>
-            <p className="text-xs text-green-500 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Online
-            </p>
+            
+            {/* Subtitle / Status */}
+            {!isAdmin && activeChat?.assignedTo ? (
+              <p className="text-xs text-beatwap-gold flex items-center gap-1">
+                <UserCheck size={12} />
+                Atendido por {getAssignedAdminName(activeChat.assignedTo)}
+              </p>
+            ) : (
+              <p className="text-xs text-green-500 flex items-center gap-1">
+                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Online
+              </p>
+            )}
+
+            {/* Admin Avatars in Header (Only on main list or user view) */}
+            {(!isAdmin || !activeChatId) && (
+               <div className="flex -space-x-2 mt-1">
+                 {admins.slice(0, 3).map((admin) => (
+                   <div key={admin.id} className="w-6 h-6 rounded-full border-2 border-[#121212] overflow-hidden bg-gray-700" title={admin.name}>
+                      {admin.avatar_url ? (
+                        <img src={admin.avatar_url} alt={admin.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-[10px] text-white font-bold">
+                          {admin.name?.charAt(0) || 'A'}
+                        </div>
+                      )}
+                   </div>
+                 ))}
+               </div>
+            )}
           </div>
         </div>
         <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white">
@@ -123,15 +163,25 @@ export const ChatWindow = ({ isAdmin = false, currentUserId = 1 }) => {
                 onClick={() => setActiveChatId(chat.id)}
                 className="p-3 hover:bg-white/5 rounded-xl cursor-pointer transition-colors flex gap-3 items-center"
               >
-                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-beatwap-gold">
+                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-beatwap-gold relative">
                   <User size={20} />
+                  {chat.assignedTo && (
+                     <div className="absolute -bottom-1 -right-1 bg-gray-800 rounded-full border border-black" title="Atendido">
+                        <UserCheck size={12} className="text-green-500" />
+                     </div>
+                  )}
                 </div>
                 <div className="flex-1 overflow-hidden">
                    <div className="flex justify-between items-center">
-                     <h4 className="font-bold text-sm text-white">Artista #{chat.artistId}</h4>
+                     <h4 className="font-bold text-sm text-white flex items-center gap-2">
+                        Artista #{chat.artistId.slice(0, 4)}...
+                        {chat.assignedTo === currentUserId && <span className="text-[10px] bg-beatwap-gold text-black px-1 rounded">Seu</span>}
+                     </h4>
                      <span className="text-[10px] text-gray-500">{new Date(chat.lastMessageTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
                    </div>
-                   <p className="text-xs text-gray-400 truncate">{chat.lastMessage}</p>
+                   <p className="text-xs text-gray-400 truncate">
+                      {chat.assignedTo && chat.assignedTo !== currentUserId ? `(Em atendimento por ${getAssignedAdminName(chat.assignedTo)})` : chat.lastMessage}
+                   </p>
                 </div>
                 {chat.unreadCount > 0 && (
                   <div className="w-5 h-5 bg-beatwap-gold text-black text-xs font-bold rounded-full flex items-center justify-center">
@@ -163,24 +213,41 @@ export const ChatWindow = ({ isAdmin = false, currentUserId = 1 }) => {
         )}
       </div>
 
-      {/* Input Area */}
+      {/* Input Area / Action Area */}
       {(isAdmin && !activeChatId) ? null : (
-        <form onSubmit={handleSend} className="p-3 border-t border-white/10 bg-[#181818] flex gap-2">
-          <input
-            type="text"
-            placeholder="Digite sua mensagem..."
-            className="flex-1 bg-black/30 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-          />
-          <button 
-            type="submit" 
-            disabled={!inputText.trim()}
-            className="p-3 bg-beatwap-gold text-black rounded-xl hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <Send size={18} />
-          </button>
-        </form>
+        <div className="p-3 border-t border-white/10 bg-[#181818]">
+          {isAdmin && isUnassigned ? (
+            <button 
+              onClick={handleAssign}
+              className="w-full py-3 bg-beatwap-gold text-black font-bold rounded-xl hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2"
+            >
+              <UserCheck size={20} />
+              Pegar Conversa
+            </button>
+          ) : isAdmin && isAssignedToOther ? (
+            <div className="w-full py-3 bg-white/5 text-gray-400 font-medium rounded-xl flex items-center justify-center gap-2 cursor-not-allowed">
+              <Lock size={16} />
+              Em atendimento por {getAssignedAdminName(activeChat.assignedTo)}
+            </div>
+          ) : (
+            <form onSubmit={handleSend} className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Digite sua mensagem..."
+                className="flex-1 bg-black/30 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+              />
+              <button 
+                type="submit" 
+                disabled={!inputText.trim()}
+                className="p-3 bg-beatwap-gold text-black rounded-xl hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <Send size={18} />
+              </button>
+            </form>
+          )}
+        </div>
       )}
     </motion.div>
   );

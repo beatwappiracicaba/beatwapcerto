@@ -7,6 +7,7 @@ const ChatContext = createContext();
 export const ChatProvider = ({ children }) => {
   const { user, profile } = useAuth();
   const [chats, setChats] = useState([]);
+  const [admins, setAdmins] = useState([]); // Store admin profiles
   const [isOpen, setIsOpen] = useState(false);
   const [activeChatId, setActiveChatId] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -14,6 +15,7 @@ export const ChatProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       fetchChats();
+      fetchAdmins(); // Fetch admins for header display
       
       // Subscribe to real-time changes
       const channel = supabase
@@ -33,6 +35,20 @@ export const ChatProvider = ({ children }) => {
       setChats([]);
     }
   }, [user, profile]);
+
+  const fetchAdmins = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url')
+        .eq('role', 'admin');
+
+      if (error) throw error;
+      setAdmins(data || []);
+    } catch (error) {
+      console.error('Error fetching admins:', error);
+    }
+  };
 
   const fetchChats = async () => {
     try {
@@ -58,19 +74,6 @@ export const ChatProvider = ({ children }) => {
         const sortedMessages = chat.messages?.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)) || [];
         const lastMsg = sortedMessages[sortedMessages.length - 1];
         
-        // Calculate unread count
-        // If I am admin, I count messages from artist that are unread
-        // If I am artist, I count messages from admin that are unread
-        // Note: sender_id in messages is UUID. profile.id is UUID.
-        // We need to map sender_id to 'admin' or 'artist' conceptually for the UI components if they rely on string 'admin'/'artist'.
-        // BUT the UI components use `msg.sender === 'admin'`.
-        // I should probably transform the messages to have `sender: 'admin' | 'artist'` based on sender_id.
-        // Or I can update UI components.
-        // To be safe and quick, I will transform here.
-        // Wait, I need to know if sender_id is admin or artist.
-        // I can fetch sender profiles or assume based on role?
-        // Actually, if sender_id == chat.artist_id, it is 'artist'. Otherwise 'admin'.
-        
         const messagesWithSender = sortedMessages.map(m => ({
           ...m,
           sender: m.sender_id === chat.artist_id ? 'artist' : 'admin',
@@ -84,10 +87,21 @@ export const ChatProvider = ({ children }) => {
            (profile?.role !== 'admin' && m.sender === 'admin'))
         ).length;
 
+        // Find assigned admin details if any
+        let assignedAdmin = null;
+        if (chat.assigned_to) {
+          // We can try to find in our admins state, but fetchChats might run before fetchAdmins populates.
+          // However, we will use the ID for now or fetch if needed.
+          // Ideally we join profiles on assigned_to, but let's just pass the ID and let UI resolve or use admins state.
+          // Or we can join in the query above.
+          // Let's modify the query to join assigned_to profile.
+        }
+
         return {
           id: chat.id,
           artistId: chat.artist_id,
-          adminId: 'admin', // Placeholder
+          adminId: 'admin', // Legacy placeholder
+          assignedTo: chat.assigned_to, // New field
           messages: messagesWithSender,
           lastMessage: lastMsg?.content || '',
           lastMessageTime: lastMsg?.created_at || chat.created_at,
@@ -100,6 +114,21 @@ export const ChatProvider = ({ children }) => {
       console.error('Error fetching chats:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const assignChat = async (chatId) => {
+    try {
+      const { error } = await supabase
+        .from('chats')
+        .update({ assigned_to: user.id })
+        .eq('id', chatId);
+
+      if (error) throw error;
+      await fetchChats(); // Refresh
+    } catch (error) {
+      console.error('Error assigning chat:', error);
+      throw error;
     }
   };
 
@@ -202,7 +231,9 @@ export const ChatProvider = ({ children }) => {
       getChatByArtist,
       createChat,
       openChatWithContext,
-      loading
+      loading,
+      admins,
+      assignChat
     }}>
       {children}
     </ChatContext.Provider>
