@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LayoutDashboard, Upload, Settings, LogOut, Music, Shield, Users, Bell, BarChart2, Edit2, Camera } from 'lucide-react';
@@ -41,60 +41,95 @@ const SidebarItem = ({ icon: Icon, label, to, active }) => (
 export const DashboardLayout = ({ children, isAdmin = false }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, refreshProfile } = useAuth();
   const { addToast } = useToast();
   const currentUserId = user?.id;
   
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  // Force profile completion
+  useEffect(() => {
+    if (!profile) return;
+    
+    // Check if name or avatar is missing
+    if (!profile.name || !profile.avatar_url) {
+      // Small delay to ensure loading isn't happening
+      const timer = setTimeout(() => {
+        setIsProfileModalOpen(true);
+        if (!profile.name || !profile.avatar_url) {
+           addToast('Por favor, complete seu perfil com foto e nome.', 'info');
+        }
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [profile, addToast]);
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
   };
 
-  const handleSaveProfile = async (croppedImageBlob) => {
-    if (!croppedImageBlob) {
+  const handleSaveProfile = async (data) => {
+    const { name, bio, blob } = data;
+    
+    if (!name && !blob && !bio) {
         setIsProfileModalOpen(false);
         return;
     }
 
     setUploading(true);
     try {
-        const fileName = `${user.id}/${Date.now()}.jpg`;
-        
-        // 1. Upload to Supabase Storage
-        const { error: uploadError } = await supabase.storage
-            .from('avatars')
-            .upload(fileName, croppedImageBlob, {
-                contentType: 'image/jpeg',
-                upsert: true
-            });
+        let publicUrl = null;
 
-        if (uploadError) throw uploadError;
+        if (blob) {
+            const fileName = `${user.id}/${Date.now()}.jpg`;
+            
+            // 1. Upload to Supabase Storage
+            const { error: uploadError } = await supabase.storage
+                .from('avatars')
+                .upload(fileName, blob, {
+                    contentType: 'image/jpeg',
+                    upsert: true
+                });
 
-        // 2. Get Public URL
-        const { data: { publicUrl } } = supabase.storage
-            .from('avatars')
-            .getPublicUrl(fileName);
+            if (uploadError) throw uploadError;
+
+            // 2. Get Public URL
+            const { data: { publicUrl: url } } = supabase.storage
+                .from('avatars')
+                .getPublicUrl(fileName);
+            publicUrl = url;
+        }
 
         // 3. Update Profile
+        const updates = {
+            updated_at: new Date(),
+        };
+
+        if (publicUrl) updates.avatar_url = publicUrl;
+        if (name) {
+             // Capitalize first letter of each word
+             updates.name = name.replace(/\w\S*/g, (w) => (w.replace(/^\w/, (c) => c.toUpperCase())));
+        }
+        if (bio !== undefined) updates.bio = bio;
+
         const { error: updateError } = await supabase
             .from('profiles')
-            .update({ avatar_url: publicUrl })
+            .update(updates)
             .eq('id', user.id);
 
         if (updateError) throw updateError;
 
-        addToast('Foto de perfil atualizada!', 'success');
+        addToast('Perfil atualizado com sucesso!', 'success');
         setIsProfileModalOpen(false);
         
-        // Reload page to reflect changes (or update context if we had a setProfile method exposed)
-        window.location.reload();
+        // Refresh context
+        await refreshProfile();
 
     } catch (error) {
         console.error('Error updating profile:', error);
-        addToast('Erro ao atualizar foto.', 'error');
+        addToast(`Erro ao atualizar perfil: ${error.message || 'Erro desconhecido'}`, 'error');
     } finally {
         setUploading(false);
     }

@@ -32,12 +32,14 @@ const Register = () => {
     
     try {
       // 1. Sign Up with Metadata
+      const capitalizedName = formData.name.replace(/\w\S*/g, (w) => (w.replace(/^\w/, (c) => c.toUpperCase())));
+      
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: {
-            name: formData.name,
+            name: capitalizedName,
           }
         }
       });
