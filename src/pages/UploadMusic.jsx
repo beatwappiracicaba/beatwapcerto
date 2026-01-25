@@ -157,12 +157,33 @@ const UploadMusic = () => {
                     value={formData.artist}
                     onChange={e => setFormData({...formData, artist: e.target.value})}
                   />
-                  <AnimatedInput 
-                    label="Gênero Principal" 
-                    placeholder="Ex: Trap, Funk, Pop" 
-                    value={formData.genre}
-                    onChange={e => setFormData({...formData, genre: e.target.value})}
-                  />
+                  
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-400 ml-1">Gênero Principal</label>
+                    <select
+                      value={formData.genre}
+                      onChange={e => setFormData({...formData, genre: e.target.value})}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold focus:ring-1 focus:ring-beatwap-gold transition-all appearance-none"
+                    >
+                      <option value="" disabled>Selecione um gênero</option>
+                      <option value="Funk">Funk</option>
+                      <option value="Trap">Trap</option>
+                      <option value="Rap">Rap</option>
+                      <option value="Sertanejo">Sertanejo</option>
+                      <option value="Forró">Forró</option>
+                      <option value="Piseiro">Piseiro</option>
+                      <option value="Pagode">Pagode</option>
+                      <option value="Samba">Samba</option>
+                      <option value="MPB">MPB</option>
+                      <option value="Axé">Axé</option>
+                      <option value="Brega Funk">Brega Funk</option>
+                      <option value="Hip Hop">Hip Hop</option>
+                      <option value="Pop">Pop</option>
+                      <option value="Eletrônica">Eletrônica</option>
+                      <option value="Rock">Rock</option>
+                      <option value="Outro">Outro</option>
+                    </select>
+                  </div>
                 </div>
                 <AnimatedInput 
                   label="ISRC (Opcional)" 
