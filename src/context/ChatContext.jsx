@@ -219,6 +219,31 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  const deleteChat = async (chatId) => {
+    try {
+      // Delete messages first
+      const { error: msgError } = await supabase
+        .from('messages')
+        .delete()
+        .eq('chat_id', chatId);
+      if (msgError) throw msgError;
+      // Delete chat
+      const { error: chatError } = await supabase
+        .from('chats')
+        .delete()
+        .eq('id', chatId);
+      if (chatError) throw chatError;
+      // Update local state
+      setChats(prev => prev.filter(c => c.id !== chatId));
+      if (activeChatId === chatId) {
+        setActiveChatId(null);
+      }
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+      throw error;
+    }
+  };
+ 
   return (
     <ChatContext.Provider value={{ 
       chats, 
@@ -233,7 +258,8 @@ export const ChatProvider = ({ children }) => {
       openChatWithContext,
       loading,
       admins,
-      assignChat
+      assignChat,
+      deleteChat
     }}>
       {children}
     </ChatContext.Provider>

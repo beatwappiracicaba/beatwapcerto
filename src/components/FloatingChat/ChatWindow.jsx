@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, ArrowLeft, Search, User, UserCheck, Lock } from 'lucide-react';
+import { MessageCircle, X, Send, ArrowLeft, Search, User, UserCheck, Lock, Trash2 } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import { MessageBubble } from './MessageBubble';
 import { AnimatedInput } from '../ui/AnimatedInput';
@@ -16,7 +16,8 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
     getChatByArtist,
     createChat,
     admins,
-    assignChat
+    assignChat,
+    deleteChat
   } = useChat();
   
   const [inputText, setInputText] = useState('');
@@ -138,9 +139,29 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
             )}
           </div>
         </div>
-        <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white">
-          <X size={20} />
-        </button>
+        <div className="flex items-center gap-2">
+          {isAdmin && activeChatId && (
+            <button 
+              onClick={async () => {
+                if (window.confirm('Finalizar e apagar esta conversa?')) {
+                  try {
+                    await deleteChat(activeChatId);
+                    setActiveChatId(null);
+                  } catch (e) {
+                    console.error('Falha ao apagar conversa', e);
+                  }
+                }
+              }} 
+              className="text-red-400 hover:bg-red-500/10 p-1 rounded-full"
+              title="Finalizar e Apagar"
+            >
+              <Trash2 size={18} />
+            </button>
+          )}
+          <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white">
+            <X size={20} />
+          </button>
+        </div>
       </div>
 
       {/* Content */}

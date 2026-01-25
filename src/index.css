@@ -6,6 +6,18 @@
   body {
     @apply bg-beatwap-black text-beatwap-white;
   }
+  :root {
+    color-scheme: dark;
+  }
+  select {
+    background-color: #121212;
+    color: #ffffff;
+    border-color: rgba(255,255,255,0.1);
+  }
+  select option {
+    background-color: #121212;
+    color: #ffffff;
+  }
 }
 
 /* Custom scrollbar for premium feel */
