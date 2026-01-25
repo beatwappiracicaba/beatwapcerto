@@ -26,6 +26,10 @@ const UploadMusic = () => {
     artist: '',
     genre: '',
     isrc: '',
+    songwriter: '',
+    hasFeaturing: false,
+    featuringArtist: '',
+    distributeAll: false,
     audioFile: null,
     coverFile: null
   });
@@ -33,7 +37,7 @@ const UploadMusic = () => {
   const [checklist, setChecklist] = useState([
     { label: 'Arquivo de áudio (WAV/MP3 320kbps)', valid: false, error: 'Formato inválido ou bitrate baixo.' },
     { label: 'Capa (3000x3000px, JPG/PNG)', valid: false, error: 'Resolução mínima não atingida.' },
-    { label: 'Metadados Obrigatórios', valid: false, error: 'Preencha título, artista e gênero.' }
+    { label: 'Metadados Obrigatórios', valid: false, error: 'Preencha título, artista, gênero e compositor.' }
   ]);
 
   // Real-time validation simulation
@@ -47,7 +51,9 @@ const UploadMusic = () => {
     newChecklist[1].valid = !!formData.coverFile;
     
     // Metadata validation
-    newChecklist[2].valid = !!(formData.title && formData.artist && formData.genre);
+    const basicMetadata = formData.title && formData.artist && formData.genre && formData.songwriter;
+    const featuringValid = !formData.hasFeaturing || (formData.hasFeaturing && formData.featuringArtist);
+    newChecklist[2].valid = !!(basicMetadata && featuringValid);
 
     setChecklist(newChecklist);
   }, [formData]);
@@ -186,7 +192,54 @@ const UploadMusic = () => {
                   </div>
                 </div>
                 <AnimatedInput 
-                  label="ISRC (Opcional)" 
+                    label="Compositor" 
+                    placeholder="Nome do Compositor" 
+                    value={formData.songwriter}
+                    onChange={e => setFormData({...formData, songwriter: e.target.value})}
+                  />
+
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium text-gray-400">Possui participação especial (Feat)?</label>
+                      <input 
+                        type="checkbox" 
+                        checked={formData.hasFeaturing}
+                        onChange={e => setFormData({...formData, hasFeaturing: e.target.checked})}
+                        className="w-5 h-5 accent-beatwap-gold rounded cursor-pointer"
+                      />
+                    </div>
+                    
+                    {formData.hasFeaturing && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                      >
+                        <AnimatedInput 
+                          label="Artista(s) Participante(s)" 
+                          placeholder="Nome do Feat" 
+                          value={formData.featuringArtist}
+                          onChange={e => setFormData({...formData, featuringArtist: e.target.value})}
+                        />
+                      </motion.div>
+                    )}
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between">
+                      <div className="flex flex-col">
+                          <span className="font-medium text-white">Distribuição Digital</span>
+                          <span className="text-xs text-gray-400">Distribuir em todas as plataformas (Spotify, Apple Music, etc)?</span>
+                      </div>
+                      <input 
+                        type="checkbox" 
+                        checked={formData.distributeAll}
+                        onChange={e => setFormData({...formData, distributeAll: e.target.checked})}
+                        className="w-5 h-5 accent-beatwap-gold rounded cursor-pointer"
+                      />
+                  </div>
+
+                  <AnimatedInput 
+                    label="ISRC (Opcional)" 
                   placeholder="BR-XXX-24-00000" 
                   value={formData.isrc}
                   onChange={e => setFormData({...formData, isrc: e.target.value})}
