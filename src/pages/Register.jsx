@@ -29,43 +29,23 @@ const Register = () => {
     setLoading(true);
     
     try {
-      // 1. Sign Up
+      // 1. Sign Up with Metadata
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
+        options: {
+          data: {
+            name: formData.name,
+          }
+        }
       });
       
       if (authError) throw authError;
       
       if (authData.user) {
-        // 2. Create Profile
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([{
-            id: authData.user.id,
-            name: formData.name,
-            email: formData.email,
-            role: 'artist', // Default role
-            status: 'pending' // Default status
-          }]);
+        // Profile creation is now handled by Supabase Database Triggers
+        // to avoid RLS issues and ensure consistency.
         
-        if (profileError) {
-          console.error('Profile creation failed:', profileError);
-          // If RLS blocks this, we rely on triggers. 
-          // Assuming public insert or auth.uid() = id policy allows it.
-        }
-        
-        // 3. Create Metrics (empty)
-        const { error: metricsError } = await supabase
-          .from('metrics')
-          .insert([{
-            artist_id: authData.user.id
-          }]);
-          
-        if (metricsError) {
-             console.error('Metrics creation failed:', metricsError);
-        }
-
         addToast('Conta criada com sucesso!', 'success');
         navigate('/dashboard');
       }

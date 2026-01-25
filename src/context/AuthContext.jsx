@@ -42,9 +42,9 @@ export const AuthProvider = ({ children }) => {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       
-      if (error && error.code !== 'PGRST116') { // PGRST116 is 'not found' which might happen if profile not created yet
+      if (error) {
         console.error('Error fetching profile:', error);
       }
       setProfile(data);

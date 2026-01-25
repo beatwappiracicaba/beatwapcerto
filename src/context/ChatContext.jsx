@@ -135,11 +135,21 @@ export const ChatProvider = ({ children }) => {
   };
 
   const createChat = async (artistId) => {
-    // Check if exists first
+    // Check if exists in local state first
     const existing = chats.find(c => c.artistId === artistId);
     if (existing) return existing.id;
 
     try {
+      // Check if exists in DB to avoid 409
+      const { data: existingDb } = await supabase
+        .from('chats')
+        .select('id')
+        .eq('artist_id', artistId)
+        .maybeSingle();
+
+      if (existingDb) return existingDb.id;
+
+      // Create new chat
       const { data, error } = await supabase
         .from('chats')
         .insert({
@@ -148,7 +158,18 @@ export const ChatProvider = ({ children }) => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // Handle race condition (concurrent creation)
+        if (error.code === '23505' || error.status === 409) {
+           const { data: retryData } = await supabase
+             .from('chats')
+             .select('id')
+             .eq('artist_id', artistId)
+             .maybeSingle();
+           return retryData?.id;
+        }
+        throw error;
+      }
       return data.id;
     } catch (error) {
       console.error('Error creating chat:', error);
