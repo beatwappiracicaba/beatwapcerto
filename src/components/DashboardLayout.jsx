@@ -1,13 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Upload, Settings, LogOut, Music, Shield, Users, Bell, BarChart2 } from 'lucide-react';
+import { LayoutDashboard, Upload, Settings, LogOut, Music, Shield, Users, Bell, BarChart2, Edit2, Camera } from 'lucide-react';
 import { clsx } from 'clsx';
 import logo from '../assets/images/beatwap-logo.png';
 import { NotificationBell } from './Notifications/NotificationBell';
 import { ChatButton } from './FloatingChat/ChatButton';
 import { ChatWindow } from './FloatingChat/ChatWindow';
 import { useAuth } from '../context/AuthContext';
+import { ProfileEditModal } from './ui/ProfileEditModal';
+import { supabase } from '../services/supabaseClient';
+import { useToast } from '../context/ToastContext';
 
 const SidebarItem = ({ icon: Icon, label, to, active }) => (
   <Link to={to}>
@@ -38,7 +41,58 @@ const SidebarItem = ({ icon: Icon, label, to, active }) => (
 export const DashboardLayout = ({ children, isAdmin = false }) => {
   const location = useLocation();
   const { user, profile, signOut } = useAuth();
+  const { addToast } = useToast();
   const currentUserId = user?.id;
+  
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const handleSaveProfile = async (croppedImageBlob) => {
+    if (!croppedImageBlob) {
+        setIsProfileModalOpen(false);
+        return;
+    }
+
+    setUploading(true);
+    try {
+        const fileName = `${user.id}/${Date.now()}.jpg`;
+        
+        // 1. Upload to Supabase Storage
+        const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(fileName, croppedImageBlob, {
+                contentType: 'image/jpeg',
+                upsert: true
+            });
+
+        if (uploadError) throw uploadError;
+
+        // 2. Get Public URL
+        const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(fileName);
+
+        // 3. Update Profile
+        const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ avatar_url: publicUrl })
+            .eq('id', user.id);
+
+        if (updateError) throw updateError;
+
+        addToast('Foto de perfil atualizada!', 'success');
+        setIsProfileModalOpen(false);
+        
+        // Reload page to reflect changes (or update context if we had a setProfile method exposed)
+        window.location.reload();
+
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        addToast('Erro ao atualizar foto.', 'error');
+    } finally {
+        setUploading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen bg-beatwap-black text-white font-sans selection:bg-beatwap-gold selection:text-black">
@@ -134,13 +188,24 @@ export const DashboardLayout = ({ children, isAdmin = false }) => {
           </h2>
           <div className="flex items-center gap-4">
             <NotificationBell userId={currentUserId} />
-            <div className="flex items-center gap-3 pl-4 border-l border-white/10">
-              <div className="text-right hidden md:block">
-                <div className="text-sm font-bold text-white">{profile?.name || 'Usuário'}</div>
-                <div className="text-xs text-gray-400">{isAdmin ? 'Admin' : 'Artista'}</div>
+            <div className="flex items-center gap-3 pl-4 border-l border-white/10 group cursor-pointer" onClick={() => setIsProfileModalOpen(true)}>
+              <div className="text-right hidden md:block group-hover:opacity-80 transition-opacity">
+                <div className="text-sm font-bold text-white">{profile?.name || user?.email?.split('@')[0] || 'Usuário'}</div>
+                <div className="text-xs text-gray-400 flex items-center justify-end gap-1">
+                  {isAdmin ? 'Admin' : 'Artista'} <Edit2 size={10} />
+                </div>
               </div>
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-beatwap-gold to-yellow-300 border-2 border-black flex items-center justify-center text-black font-bold">
-                {profile?.name?.charAt(0).toUpperCase() || 'U'}
+              <div className="relative">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-beatwap-gold to-yellow-300 border-2 border-black flex items-center justify-center text-black font-bold overflow-hidden">
+                    {profile?.avatar_url ? (
+                        <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                        profile?.name?.charAt(0).toUpperCase() || 'U'
+                    )}
+                </div>
+                <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Camera size={14} className="text-white" />
+                </div>
               </div>
             </div>
           </div>
@@ -165,6 +230,16 @@ export const DashboardLayout = ({ children, isAdmin = false }) => {
           <ChatWindow isAdmin={isAdmin} currentUserId={currentUserId} />
         </>
       )}
+
+      <ProfileEditModal 
+        isOpen={isProfileModalOpen} 
+        onClose={() => setIsProfileModalOpen(false)} 
+        currentAvatar={profile?.avatar_url}
+        currentName={profile?.name}
+        currentBio={profile?.bio}
+        onSave={handleSaveProfile}
+        uploading={uploading}
+      />
     </div>
   );
 };
