@@ -40,7 +40,8 @@ const Register = () => {
         options: {
           data: {
             name: capitalizedName,
-          }
+          },
+          emailRedirectTo: `${window.location.origin}/login`, // Redirect to login or dashboard after confirmation
         }
       });
       
@@ -53,7 +54,7 @@ const Register = () => {
       } else if (authData.user) {
         // Needs verification
         setStep('verify');
-        addToast('Código de verificação enviado para seu email.', 'info');
+        addToast('Verifique seu email para confirmar a conta.', 'info');
       }
 
     } catch (error) {
@@ -94,7 +95,10 @@ const Register = () => {
       <div className="space-y-8">
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold text-white">Verificar Email</h1>
-          <p className="text-gray-400">Digite o código enviado para {formData.email}</p>
+          <p className="text-gray-400">
+            Enviamos um link de confirmação para {formData.email}.<br/>
+            Clique no link enviado ou insira o código abaixo se houver.
+          </p>
         </div>
 
         <Card className="space-y-6">
