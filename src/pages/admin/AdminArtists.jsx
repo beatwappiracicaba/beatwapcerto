@@ -30,8 +30,8 @@ export const AdminArtists = () => {
   };
 
   const filteredArtists = artists.filter(artist => 
-    artist.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    artist.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (artist.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (artist.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const openMetricsModal = (artist) => {

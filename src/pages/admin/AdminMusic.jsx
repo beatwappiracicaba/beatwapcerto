@@ -27,7 +27,7 @@ export const AdminMusic = () => {
   ];
 
   const filteredMusic = music.filter(m => 
-    m.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (m.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (m.artist_name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 

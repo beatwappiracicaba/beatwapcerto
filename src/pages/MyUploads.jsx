@@ -22,7 +22,7 @@ const MyUploads = () => {
   );
 
   const filteredReleases = myReleases.filter(item => 
-    item.title.toLowerCase().includes(searchTerm.toLowerCase())
+    (item.title || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
