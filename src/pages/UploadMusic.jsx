@@ -55,6 +55,26 @@ const UploadMusic = () => {
     }
   };
 
+  const uploadFile = async (file, bucket) => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+    const filePath = `${user.id}/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, file);
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  };
+
   const handleUpload = async () => {
     if (!user) {
       addToast('Você precisa estar logado para enviar música.', 'error');
@@ -63,21 +83,32 @@ const UploadMusic = () => {
 
     setLoading(true);
     try {
+      let audioUrl = '';
+      let coverUrl = '';
+
+      // Upload Audio
+      if (formData.audioFile) {
+         audioUrl = await uploadFile(formData.audioFile, 'tracks');
+      }
+
+      // Upload Cover
+      if (formData.coverFile) {
+        coverUrl = await uploadFile(formData.coverFile, 'covers');
+      }
+
       await addMusic({
         ...formData,
         artistId: user.id,
         artist: user.user_metadata?.name || 'Artista Desconhecido',
-        // In a real app, you would upload files to storage here and get URLs
-        // For now we simulate URLs or use placeholders if file objects are passed
-        audioFile: 'https://example.com/audio.mp3', 
-        cover: 'https://example.com/cover.jpg'
+        audioFile: audioUrl,
+        cover: coverUrl
       });
       
       addToast('Música enviada para análise!', 'success');
-      navigate('/dashboard');
+      navigate('/dashboard/uploads');
     } catch (error) {
       console.error(error);
-      addToast('Erro ao enviar música.', 'error');
+      addToast('Erro ao enviar música. Tente novamente.', 'error');
     } finally {
       setLoading(false);
     }

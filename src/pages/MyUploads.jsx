@@ -76,7 +76,11 @@ const MyUploads = () => {
           </thead>
           <tbody className="divide-y divide-white/5">
             {filteredReleases.map((item, index) => (
-              <tr key={item.id} className="hover:bg-white/5 transition-colors group">
+              <tr 
+                key={item.id} 
+                onClick={() => navigate(`/dashboard/music/${item.id}`)}
+                className="hover:bg-white/5 transition-colors group cursor-pointer"
+              >
                 <td className="p-4">
                   <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center overflow-hidden">
                     {item.cover_url ? (
