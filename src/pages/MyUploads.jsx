@@ -8,29 +8,20 @@ import { Skeleton, TableSkeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Music, Plus, Search } from 'lucide-react';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
+import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 
 const MyUploads = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const { music, loading: dataLoading } = useData();
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    // Simulating data fetch
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, []);
+  const myReleases = music.filter(item => 
+    item.artist_id === user?.id
+  );
 
-  const releases = [
-    { id: 1, title: 'O Mundo é Nosso', status: 'approved' },
-    { id: 'rejected', title: 'Trap do Futuro', status: 'rejected' },
-    { id: 3, title: 'Love Song', status: 'review' },
-    { id: 4, title: 'Vibe de Verão', status: 'approved' },
-    { id: 5, title: 'Noite em Claro', status: 'review' },
-  ];
-
-  const filteredReleases = releases.filter(item => 
+  const filteredReleases = myReleases.filter(item => 
     item.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -58,7 +49,7 @@ const MyUploads = () => {
       </div>
 
       <Card className="overflow-hidden p-0">
-        {loading ? (
+        {dataLoading ? (
             <div className="p-4">
                 <TableSkeleton rows={5} />
             </div>
@@ -101,19 +92,18 @@ const MyUploads = () => {
                     'bg-yellow-500/10 text-yellow-500'
                   }`}>
                     {item.status === 'approved' ? 'Aprovado' :
-                     item.status === 'rejected' ? 'Recusado' : 'Em Análise'}
+                     item.status === 'rejected' ? 'Rejeitado' :
+                     'Em Análise'}
                   </span>
                 </td>
-                <td className="p-4 text-gray-400 font-mono text-xs">
-                  {item.upc || item.isrc || 'Pendente'}
+                <td className="p-4 text-gray-400 text-sm">
+                    <div>{item.upc || '-'}</div>
+                    <div className="text-xs opacity-50">{item.isrc || '-'}</div>
                 </td>
                 <td className="p-4">
-                  <Link 
-                    to={`/dashboard/music/${item.id}`}
-                    className="text-sm text-beatwap-gold hover:underline font-medium"
-                  >
-                    Ver Detalhes
-                  </Link>
+                    <AnimatedButton variant="outline" size="sm">
+                        Detalhes
+                    </AnimatedButton>
                 </td>
               </tr>
             ))}
@@ -122,12 +112,12 @@ const MyUploads = () => {
         ) : (
             <EmptyState 
                 icon={Music}
-                title={searchTerm ? "Nenhuma música encontrada" : "Nenhum lançamento ainda"}
-                description={searchTerm ? "Tente buscar por outro termo." : "Você ainda não enviou nenhuma música."}
+                title="Nenhuma música encontrada"
+                description={searchTerm ? "Tente buscar com outros termos." : "Você ainda não enviou nenhuma música."}
                 action={
                     !searchTerm && (
                         <AnimatedButton onClick={() => navigate('/dashboard/upload')}>
-                            Enviar Primeira Música
+                            Enviar Música
                         </AnimatedButton>
                     )
                 }

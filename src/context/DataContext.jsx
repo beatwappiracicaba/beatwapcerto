@@ -94,8 +94,8 @@ export const DataProvider = ({ children }) => {
     try {
       // Prepare data for DB
       const musicPayload = {
-        status: 'approved',
-        added_by: 'admin', // Default based on old logic, adjust as needed
+        status: newMusicData.status || 'review',
+        added_by: newMusicData.addedBy || 'artist',
         ...newMusicData,
         // Ensure field names match DB (camelCase to snake_case mapping might be needed if not consistent)
         artist_id: newMusicData.artistId,

@@ -8,11 +8,16 @@ import { Checklist } from '../components/ui/Checklist';
 import { AudioPlayer } from '../components/ui/AudioPlayer';
 import { Upload, Image as ImageIcon, Music, ArrowLeft } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
+import { supabase } from '../services/supabaseClient';
 import { motion } from 'framer-motion';
 
 const UploadMusic = () => {
   const navigate = useNavigate();
   const { addToast } = useToast();
+  const { user } = useAuth();
+  const { addMusic } = useData();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   
@@ -99,9 +104,11 @@ const UploadMusic = () => {
       await addMusic({
         ...formData,
         artistId: user.id,
-        artist: user.user_metadata?.name || 'Artista Desconhecido',
+        artist: user.user_metadata?.name || formData.artist || 'Artista Desconhecido',
         audioFile: audioUrl,
-        cover: coverUrl
+        cover: coverUrl,
+        status: 'review',
+        addedBy: 'artist'
       });
       
       addToast('Música enviada para análise!', 'success');
@@ -199,36 +206,21 @@ const UploadMusic = () => {
                 </div>
               </div>
             </Card>
-
-            {/* Preview Section */}
-            {formData.audioFile && (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                <h3 className="text-sm font-bold text-gray-400 mb-2">Preview do Upload</h3>
-                <AudioPlayer 
-                  title={formData.title || "Sem título"} 
-                  artist={formData.artist || "Artista desconhecido"} 
-                />
-              </motion.div>
-            )}
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <Checklist items={checklist} />
-            
-            <AnimatedButton 
-              fullWidth 
-              onClick={handleUpload}
-              isLoading={loading}
-              className={!isFormValid ? 'opacity-50 cursor-not-allowed grayscale' : ''}
-              disabled={!isFormValid || loading}
-            >
-              Enviar Lançamento
-            </AnimatedButton>
-
-            <p className="text-xs text-gray-500 text-center px-4">
-              Ao enviar, você concorda com nossos termos de distribuição e garante ter 100% dos direitos da obra.
-            </p>
+          {/* Checklist */}
+          <div className="lg:col-span-1">
+             <div className="sticky top-8">
+                <Checklist items={checklist} />
+                
+                <AnimatedButton 
+                    className="w-full mt-6"
+                    onClick={handleUpload}
+                    disabled={!isFormValid || loading}
+                >
+                    {loading ? 'Enviando...' : 'Enviar para Análise'}
+                </AnimatedButton>
+             </div>
           </div>
         </div>
       </div>
