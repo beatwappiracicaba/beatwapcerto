@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Upload, Settings, LogOut, Music, Shield, Users, Bell, BarChart2, Edit2, Camera } from 'lucide-react';
+import { LayoutDashboard, Upload, Settings, LogOut, Music, Shield, Users, Bell, BarChart2, Edit2, Camera, Menu, X } from 'lucide-react';
 import { clsx } from 'clsx';
 import logo from '../assets/images/beatwap-logo.png';
 import { NotificationBell } from './Notifications/NotificationBell';
@@ -12,8 +12,8 @@ import { ProfileEditModal } from './ui/ProfileEditModal';
 import { supabase } from '../services/supabaseClient';
 import { useToast } from '../context/ToastContext';
 
-const SidebarItem = ({ icon: Icon, label, to, active }) => (
-  <Link to={to}>
+const SidebarItem = ({ icon: Icon, label, to, active, onClick }) => (
+  <Link to={to} onClick={onClick}>
     <motion.div 
       className={clsx(
         "flex items-center gap-3 px-4 py-3 rounded-xl transition-colors relative overflow-hidden",
@@ -47,6 +47,7 @@ export const DashboardLayout = ({ children, isAdmin = false }) => {
   
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Force profile completion
   useEffect(() => {
@@ -136,97 +137,131 @@ export const DashboardLayout = ({ children, isAdmin = false }) => {
   };
 
   return (
-    <div className="flex min-h-screen bg-beatwap-black text-white font-sans selection:bg-beatwap-gold selection:text-black">
+    <div className="flex h-screen bg-beatwap-black text-white font-sans selection:bg-beatwap-gold selection:text-black overflow-hidden">
+      
+      {/* Mobile Backdrop */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <div className="w-64 border-r border-white/5 p-6 flex flex-col fixed h-full bg-beatwap-black z-20">
-        <div className="mb-10 flex items-center gap-2 px-2">
-          <div className="w-8 h-8 flex items-center justify-center">
-            <img src={logo} alt="BeatWap Logo" className="w-full h-full object-contain" />
-          </div>
-          <span className="font-bold text-xl tracking-tight">BeatWap</span>
-        </div>
+      <div className={clsx(
+        "flex flex-col w-64 border-r border-white/5 bg-beatwap-black z-50 transition-transform duration-300 ease-in-out fixed inset-y-0 left-0 md:relative md:translate-x-0",
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        <div className="p-6 flex flex-col h-full">
+            <div className="mb-10 flex items-center justify-between px-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 flex items-center justify-center">
+                  <img src={logo} alt="BeatWap Logo" className="w-full h-full object-contain" />
+                </div>
+                <span className="font-bold text-xl tracking-tight">BeatWap</span>
+              </div>
+              <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-gray-400 hover:text-white">
+                <X size={20} />
+              </button>
+            </div>
 
-        <nav className="space-y-2 flex-1">
-          {isAdmin ? (
-            // Admin Menu
-            <>
-              <SidebarItem 
-                icon={LayoutDashboard} 
-                label="Visão Geral" 
-                to="/admin" 
-                active={location.pathname === '/admin'} 
-              />
-              <SidebarItem 
-                icon={Users} 
-                label="Artistas" 
-                to="/admin/artists" 
-                active={location.pathname.includes('/admin/artists')} 
-              />
-              <SidebarItem 
-                icon={Music} 
-                label="Músicas" 
-                to="/admin/music" 
-                active={location.pathname.includes('/admin/music')} 
-              />
-              <SidebarItem 
-                icon={BarChart2} 
-                label="Métricas" 
-                to="/admin/metrics" 
-                active={location.pathname.includes('/admin/metrics')} 
-              />
-              <SidebarItem 
-                icon={Bell} 
-                label="Notificações" 
-                to="/admin/notifications" 
-                active={location.pathname.includes('/admin/notifications')} 
-              />
-              <SidebarItem 
-                icon={Settings} 
-                label="Configurações" 
-                to="/admin/settings" 
-                active={location.pathname.includes('/admin/settings')} 
-              />
-            </>
-          ) : (
-            // Artist Menu
-            <>
-              <SidebarItem 
-                icon={LayoutDashboard} 
-                label="Visão Geral" 
-                to="/dashboard" 
-                active={location.pathname === '/dashboard'} 
-              />
-              <SidebarItem 
-                icon={Upload} 
-                label="Meus Lançamentos" 
-                to="/dashboard/uploads" 
-                active={location.pathname.includes('uploads')} 
-              />
-              <SidebarItem 
-                icon={Settings} 
-                label="Configurações" 
-                to="/settings" 
-                active={location.pathname === '/settings'} 
-              />
-            </>
-          )}
-        </nav>
+            <nav className="space-y-2 flex-1 overflow-y-auto custom-scrollbar">
+              {isAdmin ? (
+                // Admin Menu
+                <>
+                  <SidebarItem 
+                    icon={LayoutDashboard} 
+                    label="Visão Geral" 
+                    to="/admin" 
+                    active={location.pathname === '/admin'}
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                  <SidebarItem 
+                    icon={Users} 
+                    label="Artistas" 
+                    to="/admin/artists" 
+                    active={location.pathname.includes('/admin/artists')}
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                  <SidebarItem 
+                    icon={Music} 
+                    label="Músicas" 
+                    to="/admin/music" 
+                    active={location.pathname.includes('/admin/music')}
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                  <SidebarItem 
+                    icon={BarChart2} 
+                    label="Métricas" 
+                    to="/admin/metrics" 
+                    active={location.pathname.includes('/admin/metrics')}
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                  <SidebarItem 
+                    icon={Bell} 
+                    label="Notificações" 
+                    to="/admin/notifications" 
+                    active={location.pathname.includes('/admin/notifications')}
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                  <SidebarItem 
+                    icon={Settings} 
+                    label="Configurações" 
+                    to="/admin/settings" 
+                    active={location.pathname.includes('/admin/settings')}
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                </>
+              ) : (
+                // Artist Menu
+                <>
+                  <SidebarItem 
+                    icon={LayoutDashboard} 
+                    label="Visão Geral" 
+                    to="/dashboard" 
+                    active={location.pathname === '/dashboard'}
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                  <SidebarItem 
+                    icon={Upload} 
+                    label="Meus Lançamentos" 
+                    to="/dashboard/uploads" 
+                    active={location.pathname.includes('uploads')}
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                  <SidebarItem 
+                    icon={Settings} 
+                    label="Configurações" 
+                    to="/settings" 
+                    active={location.pathname === '/settings'}
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                </>
+              )}
+            </nav>
 
-        <div className="mt-auto pt-6 border-t border-white/5">
-          <button onClick={handleSignOut} className="flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 w-full rounded-xl transition-colors">
-            <LogOut size={20} />
-            <span>Sair</span>
-          </button>
+            <div className="mt-auto pt-6 border-t border-white/5">
+              <button onClick={handleSignOut} className="flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 w-full rounded-xl transition-colors">
+                <LogOut size={20} />
+                <span>Sair</span>
+              </button>
+            </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <main className="flex-1 ml-64">
+      {/* Main Content Wrapper */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Header */}
-        <header className="h-20 border-b border-white/5 flex items-center justify-between px-8 bg-beatwap-black/50 backdrop-blur-md sticky top-0 z-10">
-          <h2 className="font-bold text-lg text-gray-400">
-            {isAdmin ? 'Painel Administrativo' : 'Área do Artista'}
-          </h2>
+        <header className="h-20 border-b border-white/5 flex items-center justify-between px-4 md:px-8 bg-beatwap-black/50 backdrop-blur-md flex-shrink-0 z-10">
+          <div className="flex items-center gap-4">
+            <button onClick={() => setIsSidebarOpen(true)} className="md:hidden text-gray-400 hover:text-white">
+                <Menu size={24} />
+            </button>
+            <h2 className="font-bold text-lg text-gray-400 truncate">
+                {isAdmin ? 'Painel Administrativo' : 'Área do Artista'}
+            </h2>
+          </div>
+
           <div className="flex items-center gap-4">
             <NotificationBell userId={currentUserId} />
             <div className="flex items-center gap-3 pl-4 border-l border-white/10 group cursor-pointer" onClick={() => setIsProfileModalOpen(true)}>
@@ -252,7 +287,8 @@ export const DashboardLayout = ({ children, isAdmin = false }) => {
           </div>
         </header>
 
-        <div className="p-8">
+        {/* Scrollable Content */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth">
           <motion.div
             key={location.pathname}
             initial={{ opacity: 0, y: 20 }}
@@ -262,8 +298,8 @@ export const DashboardLayout = ({ children, isAdmin = false }) => {
           >
             {children}
           </motion.div>
-        </div>
-      </main>
+        </main>
+      </div>
 
       {user && (
         <>
