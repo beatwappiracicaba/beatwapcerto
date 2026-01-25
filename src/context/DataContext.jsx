@@ -141,6 +141,7 @@ export const DataProvider = ({ children }) => {
       return newMusic;
     } catch (error) {
       console.error('Error adding music:', error);
+      console.error('Error details:', error.message, error.details, error.hint);
       throw error;
     }
   };
