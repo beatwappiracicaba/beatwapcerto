@@ -46,7 +46,7 @@ export const AdminMetrics = () => {
           </p>
           
           <div className="space-y-4">
-            {artists.map((artist) => (
+            {artists.filter(artist => artist.role !== 'admin').map((artist) => (
               <div key={artist.id} className="bg-white/5 p-4 rounded-lg flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3 w-full md:w-auto">
                   <img src={artist.avatar} alt={artist.name} className="w-10 h-10 rounded-full" />

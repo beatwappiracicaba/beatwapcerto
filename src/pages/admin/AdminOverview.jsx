@@ -37,8 +37,11 @@ export const AdminOverview = () => {
 
   useEffect(() => {
     if (!dataLoading) {
+      // Filter out admins
+      const artistList = artists.filter(a => a.role !== 'admin');
+
       // Calculate total plays from all artists
-      const totalPlaysCount = artists.reduce((acc, artist) => {
+      const totalPlaysCount = artistList.reduce((acc, artist) => {
         const plays = artist.metrics?.plays || '0';
         // Simple parser for K/M suffixes
         let count = 0;
@@ -56,7 +59,7 @@ export const AdminOverview = () => {
       else formattedPlays = totalPlaysCount.toString();
 
       setStats({
-        activeArtists: artists.filter(a => a.status === 'active').length,
+        activeArtists: artistList.filter(a => a.status === 'active').length,
         uploadedMusic: music.length,
         pendingMusic: music.filter(m => m.status === 'pending').length,
         totalPlays: formattedPlays
