@@ -104,7 +104,7 @@ export const DashboardLayout = ({ children, isAdmin = false }) => {
 
         // 3. Update Profile
         const updates = {
-            updated_at: new Date(),
+            updated_at: new Date().toISOString(),
         };
 
         if (publicUrl) updates.avatar_url = publicUrl;
@@ -113,6 +113,8 @@ export const DashboardLayout = ({ children, isAdmin = false }) => {
              updates.name = name.replace(/\w\S*/g, (w) => (w.replace(/^\w/, (c) => c.toUpperCase())));
         }
         if (bio !== undefined) updates.bio = bio;
+
+        console.log('Sending updates to Supabase:', updates);
 
         const { error: updateError } = await supabase
             .from('profiles')
@@ -128,8 +130,8 @@ export const DashboardLayout = ({ children, isAdmin = false }) => {
         await refreshProfile();
 
     } catch (error) {
-        console.error('Error updating profile:', error);
-        addToast(`Erro ao atualizar perfil: ${error.message || 'Erro desconhecido'}`, 'error');
+        console.error('Error updating profile:', JSON.stringify(error, null, 2));
+        addToast(`Erro ao atualizar perfil: ${error.message || error.details || 'Erro desconhecido'}`, 'error');
     } finally {
         setUploading(false);
     }
