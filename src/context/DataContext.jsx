@@ -97,18 +97,27 @@ export const DataProvider = ({ children }) => {
         status: newMusicData.status || 'review',
         added_by: newMusicData.addedBy || 'artist',
         ...newMusicData,
-        // Ensure field names match DB (camelCase to snake_case mapping might be needed if not consistent)
+        // Ensure field names match DB (camelCase to snake_case mapping)
         artist_id: newMusicData.artistId,
         artist_name: newMusicData.artist,
         audio_url: newMusicData.audioFile,
-        cover_url: newMusicData.cover
+        cover_url: newMusicData.cover,
+        songwriter: newMusicData.songwriter,
+        has_featuring: newMusicData.hasFeaturing,
+        featuring_artist: newMusicData.featuringArtist,
+        distribute_all: newMusicData.distributeAll
       };
       
-      // Remove camelCase keys if they duplicate snake_case ones or aren't in DB
+      // Remove camelCase keys and temporary file objects
       delete musicPayload.artistId;
       delete musicPayload.artist;
       delete musicPayload.audioFile;
       delete musicPayload.cover;
+      delete musicPayload.coverFile; // Remove File object
+      delete musicPayload.hasFeaturing;
+      delete musicPayload.featuringArtist;
+      delete musicPayload.distributeAll;
+      delete musicPayload.addedBy;
 
       const { data, error } = await supabase
         .from('musics')
