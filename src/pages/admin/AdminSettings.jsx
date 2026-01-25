@@ -3,12 +3,15 @@ import { motion } from 'framer-motion';
 import { Settings, ToggleLeft, ToggleRight, Save, Layout, Shield } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { AnimatedButton } from '../../components/ui/AnimatedButton';
-import { mockSettings } from '../../data/mockData';
 import { useToast } from '../../context/ToastContext';
 
 export const AdminSettings = () => {
   const { addToast } = useToast();
-  const [settings, setSettings] = useState(mockSettings);
+  const [settings, setSettings] = useState({
+    maintenanceMode: false,
+    registrationsOpen: true,
+    autoApprove: false
+  });
 
   const handleToggle = (key) => {
     setSettings(prev => ({ ...prev, [key]: !prev[key] }));
