@@ -4,7 +4,7 @@ import Cropper from 'react-easy-crop';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, Save, Check } from 'lucide-react';
 import { AnimatedButton } from './AnimatedButton';
-import { getCroppedImg } from '../utils/cropImage';
+import { getCroppedImg } from '../../utils/cropImage';
 
 export const ProfileEditModal = ({ isOpen, onClose, currentAvatar, currentName, currentBio, onSave, uploading }) => {
   const [name, setName] = useState(currentName || '');
