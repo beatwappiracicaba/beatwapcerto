@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, MessageCircle, Instagram, Youtube, Video } from 'lucide-react';
+import { Mail, MessageCircle, Instagram, Youtube, Video, Send } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
 import { useToast } from '../../context/ToastContext';
