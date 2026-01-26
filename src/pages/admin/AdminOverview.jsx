@@ -61,7 +61,7 @@ export const AdminOverview = () => {
       setStats({
         activeArtists: artistList.filter(a => a.status === 'active').length,
         uploadedMusic: music.length,
-        pendingMusic: music.filter(m => m.status === 'pending').length,
+        pendingMusic: music.filter(m => ['pending','review'].includes(m.status)).length,
         totalPlays: formattedPlays
       });
       setLoading(false);
@@ -136,9 +136,9 @@ export const AdminOverview = () => {
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium 
                   ${musicItem.status === 'approved' ? 'bg-green-500/20 text-green-500' : 
-                    musicItem.status === 'pending' ? 'bg-yellow-500/20 text-yellow-500' : 
+                    (musicItem.status === 'pending' || musicItem.status === 'review') ? 'bg-yellow-500/20 text-yellow-500' : 
                     'bg-red-500/20 text-red-500'}`}>
-                  {musicItem.status === 'approved' ? 'Aprovado' : musicItem.status === 'pending' ? 'Pendente' : 'Recusado'}
+                  {musicItem.status === 'approved' ? 'Aprovado' : (musicItem.status === 'pending' || musicItem.status === 'review') ? 'Pendente' : 'Recusado'}
                 </span>
               </div>
             ))}
