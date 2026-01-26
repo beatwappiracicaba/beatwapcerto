@@ -46,7 +46,7 @@ const Hero = () => {
             className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-beatwap-gold/10 border border-beatwap-gold/20 text-beatwap-gold text-sm font-bold mb-6"
           >
             <span className="w-2 h-2 rounded-full bg-beatwap-gold animate-pulse"></span>
-            A revolução da distribuição digital
+            Produtora/Selo rumo à Distribuidora Independente
           </motion.div>
 
           <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight mb-6">
@@ -59,6 +59,23 @@ const Hero = () => {
           <p className="text-xl text-gray-400 mb-8 max-w-lg leading-relaxed">
             Envie, acompanhe e gerencie seus lançamentos com a BeatWap.
           </p>
+          
+          <div className="mb-8 p-4 rounded-2xl bg-white/5 border border-white/10 max-w-xl">
+            <p className="text-white font-bold text-lg">
+              Produção Musical com a BeatWap
+            </p>
+            <p className="text-gray-400 text-sm mt-2">
+              Produzindo com a gente, você já ganha o envio das músicas nas plataformas digitais.
+            </p>
+            <div className="mt-4">
+              <AnimatedButton 
+                onClick={() => window.open('https://wa.me/5519981083497?text=' + encodeURIComponent('Olá! Quero cotar a produção musical com a BeatWap e saber mais sobre o envio para as plataformas.'), '_blank')}
+                className="px-6 py-3"
+              >
+                Cote agora mesmo
+              </AnimatedButton>
+            </div>
+          </div>
 
           <div className="flex flex-col sm:flex-row gap-4">
             <AnimatedButton 
