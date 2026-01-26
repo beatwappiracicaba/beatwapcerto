@@ -46,7 +46,7 @@ const Hero = () => {
             className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-beatwap-gold/10 border border-beatwap-gold/20 text-beatwap-gold text-sm font-bold mb-6"
           >
             <span className="w-2 h-2 rounded-full bg-beatwap-gold animate-pulse"></span>
-            Produtora/Selo rumo à Distribuidora Independente
+            Produtora/Selo a caminho de ser uma Distribuidora Independente
           </motion.div>
 
           <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight mb-6">

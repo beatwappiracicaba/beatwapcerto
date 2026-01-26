@@ -4,6 +4,7 @@ import { Search, Check, X, AlertTriangle, Music, Download, FileText, Calendar, D
 import { Card } from '../../components/ui/Card';
 import { AnimatedInput } from '../../components/ui/AnimatedInput';
 import { AnimatedButton } from '../../components/ui/AnimatedButton';
+import { AudioPlayer } from '../../components/ui/AudioPlayer';
 import { useToast } from '../../context/ToastContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useData } from '../../context/DataContext';

@@ -39,10 +39,10 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
 
   // If artist has no chat, create one placeholder or real one
   useEffect(() => {
-    if (!isAdmin && !activeChat && isOpen && currentUserId) {
+    if (!loading && !isAdmin && !activeChat && isOpen && currentUserId) {
        createChat(currentUserId);
     }
-  }, [isAdmin, activeChat, isOpen, currentUserId, createChat]);
+  }, [loading, isAdmin, activeChat, isOpen, currentUserId, createChat]);
 
 
   const handleSend = (e) => {
