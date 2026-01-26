@@ -57,14 +57,14 @@ export const DashboardLayout = ({ children, isAdmin = false }) => {
     if (!profile.name || !profile.avatar_url) {
       // Small delay to ensure loading isn't happening
       const timer = setTimeout(() => {
-        setIsProfileModalOpen(true);
+        navigate('/dashboard/account');
         if (!profile.name || !profile.avatar_url) {
            addToast('Por favor, complete seu perfil com foto e nome.', 'info');
         }
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [profile, addToast]);
+  }, [profile, addToast, navigate]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -264,7 +264,7 @@ export const DashboardLayout = ({ children, isAdmin = false }) => {
 
           <div className="flex items-center gap-4">
             <NotificationBell userId={currentUserId} />
-            <div className="flex items-center gap-3 pl-4 border-l border-white/10 group cursor-pointer" onClick={() => setIsProfileModalOpen(true)}>
+            <div className="flex items-center gap-3 pl-4 border-l border-white/10 group cursor-pointer" onClick={() => navigate('/dashboard/account')}>
               <div className="text-right hidden md:block group-hover:opacity-80 transition-opacity">
                 <div className="text-sm font-bold text-white">{profile?.name || user?.email?.split('@')[0] || 'Usuário'}</div>
                 <div className="text-xs text-gray-400 flex items-center justify-end gap-1">

@@ -35,6 +35,7 @@ export const AdminMusic = () => {
     setApprovalData({
       upc: musicItem.upc || '',
       preSaveLink: '',
+      noPreSave: false,
       isArtistProvidedUPC: !!musicItem.upc
     });
     setApprovalModalOpen(musicItem.id);
@@ -48,14 +49,14 @@ export const AdminMusic = () => {
   };
 
   const confirmApproval = () => {
-    if (!approvalData.upc || !approvalData.preSaveLink) {
-      addToast('Por favor, preencha o UPC e o Link de Pré-Save.', 'error');
+    if (!approvalData.upc || (!approvalData.preSaveLink && !approvalData.noPreSave)) {
+      addToast('Por favor, preencha o UPC e o Link de Pré-Save (ou marque sem pré-save).', 'error');
       return;
     }
 
     updateMusicStatus(approvalModalOpen, 'approved', {
       upc: approvalData.upc,
-      preSaveLink: approvalData.preSaveLink
+      preSaveLink: approvalData.noPreSave ? null : approvalData.preSaveLink
     });
     
     // Find the music object to get details
@@ -373,12 +374,28 @@ export const AdminMusic = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-white">Link do Pré-Save</label>
+                  <label className="text-sm font-medium text-white flex justify-between items-center">
+                    Link do Pré-Save
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="checkbox"
+                        id="noPreSave"
+                        checked={approvalData.noPreSave}
+                        onChange={(e) => setApprovalData({...approvalData, noPreSave: e.target.checked})}
+                        className="w-4 h-4 rounded accent-beatwap-gold bg-white/10 border-white/20"
+                      />
+                      <label htmlFor="noPreSave" className="text-xs text-gray-400 cursor-pointer select-none">
+                        Sem Pré-Save
+                      </label>
+                    </div>
+                  </label>
                   <AnimatedInput
                     icon={LinkIcon}
                     placeholder="https://presave.beatwap.com/..."
                     value={approvalData.preSaveLink}
                     onChange={(e) => setApprovalData({...approvalData, preSaveLink: e.target.value})}
+                    disabled={approvalData.noPreSave}
+                    className={approvalData.noPreSave ? 'opacity-50 cursor-not-allowed' : ''}
                   />
                 </div>
               </div>

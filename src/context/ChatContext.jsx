@@ -89,19 +89,13 @@ export const ChatProvider = ({ children }) => {
 
         // Find assigned admin details if any
         let assignedAdmin = null;
-        if (chat.assigned_to) {
-          // We can try to find in our admins state, but fetchChats might run before fetchAdmins populates.
-          // However, we will use the ID for now or fetch if needed.
-          // Ideally we join profiles on assigned_to, but let's just pass the ID and let UI resolve or use admins state.
-          // Or we can join in the query above.
-          // Let's modify the query to join assigned_to profile.
-        }
+        // if (chat.assigned_to) { ... } // Column removed temporarily
 
         return {
           id: chat.id,
           artistId: chat.artist_id,
           adminId: 'admin', // Legacy placeholder
-          assignedTo: chat.assigned_to, // New field
+          // assignedTo: chat.assigned_to, // Column removed temporarily
           messages: messagesWithSender,
           lastMessage: lastMsg?.content || '',
           lastMessageTime: lastMsg?.created_at || chat.created_at,
@@ -118,18 +112,19 @@ export const ChatProvider = ({ children }) => {
   };
 
   const assignChat = async (chatId) => {
-    try {
-      const { error } = await supabase
-        .from('chats')
-        .update({ assigned_to: user.id })
-        .eq('id', chatId);
+    // try {
+    //   const { error } = await supabase
+    //     .from('chats')
+    //     .update({ assigned_to: user.id })
+    //     .eq('id', chatId);
 
-      if (error) throw error;
-      await fetchChats(); // Refresh
-    } catch (error) {
-      console.error('Error assigning chat:', error);
-      throw error;
-    }
+    //   if (error) throw error;
+    //   await fetchChats(); // Refresh
+    // } catch (error) {
+    //   console.error('Error assigning chat:', error);
+    //   throw error;
+    // }
+    console.log("Assign chat disabled: DB column missing");
   };
 
   const getChatByArtist = (artistId) => {

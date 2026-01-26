@@ -5,6 +5,7 @@ import FeaturedUsers from '../components/landing/FeaturedUsers';
 import HowItWorks from '../components/landing/HowItWorks';
 import Benefits from '../components/landing/Benefits';
 import Transparency from '../components/landing/Transparency';
+import Pricing from '../components/landing/Pricing';
 import Contact from '../components/landing/Contact';
 import FAQ from '../components/landing/FAQ';
 import Footer from '../components/landing/Footer';
@@ -88,6 +89,7 @@ const Home = () => {
         <HowItWorks />
         <Benefits />
         <Transparency />
+        <Pricing />
         <Contact />
       </main>
       <Footer />

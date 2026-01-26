@@ -29,14 +29,26 @@ export const NotificationBell = ({ userId = 1 }) => {
     setIsOpen(false);
     if (notification.link) {
       navigate(notification.link);
+    } else {
+      navigate('/dashboard/notifications');
     }
   };
 
+  const handleViewAll = () => {
+    setIsOpen(false);
+    navigate('/dashboard/notifications');
+  };
+
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div 
+      className="relative" 
+      ref={dropdownRef}
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
       <button 
         className="relative p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleViewAll}
       >
         <Bell size={20} />
         {unreadCount > 0 && (
@@ -54,7 +66,9 @@ export const NotificationBell = ({ userId = 1 }) => {
             className="absolute right-0 mt-2 w-80 sm:w-96 bg-[#181818] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden"
           >
             <div className="p-4 border-b border-white/10 flex justify-between items-center">
-              <h3 className="font-bold text-white">Notificações</h3>
+              <h3 className="font-bold text-white cursor-pointer hover:text-beatwap-gold transition-colors" onClick={handleViewAll}>
+                Notificações
+              </h3>
               {unreadCount > 0 && (
                 <button 
                   onClick={() => markAllAsRead(userId)}
@@ -72,7 +86,7 @@ export const NotificationBell = ({ userId = 1 }) => {
                 </div>
               ) : (
                 <div className="divide-y divide-white/5">
-                  {notifications.map((notif) => (
+                  {notifications.slice(0, 5).map((notif) => (
                     <div 
                       key={notif.id}
                       onClick={() => handleNotificationClick(notif)}
@@ -97,6 +111,17 @@ export const NotificationBell = ({ userId = 1 }) => {
                 </div>
               )}
             </div>
+            
+            {notifications.length > 0 && (
+              <div className="p-2 border-t border-white/10 bg-white/5">
+                <button 
+                  onClick={handleViewAll}
+                  className="w-full py-2 text-xs font-medium text-center text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                >
+                  Ver todas as notificações
+                </button>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

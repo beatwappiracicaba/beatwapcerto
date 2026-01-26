@@ -18,6 +18,8 @@ import DashboardArtist from '../pages/DashboardArtist';
 import UploadMusic from '../pages/UploadMusic';
 import MyUploads from '../pages/MyUploads';
 import MusicDetails from '../pages/MusicDetails';
+import NotificationsPage from '../pages/NotificationsPage';
+import MyAccount from '../pages/MyAccount';
 import Settings from '../pages/Settings';
 
 // Admin Pages
@@ -54,6 +56,8 @@ export const AppRoutes = () => {
         <Route path="/dashboard/upload" element={<UploadMusic />} />
         <Route path="/dashboard/uploads" element={<MyUploads />} />
         <Route path="/dashboard/music/:id" element={<MusicDetails />} />
+        <Route path="/dashboard/notifications" element={<NotificationsPage />} />
+        <Route path="/dashboard/account" element={<MyAccount />} />
         
         {/* User Settings */}
         <Route path="/settings" element={<Settings />} />

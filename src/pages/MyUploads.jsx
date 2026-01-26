@@ -6,14 +6,16 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AudioPlayer } from '../components/ui/AudioPlayer';
 import { Skeleton, TableSkeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
-import { Music, Plus, Search } from 'lucide-react';
+import { Music, Plus, Search, Copy } from 'lucide-react';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
+import { useToast } from '../context/ToastContext';
 
 const MyUploads = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { addToast } = useToast();
   const { music, loading: dataLoading } = useData();
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -100,10 +102,27 @@ const MyUploads = () => {
                     <div>{item.upc || '-'}</div>
                     <div className="text-xs opacity-50">{item.isrc || '-'}</div>
                 </td>
-                <td className="p-4">
-                    <AnimatedButton variant="outline" size="sm">
+                <td className="p-4 flex gap-2 items-center">
+                    <AnimatedButton variant="outline" size="sm" onClick={() => navigate(`/dashboard/music/${item.id}`)}>
                         Detalhes
                     </AnimatedButton>
+                    
+                    {item.status === 'approved' && (item.preSaveLink || item.pre_save_link) && (
+                      <AnimatedButton 
+                        variant="outline" 
+                        size="sm"
+                        className="text-beatwap-gold border-beatwap-gold/20 hover:bg-beatwap-gold/10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(item.preSaveLink || item.pre_save_link);
+                          addToast('Link de Pré-Save copiado!', 'success');
+                        }}
+                        title="Copiar Link de Pré-Save"
+                      >
+                        <Copy size={14} className="mr-1" />
+                        Pré-Save
+                      </AnimatedButton>
+                    )}
                 </td>
               </tr>
             ))}

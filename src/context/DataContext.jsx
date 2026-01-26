@@ -116,32 +116,25 @@ export const DataProvider = ({ children }) => {
       const musicPayload = {
         status: newMusicData.status || 'review',
         added_by: newMusicData.addedBy || 'artist',
-        ...newMusicData,
+        
+        // Explicit fields only to avoid schema errors
+        title: newMusicData.title,
+        genre: newMusicData.genre,
+        isrc: newMusicData.isrc,
+        songwriter: newMusicData.songwriter,
+        
         // Ensure field names match DB (camelCase to snake_case mapping)
         artist_id: newMusicData.artistId,
         artist_name: newMusicData.artist,
         audio_url: newMusicData.audioFile,
         cover_url: newMusicData.cover,
-        is_original: newMusicData.isOriginal,
-        songwriter: newMusicData.songwriter,
-        has_featuring: newMusicData.hasFeaturing,
-        featuring_artist: newMusicData.featuringArtist,
-        distribute_all: newMusicData.distributeAll
+        
+        // Removed unsupported columns (is_original, has_featuring, etc) to fix 400 Bad Request
       };
       
-      // Remove camelCase keys and temporary file objects
-      delete musicPayload.artistId;
-      delete musicPayload.artist;
-      delete musicPayload.audioFile;
-      delete musicPayload.cover;
-      delete musicPayload.authorizationUrl;
-      delete musicPayload.isOriginal;
-      delete musicPayload.coverFile; // Remove File object
-      delete musicPayload.authorizationFile; // Remove File object
-      delete musicPayload.hasFeaturing;
-      delete musicPayload.featuringArtist;
-      delete musicPayload.distributeAll;
-      delete musicPayload.addedBy;
+      // No need to delete properties if we build payload explicitly
+      // But just in case we missed something if we used spread before
+      // delete musicPayload.artistId; ...
 
       const { data, error } = await supabase
         .from('musics')
