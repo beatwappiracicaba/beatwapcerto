@@ -17,7 +17,8 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
     createChat,
     admins,
     assignChat,
-    deleteChat
+    deleteChat,
+    loading
   } = useChat();
   
   const [inputText, setInputText] = useState('');
