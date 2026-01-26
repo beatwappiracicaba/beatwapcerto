@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Music, Heart } from 'lucide-react';
+import { Music, Heart, Instagram, Youtube, Video } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import logo from '../../assets/images/beatwap-logo.png';
 
