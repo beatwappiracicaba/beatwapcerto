@@ -15,44 +15,15 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
-      });
-
-      if (error) throw error;
-
-      // Check role to redirect
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', data.session.user.id)
-        .single();
-
-      const role = String(profile?.role || '').toLowerCase();
-      if (role === 'admin' || role === 'produtor') {
-        navigate('/admin');
-      } else if (role === 'seller' || role === 'vendedor' || role === 'vendedo') {
-        navigate('/seller');
-      } else {
-        navigate('/dashboard');
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      addToast(error.message || 'Erro ao fazer login', 'error');
-    } finally {
-      setLoading(false);
-    }
+    addToast('O painel está em desenvolvimento. Em breve estará disponível.', 'info');
+    navigate('/');
   };
 
   return (
     <div className="space-y-8">
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold text-white">Bem-vindo de volta</h1>
-        <p className="text-gray-400">Entre para gerenciar seus lançamentos</p>
+        <p className="text-gray-400">O painel está em desenvolvimento. Em breve estará disponível.</p>
       </div>
 
       <div className="text-center mb-4">
@@ -86,11 +57,7 @@ const Login = () => {
             </Link>
           </div>
 
-          <AnimatedButton 
-            fullWidth 
-            type="submit" 
-            isLoading={loading}
-          >
+          <AnimatedButton fullWidth type="submit" isLoading={loading}>
             Entrar na BeatWap
           </AnimatedButton>
         </form>

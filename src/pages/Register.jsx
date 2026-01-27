@@ -80,7 +80,7 @@ const Register = () => {
 
       if (data.session) {
         addToast('Email verificado com sucesso!', 'success');
-        navigate('/dashboard');
+        navigate('/');
       }
     } catch (error) {
       console.error('Verification error:', error);

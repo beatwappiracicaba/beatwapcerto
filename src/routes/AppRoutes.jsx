@@ -14,17 +14,9 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import Home from '../pages/Home';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
-import DashboardArtist from '../pages/DashboardArtist';
-import Settings from '../pages/Settings';
-import SellerOverview from '../pages/seller/SellerOverview';
+// Dashboard temporariamente desativada
 
-// Admin Pages
-import { AdminOverview } from '../pages/admin/AdminOverview';
-import { AdminArtists } from '../pages/admin/AdminArtists';
-import { AdminMusic } from '../pages/admin/AdminMusic';
-import { AdminMetrics } from '../pages/admin/AdminMetrics';
-import { AdminNotifications } from '../pages/admin/AdminNotifications';
-import { AdminSettings } from '../pages/admin/AdminSettings';
+// Admin temporariamente desativado
 
 export const AppRoutes = () => {
   const location = useLocation();
@@ -35,31 +27,7 @@ export const AppRoutes = () => {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
   }
 
-  const SellerRoute = () => {
-    if (loading) return null;
-    const role = profile?.role;
-    const isSeller = role === 'seller' || role === 'vendedor' || role === 'vendedo';
-    if (!isSeller) return <Navigate to="/" replace />;
-    return (
-      <DashboardLayout isSeller>
-        <SellerOverview />
-      </DashboardLayout>
-    );
-  };
-
-  const ArtistRoute = () => {
-    if (loading) return null;
-    const role = profile?.role;
-    const isAdmin = role === 'admin' || role === 'produtor';
-    const isSeller = role === 'seller' || role === 'vendedor' || role === 'vendedo';
-    if (isAdmin) return <Navigate to="/admin" replace />;
-    if (isSeller) return <Navigate to="/seller" replace />;
-    return (
-      <DashboardLayout>
-        <DashboardArtist />
-      </DashboardLayout>
-    );
-  };
+  // Dashboard e rotas protegidas desativadas durante reconstrução
 
   return (
       <Routes location={location}>
@@ -73,18 +41,7 @@ export const AppRoutes = () => {
           <Route path="/register" element={<Navigate to="/login" replace />} />
         </Route>
 
-        {/* Artist Dashboard */}
-        <Route path="/dashboard" element={<ArtistRoute />} />
-        
-        {/* Settings */}
-        <Route path="/settings" element={
-          <DashboardLayout>
-            <Settings />
-          </DashboardLayout>
-        } />
-        
-        {/* Seller */}
-        <Route path="/seller" element={<SellerRoute />} />
+        {/* Rotas de dashboard desativadas */}
 
         {/* Fallback - Redirect to Home */}
         <Route path="*" element={<Navigate to="/" replace />} />
