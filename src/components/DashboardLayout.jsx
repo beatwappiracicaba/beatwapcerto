@@ -24,10 +24,11 @@ const SidebarItem = ({ icon: Icon, label, to, active, onClick }) => (
     >
       {active && (
         <motion.div
-          layoutId="activeTab"
           className="absolute inset-0 bg-beatwap-gold z-0"
-          initial={false}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
         />
       )}
       <div className="relative z-10 flex items-center gap-3">

@@ -45,7 +45,7 @@ export const AppRoutes = () => {
   }
 
   const SellerRoute = () => {
-    if (loading) return null;
+    if (loading) return <SplashScreen onComplete={() => {}} />;
     const role = profile?.role;
     const isSeller = role === 'seller' || role === 'vendedor' || role === 'vendedo';
     if (!isSeller) return <Navigate to="/" replace />;
