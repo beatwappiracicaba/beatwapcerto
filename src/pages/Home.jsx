@@ -46,7 +46,7 @@ const Home = () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('id, name, avatar_url, bio')
-        .eq('role', 'seller')
+        .in('role', ['seller', 'vendedor'])
         .order('created_at', { ascending: false })
         .limit(8);
       if (error) throw error;

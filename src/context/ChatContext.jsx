@@ -41,7 +41,7 @@ export const ChatProvider = ({ children }) => {
       const { data, error } = await supabase
         .from('profiles')
         .select('id, name, avatar_url')
-        .eq('role', 'admin');
+        .in('role', ['admin', 'produtor']);
 
       if (error) throw error;
       setAdmins(data || []);
@@ -61,7 +61,10 @@ export const ChatProvider = ({ children }) => {
         `)
         .order('updated_at', { ascending: false });
 
-      if (profile?.role !== 'admin' && profile?.role !== 'seller') {
+      const role = profile?.role;
+      const isAdmin = role === 'admin' || role === 'produtor';
+      const isSeller = role === 'seller' || role === 'vendedor';
+      if (!isAdmin && !isSeller) {
         query = query.eq('artist_id', user.id);
       }
 
@@ -83,8 +86,8 @@ export const ChatProvider = ({ children }) => {
 
         const unreadCount = messagesWithSender.filter(m => 
           !m.read && 
-          ((profile?.role === 'admin' && m.sender === 'artist') || 
-           (profile?.role !== 'admin' && m.sender === 'admin'))
+          ((isAdmin && m.sender === 'artist') || 
+           (!isAdmin && m.sender === 'admin'))
         ).length;
 
         // Find assigned admin details if any
