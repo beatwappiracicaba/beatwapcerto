@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, MapPin, CreditCard, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
@@ -8,6 +8,7 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
+import { ProfileEditModal } from '../components/ui/ProfileEditModal';
 
 export const DashboardArtistProfile = () => {
   const { user, profile, refreshProfile } = useAuth();
@@ -36,6 +37,8 @@ export const DashboardArtistProfile = () => {
   });
 
   const [mandatoryMissing, setMandatoryMissing] = useState(false);
+  const [avatarModalOpen, setAvatarModalOpen] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useEffect(() => {
     if (user && profile) {
@@ -88,6 +91,33 @@ export const DashboardArtistProfile = () => {
       addToast('Erro ao atualizar perfil.', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAvatarSave = async ({ blob }) => {
+    if (!blob || !user) return;
+    try {
+      setUploadingAvatar(true);
+      const fileName = `${user.id}/${Date.now()}_avatar.png`;
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, blob, { contentType: 'image/png', upsert: true });
+      if (uploadError) throw uploadError;
+      const { data } = await supabase.storage.from('avatars').getPublicUrl(fileName);
+      const publicUrl = data.publicUrl;
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+      if (updateError) throw updateError;
+      await refreshProfile();
+      addToast('Foto de perfil atualizada!', 'success');
+      setAvatarModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      addToast('Erro ao atualizar foto de perfil.', 'error');
+    } finally {
+      setUploadingAvatar(false);
     }
   };
 
@@ -171,6 +201,20 @@ export const DashboardArtistProfile = () => {
             >
               {activeTab === 'detalhes' && (
                 <div className="space-y-4">
+                  <div className="flex items-center gap-6">
+                    <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-beatwap-gold/20 bg-gray-800">
+                      {profile?.avatar_url ? (
+                        <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-500">
+                          <User size={32} />
+                        </div>
+                      )}
+                    </div>
+                    <AnimatedButton onClick={() => setAvatarModalOpen(true)} variant="secondary">
+                      Modificar Foto
+                    </AnimatedButton>
+                  </div>
                   <h3 className="text-lg font-bold text-white mb-4">Dados Pessoais</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <AnimatedInput 
@@ -324,6 +368,15 @@ export const DashboardArtistProfile = () => {
             </motion.div>
           </AnimatePresence>
         </Card>
+        <ProfileEditModal
+          isOpen={avatarModalOpen}
+          onClose={() => setAvatarModalOpen(false)}
+          currentAvatar={profile?.avatar_url}
+          currentName={profile?.nome || profile?.nome_completo_razao_social}
+          currentBio={''}
+          onSave={handleAvatarSave}
+          uploading={uploadingAvatar}
+        />
       </div>
     </DashboardLayout>
   );

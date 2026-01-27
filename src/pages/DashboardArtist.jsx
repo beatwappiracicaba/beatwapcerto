@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -50,7 +50,7 @@ export const DashboardArtistMusics = () => {
   const [loading, setLoading] = useState(true);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
-  const fetchMusics = async () => {
+  const fetchMusics = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('musics')
@@ -59,11 +59,11 @@ export const DashboardArtistMusics = () => {
       .order('created_at', { ascending: false });
     if (!error) setMusics(data || []);
     setLoading(false);
-  };
+  }, [user]);
 
   useEffect(() => {
     if (user) fetchMusics();
-  }, [user]);
+  }, [user, fetchMusics]);
 
   return (
     <DashboardLayout>
@@ -83,7 +83,7 @@ export const DashboardArtistMusics = () => {
           {!loading && musics.length === 0 && (
             <div className="text-center py-10 text-gray-400 border border-dashed border-white/10 rounded-xl">
               <p>Nenhuma música encontrada.</p>
-              <p className="text-sm mt-2">Clique em "Nova Música" para começar.</p>
+              <p className="text-sm mt-2">Clique em &quot;Nova Música&quot; para começar.</p>
             </div>
           )}
           {!loading && musics.map((m) => (
@@ -132,7 +132,6 @@ export const DashboardArtistChat = () => {
   const [chatId, setChatId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(true);
   useEffect(() => {
     const init = async () => {
       const { data: existing } = await supabase
@@ -164,7 +163,6 @@ export const DashboardArtistChat = () => {
           supabase.removeChannel(channel);
         };
       }
-      setLoading(false);
     };
     if (user) init();
   }, [user]);

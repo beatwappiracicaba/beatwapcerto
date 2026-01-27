@@ -1,8 +1,8 @@
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Cropper from 'react-easy-crop';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, Save, Check, Camera, User } from 'lucide-react';
+import { X, Save, Check, Camera, User } from 'lucide-react';
 import { AnimatedButton } from './AnimatedButton';
 import { getCroppedImg } from '../../utils/cropImage';
 
