@@ -8,6 +8,15 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const normalizeRole = (r) => {
+    if (!r) return r;
+    const s = String(r).toLowerCase();
+    if (s === 'admin' || s === 'produtor') return 'produtor';
+    if (s === 'artist' || s === 'artista') return 'artista';
+    if (['seller', 'vendedor', 'vendedo'].includes(s)) return 'vendedor';
+    return r;
+  };
+
   useEffect(() => {
     // Get session on load
     const getSession = async () => {
@@ -47,7 +56,7 @@ export const AuthProvider = ({ children }) => {
       if (error) {
         console.error('Error fetching profile:', error);
       }
-      setProfile(data);
+      setProfile(data ? { ...data, role: normalizeRole(data.role) } : data);
     } catch (error) {
       console.error('Error in fetchProfile:', error);
     } finally {

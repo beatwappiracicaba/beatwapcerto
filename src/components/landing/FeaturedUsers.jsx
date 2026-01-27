@@ -60,12 +60,12 @@ const FeaturedUsers = () => {
         if (error) throw error;
 
         if (data) {
-          const admins = data.filter(u => u.role === 'admin');
-          const regular = data.filter(u => u.role !== 'admin');
+          const admins = data.filter(u => u.role === 'admin' || u.role === 'produtor');
+          const regular = data.filter(u => u.role !== 'admin' && u.role !== 'produtor');
           
           setProducers(admins);
           setArtists(regular);
-          setRecentUsers(data.slice(0, 5)); // Top 5 newest
+          setRecentUsers(data.slice(0, 5));
         }
       } catch (err) {
         console.error('Error fetching users:', err);

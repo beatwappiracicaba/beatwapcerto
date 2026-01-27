@@ -32,7 +32,7 @@ const Login = () => {
         .eq('id', data.session.user.id)
         .single();
 
-      if (profile?.role === 'admin') {
+      if (profile?.role === 'admin' || profile?.role === 'produtor') {
         navigate('/admin');
       } else {
         navigate('/dashboard');
