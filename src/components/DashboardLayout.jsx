@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { LayoutDashboard, Upload, Settings, LogOut, Music, Shield, Users, Bell, BarChart2, Edit2, Camera, Menu, X, Calendar, MessageCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import logo from '../assets/images/beatwap-logo.png';
@@ -14,28 +13,17 @@ import { useToast } from '../context/ToastContext';
 
 const SidebarItem = ({ icon: Icon, label, to, active, onClick }) => (
   <Link to={to} onClick={onClick}>
-    <motion.div 
+    <div
       className={clsx(
-        "flex items-center gap-3 px-4 py-3 rounded-xl transition-colors relative overflow-hidden",
-        active ? "text-beatwap-black font-bold" : "text-gray-400 hover:bg-white/5 hover:text-white"
+        "flex items-center gap-3 px-4 py-3 rounded-xl transition-colors relative",
+        active
+          ? "bg-beatwap-gold text-beatwap-black font-bold"
+          : "text-gray-400 hover:bg-white/5 hover:text-white"
       )}
-      whileHover={{ x: 5 }}
-      whileTap={{ scale: 0.95 }}
     >
-      {active && (
-        <motion.div
-          className="absolute inset-0 bg-beatwap-gold z-0"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-        />
-      )}
-      <div className="relative z-10 flex items-center gap-3">
-        <Icon size={20} />
-        <span>{label}</span>
-      </div>
-    </motion.div>
+      <Icon size={20} />
+      <span>{label}</span>
+    </div>
   </Link>
 );
 

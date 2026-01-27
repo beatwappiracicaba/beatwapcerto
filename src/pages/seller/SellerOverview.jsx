@@ -1,5 +1,4 @@
 import React from 'react';
-import { Card } from '../../components/ui/Card';
 import { useAuth } from '../../context/AuthContext';
 
 const SellerOverview = () => {
@@ -10,18 +9,18 @@ const SellerOverview = () => {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Área do Vendedor</h1>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="p-6">
+        <div className="p-6 bg-beatwap-graphite rounded-2xl border border-white/5">
           <h2 className="font-bold mb-2">Oportunidades</h2>
           <p className="text-sm text-gray-400">Em breve</p>
-        </Card>
-        <Card className="p-6">
+        </div>
+        <div className="p-6 bg-beatwap-graphite rounded-2xl border border-white/5">
           <h2 className="font-bold mb-2">Conversas</h2>
           <p className="text-sm text-gray-400">Use o chat para atender artistas</p>
-        </Card>
-        <Card className="p-6">
+        </div>
+        <div className="p-6 bg-beatwap-graphite rounded-2xl border border-white/5">
           <h2 className="font-bold mb-2">Perfil</h2>
           <p className="text-sm text-gray-400">Atualize seu perfil no canto superior</p>
-        </Card>
+        </div>
       </div>
     </div>
   );
