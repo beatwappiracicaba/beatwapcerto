@@ -207,6 +207,37 @@ export const DashboardLayout = ({ children, isAdmin = false, isSeller = false })
                     onClick={() => setIsSidebarOpen(false)}
                   />
                 </>
+              ) : isSeller ? (
+                <>
+                  <SidebarItem 
+                    icon={LayoutDashboard} 
+                    label="Visão Geral" 
+                    to="/seller" 
+                    active={location.pathname === '/seller'}
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                  <SidebarItem 
+                    icon={Users} 
+                    label="Artistas" 
+                    to="/seller/artists" 
+                    active={location.pathname.includes('/seller/artists')}
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                  <SidebarItem 
+                    icon={Calendar} 
+                    label="Shows" 
+                    to="/seller/shows" 
+                    active={location.pathname.includes('/seller/shows')}
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                  <SidebarItem 
+                    icon={MessageCircle} 
+                    label="Chat" 
+                    to="/seller/chat" 
+                    active={location.pathname.includes('/seller/chat')}
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                </>
               ) : (
                 <>
                   <SidebarItem 
@@ -214,6 +245,13 @@ export const DashboardLayout = ({ children, isAdmin = false, isSeller = false })
                     label="Visão Geral" 
                     to="/dashboard" 
                     active={location.pathname === '/dashboard'}
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                  <SidebarItem 
+                    icon={Upload} 
+                    label="Meus Lançamentos" 
+                    to="/dashboard/uploads" 
+                    active={location.pathname.includes('/dashboard/uploads')}
                     onClick={() => setIsSidebarOpen(false)}
                   />
                   <SidebarItem 

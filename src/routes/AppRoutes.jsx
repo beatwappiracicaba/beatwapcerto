@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 // Layouts
 import { AuthLayout } from '../components/AuthLayout';
@@ -15,16 +15,8 @@ import Home from '../pages/Home';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
 import DashboardArtist from '../pages/DashboardArtist';
-import UploadMusic from '../pages/UploadMusic';
-import MyUploads from '../pages/MyUploads';
-import MusicDetails from '../pages/MusicDetails';
-import NotificationsPage from '../pages/NotificationsPage';
-import MyAccount from '../pages/MyAccount';
 import Settings from '../pages/Settings';
 import SellerOverview from '../pages/seller/SellerOverview';
-import SellerArtists from '../pages/seller/SellerArtists';
-import SellerShows from '../pages/seller/SellerShows';
-import SellerChat from '../pages/seller/SellerChat';
 
 // Admin Pages
 import { AdminOverview } from '../pages/admin/AdminOverview';
@@ -50,7 +42,7 @@ export const AppRoutes = () => {
     if (!isSeller) return <Navigate to="/" replace />;
     return (
       <DashboardLayout isSeller>
-        <Outlet />
+        <SellerOverview />
       </DashboardLayout>
     );
   };
@@ -64,7 +56,7 @@ export const AppRoutes = () => {
     if (isSeller) return <Navigate to="/seller" replace />;
     return (
       <DashboardLayout>
-        <Outlet />
+        <DashboardArtist />
       </DashboardLayout>
     );
   };
@@ -81,40 +73,18 @@ export const AppRoutes = () => {
           <Route path="/register" element={<Navigate to="/login" replace />} />
         </Route>
 
-        {/* Artist Dashboard Routes (guarded) */}
-        <Route path="/dashboard" element={<ArtistRoute />}>
-          <Route index element={<DashboardArtist />} />
-          <Route path="upload" element={<UploadMusic />} />
-          <Route path="uploads" element={<MyUploads />} />
-          <Route path="music/:id" element={<MusicDetails />} />
-          <Route path="notifications" element={<NotificationsPage />} />
-          <Route path="account" element={<MyAccount />} />
-        </Route>
+        {/* Artist Dashboard */}
+        <Route path="/dashboard" element={<ArtistRoute />} />
         
-        {/* User Settings */}
-        <Route path="/settings" element={<Settings />} />
-        
-        {/* Admin Routes */}
-        <Route path="/admin" element={
-          <DashboardLayout isAdmin>
-            <Outlet />
+        {/* Settings */}
+        <Route path="/settings" element={
+          <DashboardLayout>
+            <Settings />
           </DashboardLayout>
-        }>
-          <Route index element={<AdminOverview />} />
-          <Route path="artists" element={<AdminArtists />} />
-          <Route path="music" element={<AdminMusic />} />
-          <Route path="metrics" element={<AdminMetrics />} />
-          <Route path="notifications" element={<AdminNotifications />} />
-          <Route path="settings" element={<AdminSettings />} />
-        </Route>
-
-        {/* Seller Routes */}
-        <Route path="/seller" element={<SellerRoute />}>
-          <Route index element={<SellerOverview />} />
-          <Route path="artists" element={<SellerArtists />} />
-          <Route path="shows" element={<SellerShows />} />
-          <Route path="chat" element={<SellerChat />} />
-        </Route>
+        } />
+        
+        {/* Seller */}
+        <Route path="/seller" element={<SellerRoute />} />
 
         {/* Fallback - Redirect to Home */}
         <Route path="*" element={<Navigate to="/" replace />} />
