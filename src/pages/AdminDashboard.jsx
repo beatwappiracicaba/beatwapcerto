@@ -5,6 +5,7 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AdminLayout } from '../components/AdminLayout';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
+import { useToast } from '../context/ToastContext';
 import { supabase } from '../services/supabaseClient';
 
 export const AdminHome = () => {
@@ -33,15 +34,35 @@ export const AdminArtists = () => {
   const [artists, setArtists] = useState([]);
   const [selectedArtist, setSelectedArtist] = useState(null);
   const [title, setTitle] = useState('');
+  const [isrc, setIsrc] = useState('');
+  const [audioUrl, setAudioUrl] = useState('');
+  const [coverUrl, setCoverUrl] = useState('');
+  const [plataformas, setPlataformas] = useState('Todas');
+  const { addToast } = useToast();
   const load = useCallback(async () => {
     const { data } = await supabase.from('profiles').select('id, nome, avatar_url').eq('cargo', 'Artista');
     setArtists(data || []);
   }, []);
   useEffect(() => { load(); }, [load]);
   const sendMusic = async () => {
-    if (!selectedArtist || !title.trim()) return;
-    await supabase.from('musics').insert({ artista_id: selectedArtist, titulo: title, status: 'em_analise' });
-    setTitle('');
+    if (!selectedArtist) { addToast('Selecione o artista', 'error'); return; }
+    if (!title.trim()) { addToast('Informe o título', 'error'); return; }
+    if (!audioUrl.trim()) { addToast('Informe o link do áudio', 'error'); return; }
+    try {
+      await supabase.from('musics').insert({ 
+        artista_id: selectedArtist, 
+        titulo: title, 
+        status: 'em_analise',
+        isrc: isrc || null,
+        audio_url: audioUrl,
+        cover_url: coverUrl || null,
+        plataformas: plataformas === 'Todas' ? ['Todas'] : plataformas.split(',').map(s => s.trim())
+      });
+      addToast('Música enviada para análise', 'success');
+      setTitle(''); setIsrc(''); setAudioUrl(''); setCoverUrl('');
+    } catch (e) {
+      addToast('Falha ao enviar música', 'error');
+    }
   };
   return (
     <AdminLayout>
@@ -53,6 +74,10 @@ export const AdminArtists = () => {
             {artists.map(a => <option key={a.id} value={a.id}>{a.nome || a.id}</option>)}
           </select>
           <AnimatedInput placeholder="Título da música" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <AnimatedInput placeholder="ISRC (opcional)" value={isrc} onChange={(e) => setIsrc(e.target.value)} />
+          <AnimatedInput placeholder="Link do áudio (obrigatório)" value={audioUrl} onChange={(e) => setAudioUrl(e.target.value)} />
+          <AnimatedInput placeholder="Capa (URL opcional)" value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} />
+          <AnimatedInput placeholder="Plataformas (ex: Spotify, Apple)" value={plataformas} onChange={(e) => setPlataformas(e.target.value)} />
           <AnimatedButton onClick={sendMusic}>Enviar</AnimatedButton>
         </div>
       </Card>
@@ -62,20 +87,30 @@ export const AdminArtists = () => {
 
 export const AdminMusics = () => {
   const { addNotification } = useNotification();
+  const { addToast } = useToast();
   const [musics, setMusics] = useState([]);
   const [upc, setUpc] = useState('');
   const [presave, setPresave] = useState('');
   const [rejectReason, setRejectReason] = useState('');
+  const [statusFilter, setStatusFilter] = useState('todos');
+  const [artistFilter, setArtistFilter] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const load = useCallback(async () => {
-    const { data } = await supabase
+    let q = supabase
       .from('musics')
       .select('id,titulo,status,motivo_recusa,artista_id,upc,presave_link,created_at')
       .order('created_at', { ascending: false });
+    if (statusFilter !== 'todos') q = q.eq('status', statusFilter);
+    if (artistFilter) q = q.eq('artista_id', artistFilter);
+    if (startDate) q = q.gte('created_at', new Date(startDate).toISOString());
+    if (endDate) q = q.lte('created_at', new Date(endDate).toISOString());
+    const { data } = await q;
     setMusics(data || []);
-  }, []);
+  }, [statusFilter, artistFilter, startDate, endDate]);
   useEffect(() => { load(); }, [load]);
   const approve = async (m) => {
-    if (!upc.trim()) return;
+    if (!upc.trim()) { addToast('Informe o UPC', 'error'); return; }
     await supabase.from('musics').update({ status: 'aprovado', upc, presave_link: presave }).eq('id', m.id);
     await addNotification({ recipientId: m.artista_id, title: 'Música aprovada', message: `UPC: ${upc}. Pre-save: ${presave || 'N/A'}`, type: 'success', link: presave || null });
     setUpc('');
@@ -83,7 +118,7 @@ export const AdminMusics = () => {
     load();
   };
   const reject = async (m) => {
-    if (!rejectReason.trim()) return;
+    if (!rejectReason.trim()) { addToast('Informe o motivo da reprovação', 'error'); return; }
     await supabase.from('musics').update({ status: 'recusado', motivo_recusa: rejectReason }).eq('id', m.id);
     await addNotification({ recipientId: m.artista_id, title: 'Música reprovada', message: rejectReason, type: 'error' });
     setRejectReason('');
@@ -93,6 +128,18 @@ export const AdminMusics = () => {
     <AdminLayout>
       <Card className="space-y-4">
         <div className="font-bold">Aprovar / Reprovar</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="todos">Status: Todos</option>
+            <option value="em_analise">Em análise</option>
+            <option value="aprovado">Aprovado</option>
+            <option value="recusado">Recusado</option>
+          </select>
+          <AnimatedInput placeholder="ID do artista (opcional)" value={artistFilter} onChange={(e) => setArtistFilter(e.target.value)} />
+          <input type="date" className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <input type="date" className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <AnimatedButton onClick={load}>Filtrar</AnimatedButton>
+        </div>
         <div className="grid grid-cols-1 gap-3">
           {musics.map(m => (
             <div key={m.id} className="p-3 rounded-xl border border-white/10 bg-white/5 flex items-center gap-3">

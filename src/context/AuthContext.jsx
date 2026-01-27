@@ -46,15 +46,18 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    const updateOnline = async () => {
+    let intervalId;
+    const heartbeat = async () => {
       if (user?.id) {
         await supabase
           .from('online_status')
           .upsert({ profile_id: user.id, online: true, updated_at: new Date().toISOString() });
       }
     };
-    updateOnline();
+    heartbeat();
+    intervalId = setInterval(heartbeat, 30000);
     return () => {
+      clearInterval(intervalId);
       if (user?.id) {
         supabase
           .from('online_status')

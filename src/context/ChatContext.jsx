@@ -55,11 +55,12 @@ export const ChatProvider = ({ children }) => {
       }
       const mapped = (data || []).map(p => {
         const st = presence.find(s => s.profile_id === p.id);
+        const fresh = st?.updated_at ? (Date.now() - new Date(st.updated_at).getTime()) < 120000 : false;
         return {
         id: p.id,
         name: p.nome || 'Produtor',
         avatar_url: p.avatar_url,
-        online: st ? !!st.online : false,
+          online: st ? (!!st.online && fresh) : false,
         online_updated_at: st?.updated_at
       };
       });

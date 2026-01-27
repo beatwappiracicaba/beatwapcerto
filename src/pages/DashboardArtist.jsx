@@ -179,7 +179,7 @@ export const DashboardArtistChat = () => {
       if (ids.length) {
         const { data: p } = await supabase
           .from('online_status')
-          .select('profile_id, online')
+          .select('profile_id, online, updated_at')
           .in('profile_id', ids);
         pres = p || [];
       }
@@ -209,6 +209,7 @@ export const DashboardArtistChat = () => {
         <div className="flex -space-x-2">
           {sellers.slice(0, 6).map(s => {
             const st = presence.find(p => p.profile_id === s.id);
+            const fresh = st?.updated_at ? (Date.now() - new Date(st.updated_at).getTime()) < 120000 : false;
             return (
               <div key={s.id} className="w-8 h-8 rounded-full border-2 border-[#121212] overflow-hidden bg-gray-700 relative">
                 {s.avatar_url ? (
@@ -218,7 +219,7 @@ export const DashboardArtistChat = () => {
                     {(s.nome || 'V').charAt(0)}
                   </div>
                 )}
-                {st?.online && <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-[#121212]" />}
+                {(st?.online && fresh) && <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-[#121212]" />}
               </div>
             );
           })}

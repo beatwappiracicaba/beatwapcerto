@@ -35,7 +35,7 @@ export const AppRoutes = () => {
   return (
       <Routes location={location}>
         {/* Public Route - Landing Page */}
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={loading ? <SplashScreen onComplete={() => {}} /> : (isProdutor ? <Navigate to="/admin" replace /> : (isArtista ? <Navigate to="/dashboard" replace /> : <Home />))} />
         
         {/* Auth Routes */}
         <Route element={<AuthLayout />}>
@@ -49,7 +49,7 @@ export const AppRoutes = () => {
         <Route path="/dashboard/profile" element={isArtista ? <DashboardArtistProfile /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/chat" element={isArtista ? <DashboardArtistChat /> : <Navigate to="/" replace />} />
 
-        <Route path="/admin" element={isProdutor ? <AdminHome /> : <Navigate to="/" replace />} />
+        <Route path="/admin" element={isProdutor ? <AdminHome /> : (loading ? <SplashScreen onComplete={() => {}} /> : <Navigate to="/" replace />)} />
         <Route path="/admin/artists" element={isProdutor ? <AdminArtists /> : <Navigate to="/" replace />} />
         <Route path="/admin/musics" element={isProdutor ? <AdminMusics /> : <Navigate to="/" replace />} />
         <Route path="/admin/chat" element={isProdutor ? <AdminChat /> : <Navigate to="/" replace />} />
