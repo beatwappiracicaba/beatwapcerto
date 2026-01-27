@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
 
 // Layouts
 import { AuthLayout } from '../components/AuthLayout';
@@ -71,8 +70,7 @@ export const AppRoutes = () => {
   };
 
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
+      <Routes location={location}>
         {/* Public Route - Landing Page */}
         <Route path="/" element={<Home />} />
         
@@ -121,6 +119,5 @@ export const AppRoutes = () => {
         {/* Fallback - Redirect to Home */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </AnimatePresence>
   );
 };
