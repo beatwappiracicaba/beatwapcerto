@@ -41,7 +41,7 @@ export const ChatProvider = ({ children }) => {
       const { data, error } = await supabase
         .from('profiles')
         .select('id, name, avatar_url')
-        .in('role', ['admin', 'produtor', 'vendedor']);
+        .in('role', ['admin', 'produtor', 'vendedor', 'vendedo']);
 
       if (error) throw error;
       setAdmins(data || []);
@@ -63,7 +63,7 @@ export const ChatProvider = ({ children }) => {
 
       const role = profile?.role;
       const isAdmin = role === 'admin' || role === 'produtor';
-      const isSeller = role === 'seller' || role === 'vendedor';
+      const isSeller = role === 'seller' || role === 'vendedor' || role === 'vendedo';
       if (!isAdmin && !isSeller) {
         query = query.eq('artist_id', user.id);
       }

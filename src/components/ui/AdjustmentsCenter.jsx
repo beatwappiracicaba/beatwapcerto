@@ -19,7 +19,7 @@ export const AdjustmentsCenter = ({ feedback, onResubmit }) => {
           
           <div className="space-y-3 bg-black/30 p-4 rounded-lg">
             <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Comentários do Revisor</h4>
-            <p className="text-white text-sm italic">"{feedback.comment}"</p>
+            <p className="text-white text-sm italic">{feedback.comment}</p>
           </div>
         </div>
       </div>

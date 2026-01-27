@@ -440,7 +440,7 @@ Assinado Digitalmente via BeatWap Platform
 
                     <div className="p-6 bg-beatwap-gold/10 rounded-xl border border-beatwap-gold/30 text-center">
                       <p className="text-lg font-medium text-white italic">
-                        “Cobramos menos no lançamento e trabalhamos em parceria: o artista fica com 75% dos ganhos e a plataforma com 25%, de forma clara e sem taxas escondidas.”
+                        Cobramos menos no lançamento e trabalhamos em parceria: o artista fica com 75% dos ganhos e a plataforma com 25%, de forma clara e sem taxas escondidas.
                       </p>
                     </div>
                   </div>

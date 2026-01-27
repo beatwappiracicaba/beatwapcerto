@@ -44,7 +44,7 @@ export const AppRoutes = () => {
   const SellerRoute = () => {
     if (loading) return null;
     const role = profile?.role;
-    const isSeller = role === 'seller' || role === 'vendedor';
+    const isSeller = role === 'seller' || role === 'vendedor' || role === 'vendedo';
     if (!isSeller) return <Navigate to="/" replace />;
     return (
       <DashboardLayout isSeller>

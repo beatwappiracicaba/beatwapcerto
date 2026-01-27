@@ -194,7 +194,7 @@ const Pricing = () => {
 
             <div className="bg-gradient-to-r from-beatwap-gold/20 to-beatwap-gold/5 rounded-3xl p-8 border border-beatwap-gold/20 text-center">
               <p className="text-lg md:text-xl font-medium text-white italic">
-                “Cobramos menos no lançamento e trabalhamos em parceria: o artista fica com 75% dos ganhos e a plataforma com 25%, de forma clara e sem taxas escondidas.”
+                Cobramos menos no lançamento e trabalhamos em parceria: o artista fica com 75% dos ganhos e a plataforma com 25%, de forma clara e sem taxas escondidas.
               </p>
             </div>
           </div>

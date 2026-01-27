@@ -147,7 +147,7 @@ const MusicDetails = () => {
             <p className="text-xl text-gray-400">{musicData.artist}</p>
             
             <p className="text-beatwap-gold font-medium italic pt-2">
-              "{getMotivationalQuote(musicData.status)}"
+              {getMotivationalQuote(musicData.status)}
             </p>
           </div>
         </div>
@@ -258,7 +258,7 @@ const MusicDetails = () => {
                         </p>
                         {event.comment && (
                           <div className="mt-3 p-3 bg-black/30 rounded-lg text-sm italic text-gray-300 border-l-2 border-beatwap-gold">
-                            "{event.comment}"
+                            {event.comment}
                           </div>
                         )}
                       </div>
