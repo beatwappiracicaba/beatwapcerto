@@ -32,8 +32,11 @@ const Login = () => {
         .eq('id', data.session.user.id)
         .single();
 
-      if (profile?.role === 'admin' || profile?.role === 'produtor') {
+      const role = String(profile?.role || '').toLowerCase();
+      if (role === 'admin' || role === 'produtor') {
         navigate('/admin');
+      } else if (role === 'seller' || role === 'vendedor' || role === 'vendedo') {
+        navigate('/seller');
       } else {
         navigate('/dashboard');
       }

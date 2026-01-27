@@ -56,6 +56,20 @@ export const AppRoutes = () => {
     );
   };
 
+  const ArtistRoute = () => {
+    if (loading) return null;
+    const role = profile?.role;
+    const isAdmin = role === 'admin' || role === 'produtor';
+    const isSeller = role === 'seller' || role === 'vendedor' || role === 'vendedo';
+    if (isAdmin) return <Navigate to="/admin" replace />;
+    if (isSeller) return <Navigate to="/seller" replace />;
+    return (
+      <DashboardLayout>
+        <Outlet />
+      </DashboardLayout>
+    );
+  };
+
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
@@ -69,13 +83,15 @@ export const AppRoutes = () => {
           <Route path="/register" element={<Navigate to="/login" replace />} />
         </Route>
 
-        {/* Dashboard Routes */}
-        <Route path="/dashboard" element={<DashboardArtist />} />
-        <Route path="/dashboard/upload" element={<UploadMusic />} />
-        <Route path="/dashboard/uploads" element={<MyUploads />} />
-        <Route path="/dashboard/music/:id" element={<MusicDetails />} />
-        <Route path="/dashboard/notifications" element={<NotificationsPage />} />
-        <Route path="/dashboard/account" element={<MyAccount />} />
+        {/* Artist Dashboard Routes (guarded) */}
+        <Route path="/dashboard" element={<ArtistRoute />}>
+          <Route index element={<DashboardArtist />} />
+          <Route path="upload" element={<UploadMusic />} />
+          <Route path="uploads" element={<MyUploads />} />
+          <Route path="music/:id" element={<MusicDetails />} />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="account" element={<MyAccount />} />
+        </Route>
         
         {/* User Settings */}
         <Route path="/settings" element={<Settings />} />
