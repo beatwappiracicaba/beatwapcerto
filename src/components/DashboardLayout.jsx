@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { LayoutDashboard, Upload, Settings, LogOut, Music, Shield, Users, Bell, BarChart2, Edit2, Camera, Menu, X } from 'lucide-react';
 import { clsx } from 'clsx';
 import logo from '../assets/images/beatwap-logo.png';
-import { NotificationBell } from './notifications/NotificationBell';
+import { NotificationBell } from './Notifications/NotificationBell';
 import { ChatButton } from './FloatingChat/ChatButton';
 import { ChatWindow } from './FloatingChat/ChatWindow';
 import { useAuth } from '../context/AuthContext';
@@ -268,7 +268,7 @@ export const DashboardLayout = ({ children, isAdmin = false, isSeller = false })
                 <Menu size={24} />
             </button>
             <h2 className="font-bold text-lg text-gray-400 truncate">
-                {isAdmin ? 'Painel Administrativo' : isSeller ? 'Área do Vendedor' : 'Área do Artista'}
+                {isAdmin ? 'Área do Produtor' : isSeller ? 'Área do Vendedor' : 'Área do Artista'}
             </h2>
           </div>
 
@@ -278,7 +278,7 @@ export const DashboardLayout = ({ children, isAdmin = false, isSeller = false })
               <div className="text-right hidden md:block group-hover:opacity-80 transition-opacity">
                 <div className="text-sm font-bold text-white">{profile?.name || user?.email?.split('@')[0] || 'Usuário'}</div>
                 <div className="text-xs text-gray-400 flex items-center justify-end gap-1">
-                  {isAdmin ? 'Admin' : isSeller ? 'Vendedor' : 'Artista'} <Edit2 size={10} />
+                  {isAdmin ? 'Produtor' : isSeller ? 'Vendedor' : 'Artista'} <Edit2 size={10} />
                 </div>
               </div>
               <div className="relative">

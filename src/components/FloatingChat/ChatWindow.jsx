@@ -79,7 +79,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
 
   const getAssignedAdminName = (adminId) => {
     const admin = admins.find(a => a.id === adminId);
-    return admin ? admin.name : 'Admin';
+    return admin ? admin.name : 'Produtor';
   };
 
   if (!isOpen) return null;
