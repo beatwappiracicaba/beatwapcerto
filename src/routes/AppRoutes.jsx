@@ -14,7 +14,7 @@ import { SplashScreen } from '../components/ui/SplashScreen';
 import Home from '../pages/Home';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
-// Dashboard temporariamente desativada
+import { DashboardArtistHome, DashboardArtistMusics, DashboardArtistProfile, DashboardArtistChat } from '../pages/DashboardArtist';
 
 // Admin temporariamente desativado
 
@@ -27,7 +27,7 @@ export const AppRoutes = () => {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
   }
 
-  // Dashboard e rotas protegidas desativadas durante reconstrução
+  const isArtista = profile?.cargo === 'Artista';
 
   return (
       <Routes location={location}>
@@ -41,7 +41,10 @@ export const AppRoutes = () => {
           <Route path="/register" element={<Navigate to="/login" replace />} />
         </Route>
 
-        {/* Rotas de dashboard desativadas */}
+        <Route path="/dashboard" element={isArtista ? <DashboardArtistHome /> : <Navigate to="/" replace />} />
+        <Route path="/dashboard/musics" element={isArtista ? <DashboardArtistMusics /> : <Navigate to="/" replace />} />
+        <Route path="/dashboard/profile" element={isArtista ? <DashboardArtistProfile /> : <Navigate to="/" replace />} />
+        <Route path="/dashboard/chat" element={isArtista ? <DashboardArtistChat /> : <Navigate to="/" replace />} />
 
         {/* Fallback - Redirect to Home */}
         <Route path="*" element={<Navigate to="/" replace />} />

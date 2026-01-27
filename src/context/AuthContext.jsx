@@ -8,12 +8,12 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const normalizeRole = (r) => {
+  const normalizeCargo = (r) => {
     if (!r) return r;
     const s = String(r).toLowerCase();
-    if (s === 'admin' || s === 'produtor') return 'produtor';
-    if (s === 'artist' || s === 'artista') return 'artista';
-    if (['seller', 'vendedor', 'vendedo'].includes(s)) return 'vendedor';
+    if (s === 'admin' || s === 'produtor') return 'Produtor';
+    if (s === 'artist' || s === 'artista') return 'Artista';
+    if (['seller', 'vendedor', 'vendedo'].includes(s)) return 'Vendedor';
     return r;
   };
 
@@ -56,7 +56,7 @@ export const AuthProvider = ({ children }) => {
       if (error) {
         console.error('Error fetching profile:', error);
       }
-      setProfile(data ? { ...data, role: normalizeRole(data.role) } : data);
+      setProfile(data ? { ...data, cargo: normalizeCargo(data.cargo) } : data);
     } catch (error) {
       console.error('Error in fetchProfile:', error);
     } finally {

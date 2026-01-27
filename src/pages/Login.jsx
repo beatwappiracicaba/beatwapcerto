@@ -6,24 +6,59 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Card } from '../components/ui/Card';
 import { supabase } from '../services/supabaseClient';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
   const navigate = useNavigate();
   const { addToast } = useToast(); // Assuming ToastContext provides addToast
+  const { refreshProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ email: '', password: '' });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    addToast('O painel está em desenvolvimento. Em breve estará disponível.', 'info');
-    navigate('/');
+    if (!formData.email || !formData.password) {
+      addToast('Informe email e senha.', 'error');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+      if (error) throw error;
+      await refreshProfile();
+      const { data: userRes } = await supabase.auth.getUser();
+      const userId = userRes?.user?.id;
+      let cargo = null;
+      if (userId) {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('cargo')
+          .eq('id', userId)
+          .maybeSingle();
+        cargo = prof?.cargo || null;
+      }
+      addToast('Login realizado com sucesso!', 'success');
+      if (cargo === 'Artista') {
+        navigate('/dashboard');
+      } else {
+        addToast('Seu painel correspondente será liberado em breve.', 'info');
+        navigate('/');
+      }
+    } catch (err) {
+      addToast(err.message || 'Credenciais inválidas.', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="space-y-8">
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold text-white">Bem-vindo de volta</h1>
-        <p className="text-gray-400">O painel está em desenvolvimento. Em breve estará disponível.</p>
+        <p className="text-gray-400">Entre com sua conta para acessar seu painel.</p>
       </div>
 
       <div className="text-center mb-4">
