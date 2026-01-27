@@ -49,6 +49,7 @@ export const DashboardLayout = ({ children, isAdmin = false, isSeller = false })
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [warnedIncomplete, setWarnedIncomplete] = useState(false);
 
   const role = profile?.role;
   const isAdminRole = role === 'admin' || role === 'produtor';
@@ -66,16 +67,12 @@ export const DashboardLayout = ({ children, isAdmin = false, isSeller = false })
     
     // Check if name or avatar is missing
     if (!profile.name || !profile.avatar_url) {
-      // Small delay to ensure loading isn't happening
-      const timer = setTimeout(() => {
-        navigate('/settings');
-        if (!profile.name || !profile.avatar_url) {
-           addToast('Por favor, complete seu perfil com foto e nome.', 'info');
-        }
-      }, 1000);
-      return () => clearTimeout(timer);
+      if (!warnedIncomplete) {
+        setWarnedIncomplete(true);
+        addToast('Por favor, complete seu perfil com foto e nome.', 'info');
+      }
     }
-  }, [profile, addToast, navigate]);
+  }, [profile, addToast, warnedIncomplete]);
 
   const handleSignOut = async () => {
     await signOut();
