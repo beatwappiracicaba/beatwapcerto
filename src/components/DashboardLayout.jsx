@@ -67,7 +67,7 @@ export const DashboardLayout = ({ children, isAdmin = false, isSeller = false })
     if (!profile.name || !profile.avatar_url) {
       // Small delay to ensure loading isn't happening
       const timer = setTimeout(() => {
-        navigate('/dashboard/account');
+        navigate('/settings');
         if (!profile.name || !profile.avatar_url) {
            addToast('Por favor, complete seu perfil com foto e nome.', 'info');
         }

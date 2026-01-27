@@ -1,7 +1,5 @@
 import React from 'react';
 import { Card } from '../../components/ui/Card';
-import { ChatWindow } from '../../components/FloatingChat/ChatWindow';
-import { ChatButton } from '../../components/FloatingChat/ChatButton';
 import { useAuth } from '../../context/AuthContext';
 
 const SellerOverview = () => {
@@ -25,8 +23,6 @@ const SellerOverview = () => {
           <p className="text-sm text-gray-400">Atualize seu perfil no canto superior</p>
         </Card>
       </div>
-      <ChatButton isAdmin={true} currentUserId={currentUserId} />
-      <ChatWindow isAdmin={true} currentUserId={currentUserId} />
     </div>
   );
 };
