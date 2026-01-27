@@ -90,15 +90,13 @@ export const ChatProvider = ({ children }) => {
            (!isAdmin && m.sender === 'admin'))
         ).length;
 
-        // Find assigned admin details if any
-        let assignedAdmin = null;
-        // if (chat.assigned_to) { ... } // Column removed temporarily
+        const assignedTo = chat.assigned_to ?? null;
 
         return {
           id: chat.id,
           artistId: chat.artist_id,
           adminId: 'admin', // Legacy placeholder
-          // assignedTo: chat.assigned_to, // Column removed temporarily
+          assignedTo,
           messages: messagesWithSender,
           lastMessage: lastMsg?.content || '',
           lastMessageTime: lastMsg?.created_at || chat.created_at,
@@ -115,19 +113,22 @@ export const ChatProvider = ({ children }) => {
   };
 
   const assignChat = async (chatId) => {
-    // try {
-    //   const { error } = await supabase
-    //     .from('chats')
-    //     .update({ assigned_to: user.id })
-    //     .eq('id', chatId);
+    try {
+      const { error } = await supabase
+        .from('chats')
+        .update({ assigned_to: user.id })
+        .eq('id', chatId);
 
-    //   if (error) throw error;
-    //   await fetchChats(); // Refresh
-    // } catch (error) {
-    //   console.error('Error assigning chat:', error);
-    //   throw error;
-    // }
-    console.log("Assign chat disabled: DB column missing");
+      if (error) {
+        // Fallback local assignment if column missing
+        setChats(prev => prev.map(c => c.id === chatId ? { ...c, assignedTo: user.id } : c));
+        return;
+      }
+      await fetchChats();
+    } catch (error) {
+      // Fallback local assignment
+      setChats(prev => prev.map(c => c.id === chatId ? { ...c, assignedTo: user.id } : c));
+    }
   };
 
   const getChatByArtist = (artistId) => {
@@ -168,6 +169,17 @@ export const ChatProvider = ({ children }) => {
     if (existing) return existing.id;
 
     try {
+      // Validate artist exists and is an artist
+      const { data: artistProfile } = await supabase
+        .from('profiles')
+        .select('id, role')
+        .eq('id', artistId)
+        .maybeSingle();
+      const roleStr = String(artistProfile?.role || '').toLowerCase();
+      if (!artistProfile || !['artist','artista'].includes(roleStr)) {
+        return null;
+      }
+
       // Check if exists in DB to avoid 409
       const { data: existingDb } = await supabase
         .from('chats')
@@ -210,7 +222,8 @@ export const ChatProvider = ({ children }) => {
   const openChatWithContext = (context) => {
     setIsOpen(true);
     // Logic to select specific chat based on context could go here
-    if (profile?.role !== 'admin') {
+    const roleStr = String(profile?.role || '').toLowerCase();
+    if (roleStr === 'artist' || roleStr === 'artista') {
       // Ensure chat exists
       if (!chats.find(c => c.artistId === user.id)) {
         createChat(user.id);

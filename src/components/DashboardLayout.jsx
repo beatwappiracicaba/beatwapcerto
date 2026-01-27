@@ -328,16 +328,9 @@ export const DashboardLayout = ({ children, isAdmin = false, isSeller = false })
 
         {/* Scrollable Content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="max-w-7xl mx-auto w-full"
-          >
+          <div className="max-w-7xl mx-auto w-full">
             {children}
-          </motion.div>
+          </div>
         </main>
       </div>
 
