@@ -104,6 +104,20 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
              </button>
           ) : null}
           <div>
+            <div className="flex -space-x-2 mb-1">
+              {admins.slice(0, 4).map((admin) => (
+                <div key={admin.id} className="w-6 h-6 rounded-full border-2 border-[#121212] overflow-hidden bg-gray-700 relative" title={admin.name}>
+                  {admin.avatar_url ? (
+                    <img src={admin.avatar_url} alt={admin.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[10px] text-white font-bold">
+                      {admin.name?.charAt(0) || 'A'}
+                    </div>
+                  )}
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-[#121212]" />
+                </div>
+              ))}
+            </div>
             <h3 className="font-bold text-white flex items-center gap-2">
               {isAdmin 
                 ? (activeChatId ? `Artista` : 'Atendimento') 
@@ -122,22 +136,6 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
               </p>
             )}
 
-            {/* Admin Avatars in Header (Only on main list or user view) */}
-            {(!isAdmin || !activeChatId) && (
-               <div className="flex -space-x-2 mt-1">
-                 {admins.slice(0, 3).map((admin) => (
-                   <div key={admin.id} className="w-6 h-6 rounded-full border-2 border-[#121212] overflow-hidden bg-gray-700" title={admin.name}>
-                      {admin.avatar_url ? (
-                        <img src={admin.avatar_url} alt={admin.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-[10px] text-white font-bold">
-                          {admin.name?.charAt(0) || 'A'}
-                        </div>
-                      )}
-                   </div>
-                 ))}
-               </div>
-            )}
           </div>
         </div>
         <div className="flex items-center gap-2">

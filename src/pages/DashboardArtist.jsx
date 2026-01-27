@@ -174,6 +174,7 @@ export const DashboardArtistChat = () => {
   return (
     <DashboardLayout>
       <Card className="space-y-4">
+        <div className="text-sm text-beatwap-gold font-bold">Chat com Vendedor de Show</div>
         {!chatId && <div className="text-gray-400">Criando chat...</div>}
         {chatId && (
           <>
