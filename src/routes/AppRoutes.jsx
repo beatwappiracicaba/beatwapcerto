@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 // UI
 import { SplashScreen } from '../components/ui/SplashScreen';
 
-import { DashboardLayout } from '../components/DashboardLayout';
+// DashboardLayout removido durante reconstrução
 
 // Pages
 import Home from '../pages/Home';
