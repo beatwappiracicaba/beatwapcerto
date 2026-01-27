@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Upload, Settings, LogOut, Music, Shield, Users, Bell, BarChart2, Edit2, Camera, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Upload, Settings, LogOut, Music, Shield, Users, Bell, BarChart2, Edit2, Camera, Menu, X, Calendar, MessageCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import logo from '../assets/images/beatwap-logo.png';
 import { NotificationBell } from './notifications/NotificationBell';
@@ -229,6 +229,27 @@ export const DashboardLayout = ({ children, isAdmin = false, isSeller = false })
                     label="Visão Geral" 
                     to="/seller" 
                     active={location.pathname === '/seller'}
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                  <SidebarItem 
+                    icon={Users} 
+                    label="Artistas" 
+                    to="/seller/artists" 
+                    active={location.pathname.includes('/seller/artists')}
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                  <SidebarItem 
+                    icon={Calendar} 
+                    label="Shows" 
+                    to="/seller/shows" 
+                    active={location.pathname.includes('/seller/shows')}
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                  <SidebarItem 
+                    icon={MessageCircle} 
+                    label="Chat" 
+                    to="/seller/chat" 
+                    active={location.pathname.includes('/seller/chat')}
                     onClick={() => setIsSidebarOpen(false)}
                   />
                 </>

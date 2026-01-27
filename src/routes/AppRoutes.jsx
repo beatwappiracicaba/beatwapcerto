@@ -23,6 +23,9 @@ import NotificationsPage from '../pages/NotificationsPage';
 import MyAccount from '../pages/MyAccount';
 import Settings from '../pages/Settings';
 import SellerOverview from '../pages/seller/SellerOverview';
+import SellerArtists from '../pages/seller/SellerArtists';
+import SellerShows from '../pages/seller/SellerShows';
+import SellerChat from '../pages/seller/SellerChat';
 
 // Admin Pages
 import { AdminOverview } from '../pages/admin/AdminOverview';
@@ -94,6 +97,9 @@ export const AppRoutes = () => {
         {/* Seller Routes */}
         <Route path="/seller" element={<SellerRoute />}>
           <Route index element={<SellerOverview />} />
+          <Route path="artists" element={<SellerArtists />} />
+          <Route path="shows" element={<SellerShows />} />
+          <Route path="chat" element={<SellerChat />} />
         </Route>
 
         {/* Fallback - Redirect to Home */}
