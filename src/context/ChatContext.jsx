@@ -41,7 +41,7 @@ export const ChatProvider = ({ children }) => {
       const { data, error } = await supabase
         .from('profiles')
         .select('id, name, avatar_url')
-        .in('role', ['admin', 'produtor']);
+        .in('role', ['admin', 'produtor', 'vendedor']);
 
       if (error) throw error;
       setAdmins(data || []);
