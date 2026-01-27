@@ -56,3 +56,39 @@ create policy "Authenticated Upload Covers" on storage.objects for insert with c
 create policy "Authenticated Upload Music" on storage.objects for insert with check (bucket_id = 'music_files' and auth.role() = 'authenticated');
 create policy "Authenticated Upload Docs" on storage.objects for insert with check (bucket_id = 'music_docs' and auth.role() = 'authenticated');
 create policy "Authenticated Upload Avatars" on storage.objects for insert with check (bucket_id = 'avatars' and auth.role() = 'authenticated');
+
+-- Notificações: tabela, RLS e Realtime
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  recipient_id uuid references public.profiles(id) on delete cascade,
+  title text not null,
+  message text,
+  type text default 'info',
+  link text,
+  read boolean default false,
+  created_at timestamptz default now()
+);
+
+alter table public.notifications enable row level security;
+drop policy if exists notifications_select_self on public.notifications;
+drop policy if exists notifications_insert_self on public.notifications;
+drop policy if exists notifications_update_self on public.notifications;
+create policy notifications_select_self on public.notifications for select using (recipient_id = auth.uid());
+create policy notifications_insert_self on public.notifications for insert with check (recipient_id = auth.uid());
+create policy notifications_update_self on public.notifications for update using (recipient_id = auth.uid());
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_rel pr
+    join pg_class c on pr.prrelid = c.oid
+    join pg_namespace n on c.relnamespace = n.oid
+    where pr.prpubid = (select oid from pg_publication where pubname = 'supabase_realtime')
+      and n.nspname = 'public'
+      and c.relname = 'notifications'
+  ) then
+    alter publication supabase_realtime add table public.notifications;
+  end if;
+end
+$$;

@@ -47,6 +47,7 @@ export const NotificationProvider = ({ children }) => {
       setNotifications(data || []);
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      addToast('Erro ao carregar notificações', 'error');
     }
   };
 
