@@ -13,7 +13,6 @@ export const NotificationBell = ({ userId = 1 }) => {
   const notifications = getNotifications(userId);
   const unreadCount = getUnreadCount(userId);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
