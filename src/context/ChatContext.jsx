@@ -40,11 +40,16 @@ export const ChatProvider = ({ children }) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, avatar_url')
-        .in('role', ['admin', 'produtor', 'vendedor', 'vendedo']);
+        .select('id, nome, avatar_url, cargo')
+        .eq('cargo', 'Produtor');
 
       if (error) throw error;
-      setAdmins(data || []);
+      const mapped = (data || []).map(p => ({
+        id: p.id,
+        name: p.nome || 'Produtor',
+        avatar_url: p.avatar_url
+      }));
+      setAdmins(mapped);
     } catch (error) {
       console.error('Error fetching admins:', error);
     }
@@ -61,11 +66,11 @@ export const ChatProvider = ({ children }) => {
         `)
         .order('updated_at', { ascending: false });
 
-      const role = profile?.role;
-      const isAdmin = role === 'admin' || role === 'produtor';
-      const isSeller = role === 'seller' || role === 'vendedor' || role === 'vendedo';
+      const cargo = profile?.cargo;
+      const isAdmin = cargo === 'Produtor';
+      const isSeller = cargo === 'Vendedor';
       if (!isAdmin && !isSeller) {
-        query = query.eq('artist_id', user.id);
+        query = query.eq('artista_id', user.id);
       }
 
       const { data, error } = await query;
@@ -77,12 +82,19 @@ export const ChatProvider = ({ children }) => {
         const sortedMessages = chat.messages?.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)) || [];
         const lastMsg = sortedMessages[sortedMessages.length - 1];
         
-        const messagesWithSender = sortedMessages.map(m => ({
-          ...m,
-          sender: m.sender_id === chat.artist_id ? 'artist' : 'admin',
-          timestamp: m.created_at,
-          text: m.content
-        }));
+        const messagesWithSender = sortedMessages.map(m => {
+          const roleStr = String(m.sender_role || m.sender_cargo || '').toLowerCase();
+          const sender =
+            roleStr.includes('artist') || roleStr.includes('artista')
+              ? 'artist'
+              : 'admin';
+          return {
+            ...m,
+            sender,
+            timestamp: m.created_at,
+            text: m.content ?? m.message ?? ''
+          };
+        });
 
         const unreadCount = messagesWithSender.filter(m => 
           !m.read && 
@@ -94,11 +106,11 @@ export const ChatProvider = ({ children }) => {
 
         return {
           id: chat.id,
-          artistId: chat.artist_id,
-          adminId: 'admin', // Legacy placeholder
+          artistId: chat.artista_id ?? chat.artist_id,
+          adminId: 'admin',
           assignedTo,
           messages: messagesWithSender,
-          lastMessage: lastMsg?.content || '',
+          lastMessage: (lastMsg?.content ?? lastMsg?.message) || '',
           lastMessageTime: lastMsg?.created_at || chat.created_at,
           unreadCount
         };
@@ -144,8 +156,10 @@ export const ChatProvider = ({ children }) => {
         .insert({
           chat_id: chatId,
           sender_id: user.id,
-          sender_role: profile?.role || sender,
+          sender_role: profile?.cargo || sender,
+          sender_cargo: profile?.cargo || null,
           content: text,
+          message: text,
           read: false
         });
 
@@ -172,10 +186,10 @@ export const ChatProvider = ({ children }) => {
       // Validate artist exists and is an artist
       const { data: artistProfile } = await supabase
         .from('profiles')
-        .select('id, role')
+        .select('id, cargo')
         .eq('id', artistId)
         .maybeSingle();
-      const roleStr = String(artistProfile?.role || '').toLowerCase();
+      const roleStr = String(artistProfile?.cargo || '').toLowerCase();
       if (!artistProfile || !['artist','artista'].includes(roleStr)) {
         return null;
       }
@@ -184,7 +198,7 @@ export const ChatProvider = ({ children }) => {
       const { data: existingDb } = await supabase
         .from('chats')
         .select('id')
-        .eq('artist_id', artistId)
+        .eq('artista_id', artistId)
         .maybeSingle();
 
       if (existingDb) return existingDb.id;
@@ -193,7 +207,7 @@ export const ChatProvider = ({ children }) => {
       const { data, error } = await supabase
         .from('chats')
         .insert({
-          artist_id: artistId
+          artista_id: artistId
         })
         .select()
         .single();
@@ -204,7 +218,7 @@ export const ChatProvider = ({ children }) => {
            const { data: retryData } = await supabase
              .from('chats')
              .select('id')
-             .eq('artist_id', artistId)
+              .eq('artista_id', artistId)
              .maybeSingle();
            return retryData?.id;
         }
