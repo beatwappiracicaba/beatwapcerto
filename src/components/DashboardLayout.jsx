@@ -163,7 +163,6 @@ export const DashboardLayout = ({ children, isAdmin = false, isSeller = false })
 
             <nav className="space-y-2 flex-1 overflow-y-auto custom-scrollbar">
               {isAdmin ? (
-                // Admin Menu
                 <>
                   <SidebarItem 
                     icon={LayoutDashboard} 
@@ -208,52 +207,13 @@ export const DashboardLayout = ({ children, isAdmin = false, isSeller = false })
                     onClick={() => setIsSidebarOpen(false)}
                   />
                 </>
-              ) : isSeller ? (
-                <>
-                  <SidebarItem 
-                    icon={LayoutDashboard} 
-                    label="Visão Geral" 
-                    to="/seller" 
-                    active={location.pathname === '/seller'}
-                    onClick={() => setIsSidebarOpen(false)}
-                  />
-                  <SidebarItem 
-                    icon={Users} 
-                    label="Artistas" 
-                    to="/seller/artists" 
-                    active={location.pathname.includes('/seller/artists')}
-                    onClick={() => setIsSidebarOpen(false)}
-                  />
-                  <SidebarItem 
-                    icon={Calendar} 
-                    label="Shows" 
-                    to="/seller/shows" 
-                    active={location.pathname.includes('/seller/shows')}
-                    onClick={() => setIsSidebarOpen(false)}
-                  />
-                  <SidebarItem 
-                    icon={MessageCircle} 
-                    label="Chat" 
-                    to="/seller/chat" 
-                    active={location.pathname.includes('/seller/chat')}
-                    onClick={() => setIsSidebarOpen(false)}
-                  />
-                </>
               ) : (
-                // Artist Menu
                 <>
                   <SidebarItem 
                     icon={LayoutDashboard} 
                     label="Visão Geral" 
                     to="/dashboard" 
                     active={location.pathname === '/dashboard'}
-                    onClick={() => setIsSidebarOpen(false)}
-                  />
-                  <SidebarItem 
-                    icon={Upload} 
-                    label="Meus Lançamentos" 
-                    to="/dashboard/uploads" 
-                    active={location.pathname.includes('uploads')}
                     onClick={() => setIsSidebarOpen(false)}
                   />
                   <SidebarItem 
@@ -285,7 +245,7 @@ export const DashboardLayout = ({ children, isAdmin = false, isSeller = false })
                 <Menu size={24} />
             </button>
             <h2 className="font-bold text-lg text-gray-400 truncate">
-              {isAdminRole ? 'Área do Produtor' : isSellerRole ? 'Área do Vendedor' : 'Área do Artista'}
+              {isAdminRole ? 'Área do Produtor' : 'Área do Usuário'}
             </h2>
           </div>
 
@@ -295,7 +255,7 @@ export const DashboardLayout = ({ children, isAdmin = false, isSeller = false })
               <div className="text-right hidden md:block group-hover:opacity-80 transition-opacity">
                 <div className="text-sm font-bold text-white">{profile?.name || user?.email?.split('@')[0] || 'Usuário'}</div>
                 <div className="text-xs text-gray-400 flex items-center justify-end gap-1">
-                {isAdminRole ? 'Produtor' : isSellerRole ? 'Vendedor' : 'Artista'} <Edit2 size={10} />
+                {isAdminRole ? 'Produtor' : 'Usuário'} <Edit2 size={10} />
                 </div>
               </div>
               <div className="relative">
