@@ -1,11 +1,12 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabaseClient';
 import { DashboardLayout } from '../components/DashboardLayout';
+import { MusicUploadModal } from '../components/artist/MusicUploadModal';
+import { Plus } from 'lucide-react';
 
 export const DashboardArtistHome = () => {
   const { user } = useAuth();
@@ -47,68 +48,81 @@ export const DashboardArtistMusics = () => {
   const { user } = useAuth();
   const [musics, setMusics] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+
+  const fetchMusics = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('musics')
+      .select('id,titulo,status,motivo_recusa,created_at,cover_url,nome_artista')
+      .eq('artista_id', user.id)
+      .order('created_at', { ascending: false });
+    if (!error) setMusics(data || []);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const fetchMusics = async () => {
-      const { data, error } = await supabase
-        .from('musics')
-        .select('id,titulo,status,motivo_recusa,created_at')
-        .eq('artista_id', user.id)
-        .order('created_at', { ascending: false });
-      if (!error) setMusics(data || []);
-      setLoading(false);
-    };
     if (user) fetchMusics();
   }, [user]);
+
   return (
     <DashboardLayout>
       <Card>
-        <div className="flex items-center justify-between mb-4">
-          <div className="text-xl font-semibold">Minhas Músicas</div>
+        <div className="flex items-center justify-between mb-6">
+          <div className="text-xl font-semibold text-white">Minhas Músicas</div>
+          <AnimatedButton 
+            onClick={() => setIsUploadModalOpen(true)}
+            icon={Plus}
+          >
+            Nova Música
+          </AnimatedButton>
         </div>
+
         <div className="space-y-3">
           {loading && <div className="text-gray-400">Carregando...</div>}
-          {!loading && musics.length === 0 && <div className="text-gray-400">Nenhuma música encontrada.</div>}
+          {!loading && musics.length === 0 && (
+            <div className="text-center py-10 text-gray-400 border border-dashed border-white/10 rounded-xl">
+              <p>Nenhuma música encontrada.</p>
+              <p className="text-sm mt-2">Clique em "Nova Música" para começar.</p>
+            </div>
+          )}
           {!loading && musics.map((m) => (
-            <div key={m.id} className="flex items-center justify-between p-3 rounded-md border border-gray-800">
-              <div>
-                <div className="font-medium">{m.titulo}</div>
-                <div className="text-xs text-gray-500">{new Date(m.created_at).toLocaleString()}</div>
+            <div key={m.id} className="flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
+              <div className="w-12 h-12 rounded-lg bg-gray-800 overflow-hidden shrink-0">
+                {m.cover_url ? (
+                  <img src={m.cover_url} alt={m.titulo} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">Capa</div>
+                )}
               </div>
-              <div className="flex items-center gap-6">
-                <div className="text-sm">{m.status}</div>
-                {m.motivo_recusa && <div className="text-xs text-red-400">{m.motivo_recusa}</div>}
+              <div className="flex-1">
+                <div className="font-bold text-white">{m.titulo}</div>
+                <div className="text-xs text-gray-400">{m.nome_artista} • {new Date(m.created_at).toLocaleDateString()}</div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className={`text-xs px-3 py-1 rounded-full font-bold uppercase ${
+                  m.status === 'aprovado' ? 'bg-green-500/20 text-green-500' :
+                  m.status === 'recusado' ? 'bg-red-500/20 text-red-500' :
+                  'bg-yellow-500/20 text-yellow-500'
+                }`}>
+                  {m.status}
+                </div>
+                {m.motivo_recusa && (
+                  <div className="text-xs text-red-400 max-w-[150px] truncate" title={m.motivo_recusa}>
+                    {m.motivo_recusa}
+                  </div>
+                )}
               </div>
             </div>
           ))}
         </div>
       </Card>
-    </DashboardLayout>
-  );
-};
 
-export const DashboardArtistProfile = () => {
-  const { user, profile, refreshProfile } = useAuth();
-  const [form, setForm] = useState({ nome: '', avatar_url: '' });
-  const [saving, setSaving] = useState(false);
-  useEffect(() => {
-    if (profile) setForm({ nome: profile.nome || '', avatar_url: profile.avatar_url || '' });
-  }, [profile]);
-  const save = async () => {
-    setSaving(true);
-    const { error } = await supabase
-      .from('profiles')
-      .update({ nome: form.nome, avatar_url: form.avatar_url })
-      .eq('id', user.id);
-    if (!error) await refreshProfile();
-    setSaving(false);
-  };
-  return (
-    <DashboardLayout>
-      <Card className="space-y-4">
-        <AnimatedInput label="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
-        <AnimatedInput label="Avatar URL" value={form.avatar_url} onChange={(e) => setForm({ ...form, avatar_url: e.target.value })} />
-        <AnimatedButton onClick={save} disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</AnimatedButton>
-      </Card>
+      <MusicUploadModal 
+        isOpen={isUploadModalOpen} 
+        onClose={() => setIsUploadModalOpen(false)}
+        onSuccess={fetchMusics}
+      />
     </DashboardLayout>
   );
 };

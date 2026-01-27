@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { ChatButton } from './FloatingChat/ChatButton';
 import { ChatWindow } from './FloatingChat/ChatWindow';
 import { NotificationBell } from './notifications/NotificationBell';
+import { ProfileButton } from './ProfileButton';
 
 export const DashboardLayout = ({ children }) => {
   const { signOut, user, profile } = useAuth();
@@ -44,7 +45,10 @@ export const DashboardLayout = ({ children }) => {
               {profile?.nome || 'Artista'}
             </div>
           </div>
-          {currentUserId && <NotificationBell userId={currentUserId} />}
+          <div className="flex items-center gap-4">
+            {currentUserId && <NotificationBell userId={currentUserId} />}
+            <ProfileButton profile={profile} />
+          </div>
         </div>
         <div className="space-y-6">{children}</div>
       </main>

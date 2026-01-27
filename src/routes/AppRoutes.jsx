@@ -14,7 +14,8 @@ import { SplashScreen } from '../components/ui/SplashScreen';
 import Home from '../pages/Home';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
-import { DashboardArtistHome, DashboardArtistMusics, DashboardArtistProfile, DashboardArtistChat } from '../pages/DashboardArtist';
+import { DashboardArtistHome, DashboardArtistMusics, DashboardArtistChat } from '../pages/DashboardArtist';
+import { DashboardArtistProfile } from '../pages/DashboardArtistProfile';
 
 // Admin temporariamente desativado
 
