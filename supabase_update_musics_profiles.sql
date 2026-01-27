@@ -7,7 +7,9 @@ add column if not exists preview_url text,
 add column if not exists isrc text,
 add column if not exists authorization_url text,
 add column if not exists plataformas text[], -- Ex: ['Spotify', 'Apple Music'] ou ['Todas']
-add column if not exists estilo text;
+add column if not exists estilo text,
+add column if not exists upc text,
+add column if not exists presave_link text;
 
 -- Atualização da tabela profiles
 alter table public.profiles
@@ -89,6 +91,36 @@ begin
       and c.relname = 'notifications'
   ) then
     alter publication supabase_realtime add table public.notifications;
+  end if;
+end
+$$;
+
+-- Presença online: tabela, RLS e Realtime
+create table if not exists public.online_status (
+  profile_id uuid primary key references public.profiles(id) on delete cascade,
+  online boolean default false,
+  updated_at timestamptz default now()
+);
+
+alter table public.online_status enable row level security;
+drop policy if exists online_status_select_all on public.online_status;
+drop policy if exists online_status_upsert_self on public.online_status;
+create policy online_status_select_all on public.online_status for select using (auth.role() = 'authenticated');
+create policy online_status_upsert_self on public.online_status for insert with check (profile_id = auth.uid());
+create policy online_status_update_self on public.online_status for update using (profile_id = auth.uid());
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_rel pr
+    join pg_class c on pr.prrelid = c.oid
+    join pg_namespace n on c.relnamespace = n.oid
+    where pr.prpubid = (select oid from pg_publication where pubname = 'supabase_realtime')
+      and n.nspname = 'public'
+      and c.relname = 'online_status'
+  ) then
+    alter publication supabase_realtime add table public.online_status;
   end if;
 end
 $$;

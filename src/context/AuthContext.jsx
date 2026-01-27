@@ -45,6 +45,24 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const updateOnline = async () => {
+      if (user?.id) {
+        await supabase
+          .from('online_status')
+          .upsert({ profile_id: user.id, online: true, updated_at: new Date().toISOString() });
+      }
+    };
+    updateOnline();
+    return () => {
+      if (user?.id) {
+        supabase
+          .from('online_status')
+          .upsert({ profile_id: user.id, online: false, updated_at: new Date().toISOString() });
+      }
+    };
+  }, [user]);
+
   const fetchProfile = async (userId) => {
     try {
       const { data, error } = await supabase
@@ -71,6 +89,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signOut = async () => {
+    if (user?.id) {
+      await supabase
+        .from('online_status')
+        .upsert({ profile_id: user.id, online: false, updated_at: new Date().toISOString() });
+    }
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);

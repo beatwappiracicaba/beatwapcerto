@@ -16,6 +16,7 @@ import Login from '../pages/Login';
 import Register from '../pages/Register';
 import { DashboardArtistHome, DashboardArtistMusics, DashboardArtistChat } from '../pages/DashboardArtist';
 import { DashboardArtistProfile } from '../pages/DashboardArtistProfile';
+import { AdminHome, AdminArtists, AdminMusics, AdminChat } from '../pages/AdminDashboard';
 
 // Admin temporariamente desativado
 
@@ -29,6 +30,7 @@ export const AppRoutes = () => {
   }
 
   const isArtista = profile?.cargo === 'Artista';
+  const isProdutor = profile?.cargo === 'Produtor';
 
   return (
       <Routes location={location}>
@@ -46,6 +48,11 @@ export const AppRoutes = () => {
         <Route path="/dashboard/musics" element={isArtista ? <DashboardArtistMusics /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/profile" element={isArtista ? <DashboardArtistProfile /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/chat" element={isArtista ? <DashboardArtistChat /> : <Navigate to="/" replace />} />
+
+        <Route path="/admin" element={isProdutor ? <AdminHome /> : <Navigate to="/" replace />} />
+        <Route path="/admin/artists" element={isProdutor ? <AdminArtists /> : <Navigate to="/" replace />} />
+        <Route path="/admin/musics" element={isProdutor ? <AdminMusics /> : <Navigate to="/" replace />} />
+        <Route path="/admin/chat" element={isProdutor ? <AdminChat /> : <Navigate to="/" replace />} />
 
         {/* Fallback - Redirect to Home */}
         <Route path="*" element={<Navigate to="/" replace />} />

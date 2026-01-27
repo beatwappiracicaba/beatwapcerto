@@ -44,11 +44,25 @@ export const ChatProvider = ({ children }) => {
         .eq('cargo', 'Produtor');
 
       if (error) throw error;
-      const mapped = (data || []).map(p => ({
+      const ids = (data || []).map(p => p.id);
+      let presence = [];
+      if (ids.length) {
+        const { data: pres } = await supabase
+          .from('online_status')
+          .select('profile_id, online, updated_at')
+          .in('profile_id', ids);
+        presence = pres || [];
+      }
+      const mapped = (data || []).map(p => {
+        const st = presence.find(s => s.profile_id === p.id);
+        return {
         id: p.id,
         name: p.nome || 'Produtor',
-        avatar_url: p.avatar_url
-      }));
+        avatar_url: p.avatar_url,
+        online: st ? !!st.online : false,
+        online_updated_at: st?.updated_at
+      };
+      });
       setAdmins(mapped);
     } catch (error) {
       console.error('Error fetching admins:', error);

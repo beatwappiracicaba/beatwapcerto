@@ -132,6 +132,8 @@ export const DashboardArtistChat = () => {
   const [chatId, setChatId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
+  const [sellers, setSellers] = useState([]);
+  const [presence, setPresence] = useState([]);
   useEffect(() => {
     const init = async () => {
       const { data: existing } = await supabase
@@ -166,6 +168,35 @@ export const DashboardArtistChat = () => {
     };
     if (user) init();
   }, [user]);
+  useEffect(() => {
+    const loadSellers = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, nome, avatar_url')
+        .eq('cargo', 'Vendedor');
+      const ids = (data || []).map(d => d.id);
+      let pres = [];
+      if (ids.length) {
+        const { data: p } = await supabase
+          .from('online_status')
+          .select('profile_id, online')
+          .in('profile_id', ids);
+        pres = p || [];
+      }
+      setSellers(data || []);
+      setPresence(pres);
+    };
+    loadSellers();
+    const channel = supabase
+      .channel('public:online_status')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'online_status' }, () => {
+        loadSellers();
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
   const send = async () => {
     if (!chatId || !input.trim()) return;
     await supabase.from('messages').insert({ chat_id: chatId, sender_cargo: 'Artista', message: input.trim() });
@@ -175,6 +206,23 @@ export const DashboardArtistChat = () => {
     <DashboardLayout>
       <Card className="space-y-4">
         <div className="text-sm text-beatwap-gold font-bold">Chat com Vendedor de Show</div>
+        <div className="flex -space-x-2">
+          {sellers.slice(0, 6).map(s => {
+            const st = presence.find(p => p.profile_id === s.id);
+            return (
+              <div key={s.id} className="w-8 h-8 rounded-full border-2 border-[#121212] overflow-hidden bg-gray-700 relative">
+                {s.avatar_url ? (
+                  <img src={s.avatar_url} alt={s.nome || 'Vendedor'} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-[10px] text-white font-bold">
+                    {(s.nome || 'V').charAt(0)}
+                  </div>
+                )}
+                {st?.online && <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-[#121212]" />}
+              </div>
+            );
+          })}
+        </div>
         {!chatId && <div className="text-gray-400">Criando chat...</div>}
         {chatId && (
           <>
