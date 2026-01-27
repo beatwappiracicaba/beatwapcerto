@@ -30,7 +30,7 @@ const Home = () => {
       const { data, error } = await supabase
         .from('musics')
         .select('*')
-        .eq('status', 'approved')
+        .eq('status', 'aprovado')
         .order('created_at', { ascending: false })
         .limit(8);
 
@@ -45,12 +45,13 @@ const Home = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, avatar_url, bio')
-        .in('role', ['seller', 'vendedor'])
+        .select('id, nome, avatar_url')
+        .eq('cargo', 'Vendedor')
         .order('created_at', { ascending: false })
         .limit(8);
       if (error) throw error;
-      setSellers(data || []);
+      const mapped = (data || []).map(s => ({ ...s, name: s.nome }));
+      setSellers(mapped);
     } catch (error) {
       console.error('Error fetching sellers:', error);
     }

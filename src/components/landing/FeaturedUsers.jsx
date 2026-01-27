@@ -60,12 +60,12 @@ const FeaturedUsers = () => {
         if (error) throw error;
 
         if (data) {
-          const admins = data.filter(u => u.role === 'admin' || u.role === 'produtor');
-          const regular = data.filter(u => u.role !== 'admin' && u.role !== 'produtor');
-          
+          const normalized = data.map(u => ({ ...u, name: u.nome || u.name }));
+          const admins = normalized.filter(u => u.cargo === 'Produtor');
+          const regular = normalized.filter(u => u.cargo !== 'Produtor');
           setProducers(admins);
           setArtists(regular);
-          setRecentUsers(data.slice(0, 5));
+          setRecentUsers(normalized.slice(0, 5));
         }
       } catch (err) {
         console.error('Error fetching users:', err);
