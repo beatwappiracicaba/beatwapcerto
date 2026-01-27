@@ -9,6 +9,7 @@ import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { ProfileEditModal } from '../components/ui/ProfileEditModal';
+import { buildDistributionContractHTML } from '../utils/contractTemplate';
 
 export const DashboardArtistProfile = () => {
   const { user, profile, refreshProfile } = useAuth();
@@ -141,14 +142,26 @@ export const DashboardArtistProfile = () => {
   };
 
   const generateContract = () => {
-    // Simple text file generation for now
-    const text = `CONTRATO DE PRESTAÇÃO DE SERVIÇOS MUSICAIS\n\nCONTRATANTE: ${formData.nome_completo_razao_social || '____________'}\nCPF/CNPJ: ${formData.cpf_cnpj || '____________'}\n\nEste contrato tem como objeto a distribuição digital de obras musicais...\n\n(Texto padrão de contrato aqui)\n\nData: ${new Date().toLocaleDateString()}`;
-    const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'Contrato_BeatWap.txt';
-    a.click();
+    const artistName = formData.nome_completo_razao_social || '____________';
+    const artistCPF = formData.cpf_cnpj || '____________';
+    const artistAddress = `${formData.logradouro || ''}, ${formData.bairro || ''}, ${formData.cidade || ''} - ${formData.estado || ''}, CEP ${formData.cep || ''}`.replace(/(^, | ,)/g, '').trim();
+    const html = buildDistributionContractHTML({
+      artistName,
+      artistCPF,
+      artistAddress,
+      beatwapCNPJ: 'CNPJ a definir',
+      beatwapAddress: 'Endereço a definir',
+      vigenciaAnos: 3,
+      artistaPercent: 80,
+      beatwapPercent: 20,
+    });
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+    }
   };
 
   const tabs = [
