@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { LayoutDashboard, Upload, Settings, LogOut, Music, Shield, Users, Bell, BarChart2, Edit2, Camera, Menu, X } from 'lucide-react';
 import { clsx } from 'clsx';
 import logo from '../assets/images/beatwap-logo.png';
-import { NotificationBell } from './Notifications/NotificationBell';
+import { NotificationBell } from './notifications/NotificationBell';
 import { ChatButton } from './FloatingChat/ChatButton';
 import { ChatWindow } from './FloatingChat/ChatWindow';
 import { useAuth } from '../context/AuthContext';
