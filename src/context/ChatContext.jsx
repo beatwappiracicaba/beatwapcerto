@@ -64,7 +64,7 @@ export const ChatProvider = ({ children }) => {
           *,
           messages (*)
         `)
-        .order('updated_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
       const cargo = profile?.cargo;
       const isAdmin = cargo === 'Produtor';
@@ -155,21 +155,11 @@ export const ChatProvider = ({ children }) => {
         .from('messages')
         .insert({
           chat_id: chatId,
-          sender_id: user.id,
-          sender_role: profile?.cargo || sender,
           sender_cargo: profile?.cargo || null,
-          content: text,
-          message: text,
-          read: false
+          message: text
         });
 
       if (error) throw error;
-      
-      // Update chat updated_at
-      await supabase
-        .from('chats')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('id', chatId);
 
       // fetchChats will be triggered by subscription
     } catch (error) {
