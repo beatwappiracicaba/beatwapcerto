@@ -61,7 +61,7 @@ export const ChatProvider = ({ children }) => {
         `)
         .order('updated_at', { ascending: false });
 
-      if (profile?.role !== 'admin') {
+      if (profile?.role !== 'admin' && profile?.role !== 'seller') {
         query = query.eq('artist_id', user.id);
       }
 
@@ -140,6 +140,7 @@ export const ChatProvider = ({ children }) => {
         .insert({
           chat_id: chatId,
           sender_id: user.id,
+          sender_role: profile?.role || sender,
           content: text,
           read: false
         });

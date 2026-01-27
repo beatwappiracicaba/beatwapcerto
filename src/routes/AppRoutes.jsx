@@ -4,6 +4,7 @@ import { AnimatePresence } from 'framer-motion';
 
 // Layouts
 import { AuthLayout } from '../components/AuthLayout';
+import { useAuth } from '../context/AuthContext';
 
 // UI
 import { SplashScreen } from '../components/ui/SplashScreen';
@@ -21,6 +22,7 @@ import MusicDetails from '../pages/MusicDetails';
 import NotificationsPage from '../pages/NotificationsPage';
 import MyAccount from '../pages/MyAccount';
 import Settings from '../pages/Settings';
+import SellerOverview from '../pages/seller/SellerOverview';
 
 // Admin Pages
 import { AdminOverview } from '../pages/admin/AdminOverview';
@@ -33,10 +35,21 @@ import { AdminSettings } from '../pages/admin/AdminSettings';
 export const AppRoutes = () => {
   const location = useLocation();
   const [showSplash, setShowSplash] = useState(true);
+  const { profile, loading } = useAuth();
 
   if (showSplash) {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
   }
+
+  const SellerRoute = () => {
+    if (loading) return null;
+    if (profile?.role !== 'seller') return <Navigate to="/" replace />;
+    return (
+      <DashboardLayout isSeller>
+        <Outlet />
+      </DashboardLayout>
+    );
+  };
 
   return (
     <AnimatePresence mode="wait">
@@ -74,6 +87,11 @@ export const AppRoutes = () => {
           <Route path="metrics" element={<AdminMetrics />} />
           <Route path="notifications" element={<AdminNotifications />} />
           <Route path="settings" element={<AdminSettings />} />
+        </Route>
+
+        {/* Seller Routes */}
+        <Route path="/seller" element={<SellerRoute />}>
+          <Route index element={<SellerOverview />} />
         </Route>
 
         {/* Fallback - Redirect to Home */}

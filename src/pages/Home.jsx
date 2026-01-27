@@ -16,11 +16,13 @@ import { motion } from 'framer-motion';
 
 const Home = () => {
   const [latestReleases, setLatestReleases] = useState([]);
+  const [sellers, setSellers] = useState([]);
 
   // Reset scroll on mount
   useEffect(() => {
     window.scrollTo(0, 0);
     fetchLatestReleases();
+    fetchSellers();
   }, []);
 
   const fetchLatestReleases = async () => {
@@ -36,6 +38,21 @@ const Home = () => {
       setLatestReleases(data || []);
     } catch (error) {
       console.error('Error fetching releases:', error);
+    }
+  };
+
+  const fetchSellers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url, bio')
+        .eq('role', 'seller')
+        .order('created_at', { ascending: false })
+        .limit(8);
+      if (error) throw error;
+      setSellers(data || []);
+    } catch (error) {
+      console.error('Error fetching sellers:', error);
     }
   };
 
@@ -78,6 +95,41 @@ const Home = () => {
                     <h3 className="font-bold text-lg truncate">{release.title}</h3>
                     <p className="text-sm text-gray-400 truncate">{release.artist_name}</p>
                     <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider">{release.genre}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Sellers Section */}
+        {sellers.length > 0 && (
+          <section className="py-20 px-6 bg-black/20">
+            <div className="max-w-7xl mx-auto">
+              <div className="text-center mb-12">
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">Vendedores de Shows</h2>
+                <p className="text-gray-400">Profissionais disponíveis para fechar shows</p>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {sellers.map((seller, index) => (
+                  <motion.div
+                    key={seller.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="group p-4 rounded-2xl bg-white/5 border border-white/10"
+                  >
+                    <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-4 bg-gray-700 border-2 border-black">
+                      {seller.avatar_url ? (
+                        <img src={seller.avatar_url} alt={seller.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xl text-white font-bold">
+                          {seller.name?.charAt(0) || 'V'}
+                        </div>
+                      )}
+                    </div>
+                    <h3 className="font-bold text-lg text-center">{seller.name || 'Vendedor'}</h3>
+                    <p className="text-sm text-gray-400 text-center line-clamp-2 mt-1">{seller.bio || 'Vendedor de shows'}</p>
                   </motion.div>
                 ))}
               </div>

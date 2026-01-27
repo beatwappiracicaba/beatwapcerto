@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { LayoutDashboard, Upload, Settings, LogOut, Music, Shield, Users, Bell, BarChart2, Edit2, Camera, Menu, X } from 'lucide-react';
 import { clsx } from 'clsx';
 import logo from '../assets/images/beatwap-logo.png';
-import { NotificationBell } from './Notifications/NotificationBell';
+import { NotificationBell } from './notifications/NotificationBell';
 import { ChatButton } from './FloatingChat/ChatButton';
 import { ChatWindow } from './FloatingChat/ChatWindow';
 import { useAuth } from '../context/AuthContext';
@@ -38,7 +38,7 @@ const SidebarItem = ({ icon: Icon, label, to, active, onClick }) => (
   </Link>
 );
 
-export const DashboardLayout = ({ children, isAdmin = false }) => {
+export const DashboardLayout = ({ children, isAdmin = false, isSeller = false }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, profile, signOut, refreshProfile } = useAuth();
@@ -212,6 +212,16 @@ export const DashboardLayout = ({ children, isAdmin = false }) => {
                     onClick={() => setIsSidebarOpen(false)}
                   />
                 </>
+              ) : isSeller ? (
+                <>
+                  <SidebarItem 
+                    icon={LayoutDashboard} 
+                    label="Visão Geral" 
+                    to="/seller" 
+                    active={location.pathname === '/seller'}
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                </>
               ) : (
                 // Artist Menu
                 <>
@@ -258,7 +268,7 @@ export const DashboardLayout = ({ children, isAdmin = false }) => {
                 <Menu size={24} />
             </button>
             <h2 className="font-bold text-lg text-gray-400 truncate">
-                {isAdmin ? 'Painel Administrativo' : 'Área do Artista'}
+                {isAdmin ? 'Painel Administrativo' : isSeller ? 'Área do Vendedor' : 'Área do Artista'}
             </h2>
           </div>
 
@@ -268,7 +278,7 @@ export const DashboardLayout = ({ children, isAdmin = false }) => {
               <div className="text-right hidden md:block group-hover:opacity-80 transition-opacity">
                 <div className="text-sm font-bold text-white">{profile?.name || user?.email?.split('@')[0] || 'Usuário'}</div>
                 <div className="text-xs text-gray-400 flex items-center justify-end gap-1">
-                  {isAdmin ? 'Admin' : 'Artista'} <Edit2 size={10} />
+                  {isAdmin ? 'Admin' : isSeller ? 'Vendedor' : 'Artista'} <Edit2 size={10} />
                 </div>
               </div>
               <div className="relative">
@@ -304,8 +314,8 @@ export const DashboardLayout = ({ children, isAdmin = false }) => {
 
       {user && (
         <>
-          <ChatButton isAdmin={isAdmin} currentUserId={currentUserId} />
-          <ChatWindow isAdmin={isAdmin} currentUserId={currentUserId} />
+          <ChatButton isAdmin={isAdmin || isSeller} currentUserId={currentUserId} />
+          <ChatWindow isAdmin={isAdmin || isSeller} currentUserId={currentUserId} />
         </>
       )}
 

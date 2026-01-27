@@ -16,7 +16,7 @@ const Transparency = () => {
           </div>
           
           <p className="text-xl md:text-2xl text-gray-300 font-light leading-relaxed">
-            "A BeatWap atua como revendedora de serviços de distribuição digital, oferecendo organização, acompanhamento e clareza em todo o processo."
+            A BeatWap atua como revendedora de serviços de distribuição digital, oferecendo organização, acompanhamento e clareza em todo o processo.
           </p>
         </motion.div>
       </div>
