@@ -49,6 +49,16 @@ export const DashboardLayout = ({ children, isAdmin = false, isSeller = false })
   const [uploading, setUploading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  const role = profile?.role;
+  const isAdminRole = role === 'admin' || role === 'produtor';
+  const isSellerRole = role === 'seller' || role === 'vendedor' || role === 'vendedo';
+
+  useEffect(() => {
+    if (user) {
+      refreshProfile();
+    }
+  }, [user]);
+
   // Force profile completion
   useEffect(() => {
     if (!profile) return;
@@ -268,7 +278,7 @@ export const DashboardLayout = ({ children, isAdmin = false, isSeller = false })
                 <Menu size={24} />
             </button>
             <h2 className="font-bold text-lg text-gray-400 truncate">
-                {isAdmin ? 'Área do Produtor' : isSeller ? 'Área do Vendedor' : 'Área do Artista'}
+              {isAdminRole ? 'Área do Produtor' : isSellerRole ? 'Área do Vendedor' : 'Área do Artista'}
             </h2>
           </div>
 
@@ -278,7 +288,7 @@ export const DashboardLayout = ({ children, isAdmin = false, isSeller = false })
               <div className="text-right hidden md:block group-hover:opacity-80 transition-opacity">
                 <div className="text-sm font-bold text-white">{profile?.name || user?.email?.split('@')[0] || 'Usuário'}</div>
                 <div className="text-xs text-gray-400 flex items-center justify-end gap-1">
-                  {isAdmin ? 'Produtor' : isSeller ? 'Vendedor' : 'Artista'} <Edit2 size={10} />
+                {isAdminRole ? 'Produtor' : isSellerRole ? 'Vendedor' : 'Artista'} <Edit2 size={10} />
                 </div>
               </div>
               <div className="relative">
