@@ -9,6 +9,7 @@ import { useToast } from '../context/ToastContext';
 import { supabase } from '../services/supabaseClient';
 import { ArtistContentManager } from '../components/admin/ArtistContentManager';
 import { ProfileEditModal } from '../components/ui/ProfileEditModal';
+import { useData } from '../context/DataContext';
 
 export const AdminHome = () => {
   const [counts, setCounts] = useState({ artists: 0, musics: 0, pending: 0 });
@@ -41,26 +42,30 @@ export const AdminArtists = () => {
   const [coverUrl, setCoverUrl] = useState('');
   const [plataformas, setPlataformas] = useState('Todas');
   const [isManagerOpen, setIsManagerOpen] = useState(false);
-  const [musics, setMusics] = useState([]);
-  const [localInputs, setLocalInputs] = useState({});
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [metricsForm, setMetricsForm] = useState({ plays: '', listeners: '', revenue: '', growth: '' });
   const { addNotification } = useNotification();
   const { addToast } = useToast();
+  const { getArtistById, updateArtistMetrics } = useData();
   const load = useCallback(async () => {
     const { data } = await supabase.from('profiles').select('id, nome, avatar_url').eq('cargo', 'Artista');
     setArtists(data || []);
   }, []);
   useEffect(() => { load(); }, [load]);
-  const loadMusics = useCallback(async () => {
-    let q = supabase
-      .from('musics')
-      .select('id,titulo,status,motivo_recusa,artista_id,upc,presave_link,created_at')
-      .eq('status', 'em_analise')
-      .order('created_at', { ascending: false });
-    if (selectedArtist) q = q.eq('artista_id', selectedArtist);
-    const { data } = await q;
-    setMusics(data || []);
-  }, [selectedArtist]);
-  useEffect(() => { loadMusics(); }, [loadMusics]);
+  useEffect(() => {
+    if (selectedArtist) {
+      const a = getArtistById(selectedArtist);
+      const m = a?.metrics || { plays: '', listeners: '', revenue: '', growth: '' };
+      setMetricsForm({
+        plays: String(m.plays || ''),
+        listeners: String(m.listeners || ''),
+        revenue: String(m.revenue || ''),
+        growth: String(m.growth || '')
+      });
+    } else {
+      setMetricsForm({ plays: '', listeners: '', revenue: '', growth: '' });
+    }
+  }, [selectedArtist, getArtistById]);
   const sendMusic = async () => {
     if (!selectedArtist) { addToast('Selecione o artista', 'error'); return; }
     if (!title.trim()) { addToast('Informe o título', 'error'); return; }
@@ -77,28 +82,49 @@ export const AdminArtists = () => {
       });
       addToast('Música enviada para análise', 'success');
       setTitle(''); setIsrc(''); setAudioUrl(''); setCoverUrl('');
-      loadMusics();
     } catch (e) {
       addToast('Falha ao enviar música', 'error');
     }
   };
-  const approve = async (m) => {
-    const inputs = localInputs[m.id] || {};
-    const upcVal = (inputs.upc || '').trim();
-    const presaveVal = (inputs.presave || '').trim();
-    if (!upcVal) { addToast('Informe o UPC', 'error'); return; }
-    await supabase.from('musics').update({ status: 'aprovado', upc: upcVal, presave_link: presaveVal || null }).eq('id', m.id);
-    await addNotification({ recipientId: m.artista_id, title: 'Música aprovada', message: `UPC: ${upcVal}. Pre-save: ${presaveVal || 'N/A'}`, type: 'success', link: presaveVal || null });
-    setLocalInputs((prev) => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), upc: '', presave: '' } }));
-    loadMusics();
+  const handleSaveProfile = async ({ name, bio, blob }) => {
+    try {
+      if (!selectedArtist) return;
+      let avatar_url = null;
+      if (blob) {
+        const fileName = `${selectedArtist}-${Date.now()}.jpg`;
+        const { data: uploadRes, error: uploadErr } = await supabase.storage.from('avatars').upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
+        if (uploadErr) throw uploadErr;
+        const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(uploadRes.path);
+        avatar_url = publicUrl.publicUrl;
+      }
+      const updateData = {};
+      if (name) updateData.nome = name;
+      if (bio) updateData.bio = bio;
+      if (avatar_url) updateData.avatar_url = avatar_url;
+      if (Object.keys(updateData).length) {
+        const { error } = await supabase.from('profiles').update(updateData).eq('id', selectedArtist);
+        if (error) throw error;
+      }
+      addToast('Perfil do artista atualizado', 'success');
+      setIsProfileOpen(false);
+      load();
+    } catch {
+      addToast('Falha ao atualizar perfil do artista', 'error');
+    }
   };
-  const reject = async (m) => {
-    const reason = (localInputs[m.id]?.reject || '').trim();
-    if (!reason) { addToast('Informe o motivo da reprovação', 'error'); return; }
-    await supabase.from('musics').update({ status: 'recusado', motivo_recusa: reason }).eq('id', m.id);
-    await addNotification({ recipientId: m.artista_id, title: 'Música reprovada', message: reason, type: 'error' });
-    setLocalInputs((prev) => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), reject: '' } }));
-    loadMusics();
+  const handleUpdateMetrics = async () => {
+    if (!selectedArtist) { addToast('Selecione o artista', 'error'); return; }
+    try {
+      await updateArtistMetrics(selectedArtist, {
+        plays: metricsForm.plays,
+        listeners: metricsForm.listeners,
+        revenue: metricsForm.revenue,
+        growth: metricsForm.growth
+      });
+      addToast('Métricas atualizadas', 'success');
+    } catch {
+      addToast('Falha ao atualizar métricas', 'error');
+    }
   };
   return (
     <AdminLayout>
@@ -119,51 +145,38 @@ export const AdminArtists = () => {
         </div>
       </Card>
       <Card className="space-y-4">
-        <div className="font-bold">Músicas em análise {selectedArtist ? '(artista selecionado)' : '(todos os artistas)'}</div>
-        {musics.length === 0 ? (
-          <div className="text-gray-400">Nenhuma música pendente no momento.</div>
-        ) : (
-          <div className="grid grid-cols-1 gap-3">
-            {musics.map(m => (
-              <div key={m.id} className="p-3 rounded-xl border border-white/10 bg-white/5 flex items-center gap-3">
-                <div className="flex-1">
-                  <div className="font-bold text-white">{m.titulo}</div>
-                  <div className="text-xs text-gray-400">Artista: {m.artista_id} • {new Date(m.created_at).toLocaleString()}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-32"
-                    placeholder="UPC"
-                    value={localInputs[m.id]?.upc || ''}
-                    onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), upc: e.target.value } }))}
-                  />
-                  <input
-                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-48"
-                    placeholder="Link de Pre-save"
-                    value={localInputs[m.id]?.presave || ''}
-                    onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), presave: e.target.value } }))}
-                  />
-                  <AnimatedButton onClick={() => approve(m)}>Aprovar</AnimatedButton>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-48"
-                    placeholder="Motivo da reprovação"
-                    value={localInputs[m.id]?.reject || ''}
-                    onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), reject: e.target.value } }))}
-                  />
-                  <AnimatedButton onClick={() => reject(m)}>Reprovar</AnimatedButton>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="font-bold">Gerenciar perfil e métricas do artista</div>
+        <div className="flex items-center gap-3">
+          <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={selectedArtist || ''} onChange={(e) => setSelectedArtist(e.target.value)}>
+            <option value="">Selecione o artista</option>
+            {artists.map(a => <option key={a.id} value={a.id}>{a.nome || a.id}</option>)}
+          </select>
+          <AnimatedButton onClick={() => setIsProfileOpen(true)}>Editar Perfil</AnimatedButton>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <AnimatedInput placeholder="Plays" value={metricsForm.plays} onChange={(e) => setMetricsForm({ ...metricsForm, plays: e.target.value })} />
+          <AnimatedInput placeholder="Listeners" value={metricsForm.listeners} onChange={(e) => setMetricsForm({ ...metricsForm, listeners: e.target.value })} />
+          <AnimatedInput placeholder="Receita" value={metricsForm.revenue} onChange={(e) => setMetricsForm({ ...metricsForm, revenue: e.target.value })} />
+          <AnimatedInput placeholder="Crescimento" value={metricsForm.growth} onChange={(e) => setMetricsForm({ ...metricsForm, growth: e.target.value })} />
+        </div>
+        <AnimatedButton onClick={handleUpdateMetrics}>Salvar métricas</AnimatedButton>
       </Card>
       {isManagerOpen && (
         <ArtistContentManager
           isOpen={isManagerOpen}
           onClose={() => setIsManagerOpen(false)}
           artist={artists.find(a => a.id === selectedArtist) || null}
+        />
+      )}
+      {isProfileOpen && (
+        <ProfileEditModal
+          isOpen={isProfileOpen}
+          onClose={() => setIsProfileOpen(false)}
+          currentAvatar={(artists.find(a => a.id === selectedArtist)?.avatar_url) || null}
+          currentName={(artists.find(a => a.id === selectedArtist)?.nome) || ''}
+          currentBio={(artists.find(a => a.id === selectedArtist)?.bio) || ''}
+          onSave={handleSaveProfile}
+          uploading={false}
         />
       )}
     </AdminLayout>
