@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutGrid, Users, Music, MessageCircle, LogOut } from 'lucide-react';
+import { LayoutGrid, Users, Music, LogOut } from 'lucide-react';
 import { Card } from './ui/Card';
 import { AnimatedButton } from './ui/AnimatedButton';
 import { useAuth } from '../context/AuthContext';
@@ -27,9 +27,7 @@ export const AdminLayout = ({ children }) => {
           <NavLink to="/admin/musics" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
             <Music size={18} /> Músicas
           </NavLink>
-          <NavLink to="/admin/chat" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-            <MessageCircle size={18} /> Chat
-          </NavLink>
+          {/* Chat removido do menu, manter apenas flutuante */}
         </nav>
         <Card className="mt-8 bg-white/[0.03] border-white/10">
           <AnimatedButton onClick={signOut} icon={LogOut}>Sair</AnimatedButton>

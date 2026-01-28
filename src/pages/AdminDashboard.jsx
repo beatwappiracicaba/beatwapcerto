@@ -41,12 +41,26 @@ export const AdminArtists = () => {
   const [coverUrl, setCoverUrl] = useState('');
   const [plataformas, setPlataformas] = useState('Todas');
   const [isManagerOpen, setIsManagerOpen] = useState(false);
+  const [musics, setMusics] = useState([]);
+  const [localInputs, setLocalInputs] = useState({});
+  const { addNotification } = useNotification();
   const { addToast } = useToast();
   const load = useCallback(async () => {
     const { data } = await supabase.from('profiles').select('id, nome, avatar_url').eq('cargo', 'Artista');
     setArtists(data || []);
   }, []);
   useEffect(() => { load(); }, [load]);
+  const loadMusics = useCallback(async () => {
+    let q = supabase
+      .from('musics')
+      .select('id,titulo,status,motivo_recusa,artista_id,upc,presave_link,created_at')
+      .eq('status', 'em_analise')
+      .order('created_at', { ascending: false });
+    if (selectedArtist) q = q.eq('artista_id', selectedArtist);
+    const { data } = await q;
+    setMusics(data || []);
+  }, [selectedArtist]);
+  useEffect(() => { loadMusics(); }, [loadMusics]);
   const sendMusic = async () => {
     if (!selectedArtist) { addToast('Selecione o artista', 'error'); return; }
     if (!title.trim()) { addToast('Informe o título', 'error'); return; }
@@ -63,9 +77,28 @@ export const AdminArtists = () => {
       });
       addToast('Música enviada para análise', 'success');
       setTitle(''); setIsrc(''); setAudioUrl(''); setCoverUrl('');
+      loadMusics();
     } catch (e) {
       addToast('Falha ao enviar música', 'error');
     }
+  };
+  const approve = async (m) => {
+    const inputs = localInputs[m.id] || {};
+    const upcVal = (inputs.upc || '').trim();
+    const presaveVal = (inputs.presave || '').trim();
+    if (!upcVal) { addToast('Informe o UPC', 'error'); return; }
+    await supabase.from('musics').update({ status: 'aprovado', upc: upcVal, presave_link: presaveVal || null }).eq('id', m.id);
+    await addNotification({ recipientId: m.artista_id, title: 'Música aprovada', message: `UPC: ${upcVal}. Pre-save: ${presaveVal || 'N/A'}`, type: 'success', link: presaveVal || null });
+    setLocalInputs((prev) => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), upc: '', presave: '' } }));
+    loadMusics();
+  };
+  const reject = async (m) => {
+    const reason = (localInputs[m.id]?.reject || '').trim();
+    if (!reason) { addToast('Informe o motivo da reprovação', 'error'); return; }
+    await supabase.from('musics').update({ status: 'recusado', motivo_recusa: reason }).eq('id', m.id);
+    await addNotification({ recipientId: m.artista_id, title: 'Música reprovada', message: reason, type: 'error' });
+    setLocalInputs((prev) => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), reject: '' } }));
+    loadMusics();
   };
   return (
     <AdminLayout>
@@ -84,6 +117,47 @@ export const AdminArtists = () => {
           <AnimatedButton onClick={sendMusic}>Enviar</AnimatedButton>
           <AnimatedButton onClick={() => setIsManagerOpen(true)}>Abrir painel completo</AnimatedButton>
         </div>
+      </Card>
+      <Card className="space-y-4">
+        <div className="font-bold">Músicas em análise {selectedArtist ? '(artista selecionado)' : '(todos os artistas)'}</div>
+        {musics.length === 0 ? (
+          <div className="text-gray-400">Nenhuma música pendente no momento.</div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3">
+            {musics.map(m => (
+              <div key={m.id} className="p-3 rounded-xl border border-white/10 bg-white/5 flex items-center gap-3">
+                <div className="flex-1">
+                  <div className="font-bold text-white">{m.titulo}</div>
+                  <div className="text-xs text-gray-400">Artista: {m.artista_id} • {new Date(m.created_at).toLocaleString()}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-32"
+                    placeholder="UPC"
+                    value={localInputs[m.id]?.upc || ''}
+                    onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), upc: e.target.value } }))}
+                  />
+                  <input
+                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-48"
+                    placeholder="Link de Pre-save"
+                    value={localInputs[m.id]?.presave || ''}
+                    onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), presave: e.target.value } }))}
+                  />
+                  <AnimatedButton onClick={() => approve(m)}>Aprovar</AnimatedButton>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-48"
+                    placeholder="Motivo da reprovação"
+                    value={localInputs[m.id]?.reject || ''}
+                    onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), reject: e.target.value } }))}
+                  />
+                  <AnimatedButton onClick={() => reject(m)}>Reprovar</AnimatedButton>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
       {isManagerOpen && (
         <ArtistContentManager
