@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
 export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { addToast } = useToast();
 
   const [step, setStep] = useState(1);
@@ -32,6 +32,15 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
   });
 
   const [errors, setErrors] = useState({});
+
+  React.useEffect(() => {
+    if (profile) {
+      setFormData(prev => ({
+        ...prev,
+        nome_artista: profile.nome || profile.nome_completo_razao_social || prev.nome_artista || ''
+      }));
+    }
+  }, [profile]);
 
   const validateImage = (file) => {
     return new Promise((resolve, reject) => {
@@ -107,8 +116,6 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
         isrc: formData.isrc,
         cover_url: coverUrl,
         audio_url: audioUrl,
-        preview_url: audioUrl, // Using full audio as preview for now
-        authorization_url: authUrl,
         plataformas: formData.plataformas.includes('Todas') ? ['Todas'] : formData.plataformas_selecionadas,
         status: 'em_analise'
       });

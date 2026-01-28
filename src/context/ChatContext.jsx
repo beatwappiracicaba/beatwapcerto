@@ -78,10 +78,7 @@ export const ChatProvider = ({ children }) => {
       setLoading(true);
       let query = supabase
         .from('chats')
-        .select(`
-          *,
-          messages (*)
-        `)
+        .select(`*`)
         .order('created_at', { ascending: false });
 
       const cargo = profile?.cargo;
@@ -108,9 +105,29 @@ export const ChatProvider = ({ children }) => {
         });
       }
 
+      // Fetch messages in batch (avoid FK embedding to prevent 400)
+      const chatIds = (data || []).map(c => c.id);
+      let messagesByChat = {};
+      if (chatIds.length) {
+        const { data: msgsData, error: msgsErr } = await supabase
+          .from('messages')
+          .select('*')
+          .in('chat_id', chatIds);
+        if (!msgsErr) {
+          (msgsData || []).forEach(m => {
+            messagesByChat[m.chat_id] = messagesByChat[m.chat_id] || [];
+            messagesByChat[m.chat_id].push(m);
+          });
+          // sort messages per chat
+          Object.keys(messagesByChat).forEach(cid => {
+            messagesByChat[cid].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+          });
+        }
+      }
+
       // Process data to match mockChats structure
       const formattedChats = data.map(chat => {
-        const sortedMessages = chat.messages?.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)) || [];
+        const sortedMessages = messagesByChat[chat.id] || [];
         const lastMsg = sortedMessages[sortedMessages.length - 1];
         
         const messagesWithSender = sortedMessages.map(m => {
