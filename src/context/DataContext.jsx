@@ -13,17 +13,38 @@ export const DataProvider = ({ children }) => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const { data: artistsData, error: artistsError } = await supabase
+        const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
-          .select(`
-            *,
-            metrics (*)
-          `);
-        if (artistsError) throw artistsError;
+          .select(`*`);
+        if (profilesError) throw profilesError;
 
-        const formattedArtists = (artistsData || []).map(artist => ({
+        const formattedArtists = (profilesData || []).map(artist => ({
           ...artist,
-          metrics: artist.metrics?.[0] || { plays: '0', listeners: '0', revenue: 'R$ 0,00', growth: '0%' }
+          metrics: { plays: '0', listeners: '0', revenue: 'R$ 0,00', growth: '0%' }
+        }));
+
+        // Load metrics in batch for artists
+        const artistIds = (formattedArtists || [])
+          .filter(a => a.cargo === 'Artista')
+          .map(a => a.id);
+        let metricsMap = {};
+        if (artistIds.length) {
+          const { data: metricsData } = await supabase
+            .from('artist_metrics')
+            .select('artista_id,total_plays,ouvintes_mensais,receita_estimada')
+            .in('artista_id', artistIds);
+          (metricsData || []).forEach(m => {
+            metricsMap[m.artista_id] = {
+              plays: String(m.total_plays ?? '0'),
+              listeners: String(m.ouvintes_mensais ?? '0'),
+              revenue: String(m.receita_estimada ?? '0'),
+              growth: '0%'
+            };
+          });
+        }
+        const mergedArtists = formattedArtists.map(a => ({
+          ...a,
+          metrics: metricsMap[a.id] || a.metrics
         }));
 
         const { data: musicData, error: musicError } = await supabase
@@ -32,7 +53,7 @@ export const DataProvider = ({ children }) => {
           .order('created_at', { ascending: false });
         if (musicError) throw musicError;
 
-        setArtists(formattedArtists);
+        setArtists(mergedArtists);
 
         // Normalização de dados para o frontend (camelCase) com colunas reais
         const normalizedMusic = (musicData || []).map(m => ({
@@ -83,11 +104,16 @@ export const DataProvider = ({ children }) => {
           : artist
       ));
 
-      // Database update
+      // Database upsert to artist_metrics (schema real)
+      const payload = {
+        artista_id: artistId,
+        total_plays: Number(newMetrics.plays ?? 0),
+        ouvintes_mensais: Number(newMetrics.listeners ?? 0),
+        receita_estimada: Number(String(newMetrics.revenue ?? '0').replace(/[^\d.-]/g, '')) || 0
+      };
       const { error } = await supabase
-        .from('metrics')
-        .update(newMetrics)
-        .eq('artist_id', artistId);
+        .from('artist_metrics')
+        .upsert(payload, { onConflict: 'artista_id' });
 
       if (error) throw error;
     } catch (error) {
