@@ -7,6 +7,8 @@ import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { useToast } from '../context/ToastContext';
 import { supabase } from '../services/supabaseClient';
+import { ArtistContentManager } from '../components/admin/ArtistContentManager';
+import { ProfileEditModal } from '../components/ui/ProfileEditModal';
 
 export const AdminHome = () => {
   const [counts, setCounts] = useState({ artists: 0, musics: 0, pending: 0 });
@@ -38,6 +40,7 @@ export const AdminArtists = () => {
   const [audioUrl, setAudioUrl] = useState('');
   const [coverUrl, setCoverUrl] = useState('');
   const [plataformas, setPlataformas] = useState('Todas');
+  const [isManagerOpen, setIsManagerOpen] = useState(false);
   const { addToast } = useToast();
   const load = useCallback(async () => {
     const { data } = await supabase.from('profiles').select('id, nome, avatar_url').eq('cargo', 'Artista');
@@ -79,8 +82,16 @@ export const AdminArtists = () => {
           <AnimatedInput placeholder="Capa (URL opcional)" value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} />
           <AnimatedInput placeholder="Plataformas (ex: Spotify, Apple)" value={plataformas} onChange={(e) => setPlataformas(e.target.value)} />
           <AnimatedButton onClick={sendMusic}>Enviar</AnimatedButton>
+          <AnimatedButton onClick={() => setIsManagerOpen(true)}>Abrir painel completo</AnimatedButton>
         </div>
       </Card>
+      {isManagerOpen && (
+        <ArtistContentManager
+          isOpen={isManagerOpen}
+          onClose={() => setIsManagerOpen(false)}
+          artist={artists.find(a => a.id === selectedArtist) || null}
+        />
+      )}
     </AdminLayout>
   );
 };
@@ -89,13 +100,11 @@ export const AdminMusics = () => {
   const { addNotification } = useNotification();
   const { addToast } = useToast();
   const [musics, setMusics] = useState([]);
-  const [upc, setUpc] = useState('');
-  const [presave, setPresave] = useState('');
-  const [rejectReason, setRejectReason] = useState('');
-  const [statusFilter, setStatusFilter] = useState('todos');
+  const [statusFilter, setStatusFilter] = useState('em_analise');
   const [artistFilter, setArtistFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [localInputs, setLocalInputs] = useState({});
   const load = useCallback(async () => {
     let q = supabase
       .from('musics')
@@ -110,18 +119,21 @@ export const AdminMusics = () => {
   }, [statusFilter, artistFilter, startDate, endDate]);
   useEffect(() => { load(); }, [load]);
   const approve = async (m) => {
-    if (!upc.trim()) { addToast('Informe o UPC', 'error'); return; }
-    await supabase.from('musics').update({ status: 'aprovado', upc, presave_link: presave }).eq('id', m.id);
-    await addNotification({ recipientId: m.artista_id, title: 'Música aprovada', message: `UPC: ${upc}. Pre-save: ${presave || 'N/A'}`, type: 'success', link: presave || null });
-    setUpc('');
-    setPresave('');
+    const inputs = localInputs[m.id] || {};
+    const upcVal = (inputs.upc || '').trim();
+    const presaveVal = (inputs.presave || '').trim();
+    if (!upcVal) { addToast('Informe o UPC', 'error'); return; }
+    await supabase.from('musics').update({ status: 'aprovado', upc: upcVal, presave_link: presaveVal || null }).eq('id', m.id);
+    await addNotification({ recipientId: m.artista_id, title: 'Música aprovada', message: `UPC: ${upcVal}. Pre-save: ${presaveVal || 'N/A'}`, type: 'success', link: presaveVal || null });
+    setLocalInputs((prev) => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), upc: '', presave: '' } }));
     load();
   };
   const reject = async (m) => {
-    if (!rejectReason.trim()) { addToast('Informe o motivo da reprovação', 'error'); return; }
-    await supabase.from('musics').update({ status: 'recusado', motivo_recusa: rejectReason }).eq('id', m.id);
-    await addNotification({ recipientId: m.artista_id, title: 'Música reprovada', message: rejectReason, type: 'error' });
-    setRejectReason('');
+    const reason = (localInputs[m.id]?.reject || '').trim();
+    if (!reason) { addToast('Informe o motivo da reprovação', 'error'); return; }
+    await supabase.from('musics').update({ status: 'recusado', motivo_recusa: reason }).eq('id', m.id);
+    await addNotification({ recipientId: m.artista_id, title: 'Música reprovada', message: reason, type: 'error' });
+    setLocalInputs((prev) => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), reject: '' } }));
     load();
   };
   return (
@@ -148,12 +160,27 @@ export const AdminMusics = () => {
                 <div className="text-xs text-gray-400">{m.status}</div>
               </div>
               <div className="flex items-center gap-2">
-                <input className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-32" placeholder="UPC" value={upc} onChange={(e) => setUpc(e.target.value)} />
-                <input className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-48" placeholder="Link de Pre-save" value={presave} onChange={(e) => setPresave(e.target.value)} />
+                <input
+                  className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-32"
+                  placeholder="UPC"
+                  value={localInputs[m.id]?.upc || ''}
+                  onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), upc: e.target.value } }))}
+                />
+                <input
+                  className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-48"
+                  placeholder="Link de Pre-save"
+                  value={localInputs[m.id]?.presave || ''}
+                  onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), presave: e.target.value } }))}
+                />
                 <AnimatedButton onClick={() => approve(m)}>Aprovar</AnimatedButton>
               </div>
               <div className="flex items-center gap-2">
-                <input className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-48" placeholder="Motivo da reprovação" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
+                <input
+                  className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-48"
+                  placeholder="Motivo da reprovação"
+                  value={localInputs[m.id]?.reject || ''}
+                  onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), reject: e.target.value } }))}
+                />
                 <AnimatedButton onClick={() => reject(m)}>Reprovar</AnimatedButton>
               </div>
             </div>
@@ -224,6 +251,68 @@ export const AdminChat = () => {
           </>
         )}
       </Card>
+    </AdminLayout>
+  );
+};
+
+export const AdminProfile = () => {
+  const { user, profile } = useAuth();
+  const { addToast } = useToast();
+  const [isOpen, setIsOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const handleSave = async ({ name, bio, blob }) => {
+    try {
+      setUploading(true);
+      let avatar_url = profile?.avatar_url || null;
+      if (blob) {
+        const fileName = `${user.id}-${Date.now()}.jpg`;
+        const { data: uploadRes, error: uploadErr } = await supabase.storage.from('avatars').upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
+        if (uploadErr) throw uploadErr;
+        const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(uploadRes.path);
+        avatar_url = publicUrl.publicUrl;
+      }
+      const { error } = await supabase.from('profiles').update({
+        nome: name || profile?.nome,
+        bio: bio || profile?.bio || null,
+        avatar_url
+      }).eq('id', user.id);
+      if (error) throw error;
+      addToast('Perfil atualizado', 'success');
+      setIsOpen(false);
+    } catch (e) {
+      addToast('Falha ao atualizar perfil', 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+  return (
+    <AdminLayout>
+      <Card className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-xs text-gray-400">Perfil</div>
+            <div className="text-2xl font-bold">{profile?.nome || 'Produtor'}</div>
+          </div>
+          <AnimatedButton onClick={() => setIsOpen(true)}>Editar Perfil</AnimatedButton>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="w-20 h-20 rounded-full overflow-hidden border border-white/10 bg-gray-800 flex items-center justify-center">
+            {profile?.avatar_url ? <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" /> : <span className="text-gray-400">Sem avatar</span>}
+          </div>
+          <div className="text-gray-400">
+            {profile?.bio || 'Adicione uma bio no seu perfil.'}
+          </div>
+        </div>
+      </Card>
+      <ProfileEditModal
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        currentAvatar={profile?.avatar_url || null}
+        currentName={profile?.nome || ''}
+        currentBio={profile?.bio || ''}
+        onSave={handleSave}
+        uploading={uploading}
+      />
     </AdminLayout>
   );
 };

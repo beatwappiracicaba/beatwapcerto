@@ -4,9 +4,10 @@ import { User } from 'lucide-react';
 
 export const ProfileButton = ({ profile }) => {
   const navigate = useNavigate();
+  const isProdutor = profile?.cargo === 'Produtor';
   return (
     <button 
-      onClick={() => navigate('/dashboard/profile')}
+      onClick={() => navigate(isProdutor ? '/admin/profile' : '/dashboard/profile')}
       className="flex items-center gap-3 pl-4 border-l border-white/10 hover:opacity-80 transition-opacity ml-4"
     >
       <div className="text-right hidden md:block">

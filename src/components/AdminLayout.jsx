@@ -5,6 +5,8 @@ import { AnimatedButton } from './ui/AnimatedButton';
 import { useAuth } from '../context/AuthContext';
 import { NotificationBell } from './notifications/NotificationBell';
 import { ProfileButton } from './ProfileButton';
+import { ChatButton } from './FloatingChat/ChatButton';
+import { ChatWindow } from './FloatingChat/ChatWindow';
 
 export const AdminLayout = ({ children }) => {
   const { signOut, user, profile } = useAuth();
@@ -48,6 +50,8 @@ export const AdminLayout = ({ children }) => {
         </div>
         <div className="space-y-6">{children}</div>
       </main>
+      <ChatButton isAdmin={true} currentUserId={currentUserId} />
+      <ChatWindow isAdmin={true} currentUserId={currentUserId} />
     </div>
   );
 };
