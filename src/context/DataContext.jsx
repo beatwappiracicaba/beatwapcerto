@@ -147,7 +147,7 @@ export const DataProvider = ({ children }) => {
     try {
       // Mapeamento alinhado ao schema existente
       const musicPayload = {
-        status: newMusicData.status || 'em_analise',
+        status: newMusicData.status || 'pendente',
         titulo: newMusicData.title,
         estilo: newMusicData.genre,
         isrc: newMusicData.isrc,
@@ -155,7 +155,7 @@ export const DataProvider = ({ children }) => {
         nome_artista: newMusicData.artist,
         audio_url: newMusicData.audioFile,
         cover_url: newMusicData.cover,
-        authorization_url: newMusicData.authorizationFile || null,
+        authorization_url: newMusicData.authorizationUrl || null,
         plataformas: newMusicData.plataformas || ['Todas']
       };
 
@@ -205,15 +205,15 @@ export const DataProvider = ({ children }) => {
 
       // Map keys
       const dbData = {};
-      if (updatedData.artistId) dbData.artist_id = updatedData.artistId;
-      if (updatedData.artist) dbData.artist_name = updatedData.artist;
+    if (updatedData.artistId) dbData.artista_id = updatedData.artistId;
+    if (updatedData.artist) dbData.nome_artista = updatedData.artist;
       if (updatedData.audioFile) dbData.audio_url = updatedData.audioFile;
       if (updatedData.cover) dbData.cover_url = updatedData.cover;
-      if (updatedData.title) dbData.title = updatedData.title;
-      if (updatedData.genre) dbData.genre = updatedData.genre;
+    if (updatedData.title) dbData.titulo = updatedData.title;
+    if (updatedData.genre) dbData.estilo = updatedData.genre;
       if (updatedData.isrc) dbData.isrc = updatedData.isrc;
       if (updatedData.upc) dbData.upc = updatedData.upc;
-      if (updatedData.internalNote) dbData.internal_note = updatedData.internalNote;
+    // coluna internal_note não existe no schema; omitida para evitar erro
 
       const { error } = await supabase
         .from('musics')

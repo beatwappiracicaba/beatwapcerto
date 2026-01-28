@@ -117,7 +117,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
         cover_url: coverUrl,
         audio_url: audioUrl,
         plataformas: formData.plataformas.includes('Todas') ? ['Todas'] : formData.plataformas_selecionadas,
-        status: 'em_analise'
+        status: 'pendente'
       });
 
       if (error) throw error;

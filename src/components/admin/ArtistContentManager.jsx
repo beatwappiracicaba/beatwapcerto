@@ -143,7 +143,7 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
           audioFile: audioUrl,
           cover: coverUrl,
           authorizationUrl: authorizationUrl,
-          status: 'review',
+          status: 'pendente',
           addedBy: 'admin'
         });
         addNotification({
