@@ -19,11 +19,14 @@ export const ChatProvider = ({ children }) => {
       
       // Subscribe to real-time changes
       const channel = supabase
-        .channel('public:chats')
+        .channel('public:chat-realtime')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'chats' }, () => {
           fetchChats();
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
+          fetchChats();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
           fetchChats();
         })
         .subscribe();
@@ -92,6 +95,19 @@ export const ChatProvider = ({ children }) => {
 
       if (error) throw error;
 
+      // Fetch artist names in batch
+      const artistIds = Array.from(new Set((data || []).map(c => c.artista_id ?? c.artist_id).filter(Boolean)));
+      let artistNameMap = {};
+      if (artistIds.length) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, nome')
+          .in('id', artistIds);
+        (profilesData || []).forEach(p => {
+          artistNameMap[p.id] = p.nome || p.id;
+        });
+      }
+
       // Process data to match mockChats structure
       const formattedChats = data.map(chat => {
         const sortedMessages = chat.messages?.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)) || [];
@@ -118,10 +134,13 @@ export const ChatProvider = ({ children }) => {
         ).length;
 
         const assignedTo = chat.assigned_to ?? null;
+        const artistId = chat.artista_id ?? chat.artist_id;
+        const artistName = artistNameMap[artistId] || `Artista #${String(artistId || '').slice(0,4)}...`;
 
         return {
           id: chat.id,
-          artistId: chat.artista_id ?? chat.artist_id,
+          artistId,
+          artistName,
           adminId: 'admin',
           assignedTo,
           messages: messagesWithSender,

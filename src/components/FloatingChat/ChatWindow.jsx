@@ -73,6 +73,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
   const filteredChats = isAdmin 
     ? chats.filter(c => 
         c.lastMessage.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (c.artistName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.artistId.toString().includes(searchTerm)
       ) 
     : [];
@@ -194,7 +195,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                 <div className="flex-1 overflow-hidden">
                    <div className="flex justify-between items-center">
                      <h4 className="font-bold text-sm text-white flex items-center gap-2">
-                        Artista #{chat.artistId.slice(0, 4)}...
+                        {chat.artistName || `Artista #${chat.artistId.slice(0, 4)}...`}
                         {chat.assignedTo === currentUserId && <span className="text-[10px] bg-beatwap-gold text-black px-1 rounded">Seu</span>}
                      </h4>
                      <span className="text-[10px] text-gray-500">{new Date(chat.lastMessageTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>

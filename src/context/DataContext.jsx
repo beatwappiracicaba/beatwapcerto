@@ -19,11 +19,9 @@ export const DataProvider = ({ children }) => {
             *,
             metrics (*)
           `);
-        
         if (artistsError) throw artistsError;
 
-        // Transform metrics array to object if necessary or just take the first one
-        const formattedArtists = artistsData.map(artist => ({
+        const formattedArtists = (artistsData || []).map(artist => ({
           ...artist,
           metrics: artist.metrics?.[0] || { plays: '0', listeners: '0', revenue: 'R$ 0,00', growth: '0%' }
         }));
@@ -32,32 +30,30 @@ export const DataProvider = ({ children }) => {
           .from('musics')
           .select('*')
           .order('created_at', { ascending: false });
-
         if (musicError) throw musicError;
 
-        setArtists(formattedArtists || []);
+        setArtists(formattedArtists);
 
-      // Normalização de dados para o frontend (camelCase)
-      const normalizedMusic = (musicData || []).map(m => ({
-        ...m,
-        id: m.id,
-        title: m.title,
-        artist: m.artist_name, // Mapeia artist_name -> artist
-        artistId: m.artist_id, // Mapeia artist_id -> artistId
-        cover: m.cover_url, // Mapeia cover_url -> cover
-        audioFile: m.audio_url, // Mapeia audio_url -> audioFile
-        authorizationFile: m.authorization_url, // Mapeia authorization_url -> authorizationFile
-        isOriginal: m.is_original, // Mapeia is_original -> isOriginal
-        status: m.status,
-        genre: m.genre,
-        releaseDate: new Date(m.created_at).toLocaleDateString('pt-BR'),
-        isrc: m.isrc || 'Pendente',
-        upc: m.upc || 'Pendente',
-        date: new Date(m.created_at).toLocaleDateString('pt-BR') // Campo auxiliar para datas
-      }));
-
-      setMusic(normalizedMusic);
-    } catch (error) {
+        // Normalização de dados para o frontend (camelCase) com colunas reais
+        const normalizedMusic = (musicData || []).map(m => ({
+          ...m,
+          id: m.id,
+          title: m.titulo,
+          artist: m.nome_artista,
+          artistId: m.artista_id,
+          cover: m.cover_url,
+          audioFile: m.audio_url,
+          authorizationFile: m.authorization_url,
+          isOriginal: m.is_original,
+          status: m.status,
+          genre: m.estilo,
+          releaseDate: new Date(m.created_at).toLocaleDateString('pt-BR'),
+          isrc: m.isrc || 'Pendente',
+          upc: m.upc || 'Pendente',
+          date: new Date(m.created_at).toLocaleDateString('pt-BR')
+        }));
+        setMusic(normalizedMusic);
+      } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
@@ -65,6 +61,17 @@ export const DataProvider = ({ children }) => {
     };
 
     fetchData();
+
+    // Real-time updates for profiles and musics
+    const channel = supabase
+      .channel('public:data-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'musics' }, fetchData)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const updateArtistMetrics = async (artistId, newMetrics) => {
@@ -112,29 +119,19 @@ export const DataProvider = ({ children }) => {
 
   const addMusic = async (newMusicData) => {
     try {
-      // Prepare data for DB
+      // Mapeamento alinhado ao schema existente
       const musicPayload = {
-        status: newMusicData.status || 'review',
-        added_by: newMusicData.addedBy || 'artist',
-        
-        // Explicit fields only to avoid schema errors
-        title: newMusicData.title,
-        genre: newMusicData.genre,
+        status: newMusicData.status || 'em_analise',
+        titulo: newMusicData.title,
+        estilo: newMusicData.genre,
         isrc: newMusicData.isrc,
-        songwriter: newMusicData.songwriter,
-        
-        // Ensure field names match DB (camelCase to snake_case mapping)
-        artist_id: newMusicData.artistId,
-        artist_name: newMusicData.artist,
+        artista_id: newMusicData.artistId,
+        nome_artista: newMusicData.artist,
         audio_url: newMusicData.audioFile,
         cover_url: newMusicData.cover,
-        
-        // Removed unsupported columns (is_original, has_featuring, etc) to fix 400 Bad Request
+        authorization_url: newMusicData.authorizationFile || null,
+        plataformas: newMusicData.plataformas || ['Todas']
       };
-      
-      // No need to delete properties if we build payload explicitly
-      // But just in case we missed something if we used spread before
-      // delete musicPayload.artistId; ...
 
       const { data, error } = await supabase
         .from('musics')
@@ -148,14 +145,14 @@ export const DataProvider = ({ children }) => {
       const newMusic = {
         ...data,
         id: data.id,
-        artistId: data.artist_id,
-        artist: data.artist_name,
+        artistId: data.artista_id,
+        artist: data.nome_artista,
         audioFile: data.audio_url,
         cover: data.cover_url,
         authorizationFile: data.authorization_url,
         isOriginal: data.is_original,
         status: data.status,
-        genre: data.genre,
+        genre: data.estilo,
         releaseDate: new Date(data.created_at).toLocaleDateString('pt-BR'),
         isrc: data.isrc || 'Pendente',
         upc: data.upc || 'Pendente',
