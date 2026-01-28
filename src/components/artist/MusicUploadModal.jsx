@@ -90,7 +90,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
   };
 
   const handleSubmit = async () => {
-    if (!formData.titulo || !formData.nome_artista || !formData.cover_file || !formData.audio_file) {
+    if (!formData.titulo || !formData.nome_artista || !formData.cover_file || !formData.audio_file || !formData.estilo) {
       setErrors(prev => ({ ...prev, submit: 'Preencha todos os campos obrigatórios.' }));
       return;
     }
@@ -112,8 +112,11 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
         artista_id: user.id,
         titulo: formData.titulo,
         nome_artista: formData.nome_artista,
+        estilo: formData.estilo,
+        isrc: (formData.isrc || '').trim() || null,
         cover_url: coverUrl,
         audio_url: audioUrl,
+        plataformas: formData.plataformas.includes('Todas') ? ['Todas'] : formData.plataformas_selecionadas,
         status: 'em_analise'
       });
 
