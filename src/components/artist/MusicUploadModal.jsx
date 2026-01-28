@@ -110,7 +110,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
         preview_url: audioUrl, // Using full audio as preview for now
         authorization_url: authUrl,
         plataformas: formData.plataformas.includes('Todas') ? ['Todas'] : formData.plataformas_selecionadas,
-        status: 'pendente'
+        status: 'em_analise'
       });
 
       if (error) throw error;

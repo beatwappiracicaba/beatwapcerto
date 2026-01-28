@@ -3,6 +3,7 @@ import { ToastProvider } from './context/ToastContext';
 import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ChatProvider } from './context/ChatContext';
+import { DataProvider } from './context/DataContext';
 import { AppRoutes } from './routes/AppRoutes';
 
 function App() {
@@ -10,9 +11,11 @@ function App() {
     <ToastProvider>
       <AuthProvider>
         <NotificationProvider>
-          <ChatProvider>
-            <AppRoutes />
-          </ChatProvider>
+          <DataProvider>
+            <ChatProvider>
+              <AppRoutes />
+            </ChatProvider>
+          </DataProvider>
         </NotificationProvider>
       </AuthProvider>
     </ToastProvider>
