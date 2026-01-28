@@ -116,7 +116,6 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
         isrc: formData.isrc,
         cover_url: coverUrl,
         audio_url: audioUrl,
-        plataformas: formData.plataformas.includes('Todas') ? ['Todas'] : formData.plataformas_selecionadas,
         status: 'em_analise'
       });
 
@@ -126,7 +125,12 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
       onClose();
       addToast('Música enviada para análise!', 'success');
     } catch (err) {
-      console.error(err);
+      console.error('Erro ao enviar música:', {
+        message: err?.message,
+        details: err?.details,
+        hint: err?.hint,
+        code: err?.code
+      });
       setErrors(prev => ({ ...prev, submit: 'Erro ao enviar música. Tente novamente.' }));
     } finally {
       setLoading(false);
