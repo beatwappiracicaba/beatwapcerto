@@ -20,7 +20,7 @@ export const AdminHome = () => {
     const load = async () => {
       const { count: artistsCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('cargo', 'Artista');
       const { count: musicsCount } = await supabase.from('musics').select('*', { count: 'exact', head: true });
-      const { count: pendingCount } = await supabase.from('musics').select('*', { count: 'exact', head: true }).eq('status', 'em_analise');
+      const { count: pendingCount } = await supabase.from('musics').select('*', { count: 'exact', head: true }).eq('status', 'pendente');
       setCounts({ artists: artistsCount || 0, musics: musicsCount || 0, pending: pendingCount || 0 });
     };
     load();
@@ -159,7 +159,7 @@ export const AdminMusics = () => {
   const { addNotification } = useNotification();
   const { addToast } = useToast();
   const [musics, setMusics] = useState([]);
-  const [statusFilter, setStatusFilter] = useState('em_analise');
+  const [statusFilter, setStatusFilter] = useState('pendente');
   const [artistFilter, setArtistFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -202,7 +202,7 @@ export const AdminMusics = () => {
         <div className="flex flex-wrap items-center gap-2">
           <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="todos">Status: Todos</option>
-            <option value="em_analise">Em análise</option>
+            <option value="pendente">Pendente</option>
             <option value="aprovado">Aprovado</option>
             <option value="recusado">Recusado</option>
           </select>
