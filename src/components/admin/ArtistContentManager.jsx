@@ -115,16 +115,16 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
       let coverUrl = '';
       let authorizationUrl = '';
       if (formData.audioFile) {
-        audioUrl = await uploadFile(formData.audioFile, 'tracks');
+        audioUrl = await uploadFile(formData.audioFile, 'music_files');
       }
       if (formData.coverFile) {
-        coverUrl = await uploadFile(formData.coverFile, 'covers');
+        coverUrl = await uploadFile(formData.coverFile, 'music_covers');
       }
       if (formData.authorizationFile) {
         try {
-          authorizationUrl = await uploadFile(formData.authorizationFile, 'documents');
+          authorizationUrl = await uploadFile(formData.authorizationFile, 'music_docs');
         } catch {
-          authorizationUrl = await uploadFile(formData.authorizationFile, 'covers');
+          authorizationUrl = await uploadFile(formData.authorizationFile, 'music_covers');
         }
       }
       if (view === 'add') {
