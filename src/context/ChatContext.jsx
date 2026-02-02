@@ -20,14 +20,39 @@ export const ChatProvider = ({ children }) => {
       // Subscribe to real-time changes
       const channel = supabase
         .channel('public:chat-realtime')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'chats' }, () => {
-          fetchChats();
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chats' }, (payload) => {
+          const updated = payload.new;
+          setChats(prev => prev.map(c => c.id === updated.id ? { 
+            ...c, 
+            assignedTo: updated.assigned_to ?? c.assignedTo 
+          } : c));
         })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
-          fetchChats();
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
-          fetchChats();
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+          const m = payload.new;
+          const roleStr = String(m.sender_role || m.sender_cargo || '').toLowerCase();
+          const sender =
+            roleStr.includes('artist') || roleStr.includes('artista')
+              ? 'artist'
+              : 'admin';
+          const text = m.content ?? m.message ?? '';
+          const timestamp = m.created_at;
+          setChats(prev => {
+            const idx = prev.findIndex(c => c.id === m.chat_id);
+            if (idx === -1) {
+              // Fallback: refetch if chat not in local state
+              fetchChats();
+              return prev;
+            }
+            const updatedChat = {
+              ...prev[idx],
+              messages: [...prev[idx].messages, { ...m, sender, text, timestamp }],
+              lastMessage: text,
+              lastMessageTime: timestamp
+            };
+            const next = [...prev];
+            next[idx] = updatedChat;
+            return next;
+          });
         })
         .subscribe();
 
@@ -187,7 +212,7 @@ export const ChatProvider = ({ children }) => {
         setChats(prev => prev.map(c => c.id === chatId ? { ...c, assignedTo: user.id } : c));
         return;
       }
-      await fetchChats();
+      // local state will be updated by realtime handler
     } catch (error) {
       // Fallback local assignment
       setChats(prev => prev.map(c => c.id === chatId ? { ...c, assignedTo: user.id } : c));

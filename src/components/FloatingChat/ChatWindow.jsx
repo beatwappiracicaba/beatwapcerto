@@ -125,7 +125,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
             </div>
             <h3 className="font-bold text-white flex items-center gap-2">
               {isAdmin 
-                ? (activeChatId ? `Artista` : 'Atendimento') 
+                ? (activeChatId ? (activeChat?.artistName || 'Artista') : 'Atendimento') 
                 : 'Suporte BeatWap'}
             </h3>
             
@@ -222,7 +222,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
              {!activeChat?.messages?.length ? (
                <div className="flex flex-col items-center justify-center h-full text-gray-500 mt-20 text-center">
                  <MessageCircle size={40} className="mb-2 opacity-20" />
-                 <p className="text-sm">Inicie a conversa!</p>
+                 <p className="text-sm">Escreva o que precisa e espere um produtor pegar sua conversa.</p>
                </div>
              ) : (
                activeChat.messages.map(msg => (

@@ -1014,3 +1014,138 @@ export const AdminProfile = () => {
     </AdminLayout>
   );
 };
+
+export const AdminSponsors = () => {
+  const { user } = useAuth();
+  const { addToast } = useToast();
+  const [sponsors, setSponsors] = useState([]);
+  const [loadingSponsors, setLoadingSponsors] = useState(false);
+  const [form, setForm] = useState({ name: '', instagram_url: '', site_url: '' });
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState('');
+  const loadSponsors = useCallback(async () => {
+    try {
+      setLoadingSponsors(true);
+      const { data, error } = await supabase
+        .from('sponsors')
+        .select('id,name,logo_url,instagram_url,site_url,active,created_at')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setSponsors(data || []);
+    } catch {
+      addToast('Falha ao carregar patrocinadores', 'error');
+    } finally {
+      setLoadingSponsors(false);
+    }
+  }, [addToast]);
+  useEffect(() => { loadSponsors(); }, [loadSponsors]);
+  const onFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setLogoPreview(reader.result);
+    reader.readAsDataURL(file);
+  };
+  const uploadLogo = async () => {
+    if (!logoFile) return null;
+    const fileName = `logo-${Date.now()}-${logoFile.name.replace(/\s+/g,'_')}`;
+    const { data: uploadRes, error: uploadErr } = await supabase.storage.from('sponsor_logos').upload(fileName, logoFile, { upsert: true });
+    if (uploadErr) throw uploadErr;
+    const { data: publicUrl } = supabase.storage.from('sponsor_logos').getPublicUrl(uploadRes.path);
+    return publicUrl.publicUrl;
+  };
+  const createSponsor = async () => {
+    const name = form.name.trim();
+    if (!name) { addToast('Informe o nome da marca', 'error'); return; }
+    try {
+      const logo_url = logoFile ? await uploadLogo() : null;
+      const { error } = await supabase.from('sponsors').insert({
+        name,
+        instagram_url: form.instagram_url || null,
+        site_url: form.site_url || null,
+        logo_url,
+        active: true,
+        created_by: user?.id || null
+      });
+      if (error) throw error;
+      addToast('Patrocinador adicionado', 'success');
+      setForm({ name: '', instagram_url: '', site_url: '' });
+      setLogoFile(null);
+      setLogoPreview('');
+      loadSponsors();
+    } catch {
+      addToast('Falha ao adicionar patrocinador', 'error');
+    }
+  };
+  const toggleActive = async (id, active) => {
+    try {
+      const { error } = await supabase.from('sponsors').update({ active }).eq('id', id);
+      if (error) throw error;
+      loadSponsors();
+    } catch {
+      addToast('Falha ao atualizar status', 'error');
+    }
+  };
+  const deleteSponsor = async (id) => {
+    try {
+      const { error } = await supabase.from('sponsors').delete().eq('id', id);
+      if (error) throw error;
+      addToast('Patrocinador removido', 'success');
+      loadSponsors();
+    } catch {
+      addToast('Falha ao remover patrocinador', 'error');
+    }
+  };
+  return (
+    <AdminLayout>
+      <Card className="space-y-4">
+        <div className="font-bold">Catalogar Patrocinador</div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <AnimatedInput placeholder="Nome da marca" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <AnimatedInput placeholder="Instagram (URL)" value={form.instagram_url} onChange={(e) => setForm({ ...form, instagram_url: e.target.value })} />
+          <AnimatedInput placeholder="Site (URL)" value={form.site_url} onChange={(e) => setForm({ ...form, site_url: e.target.value })} />
+          <div className="flex items-center gap-2">
+            <input type="file" accept="image/*" onChange={onFileChange} className="text-xs" />
+          </div>
+        </div>
+        {logoPreview && (
+          <div className="flex items-center gap-3">
+            <img src={logoPreview} alt="Logo preview" className="w-24 h-24 object-contain rounded-lg border border-white/10 bg-white/5" />
+            <AnimatedButton onClick={() => { setLogoFile(null); setLogoPreview(''); }}>Remover</AnimatedButton>
+          </div>
+        )}
+        <AnimatedButton onClick={createSponsor}>Adicionar Patrocinador</AnimatedButton>
+      </Card>
+      <Card className="space-y-4">
+        <div className="font-bold">Patrocinadores</div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {(loadingSponsors ? [] : sponsors).map(s => (
+            <div key={s.id} className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3">
+              <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center">
+                {s.logo_url ? <img src={s.logo_url} alt={s.name} className="w-full h-full object-contain" /> : <span className="text-xs text-gray-400">Sem logo</span>}
+              </div>
+              <div className="flex-1">
+                <div className="font-bold text-white text-sm">{s.name}</div>
+                <div className="text-xs text-gray-400 flex gap-2 mt-1">
+                  {s.instagram_url && <a href={s.instagram_url} target="_blank" rel="noreferrer" className="hover:underline">Instagram</a>}
+                  {s.site_url && <a href={s.site_url} target="_blank" rel="noreferrer" className="hover:underline">Site</a>}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <select className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs" value={s.active ? 'ativo' : 'inativo'} onChange={(e) => toggleActive(s.id, e.target.value === 'ativo')}>
+                  <option value="ativo">Ativo</option>
+                  <option value="inativo">Inativo</option>
+                </select>
+                <AnimatedButton onClick={() => deleteSponsor(s.id)}>Excluir</AnimatedButton>
+              </div>
+            </div>
+          ))}
+          {(!loadingSponsors && sponsors.length === 0) && (
+            <div className="text-sm text-gray-400">Nenhum patrocinador cadastrado.</div>
+          )}
+        </div>
+      </Card>
+    </AdminLayout>
+  );
+};

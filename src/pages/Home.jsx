@@ -13,11 +13,14 @@ import { supabase } from '../services/supabaseClient';
 import { Card } from '../components/ui/Card';
 import { Play, Pause } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { AnimatedButton } from '../components/ui/AnimatedButton';
+import { Instagram, Globe } from 'lucide-react';
 
 const Home = () => {
   const [latestReleases, setLatestReleases] = useState([]);
   const [latestProjects, setLatestProjects] = useState([]);
   const [sellers, setSellers] = useState([]);
+  const [sponsors, setSponsors] = useState([]);
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
 
@@ -27,6 +30,7 @@ const Home = () => {
     fetchLatestReleases();
     fetchLatestProjects();
     fetchSellers();
+    fetchSponsors();
   }, []);
 
   useEffect(() => {
@@ -50,6 +54,21 @@ const Home = () => {
       setLatestReleases(data || []);
     } catch (error) {
       console.error('Error fetching releases:', error);
+    }
+  };
+
+  const fetchSponsors = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('sponsors')
+        .select('id,name,logo_url,instagram_url,site_url,created_at')
+        .eq('active', true)
+        .order('created_at', { ascending: false })
+        .limit(12);
+      if (error) throw error;
+      setSponsors(data || []);
+    } catch (error) {
+      console.error('Error fetching sponsors:', error);
     }
   };
 
@@ -228,6 +247,59 @@ const Home = () => {
                     </div>
                     <h3 className="font-bold text-lg text-center">{seller.name || 'Vendedor'}</h3>
                     <p className="text-sm text-gray-400 text-center line-clamp-2 mt-1">{seller.bio || 'Vendedor de shows'}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Sponsors CTA */}
+        <section className="py-12 px-6 bg-black/20">
+          <div className="max-w-7xl mx-auto flex items-center justify-center">
+            <AnimatedButton onClick={() => window.open('https://wa.me/?text=Quero%20ser%20patrocinador%20BeatWap', '_blank')}>
+              Seja nosso patrocinador
+            </AnimatedButton>
+          </div>
+        </section>
+
+        {/* Sponsors Section */}
+        {sponsors.length > 0 && (
+          <section className="py-20 px-6 bg-black/25">
+            <div className="max-w-7xl mx-auto">
+              <div className="text-center mb-12">
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">Nossos Patrocinadores</h2>
+                <p className="text-gray-400">Marcas que apoiam nossos artistas e projetos</p>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {sponsors.map((s, index) => (
+                  <motion.div
+                    key={s.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="group p-4 rounded-2xl bg-white/5 border border-white/10"
+                  >
+                    <div className="w-24 h-24 rounded-xl overflow-hidden mx-auto mb-4 bg-gray-800 border-2 border-black flex items-center justify-center">
+                      {s.logo_url ? (
+                        <img src={s.logo_url} alt={s.name} className="w-full h-full object-contain" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-white text-sm">Sem logo</div>
+                      )}
+                    </div>
+                    <h3 className="font-bold text-lg text-center">{s.name}</h3>
+                    <div className="flex items-center justify-center gap-3 mt-2">
+                      {s.instagram_url && (
+                        <a href={s.instagram_url} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white">
+                          <Instagram size={18} />
+                        </a>
+                      )}
+                      {s.site_url && (
+                        <a href={s.site_url} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white">
+                          <Globe size={18} />
+                        </a>
+                      )}
+                    </div>
                   </motion.div>
                 ))}
               </div>

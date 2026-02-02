@@ -21,6 +21,7 @@ import { DashboardArtistHome, DashboardArtistMusics, DashboardArtistChat } from 
 import DashboardWork from '../pages/DashboardWork';
 import { DashboardArtistProfile } from '../pages/DashboardArtistProfile';
 import { AdminHome, AdminArtists, AdminMusics, AdminChat, AdminProfile } from '../pages/AdminDashboard';
+import { AdminSponsors } from '../pages/AdminDashboard';
 
 // Admin temporariamente desativado
 
@@ -59,6 +60,7 @@ export const AppRoutes = () => {
         <Route path="/admin/artists" element={isProdutor ? <AdminArtists /> : <Navigate to="/" replace />} />
         <Route path="/admin/musics" element={isProdutor ? <AdminMusics /> : <Navigate to="/" replace />} />
         <Route path="/admin/chat" element={isProdutor ? <AdminChat /> : <Navigate to="/" replace />} />
+        <Route path="/admin/sponsors" element={isProdutor ? <AdminSponsors /> : <Navigate to="/" replace />} />
         <Route path="/legal/termos" element={<Terms />} />
         <Route path="/legal/privacidade" element={<Privacy />} />
         <Route path="/legal/direitos" element={<Copyright />} />

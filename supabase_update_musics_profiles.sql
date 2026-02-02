@@ -158,6 +158,19 @@ create policy messages_insert_access on public.messages for insert with check (
       and (c.artista_id = auth.uid() or public.is_produtor())
   )
 );
+drop policy if exists messages_delete_access on public.messages;
+create policy messages_delete_access on public.messages for delete using (
+  exists (
+    select 1 from public.chats c
+    where c.id = chat_id
+      and public.is_produtor()
+  )
+);
+
+-- Atribuição de conversa ao produtor
+alter table public.chats add column if not exists assigned_to uuid references public.profiles(id) on delete set null;
+drop policy if exists chats_update_assign_produtor on public.chats;
+create policy chats_update_assign_produtor on public.chats for update using (public.is_produtor()) with check (public.is_produtor());
 
 do $$
 begin
@@ -175,6 +188,47 @@ begin
 end
 $$;
 
+-- Patrocinadores: tabela, storage e políticas
+create table if not exists public.sponsors (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  logo_url text,
+  instagram_url text,
+  site_url text,
+  active boolean default true,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz default now()
+);
+alter table public.sponsors enable row level security;
+drop policy if exists sponsors_select_public on public.sponsors;
+drop policy if exists sponsors_crud_produtor on public.sponsors;
+create policy sponsors_select_public on public.sponsors for select to anon using (active = true);
+create policy sponsors_crud_produtor on public.sponsors for all using (public.is_produtor()) with check (public.is_produtor());
+
+-- Bucket para logos de patrocinadores
+insert into storage.buckets (id, name, public)
+values ('sponsor_logos', 'sponsor_logos', true)
+on conflict (id) do nothing;
+drop policy if exists "Public Read Sponsor Logos" on storage.objects;
+drop policy if exists "Authenticated Upload Sponsor Logos" on storage.objects;
+create policy "Public Read Sponsor Logos" on storage.objects for select using (bucket_id = 'sponsor_logos');
+create policy "Authenticated Upload Sponsor Logos" on storage.objects for insert with check (bucket_id = 'sponsor_logos' and auth.role() = 'authenticated');
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_rel pr
+    join pg_class c on pr.prrelid = c.oid
+    join pg_namespace n on c.relnamespace = n.oid
+    where pr.prpubid = (select oid from pg_publication where pubname = 'supabase_realtime')
+      and n.nspname = 'public'
+      and c.relname = 'sponsors'
+  ) then
+    alter publication supabase_realtime add table public.sponsors;
+  end if;
+end
+$$;
 do $$
 begin
   if not exists (
