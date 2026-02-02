@@ -278,3 +278,72 @@ begin
   end if;
 end
 $$;
+
+-- Trabalho do Artista: eventos e afazeres
+create table if not exists public.artist_work_events (
+  id uuid primary key default gen_random_uuid(),
+  artista_id uuid references public.profiles(id) on delete cascade,
+  title text not null,
+  date date not null,
+  type text check (type in ('lançamento','show','ensaio','gravação','outro')),
+  notes text,
+  created_by uuid references public.profiles(id) on delete cascade,
+  created_at timestamptz default now()
+);
+alter table public.artist_work_events enable row level security;
+drop policy if exists artist_work_events_select on public.artist_work_events;
+drop policy if exists artist_work_events_insert on public.artist_work_events;
+drop policy if exists artist_work_events_update on public.artist_work_events;
+drop policy if exists artist_work_events_delete on public.artist_work_events;
+create policy artist_work_events_select on public.artist_work_events for select to authenticated using (artista_id = auth.uid() or public.is_produtor());
+create policy artist_work_events_insert on public.artist_work_events for insert with check (artista_id = auth.uid() or public.is_produtor());
+create policy artist_work_events_update on public.artist_work_events for update using (artista_id = auth.uid() or public.is_produtor());
+create policy artist_work_events_delete on public.artist_work_events for delete using (artista_id = auth.uid() or public.is_produtor());
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_rel pr
+    join pg_class c on pr.prrelid = c.oid
+    join pg_namespace n on c.relnamespace = n.oid
+    where pr.prpubid = (select oid from pg_publication where pubname = 'supabase_realtime')
+      and n.nspname = 'public'
+      and c.relname = 'artist_work_events'
+  ) then
+    alter publication supabase_realtime add table public.artist_work_events;
+  end if;
+end
+$$;
+
+create table if not exists public.artist_todos (
+  id uuid primary key default gen_random_uuid(),
+  artista_id uuid references public.profiles(id) on delete cascade,
+  title text not null,
+  due_date date,
+  status text default 'pendente' check (status in ('pendente','em_andamento','concluido')),
+  created_by uuid references public.profiles(id) on delete cascade,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+alter table public.artist_todos enable row level security;
+drop policy if exists artist_todos_select on public.artist_todos;
+drop policy if exists artist_todos_insert on public.artist_todos;
+drop policy if exists artist_todos_update on public.artist_todos;
+drop policy if exists artist_todos_delete on public.artist_todos;
+create policy artist_todos_select on public.artist_todos for select to authenticated using (artista_id = auth.uid() or public.is_produtor());
+create policy artist_todos_insert on public.artist_todos for insert with check (public.is_produtor());
+create policy artist_todos_update on public.artist_todos for update using (public.is_produtor() or artista_id = auth.uid());
+create policy artist_todos_delete on public.artist_todos for delete using (public.is_produtor());
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_rel pr
+    join pg_class c on pr.prrelid = c.oid
+    join pg_namespace n on c.relnamespace = n.oid
+    where pr.prpubid = (select oid from pg_publication where pubname = 'supabase_realtime')
+      and n.nspname = 'public'
+      and c.relname = 'artist_todos'
+  ) then
+    alter publication supabase_realtime add table public.artist_todos;
+  end if;
+end
+$$;

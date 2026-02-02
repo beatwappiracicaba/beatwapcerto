@@ -138,6 +138,10 @@ export const AdminArtists = () => {
   const { addNotification } = useNotification();
   const { addToast } = useToast();
   const { getArtistById, updateArtistMetrics } = useData();
+  const [workEventForm, setWorkEventForm] = useState({ title: '', date: '', type: 'lançamento' });
+  const [todoForm, setTodoForm] = useState({ title: '', due_date: '' });
+  const [workEvents, setWorkEvents] = useState([]);
+  const [workTodos, setWorkTodos] = useState([]);
   const load = useCallback(async () => {
     const { data } = await supabase.from('profiles').select('id, nome, nome_completo_razao_social, avatar_url').eq('cargo', 'Artista');
     setArtists(data || []);
@@ -157,6 +161,33 @@ export const AdminArtists = () => {
       setMetricsForm({ plays: '', listeners: '', revenue: '', growth: '' });
     }
   }, [selectedArtist, getArtistById]);
+  const loadWork = useCallback(async () => {
+    if (!selectedArtist) { setWorkEvents([]); setWorkTodos([]); return; }
+    const { data: ev } = await supabase
+      .from('artist_work_events')
+      .select('id,title,date,type,notes,created_at')
+      .eq('artista_id', selectedArtist)
+      .order('date', { ascending: true });
+    setWorkEvents(ev || []);
+    const { data: td } = await supabase
+      .from('artist_todos')
+      .select('id,title,due_date,status,created_at,updated_at')
+      .eq('artista_id', selectedArtist)
+      .order('created_at', { ascending: false });
+    setWorkTodos(td || []);
+  }, [selectedArtist]);
+  useEffect(() => { loadWork(); }, [loadWork]);
+  useEffect(() => {
+    if (!selectedArtist) return;
+    const channel = supabase
+      .channel(`realtime-artist-work-${selectedArtist}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'artist_work_events', filter: `artista_id=eq.${selectedArtist}` }, loadWork)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'artist_todos', filter: `artista_id=eq.${selectedArtist}` }, loadWork)
+      .subscribe();
+    return () => {
+      try { supabase.removeChannel(channel); } catch {}
+    };
+  }, [selectedArtist]);
   const handleSaveProfile = async ({ name, bio, blob }) => {
     try {
       if (!selectedArtist) return;
@@ -197,6 +228,43 @@ export const AdminArtists = () => {
       addToast('Falha ao atualizar métricas', 'error');
     }
   };
+  const createWorkEvent = async () => {
+    if (!selectedArtist || !workEventForm.title.trim() || !workEventForm.date) { addToast('Informe artista, título e data', 'error'); return; }
+    const { error } = await supabase
+      .from('artist_work_events')
+      .insert({
+        artista_id: selectedArtist,
+        title: workEventForm.title.trim(),
+        date: workEventForm.date,
+        type: workEventForm.type,
+        created_by: (await supabase.auth.getUser()).data.user?.id || null
+      });
+    if (error) { addToast('Falha ao adicionar evento', 'error'); return; }
+    addToast('Evento adicionado', 'success');
+    setWorkEventForm({ title: '', date: '', type: 'lançamento' });
+    loadWork();
+  };
+  const createTodo = async () => {
+    if (!selectedArtist || !todoForm.title.trim()) { addToast('Informe artista e tarefa', 'error'); return; }
+    const { error } = await supabase
+      .from('artist_todos')
+      .insert({
+        artista_id: selectedArtist,
+        title: todoForm.title.trim(),
+        due_date: todoForm.due_date || null,
+        status: 'pendente',
+        created_by: (await supabase.auth.getUser()).data.user?.id || null
+      });
+    if (error) { addToast('Falha ao adicionar tarefa', 'error'); return; }
+    addToast('Tarefa adicionada', 'success');
+    setTodoForm({ title: '', due_date: '' });
+    loadWork();
+  };
+  const updateTodoStatus = async (id, status) => {
+    const { error } = await supabase.from('artist_todos').update({ status }).eq('id', id);
+    if (error) { addToast('Falha ao atualizar tarefa', 'error'); return; }
+    loadWork();
+  };
   return (
     <AdminLayout>
       <Card className="space-y-4">
@@ -219,6 +287,61 @@ export const AdminArtists = () => {
               .map(a => <option key={a.id} value={a.id}>{a.nome || a.nome_completo_razao_social || 'Sem nome'}</option>)}
           </select>
           <AnimatedButton onClick={() => setIsManagerOpen(true)}>Enviar Música</AnimatedButton>
+        </div>
+      </Card>
+      <Card className="space-y-4">
+        <div className="font-bold">Trabalho do artista</div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <AnimatedInput placeholder="Título do evento" value={workEventForm.title} onChange={(e) => setWorkEventForm({ ...workEventForm, title: e.target.value })} />
+          <AnimatedInput type="date" value={workEventForm.date} onChange={(e) => setWorkEventForm({ ...workEventForm, date: e.target.value })} />
+          <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={workEventForm.type} onChange={(e) => setWorkEventForm({ ...workEventForm, type: e.target.value })}>
+            <option value="lançamento">Lançamento</option>
+            <option value="show">Show</option>
+            <option value="ensaio">Ensaio</option>
+            <option value="gravação">Gravação</option>
+            <option value="outro">Outro</option>
+          </select>
+          <AnimatedButton onClick={createWorkEvent}>Adicionar Evento</AnimatedButton>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <AnimatedInput placeholder="Nova tarefa" value={todoForm.title} onChange={(e) => setTodoForm({ ...todoForm, title: e.target.value })} />
+          <AnimatedInput type="date" value={todoForm.due_date} onChange={(e) => setTodoForm({ ...todoForm, due_date: e.target.value })} />
+          <AnimatedButton onClick={createTodo}>Adicionar Tarefa</AnimatedButton>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Card className="space-y-2">
+            <div className="text-sm text-gray-400">Próximos eventos</div>
+            <div className="space-y-2">
+              {workEvents.map(ev => (
+                <div key={ev.id} className="p-2 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+                  <div>
+                    <div className="font-bold text-white text-sm">{ev.type}: {ev.title}</div>
+                    <div className="text-xs text-gray-400">{new Date(ev.date).toLocaleDateString()}</div>
+                  </div>
+                </div>
+              ))}
+              {workEvents.length === 0 && <div className="text-sm text-gray-400">Nenhum evento.</div>}
+            </div>
+          </Card>
+          <Card className="space-y-2">
+            <div className="text-sm text-gray-400">Afazeres</div>
+            <div className="space-y-2">
+              {workTodos.map(td => (
+                <div key={td.id} className="p-2 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+                  <div>
+                    <div className="font-bold text-white text-sm">{td.title}</div>
+                    <div className="text-xs text-gray-400">{td.due_date ? new Date(td.due_date).toLocaleDateString() : 'Sem prazo'}</div>
+                  </div>
+                  <select className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs" value={td.status} onChange={(e) => updateTodoStatus(td.id, e.target.value)}>
+                    <option value="pendente">Pendente</option>
+                    <option value="em_andamento">Em andamento</option>
+                    <option value="concluido">Concluído</option>
+                  </select>
+                </div>
+              ))}
+              {workTodos.length === 0 && <div className="text-sm text-gray-400">Nenhum afazer.</div>}
+            </div>
+          </Card>
         </div>
       </Card>
       <Card className="space-y-4">

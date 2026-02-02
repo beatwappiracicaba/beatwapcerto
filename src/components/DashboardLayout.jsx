@@ -30,6 +30,9 @@ export const DashboardLayout = ({ children }) => {
           <NavLink to="/dashboard/musics" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
             <Music size={18} /> Minhas Músicas
           </NavLink>
+          <NavLink to="/dashboard/work" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+            <LayoutGrid size={18} /> Trabalho
+          </NavLink>
           {/* Chat removido do menu, manter apenas flutuante */}
         </nav>
         <Card className="mt-8 bg-white/[0.03] border-white/10">

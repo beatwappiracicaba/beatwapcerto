@@ -18,6 +18,7 @@ import Terms from '../pages/Terms';
 import Privacy from '../pages/Privacy';
 import Copyright from '../pages/Copyright';
 import { DashboardArtistHome, DashboardArtistMusics, DashboardArtistChat } from '../pages/DashboardArtist';
+import DashboardWork from '../pages/DashboardWork';
 import { DashboardArtistProfile } from '../pages/DashboardArtistProfile';
 import { AdminHome, AdminArtists, AdminMusics, AdminChat, AdminProfile } from '../pages/AdminDashboard';
 
@@ -51,6 +52,7 @@ export const AppRoutes = () => {
         <Route path="/dashboard/musics" element={isArtista ? <DashboardArtistMusics /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/profile" element={isArtista ? <DashboardArtistProfile /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/chat" element={isArtista ? <DashboardArtistChat /> : <Navigate to="/" replace />} />
+        <Route path="/dashboard/work" element={isArtista ? <DashboardWork /> : <Navigate to="/" replace />} />
 
         <Route path="/admin" element={isProdutor ? <AdminHome /> : (loading ? <SplashScreen onComplete={() => {}} /> : <Navigate to="/" replace />)} />
         <Route path="/admin/profile" element={isProdutor ? <AdminProfile /> : <Navigate to="/" replace />} />
