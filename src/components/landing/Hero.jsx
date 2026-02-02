@@ -65,11 +65,11 @@ const Hero = () => {
               Produção Musical com a BeatWap
             </p>
             <p className="text-gray-400 text-sm mt-2">
-              Produzindo com a gente, você já ganha o envio das músicas nas plataformas digitais.
+              Produzimos músicas e shows, cuidamos do Instagram e redes sociais, temos parcerias para DVD, clipes e audiovisual, e um espaço no estúdio para gravações de vídeo. Também fazemos sessões de voz e violão do jeito que você quiser.
             </p>
             <div className="mt-4">
               <AnimatedButton 
-                onClick={() => window.open('https://wa.me/5519981083497?text=' + encodeURIComponent('Olá! Quero cotar a produção musical com a BeatWap e saber mais sobre o envio para as plataformas.'), '_blank')}
+                onClick={() => window.open('https://wa.me/5519981083497?text=' + encodeURIComponent('Olá! Quero cotar serviços da BeatWap: produção musical e de shows, gestão de Instagram/redes, parcerias para DVD/clipes/audiovisual e uso do estúdio para gravações (inclui voz e violão).'), '_blank')}
                 className="px-6 py-3"
               >
                 Cote agora mesmo
