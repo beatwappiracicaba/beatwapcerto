@@ -47,7 +47,7 @@ export const AdminArtists = () => {
   const { addToast } = useToast();
   const { getArtistById, updateArtistMetrics } = useData();
   const load = useCallback(async () => {
-    const { data } = await supabase.from('profiles').select('id, nome, avatar_url').eq('cargo', 'Artista');
+    const { data } = await supabase.from('profiles').select('id, nome, nome_completo_razao_social, avatar_url').eq('cargo', 'Artista');
     setArtists(data || []);
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -118,8 +118,13 @@ export const AdminArtists = () => {
           <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={selectedArtist || ''} onChange={(e) => setSelectedArtist(e.target.value)}>
             <option value="">Selecione o artista</option>
             {(artists || [])
-              .filter(a => (a.nome || '').toLowerCase().includes(searchName.toLowerCase()))
-              .map(a => <option key={a.id} value={a.id}>{a.nome || a.id}</option>)}
+              .filter(a => {
+                const term = searchName.toLowerCase();
+                const n1 = (a.nome || '').toLowerCase();
+                const n2 = (a.nome_completo_razao_social || '').toLowerCase();
+                return n1.includes(term) || n2.includes(term);
+              })
+              .map(a => <option key={a.id} value={a.id}>{a.nome || a.nome_completo_razao_social || 'Sem nome'}</option>)}
           </select>
           <AnimatedButton onClick={() => setIsManagerOpen(true)}>Enviar Música</AnimatedButton>
         </div>
@@ -135,8 +140,13 @@ export const AdminArtists = () => {
           <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={selectedArtist || ''} onChange={(e) => setSelectedArtist(e.target.value)}>
             <option value="">Selecione o artista</option>
             {(artists || [])
-              .filter(a => (a.nome || '').toLowerCase().includes(searchName.toLowerCase()))
-              .map(a => <option key={a.id} value={a.id}>{a.nome || a.id}</option>)}
+              .filter(a => {
+                const term = searchName.toLowerCase();
+                const n1 = (a.nome || '').toLowerCase();
+                const n2 = (a.nome_completo_razao_social || '').toLowerCase();
+                return n1.includes(term) || n2.includes(term);
+              })
+              .map(a => <option key={a.id} value={a.id}>{a.nome || a.nome_completo_razao_social || 'Sem nome'}</option>)}
           </select>
           <AnimatedButton onClick={() => setIsProfileOpen(true)}>Editar Perfil</AnimatedButton>
         </div>
@@ -197,7 +207,7 @@ export const AdminMusics = () => {
     const fetchArtists = async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('id, nome')
+        .select('id, nome, nome_completo_razao_social')
         .eq('cargo', 'Artista')
         .order('nome', { ascending: true });
       setArtists(data || []);
@@ -267,7 +277,7 @@ export const AdminMusics = () => {
           </select>
           <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={artistFilter} onChange={(e) => setArtistFilter(e.target.value)}>
             <option value="">Artista: Todos</option>
-            {artists.map(a => <option key={a.id} value={a.id}>{a.nome || a.id}</option>)}
+            {artists.map(a => <option key={a.id} value={a.id}>{a.nome || a.nome_completo_razao_social || 'Sem nome'}</option>)}
           </select>
           <input type="date" className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           <input type="date" className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
@@ -737,8 +747,13 @@ export const AdminProfile = () => {
               >
                 <option value="">Selecione o artista</option>
                 {(artists || [])
-                  .filter(a => (a.nome || '').toLowerCase().includes(artistSearchName.toLowerCase()))
-                  .map(a => <option key={a.id} value={a.id}>{a.nome || a.id}</option>)}
+                  .filter(a => {
+                    const term = artistSearchName.toLowerCase();
+                    const n1 = (a.nome || '').toLowerCase();
+                    const n2 = (a.nome_completo_razao_social || '').toLowerCase();
+                    return n1.includes(term) || n2.includes(term);
+                  })
+                  .map(a => <option key={a.id} value={a.id}>{a.nome || a.nome_completo_razao_social || 'Sem nome'}</option>)}
               </select>
               <AnimatedButton onClick={() => setIsArtistProfileOpen(true)}>Editar Perfil</AnimatedButton>
             </div>
