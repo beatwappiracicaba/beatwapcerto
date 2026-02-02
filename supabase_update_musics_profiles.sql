@@ -63,8 +63,10 @@ create policy "Authenticated Upload Avatars" on storage.objects for insert with 
 alter table public.profiles enable row level security;
 drop policy if exists profiles_select_admin on public.profiles;
 create policy profiles_select_admin on public.profiles for select using (
-  (select cargo from public.profiles where id = auth.uid()) = 'Produtor'
+  public.is_produtor()
 );
+drop policy if exists profiles_select_authenticated on public.profiles;
+create policy profiles_select_authenticated on public.profiles for select to authenticated using (true);
 
 -- Notificações: tabela, RLS e Realtime
 create table if not exists public.notifications (
@@ -107,16 +109,19 @@ alter table public.musics enable row level security;
 drop policy if exists musics_select_admin on public.musics;
 drop policy if exists musics_update_admin on public.musics;
 create policy musics_select_admin on public.musics for select using (
-  (select cargo from public.profiles where id = auth.uid()) = 'Produtor'
+  public.is_produtor()
 );
 create policy musics_update_admin on public.musics for update using (
-  (select cargo from public.profiles where id = auth.uid()) = 'Produtor'
+  public.is_produtor()
 );
+-- Allow authenticated users to read approved releases (paridade com bootstrap)
+drop policy if exists musics_select_public_auth on public.musics;
+create policy musics_select_public_auth on public.musics for select to authenticated using (status = 'aprovado');
 
 -- Notifications: allow producers to insert for others
 drop policy if exists notifications_insert_admin on public.notifications;
 create policy notifications_insert_admin on public.notifications for insert with check (
-  (select cargo from public.profiles where id = auth.uid()) = 'Produtor'
+  public.is_produtor()
 );
 
 -- Chats and messages policies
@@ -125,7 +130,7 @@ alter table public.messages enable row level security;
 drop policy if exists chats_select_access on public.chats;
 drop policy if exists chats_insert_artist on public.chats;
 create policy chats_select_access on public.chats for select using (
-  artista_id = auth.uid() or (select cargo from public.profiles where id = auth.uid()) = 'Produtor'
+  artista_id = auth.uid() or public.is_produtor()
 );
 create policy chats_insert_artist on public.chats for insert with check (
   artista_id = auth.uid()
@@ -135,15 +140,15 @@ drop policy if exists messages_insert_access on public.messages;
 create policy messages_select_access on public.messages for select using (
   exists (
     select 1 from public.chats c
-    where c.id = messages.chat_id
-      and (c.artista_id = auth.uid() or (select cargo from public.profiles where id = auth.uid()) = 'Produtor')
+    where c.id = chat_id
+      and (c.artista_id = auth.uid() or public.is_produtor())
   )
 );
 create policy messages_insert_access on public.messages for insert with check (
   exists (
     select 1 from public.chats c
-    where c.id = messages.chat_id
-      and (c.artista_id = auth.uid() or (select cargo from public.profiles where id = auth.uid()) = 'Produtor')
+    where c.id = chat_id
+      and (c.artista_id = auth.uid() or public.is_produtor())
   )
 );
 
@@ -197,12 +202,28 @@ create policy online_status_update_self on public.online_status for update using
 alter table public.artist_metrics enable row level security;
 drop policy if exists artist_metrics_select_admin on public.artist_metrics;
 drop policy if exists artist_metrics_upsert_admin on public.artist_metrics;
+drop policy if exists artist_metrics_update_admin on public.artist_metrics;
 create policy artist_metrics_select_admin on public.artist_metrics for select using (
-  (select cargo from public.profiles where id = auth.uid()) = 'Produtor'
+  public.is_produtor()
 );
 create policy artist_metrics_upsert_admin on public.artist_metrics for insert with check (
-  (select cargo from public.profiles where id = auth.uid()) = 'Produtor'
+  public.is_produtor()
 );
 create policy artist_metrics_update_admin on public.artist_metrics for update using (
-  (select cargo from public.profiles where id = auth.uid()) = 'Produtor'
+  public.is_produtor()
 );
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_rel pr
+    join pg_class c on pr.prrelid = c.oid
+    join pg_namespace n on c.relnamespace = n.oid
+    where pr.prpubid = (select oid from pg_publication where pubname = 'supabase_realtime')
+      and n.nspname = 'public'
+      and c.relname = 'online_status'
+  ) then
+    alter publication supabase_realtime add table public.online_status;
+  end if;
+end
+$$;

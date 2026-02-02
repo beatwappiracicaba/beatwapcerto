@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }) => {
       if (user?.id) {
         await supabase
           .from('online_status')
-          .upsert({ profile_id: user.id, online: true, updated_at: new Date().toISOString() });
+          .upsert({ profile_id: user.id, online: true, updated_at: new Date().toISOString() }, { onConflict: 'profile_id' });
       }
     };
     heartbeat();
@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }) => {
       if (user?.id) {
         supabase
           .from('online_status')
-          .upsert({ profile_id: user.id, online: false, updated_at: new Date().toISOString() });
+          .upsert({ profile_id: user.id, online: false, updated_at: new Date().toISOString() }, { onConflict: 'profile_id' });
       }
     };
   }, [user]);
@@ -95,7 +95,7 @@ export const AuthProvider = ({ children }) => {
     if (user?.id) {
       await supabase
         .from('online_status')
-        .upsert({ profile_id: user.id, online: false, updated_at: new Date().toISOString() });
+        .upsert({ profile_id: user.id, online: false, updated_at: new Date().toISOString() }, { onConflict: 'profile_id' });
     }
     await supabase.auth.signOut();
     setUser(null);
