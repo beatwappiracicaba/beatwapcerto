@@ -229,3 +229,47 @@ begin
   end if;
 end
 $$;
+
+-- Projetos do Produtor: tabela e políticas
+create table if not exists public.producer_projects (
+  id uuid primary key default gen_random_uuid(),
+  producer_id uuid references public.profiles(id) on delete cascade,
+  title text not null,
+  platform text, -- Ex.: 'YouTube', 'Spotify', 'Instagram', 'Site'
+  url text not null,
+  published boolean default true,
+  created_at timestamptz default now()
+);
+
+alter table public.producer_projects enable row level security;
+drop policy if exists producer_projects_select_public on public.producer_projects;
+drop policy if exists producer_projects_select_admin on public.producer_projects;
+drop policy if exists producer_projects_insert_admin on public.producer_projects;
+drop policy if exists producer_projects_update_admin on public.producer_projects;
+drop policy if exists producer_projects_delete_admin on public.producer_projects;
+
+-- Leitura pública de projetos publicados
+create policy producer_projects_select_public on public.producer_projects for select to anon using (published = true);
+create policy producer_projects_select_admin on public.producer_projects for select to authenticated using (published = true or public.is_produtor());
+
+-- CRUD permitido ao Produtor
+create policy producer_projects_insert_admin on public.producer_projects for insert with check (public.is_produtor());
+create policy producer_projects_update_admin on public.producer_projects for update using (public.is_produtor());
+create policy producer_projects_delete_admin on public.producer_projects for delete using (public.is_produtor());
+
+-- Realtime
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_rel pr
+    join pg_class c on pr.prrelid = c.oid
+    join pg_namespace n on c.relnamespace = n.oid
+    where pr.prpubid = (select oid from pg_publication where pubname = 'supabase_realtime')
+      and n.nspname = 'public'
+      and c.relname = 'producer_projects'
+  ) then
+    alter publication supabase_realtime add table public.producer_projects;
+  end if;
+end
+$$;

@@ -16,6 +16,7 @@ import { motion } from 'framer-motion';
 
 const Home = () => {
   const [latestReleases, setLatestReleases] = useState([]);
+  const [latestProjects, setLatestProjects] = useState([]);
   const [sellers, setSellers] = useState([]);
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
@@ -24,6 +25,7 @@ const Home = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
     fetchLatestReleases();
+    fetchLatestProjects();
     fetchSellers();
   }, []);
 
@@ -48,6 +50,21 @@ const Home = () => {
       setLatestReleases(data || []);
     } catch (error) {
       console.error('Error fetching releases:', error);
+    }
+  };
+
+  const fetchLatestProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('producer_projects')
+        .select('id,title,project_url,thumbnail_url,platform_type,created_at')
+        .eq('platform_type', 'youtube')
+        .order('created_at', { ascending: false })
+        .limit(6);
+      if (error) throw error;
+      setLatestProjects(data || []);
+    } catch (error) {
+      console.error('Error fetching producer projects:', error);
     }
   };
 
@@ -138,6 +155,48 @@ const Home = () => {
                     <h3 className="font-bold text-lg truncate">{release.titulo || 'Lançamento'}</h3>
                     <p className="text-sm text-gray-400 truncate">{release.nome_artista || 'Artista'}</p>
                     <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider">{release.estilo || ''}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Latest Producer Video Projects */}
+        {latestProjects.length > 0 && (
+          <section className="py-20 px-6 bg-black/25">
+            <div className="max-w-7xl mx-auto">
+              <div className="text-center mb-12">
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">Últimos Projetos de Vídeos Feitos</h2>
+                <p className="text-gray-400">Conteúdos recentes publicados pela produtora</p>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                {latestProjects.map((p, index) => (
+                  <motion.div 
+                    key={p.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="group relative bg-white/5 border border-white/10 rounded-2xl overflow-hidden"
+                  >
+                    <div className="aspect-video bg-gray-800 relative">
+                      {p.thumbnail_url ? (
+                        <img src={p.thumbnail_url} alt={p.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">YouTube</div>
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button 
+                          className="px-4 py-2 bg-beatwap-gold rounded-full text-black font-bold hover:bg-white"
+                          onClick={() => window.open(p.project_url, '_blank')}
+                        >
+                          Abrir
+                        </button>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-bold text-lg truncate">{p.title}</h3>
+                    </div>
                   </motion.div>
                 ))}
               </div>

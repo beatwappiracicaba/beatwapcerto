@@ -222,7 +222,6 @@ const FeaturedUsers = () => {
                     </div>
                     <div className="text-left">
                       <div className="text-white font-bold text-sm">Instagram</div>
-                      <div className="text-xs text-gray-400 truncate">{selected.instagram_url || 'Ainda não possui'}</div>
                     </div>
                   </button>
                   <button
@@ -234,7 +233,6 @@ const FeaturedUsers = () => {
                     </div>
                     <div className="text-left">
                       <div className="text-white font-bold text-sm">Site</div>
-                      <div className="text-xs text-gray-400 truncate">{selected.site_url || 'Ainda não possui'}</div>
                     </div>
                   </button>
                 </div>

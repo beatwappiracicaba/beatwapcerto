@@ -16,6 +16,16 @@ import { buildDistributionContractHTML } from '../utils/contractTemplate';
 
 export const AdminHome = () => {
   const [counts, setCounts] = useState({ artists: 0, musics: 0, pending: 0 });
+  const { user } = useAuth();
+  const { addToast } = useToast();
+  const [projects, setProjects] = useState([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [projectForm, setProjectForm] = useState({
+    title: '',
+    project_url: '',
+    platform_type: 'youtube',
+    thumbnail_url: ''
+  });
   useEffect(() => {
     const load = async () => {
       const { count: artistsCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('cargo', 'Artista');
@@ -25,6 +35,56 @@ export const AdminHome = () => {
     };
     load();
   }, []);
+  const loadProjects = useCallback(async () => {
+    try {
+      setLoadingProjects(true);
+      const { data, error } = await supabase
+        .from('producer_projects')
+        .select('id,title,project_url,platform_type,thumbnail_url,created_at')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      setProjects(data || []);
+    } catch {
+      addToast('Falha ao carregar projetos', 'error');
+    } finally {
+      setLoadingProjects(false);
+    }
+  }, [addToast]);
+  useEffect(() => { loadProjects(); }, [loadProjects]);
+  const createProject = async () => {
+    const title = projectForm.title.trim();
+    const url = projectForm.project_url.trim();
+    const platform = projectForm.platform_type.trim();
+    const thumb = (projectForm.thumbnail_url || '').trim();
+    if (!title || !url || !platform) { addToast('Informe título, link e plataforma', 'error'); return; }
+    try {
+      if (!user?.id) { addToast('Usuário inválido', 'error'); return; }
+      const { error } = await supabase.from('producer_projects').insert({
+        producer_id: user.id,
+        title,
+        project_url: url,
+        platform_type: platform,
+        thumbnail_url: thumb || null
+      });
+      if (error) throw error;
+      addToast('Projeto adicionado', 'success');
+      setProjectForm({ title: '', project_url: '', platform_type: 'youtube', thumbnail_url: '' });
+      loadProjects();
+    } catch {
+      addToast('Falha ao adicionar projeto', 'error');
+    }
+  };
+  const deleteProject = async (id) => {
+    try {
+      const { error } = await supabase.from('producer_projects').delete().eq('id', id);
+      if (error) throw error;
+      addToast('Projeto removido', 'success');
+      loadProjects();
+    } catch {
+      addToast('Falha ao remover projeto', 'error');
+    }
+  };
   return (
     <AdminLayout>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -32,6 +92,47 @@ export const AdminHome = () => {
         <Card><div className="text-sm text-gray-400">Músicas</div><div className="text-3xl font-bold">{counts.musics}</div></Card>
         <Card><div className="text-sm text-gray-400">Pendentes</div><div className="text-3xl font-bold">{counts.pending}</div></Card>
       </div>
+      <Card className="space-y-4">
+        <div className="font-bold">Projetos da Produtora</div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <AnimatedInput placeholder="Título" value={projectForm.title} onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })} />
+          <AnimatedInput placeholder="Link do Projeto (YouTube/Spotify)" value={projectForm.project_url} onChange={(e) => setProjectForm({ ...projectForm, project_url: e.target.value })} />
+          <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={projectForm.platform_type} onChange={(e) => setProjectForm({ ...projectForm, platform_type: e.target.value })}>
+            <option value="youtube">YouTube</option>
+            <option value="spotify">Spotify</option>
+            <option value="other">Outro</option>
+          </select>
+          <AnimatedInput placeholder="Thumbnail (URL opcional)" value={projectForm.thumbnail_url} onChange={(e) => setProjectForm({ ...projectForm, thumbnail_url: e.target.value })} />
+        </div>
+        <AnimatedButton onClick={createProject}>Adicionar Projeto</AnimatedButton>
+        <div className="pt-4">
+          <div className="text-sm text-gray-400 mb-2">Últimos projetos adicionados</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {(loadingProjects ? [] : projects).map((p) => (
+              <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-700">
+                  {p.thumbnail_url ? (
+                    <img src={p.thumbnail_url} alt={p.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xs text-gray-300">{p.platform_type.toUpperCase()}</div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="font-bold text-white text-sm truncate">{p.title}</div>
+                  <div className="text-xs text-gray-400">{p.platform_type}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <AnimatedButton onClick={() => window.open(p.project_url, '_blank')}>Abrir</AnimatedButton>
+                  <AnimatedButton onClick={() => deleteProject(p.id)}>Excluir</AnimatedButton>
+                </div>
+              </div>
+            ))}
+            {(!loadingProjects && projects.length === 0) && (
+              <div className="text-sm text-gray-400">Nenhum projeto ainda.</div>
+            )}
+          </div>
+        </div>
+      </Card>
     </AdminLayout>
   );
 };
