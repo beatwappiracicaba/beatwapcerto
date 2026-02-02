@@ -69,6 +69,11 @@ create policy profiles_select_admin on public.profiles for select using (
 );
 drop policy if exists profiles_select_authenticated on public.profiles;
 create policy profiles_select_authenticated on public.profiles for select to authenticated using (true);
+-- Permitir que Produtor atualize perfis de artistas
+drop policy if exists profiles_update_admin on public.profiles;
+create policy profiles_update_admin on public.profiles for update
+  using (public.is_produtor())
+  with check (public.is_produtor());
 
 -- Notificações: tabela, RLS e Realtime
 create table if not exists public.notifications (
