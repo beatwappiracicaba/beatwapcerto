@@ -46,17 +46,21 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
   }, [loading, isAdmin, activeChat, isOpen, currentUserId, createChat]);
 
 
-  const handleSend = (e) => {
+  const handleSend = async (e) => {
     e.preventDefault();
     if (!inputText.trim()) return;
 
-    const chatId = isAdmin ? activeChatId : activeChat?.id;
+    let chatId = isAdmin ? activeChatId : activeChat?.id;
     const sender = isAdmin ? 'admin' : 'artist';
     
-    if (chatId) {
-      sendMessage(chatId, inputText, sender);
-      setInputText('');
+    if (!chatId && !isAdmin && currentUserId) {
+      const newId = await createChat(currentUserId);
+      chatId = newId || chatId;
     }
+    if (!chatId && isAdmin) return;
+    if (!chatId) return;
+    await sendMessage(chatId, inputText, sender);
+    setInputText('');
   };
 
   const handleAssign = async () => {
