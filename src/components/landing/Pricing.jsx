@@ -8,12 +8,13 @@ import CheckoutModal from './CheckoutModal';
 const Pricing = () => {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
 
   const openPlan = (planLabel, url) => {
     window.open(url, '_blank');
-    const msg = `Comprei o ${planLabel}`;
+    const artistName = profile?.nome || profile?.nome_completo_razao_social || '';
+    const msg = artistName ? `Comprei o ${planLabel} - ${artistName}` : `Comprei o ${planLabel}`;
     setTimeout(() => {
       window.open('https://wa.me/5519981083497?text=' + encodeURIComponent(msg), '_blank');
     }, 300);
