@@ -11,12 +11,14 @@ import FAQ from '../components/landing/FAQ';
 import Footer from '../components/landing/Footer';
 import { supabase } from '../services/supabaseClient';
 import { Card } from '../components/ui/Card';
-import { Play } from 'lucide-react';
+import { Play, Pause } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Home = () => {
   const [latestReleases, setLatestReleases] = useState([]);
   const [sellers, setSellers] = useState([]);
+  const [playingTrack, setPlayingTrack] = useState(null);
+  const [audioElement, setAudioElement] = useState(null);
 
   // Reset scroll on mount
   useEffect(() => {
@@ -24,6 +26,14 @@ const Home = () => {
     fetchLatestReleases();
     fetchSellers();
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (audioElement) {
+        audioElement.pause();
+      }
+    };
+  }, [audioElement]);
 
   const fetchLatestReleases = async () => {
     try {
@@ -41,16 +51,38 @@ const Home = () => {
     }
   };
 
+  const togglePlay = (trackId, url) => {
+    if (!url) return;
+    if (playingTrack === trackId) {
+      if (audioElement) {
+        audioElement.pause();
+      }
+      setPlayingTrack(null);
+      return;
+    }
+    if (audioElement) {
+      audioElement.pause();
+    }
+    const audio = new Audio(url);
+    audio.onended = () => {
+      setPlayingTrack(null);
+      setAudioElement(null);
+    };
+    audio.play().catch(() => {});
+    setAudioElement(audio);
+    setPlayingTrack(trackId);
+  };
+
   const fetchSellers = async () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, nome, avatar_url')
+        .select('id, nome, nome_completo_razao_social, avatar_url')
         .eq('cargo', 'Vendedor')
         .order('created_at', { ascending: false })
         .limit(8);
       if (error) throw error;
-      const mapped = (data || []).map(s => ({ ...s, name: s.nome }));
+      const mapped = (data || []).map(s => ({ ...s, name: s.nome || s.nome_completo_razao_social || '' }));
       setSellers(mapped);
     } catch (error) {
       console.error('Error fetching sellers:', error);
@@ -92,13 +124,14 @@ const Home = () => {
                           className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
                           onClick={() => {
                             const url = release.preview_url || release.audio_url;
-                            if (url) {
-                              const audio = new Audio(url);
-                              audio.play().catch(() => {});
-                            }
+                            togglePlay(release.id, url);
                           }}
                         >
-                          <Play fill="currentColor" className="ml-1" />
+                          {playingTrack === release.id ? (
+                            <Pause fill="currentColor" className="ml-1" />
+                          ) : (
+                            <Play fill="currentColor" className="ml-1" />
+                          )}
                         </button>
                       </div>
                     </div>

@@ -42,6 +42,7 @@ export const AdminArtists = () => {
   const [isManagerOpen, setIsManagerOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [metricsForm, setMetricsForm] = useState({ plays: '', listeners: '', revenue: '', growth: '' });
+  const [searchName, setSearchName] = useState('');
   const { addNotification } = useNotification();
   const { addToast } = useToast();
   const { getArtistById, updateArtistMetrics } = useData();
@@ -109,9 +110,16 @@ export const AdminArtists = () => {
       <Card className="space-y-4">
         <div className="font-bold">Enviar música pelo artista</div>
         <div className="flex items-center gap-3">
+          <AnimatedInput 
+            placeholder="Buscar artista pelo nome" 
+            value={searchName} 
+            onChange={(e) => setSearchName(e.target.value)} 
+          />
           <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={selectedArtist || ''} onChange={(e) => setSelectedArtist(e.target.value)}>
             <option value="">Selecione o artista</option>
-            {artists.map(a => <option key={a.id} value={a.id}>{a.nome || a.id}</option>)}
+            {(artists || [])
+              .filter(a => (a.nome || '').toLowerCase().includes(searchName.toLowerCase()))
+              .map(a => <option key={a.id} value={a.id}>{a.nome || a.id}</option>)}
           </select>
           <AnimatedButton onClick={() => setIsManagerOpen(true)}>Enviar Música</AnimatedButton>
         </div>
@@ -119,9 +127,16 @@ export const AdminArtists = () => {
       <Card className="space-y-4">
         <div className="font-bold">Gerenciar perfil e métricas do artista</div>
         <div className="flex items-center gap-3">
+          <AnimatedInput 
+            placeholder="Buscar artista pelo nome" 
+            value={searchName} 
+            onChange={(e) => setSearchName(e.target.value)} 
+          />
           <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={selectedArtist || ''} onChange={(e) => setSelectedArtist(e.target.value)}>
             <option value="">Selecione o artista</option>
-            {artists.map(a => <option key={a.id} value={a.id}>{a.nome || a.id}</option>)}
+            {(artists || [])
+              .filter(a => (a.nome || '').toLowerCase().includes(searchName.toLowerCase()))
+              .map(a => <option key={a.id} value={a.id}>{a.nome || a.id}</option>)}
           </select>
           <AnimatedButton onClick={() => setIsProfileOpen(true)}>Editar Perfil</AnimatedButton>
         </div>
@@ -211,6 +226,38 @@ export const AdminMusics = () => {
     <AdminLayout>
       <Card className="space-y-4">
         <div className="font-bold">Aprovar / Reprovar</div>
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          <button
+            onClick={() => setStatusFilter('aprovado')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
+              statusFilter === 'aprovado' 
+                ? 'bg-beatwap-gold text-beatwap-black font-bold' 
+                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            Músicas Aprovadas
+          </button>
+          <button
+            onClick={() => setStatusFilter('pendente')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
+              statusFilter === 'pendente' 
+                ? 'bg-beatwap-gold text-beatwap-black font-bold' 
+                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            Pendentes
+          </button>
+          <button
+            onClick={() => setStatusFilter('todos')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
+              statusFilter === 'todos' 
+                ? 'bg-beatwap-gold text-beatwap-black font-bold' 
+                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            Todas
+          </button>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="todos">Status: Todos</option>
@@ -353,6 +400,10 @@ export const AdminProfile = () => {
   const [mandatoryMissing, setMandatoryMissing] = useState(false);
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [artists, setArtists] = useState([]);
+  const [selectedArtistEdit, setSelectedArtistEdit] = useState('');
+  const [artistSearchName, setArtistSearchName] = useState('');
+  const [isArtistProfileOpen, setIsArtistProfileOpen] = useState(false);
 
   useEffect(() => {
     if (user && profile) {
@@ -375,6 +426,18 @@ export const AdminProfile = () => {
       setMandatoryMissing(missing);
     }
   }, [user, profile]);
+
+  useEffect(() => {
+    const fetchArtists = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, nome, avatar_url, bio')
+        .eq('cargo', 'Artista')
+        .order('nome', { ascending: true });
+      setArtists(data || []);
+    };
+    fetchArtists();
+  }, []);
 
   const handleSave = async () => {
     setLoading(true);
@@ -405,6 +468,31 @@ export const AdminProfile = () => {
     }
   };
 
+  const handleSaveArtistProfile = async ({ name, bio, blob }) => {
+    try {
+      if (!selectedArtistEdit) return;
+      let avatar_url = null;
+      if (blob) {
+        const fileName = `${selectedArtistEdit}-${Date.now()}.jpg`;
+        const { data: uploadRes, error: uploadErr } = await supabase.storage.from('avatars').upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
+        if (uploadErr) throw uploadErr;
+        const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(uploadRes.path);
+        avatar_url = publicUrl.publicUrl;
+      }
+      const updateData = {};
+      if (name) updateData.nome = name;
+      if (bio) updateData.bio = bio;
+      if (avatar_url) updateData.avatar_url = avatar_url;
+      if (Object.keys(updateData).length) {
+        const { error } = await supabase.from('profiles').update(updateData).eq('id', selectedArtistEdit);
+        if (error) throw error;
+      }
+      addToast('Perfil do artista atualizado', 'success');
+      setIsArtistProfileOpen(false);
+    } catch {
+      addToast('Falha ao atualizar perfil do artista', 'error');
+    }
+  };
   const handleAvatarSave = async ({ blob }) => {
     if (!blob || !user) return;
     try {
@@ -479,6 +567,7 @@ export const AdminProfile = () => {
     { id: 'endereco', label: 'Endereço', icon: MapPin },
     { id: 'contrato', label: 'Contrato', icon: FileText },
     { id: 'senha', label: 'Minha Senha', icon: Lock },
+    { id: 'artista', label: 'Perfil de Artista', icon: User },
   ];
 
   return (
@@ -632,6 +721,29 @@ export const AdminProfile = () => {
             </motion.div>
           </AnimatePresence>
         </Card>
+        {activeTab === 'artista' && (
+          <Card className="space-y-4">
+            <div className="font-bold">Editar perfil de um artista</div>
+            <div className="flex items-center gap-3">
+              <AnimatedInput 
+                placeholder="Buscar artista pelo nome" 
+                value={artistSearchName} 
+                onChange={(e) => setArtistSearchName(e.target.value)} 
+              />
+              <select 
+                className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" 
+                value={selectedArtistEdit} 
+                onChange={(e) => setSelectedArtistEdit(e.target.value)}
+              >
+                <option value="">Selecione o artista</option>
+                {(artists || [])
+                  .filter(a => (a.nome || '').toLowerCase().includes(artistSearchName.toLowerCase()))
+                  .map(a => <option key={a.id} value={a.id}>{a.nome || a.id}</option>)}
+              </select>
+              <AnimatedButton onClick={() => setIsArtistProfileOpen(true)}>Editar Perfil</AnimatedButton>
+            </div>
+          </Card>
+        )}
         <ProfileEditModal
           isOpen={avatarModalOpen}
           onClose={() => setAvatarModalOpen(false)}
@@ -640,6 +752,15 @@ export const AdminProfile = () => {
           currentBio={''}
           onSave={handleAvatarSave}
           uploading={uploadingAvatar}
+        />
+        <ProfileEditModal
+          isOpen={isArtistProfileOpen}
+          onClose={() => setIsArtistProfileOpen(false)}
+          currentAvatar={(artists.find(a => a.id === selectedArtistEdit)?.avatar_url) || null}
+          currentName={(artists.find(a => a.id === selectedArtistEdit)?.nome) || ''}
+          currentBio={(artists.find(a => a.id === selectedArtistEdit)?.bio) || ''}
+          onSave={handleSaveArtistProfile}
+          uploading={false}
         />
       </div>
     </AdminLayout>

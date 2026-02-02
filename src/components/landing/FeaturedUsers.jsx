@@ -21,7 +21,7 @@ const UserCard = ({ user, type }) => {
         {user.avatar_url ? (
           <img 
             src={user.avatar_url} 
-            alt={user.name || 'Usuário'} 
+            alt={user.name || (type === 'producer' ? 'Produtor' : 'Artista')} 
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
@@ -36,7 +36,7 @@ const UserCard = ({ user, type }) => {
         </div>
       </div>
       <div className="p-4">
-        <h3 className="font-bold text-lg text-white truncate">{user.name || 'Usuário Sem Nome'}</h3>
+        <h3 className="font-bold text-lg text-white truncate">{user.name || (type === 'producer' ? 'Produtor' : 'Artista')}</h3>
         <p className="text-sm text-gray-400 truncate">{type === 'producer' ? 'Produtor' : 'Artista'}</p>
       </div>
     </motion.div>
@@ -60,7 +60,7 @@ const FeaturedUsers = () => {
         if (error) throw error;
 
         if (data) {
-          const normalized = data.map(u => ({ ...u, name: u.nome || u.name }));
+          const normalized = data.map(u => ({ ...u, name: u.nome || u.nome_completo_razao_social || u.name || '' }));
           const admins = normalized.filter(u => u.cargo === 'Produtor');
           const regular = normalized.filter(u => u.cargo !== 'Produtor');
           setProducers(admins);
