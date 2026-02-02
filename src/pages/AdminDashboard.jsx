@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, MapPin, CreditCard, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle } from 'lucide-react';
+import { User, MapPin, CreditCard, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -1128,8 +1128,16 @@ export const AdminSponsors = () => {
           <AnimatedInput placeholder="Nome da marca" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <AnimatedInput placeholder="Instagram (URL)" value={form.instagram_url} onChange={(e) => setForm({ ...form, instagram_url: e.target.value })} />
           <AnimatedInput placeholder="Site (URL)" value={form.site_url} onChange={(e) => setForm({ ...form, site_url: e.target.value })} />
-          <div className="flex items-center gap-2">
-            <input type="file" accept="image/*" onChange={onFileChange} className="text-xs" />
+          <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${logoFile ? 'border-beatwap-gold bg-beatwap-gold/5' : 'border-gray-700 hover:border-gray-500'}`}>
+            <input type="file" id="sponsor-logo" className="hidden" accept="image/*" onChange={onFileChange} />
+            <label htmlFor="sponsor-logo" className="cursor-pointer flex flex-col items-center gap-2">
+              <div className="p-3 bg-gray-800 rounded-full text-white">
+                <ImageIcon size={24} />
+              </div>
+              <span className="font-bold text-sm">Logo da Marca</span>
+              <span className="text-xs text-gray-500">JPG/PNG quadrado recomendado</span>
+              {logoFile && <span className="text-beatwap-gold text-xs font-bold mt-2">{logoFile.name}</span>}
+            </label>
           </div>
         </div>
         {imageSrc ? (
