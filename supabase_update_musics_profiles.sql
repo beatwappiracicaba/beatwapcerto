@@ -188,11 +188,11 @@ create table if not exists public.online_status (
 alter table public.online_status enable row level security;
 drop policy if exists online_status_select_all on public.online_status;
 drop policy if exists online_status_upsert_self on public.online_status;
+drop policy if exists online_status_update_self on public.online_status;
 create policy online_status_select_all on public.online_status for select using (auth.role() = 'authenticated');
 create policy online_status_upsert_self on public.online_status for insert with check (profile_id = auth.uid());
 create policy online_status_update_self on public.online_status for update using (profile_id = auth.uid());
 
-do $$
 -- Métricas do artista: permitir leitura e upsert por Produtor
 alter table public.artist_metrics enable row level security;
 drop policy if exists artist_metrics_select_admin on public.artist_metrics;
@@ -206,19 +206,3 @@ create policy artist_metrics_upsert_admin on public.artist_metrics for insert wi
 create policy artist_metrics_update_admin on public.artist_metrics for update using (
   (select cargo from public.profiles where id = auth.uid()) = 'Produtor'
 );
-
-begin
-  if not exists (
-    select 1
-    from pg_publication_rel pr
-    join pg_class c on pr.prrelid = c.oid
-    join pg_class c on pr.prrelid = c.oid
-    join pg_namespace n on c.relnamespace = n.oid
-    where pr.prpubid = (select oid from pg_publication where pubname = 'supabase_realtime')
-      and n.nspname = 'public'
-      and c.relname = 'online_status'
-  ) then
-    alter publication supabase_realtime add table public.online_status;
-  end if;
-end
-$$;
