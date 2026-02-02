@@ -9,6 +9,8 @@ import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { useToast } from '../context/ToastContext';
 import { supabase } from '../services/supabaseClient';
+import Cropper from 'react-easy-crop';
+import { getCroppedImg } from '../utils/cropImage';
 import { ArtistContentManager } from '../components/admin/ArtistContentManager';
 import { ProfileEditModal } from '../components/ui/ProfileEditModal';
 import { useData } from '../context/DataContext';
@@ -1023,6 +1025,11 @@ export const AdminSponsors = () => {
   const [form, setForm] = useState({ name: '', instagram_url: '', site_url: '' });
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState('');
+  const [imageSrc, setImageSrc] = useState(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [croppedBlob, setCroppedBlob] = useState(null);
   const loadSponsors = useCallback(async () => {
     try {
       setLoadingSponsors(true);
@@ -1039,18 +1046,32 @@ export const AdminSponsors = () => {
     }
   }, [addToast]);
   useEffect(() => { loadSponsors(); }, [loadSponsors]);
-  const onFileChange = (e) => {
+  const onFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setLogoFile(file);
     const reader = new FileReader();
-    reader.onload = () => setLogoPreview(reader.result);
+    reader.onload = () => setImageSrc(reader.result);
     reader.readAsDataURL(file);
   };
+  const onCropComplete = (croppedArea, pixels) => setCroppedAreaPixels(pixels);
+  const handleCropConfirm = async () => {
+    try {
+      const blob = await getCroppedImg(imageSrc, croppedAreaPixels);
+      const preview = URL.createObjectURL(blob);
+      setLogoPreview(preview);
+      setCroppedBlob(blob);
+      setImageSrc(null);
+    } catch (e) {
+      addToast('Falha ao recortar imagem', 'error');
+    }
+  };
   const uploadLogo = async () => {
-    if (!logoFile) return null;
-    const fileName = `logo-${Date.now()}-${logoFile.name.replace(/\s+/g,'_')}`;
-    const { data: uploadRes, error: uploadErr } = await supabase.storage.from('sponsor_logos').upload(fileName, logoFile, { upsert: true });
+    const blobToUpload = croppedBlob || logoFile;
+    if (!blobToUpload) return null;
+    const namePart = (logoFile?.name || 'logo').replace(/\s+/g,'_');
+    const fileName = `logo-${Date.now()}-${namePart}`;
+    const { data: uploadRes, error: uploadErr } = await supabase.storage.from('sponsor_logos').upload(fileName, blobToUpload, { upsert: true });
     if (uploadErr) throw uploadErr;
     const { data: publicUrl } = supabase.storage.from('sponsor_logos').getPublicUrl(uploadRes.path);
     return publicUrl.publicUrl;
@@ -1069,10 +1090,12 @@ export const AdminSponsors = () => {
         created_by: user?.id || null
       });
       if (error) throw error;
-      addToast('Patrocinador adicionado', 'success');
+      addToast('Patrocinador/Parceria adicionada', 'success');
       setForm({ name: '', instagram_url: '', site_url: '' });
       setLogoFile(null);
       setLogoPreview('');
+      setImageSrc(null);
+      setCroppedBlob(null);
       loadSponsors();
     } catch {
       addToast('Falha ao adicionar patrocinador', 'error');
@@ -1091,7 +1114,7 @@ export const AdminSponsors = () => {
     try {
       const { error } = await supabase.from('sponsors').delete().eq('id', id);
       if (error) throw error;
-      addToast('Patrocinador removido', 'success');
+      addToast('Patrocinador/Parceria removida', 'success');
       loadSponsors();
     } catch {
       addToast('Falha ao remover patrocinador', 'error');
@@ -1100,7 +1123,7 @@ export const AdminSponsors = () => {
   return (
     <AdminLayout>
       <Card className="space-y-4">
-        <div className="font-bold">Catalogar Patrocinador</div>
+        <div className="font-bold">Catalogar Patrocinador/Parceria</div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <AnimatedInput placeholder="Nome da marca" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <AnimatedInput placeholder="Instagram (URL)" value={form.instagram_url} onChange={(e) => setForm({ ...form, instagram_url: e.target.value })} />
@@ -1109,16 +1132,57 @@ export const AdminSponsors = () => {
             <input type="file" accept="image/*" onChange={onFileChange} className="text-xs" />
           </div>
         </div>
-        {logoPreview && (
-          <div className="flex items-center gap-3">
-            <img src={logoPreview} alt="Logo preview" className="w-24 h-24 object-contain rounded-lg border border-white/10 bg-white/5" />
-            <AnimatedButton onClick={() => { setLogoFile(null); setLogoPreview(''); }}>Remover</AnimatedButton>
+        {imageSrc ? (
+          <div className="space-y-4">
+            <div className="relative w-full h-64 bg-black rounded-lg overflow-hidden">
+              <Cropper
+                image={imageSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+                cropShape="rect"
+                showGrid={false}
+              />
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-xs text-gray-400">Zoom</span>
+              <input
+                type="range"
+                value={zoom}
+                min={1}
+                max={3}
+                step={0.1}
+                onChange={(e) => setZoom(e.target.value)}
+                className="w-full accent-beatwap-gold h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button 
+                onClick={() => { setImageSrc(null); setLogoFile(null); setCroppedBlob(null); }}
+                className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+              <AnimatedButton onClick={handleCropConfirm}>
+                Confirmar Recorte
+              </AnimatedButton>
+            </div>
           </div>
+        ) : (
+          logoPreview && (
+            <div className="flex items-center gap-3">
+              <img src={logoPreview} alt="Logo preview" className="w-24 h-24 object-contain rounded-lg border border-white/10 bg-white/5" />
+              <AnimatedButton onClick={() => { setLogoFile(null); setLogoPreview(''); setCroppedBlob(null); }}>Remover</AnimatedButton>
+            </div>
+          )
         )}
-        <AnimatedButton onClick={createSponsor}>Adicionar Patrocinador</AnimatedButton>
+        <AnimatedButton onClick={createSponsor}>Adicionar Patrocinador/Parceria</AnimatedButton>
       </Card>
       <Card className="space-y-4">
-        <div className="font-bold">Patrocinadores</div>
+        <div className="font-bold">Patrocinadores/Parcerias</div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {(loadingSponsors ? [] : sponsors).map(s => (
             <div key={s.id} className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3">
@@ -1142,7 +1206,7 @@ export const AdminSponsors = () => {
             </div>
           ))}
           {(!loadingSponsors && sponsors.length === 0) && (
-            <div className="text-sm text-gray-400">Nenhum patrocinador cadastrado.</div>
+            <div className="text-sm text-gray-400">Nenhum patrocinador/parceria cadastrado.</div>
           )}
         </div>
       </Card>

@@ -123,10 +123,10 @@ export const ChatProvider = ({ children }) => {
       if (artistIds.length) {
         const { data: profilesData } = await supabase
           .from('profiles')
-          .select('id, nome')
+          .select('id, nome, nome_completo_razao_social')
           .in('id', artistIds);
         (profilesData || []).forEach(p => {
-          artistNameMap[p.id] = p.nome || p.id;
+          artistNameMap[p.id] = p.nome || p.nome_completo_razao_social || 'Artista';
         });
       }
 

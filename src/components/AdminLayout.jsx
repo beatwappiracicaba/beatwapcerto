@@ -33,7 +33,7 @@ export const AdminLayout = ({ children }) => {
             <Music size={18} /> Músicas
           </NavLink>
           <NavLink to="/admin/sponsors" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-            <Users size={18} /> Patrocinadores
+            <Users size={18} /> Patrocinadores/Parcerias
           </NavLink>
           {/* Chat removido do menu, manter apenas flutuante */}
         </nav>
