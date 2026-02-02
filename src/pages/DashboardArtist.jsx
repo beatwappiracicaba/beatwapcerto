@@ -54,7 +54,7 @@ export const DashboardArtistMusics = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('musics')
-      .select('id,titulo,status,motivo_recusa,created_at,cover_url,nome_artista')
+      .select('id,titulo,status,motivo_recusa,created_at,cover_url,nome_artista,upc,presave_link')
       .eq('artista_id', user.id)
       .order('created_at', { ascending: false });
     if (!error) setMusics(data || []);
@@ -107,6 +107,22 @@ export const DashboardArtistMusics = () => {
                 }`}>
                   {m.status}
                 </div>
+                {m.status === 'aprovado' && (
+                  <>
+                    {m.upc && (
+                      <div className="text-xs px-2 py-1 rounded-full bg-white/10 text-white">
+                        UPC: {m.upc}
+                      </div>
+                    )}
+                    {m.presave_link && (
+                      <AnimatedButton 
+                        onClick={() => navigator.clipboard.writeText(m.presave_link)}
+                      >
+                        Copiar Pré-save
+                      </AnimatedButton>
+                    )}
+                  </>
+                )}
                 {m.motivo_recusa && (
                   <div className="text-xs text-red-400 max-w-[150px] truncate" title={m.motivo_recusa}>
                     {m.motivo_recusa}

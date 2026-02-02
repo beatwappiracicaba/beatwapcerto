@@ -29,7 +29,7 @@ const Home = () => {
     try {
       const { data, error } = await supabase
         .from('musics')
-        .select('*')
+        .select('id,titulo,nome_artista,estilo,cover_url,preview_url,audio_url')
         .eq('status', 'aprovado')
         .order('created_at', { ascending: false })
         .limit(8);
@@ -84,18 +84,27 @@ const Home = () => {
                     <div className="aspect-square rounded-2xl overflow-hidden mb-4 relative shadow-lg">
                       <img 
                         src={release.cover_url} 
-                        alt={release.title} 
+                        alt={release.titulo || 'Capa'} 
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white">
+                        <button 
+                          className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
+                          onClick={() => {
+                            const url = release.preview_url || release.audio_url;
+                            if (url) {
+                              const audio = new Audio(url);
+                              audio.play().catch(() => {});
+                            }
+                          }}
+                        >
                           <Play fill="currentColor" className="ml-1" />
                         </button>
                       </div>
                     </div>
-                    <h3 className="font-bold text-lg truncate">{release.title}</h3>
-                    <p className="text-sm text-gray-400 truncate">{release.artist_name}</p>
-                    <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider">{release.genre}</p>
+                    <h3 className="font-bold text-lg truncate">{release.titulo || 'Lançamento'}</h3>
+                    <p className="text-sm text-gray-400 truncate">{release.nome_artista || 'Artista'}</p>
+                    <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider">{release.estilo || ''}</p>
                   </motion.div>
                 ))}
               </div>

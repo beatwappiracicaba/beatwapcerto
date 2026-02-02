@@ -161,6 +161,7 @@ export const AdminMusics = () => {
   const [musics, setMusics] = useState([]);
   const [statusFilter, setStatusFilter] = useState('pendente');
   const [artistFilter, setArtistFilter] = useState('');
+  const [artists, setArtists] = useState([]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [localInputs, setLocalInputs] = useState({});
@@ -177,6 +178,17 @@ export const AdminMusics = () => {
     setMusics(data || []);
   }, [statusFilter, artistFilter, startDate, endDate]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const fetchArtists = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, nome')
+        .eq('cargo', 'Artista')
+        .order('nome', { ascending: true });
+      setArtists(data || []);
+    };
+    fetchArtists();
+  }, []);
   const approve = async (m) => {
     const inputs = localInputs[m.id] || {};
     const upcVal = (inputs.upc || '').trim();
@@ -206,7 +218,10 @@ export const AdminMusics = () => {
             <option value="aprovado">Aprovado</option>
             <option value="recusado">Recusado</option>
           </select>
-          <AnimatedInput placeholder="ID do artista (opcional)" value={artistFilter} onChange={(e) => setArtistFilter(e.target.value)} />
+          <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={artistFilter} onChange={(e) => setArtistFilter(e.target.value)}>
+            <option value="">Artista: Todos</option>
+            {artists.map(a => <option key={a.id} value={a.id}>{a.nome || a.id}</option>)}
+          </select>
           <input type="date" className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           <input type="date" className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
           <AnimatedButton onClick={load}>Filtrar</AnimatedButton>
@@ -462,7 +477,6 @@ export const AdminProfile = () => {
   const tabs = [
     { id: 'detalhes', label: 'Detalhes', icon: User },
     { id: 'endereco', label: 'Endereço', icon: MapPin },
-    { id: 'plano', label: 'Plano', icon: CreditCard },
     { id: 'contrato', label: 'Contrato', icon: FileText },
     { id: 'senha', label: 'Minha Senha', icon: Lock },
   ];
@@ -579,20 +593,6 @@ export const AdminProfile = () => {
                 </div>
               )}
 
-              {activeTab === 'plano' && (
-                <div className="space-y-6 text-center py-8">
-                  <div className="w-20 h-20 bg-beatwap-gold/20 rounded-full flex items-center justify-center mx-auto text-beatwap-gold mb-4">
-                    <CreditCard size={40} />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white">Seu Plano Atual</h3>
-                  <p className="text-4xl font-bold text-beatwap-gold">{formData.plano}</p>
-                  <p className="text-gray-400 max-w-md mx-auto">Aproveite todos os recursos do seu plano atual. Você pode fazer o upgrade a qualquer momento para liberar mais funcionalidades.</p>
-                  <div className="flex justify-center gap-4 mt-8">
-                    <AnimatedButton variant="secondary">Ver Detalhes</AnimatedButton>
-                    <AnimatedButton>Renovar / Upgrade</AnimatedButton>
-                  </div>
-                </div>
-              )}
 
               {activeTab === 'contrato' && (
                 <div className="space-y-6">
