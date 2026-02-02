@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Music, Heart, Instagram, Youtube, Video } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import logo from '../../assets/images/beatwap-logo.png';
+import { Link } from 'react-router-dom';
 
 const Footer = () => {
   const navigate = useNavigate();
@@ -42,9 +43,9 @@ const Footer = () => {
           <div>
             <h4 className="text-white font-bold mb-6">Legal</h4>
             <ul className="space-y-4">
-              <li><a href="#" className="text-gray-400 hover:text-beatwap-gold transition-colors">Termos de Uso</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-beatwap-gold transition-colors">Política de Privacidade</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-beatwap-gold transition-colors">Direitos Autorais</a></li>
+              <li><Link to="/legal/termos" className="text-gray-400 hover:text-beatwap-gold transition-colors">Termos de Uso</Link></li>
+              <li><Link to="/legal/privacidade" className="text-gray-400 hover:text-beatwap-gold transition-colors">Política de Privacidade</Link></li>
+              <li><Link to="/legal/direitos" className="text-gray-400 hover:text-beatwap-gold transition-colors">Direitos Autorais</Link></li>
               <li><a href="#contact" className="text-gray-400 hover:text-beatwap-gold transition-colors">Suporte</a></li>
             </ul>
           </div>

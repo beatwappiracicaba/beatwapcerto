@@ -14,6 +14,9 @@ import { SplashScreen } from '../components/ui/SplashScreen';
 import Home from '../pages/Home';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
+import Terms from '../pages/Terms';
+import Privacy from '../pages/Privacy';
+import Copyright from '../pages/Copyright';
 import { DashboardArtistHome, DashboardArtistMusics, DashboardArtistChat } from '../pages/DashboardArtist';
 import { DashboardArtistProfile } from '../pages/DashboardArtistProfile';
 import { AdminHome, AdminArtists, AdminMusics, AdminChat, AdminProfile } from '../pages/AdminDashboard';
@@ -54,6 +57,9 @@ export const AppRoutes = () => {
         <Route path="/admin/artists" element={isProdutor ? <AdminArtists /> : <Navigate to="/" replace />} />
         <Route path="/admin/musics" element={isProdutor ? <AdminMusics /> : <Navigate to="/" replace />} />
         <Route path="/admin/chat" element={isProdutor ? <AdminChat /> : <Navigate to="/" replace />} />
+        <Route path="/legal/termos" element={<Terms />} />
+        <Route path="/legal/privacidade" element={<Privacy />} />
+        <Route path="/legal/direitos" element={<Copyright />} />
 
         {/* Fallback - Redirect to Home */}
         <Route path="*" element={<Navigate to="/" replace />} />

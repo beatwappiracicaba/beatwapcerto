@@ -11,6 +11,14 @@ const Pricing = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const openPlan = (planLabel, url) => {
+    window.open(url, '_blank');
+    const msg = `Comprei o ${planLabel}`;
+    setTimeout(() => {
+      window.open('https://wa.me/5519981083497?text=' + encodeURIComponent(msg), '_blank');
+    }, 300);
+  };
+
   const handleSelectPlan = (plan) => {
     if (!user) {
       navigate('/login');
@@ -67,7 +75,7 @@ const Pricing = () => {
                 <Check size={18} className="text-beatwap-gold" /> 75% Royalties para você
               </li>
             </ul>
-            <AnimatedButton variant="outline" className="w-full" onClick={() => handleSelectPlan('avulso')}>Começar Agora</AnimatedButton>
+            <AnimatedButton variant="outline" className="w-full" onClick={() => openPlan('Plano por música', 'https://mpago.la/1bNzgUz')}>Comprar Plano por Música</AnimatedButton>
           </div>
 
           {/* Plano Mensal */}
@@ -97,7 +105,7 @@ const Pricing = () => {
                 <Check size={18} className="text-beatwap-gold" /> 75% Royalties para você
               </li>
             </ul>
-            <AnimatedButton variant="outline" className="w-full" onClick={() => handleSelectPlan('mensal')}>Assinar Mensal</AnimatedButton>
+            <AnimatedButton variant="outline" className="w-full" onClick={() => openPlan('Plano mensal', 'https://mpago.la/13HdzTe')}>Assinar Plano Mensal</AnimatedButton>
           </div>
 
           {/* Plano Anual */}
@@ -130,7 +138,7 @@ const Pricing = () => {
                 <Star size={18} className="text-beatwap-gold fill-beatwap-gold" /> Acompanhamento anual
               </li>
             </ul>
-            <AnimatedButton className="w-full bg-beatwap-gold text-black hover:bg-white" onClick={() => handleSelectPlan('anual')}>Quero o Plano Anual</AnimatedButton>
+            <AnimatedButton className="w-full bg-beatwap-gold text-black hover:bg-white" onClick={() => openPlan('Plano anual', 'https://mpago.la/13wuYRF')}>Assinar Plano Anual</AnimatedButton>
           </div>
         </div>
 
