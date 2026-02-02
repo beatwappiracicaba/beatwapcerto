@@ -151,16 +151,22 @@ Data: ${new Date().toLocaleDateString()}
       const plan = plans[planType];
       const message = `Olá, acabei de contratar o ${plan.name} na BeatWap! Meu email é ${formData.email}. Gostaria de confirmar o pagamento.`;
       const whatsappUrl = `https://wa.me/5519981083497?text=${encodeURIComponent(message)}`;
-      
-      // Open WhatsApp in new tab
-      window.open(whatsappUrl, '_blank');
-
-      // 4. Open Mercado Pago
-      setTimeout(() => {
-        window.open(plan.link, '_blank');
-        onClose();
-        addToast('Redirecionando para pagamento...', 'success');
-      }, 1000);
+      const a1 = document.createElement('a');
+      a1.href = whatsappUrl;
+      a1.target = '_blank';
+      a1.rel = 'noopener,noreferrer';
+      document.body.appendChild(a1);
+      a1.click();
+      const a2 = document.createElement('a');
+      a2.href = plan.link;
+      a2.target = '_blank';
+      a2.rel = 'noopener,noreferrer';
+      document.body.appendChild(a2);
+      a2.click();
+      a1.remove();
+      a2.remove();
+      onClose();
+      addToast('Redirecionando para pagamento...', 'success');
 
     } catch (error) {
       console.error('Error processing checkout:', error);

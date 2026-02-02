@@ -1,21 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { User, Star, Music, Shield, Info } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { User, Star, Music, Shield, Info, Instagram as IgIcon, Globe, X } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 import { useToast } from '../../context/ToastContext';
 
-const UserCard = ({ user, type }) => {
-  const { addToast } = useToast();
-
-  const handleClick = () => {
-    addToast('Perfil em desenvolvimento', 'info');
-  };
-
+const UserCard = ({ user, type, onSelect }) => {
   return (
     <motion.div
       whileHover={{ y: -5 }}
       className="bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold/50 transition-colors group"
-      onClick={handleClick}
+      onClick={() => onSelect(user)}
     >
       <div className="aspect-square bg-gray-800 relative overflow-hidden">
         {user.avatar_url ? (
@@ -48,6 +42,8 @@ const FeaturedUsers = () => {
   const [producers, setProducers] = useState([]);
   const [recentUsers, setRecentUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
+  const { addToast } = useToast();
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -76,6 +72,23 @@ const FeaturedUsers = () => {
 
     fetchUsers();
   }, []);
+
+  const openLink = (url, type) => {
+    const valid = (url || '').trim();
+    if (!valid) {
+      addToast(`Perfil ${type} ainda não possui`, 'info');
+      return;
+    }
+    try {
+      const a = document.createElement('a');
+      a.href = valid;
+      a.target = '_blank';
+      a.rel = 'noopener,noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {}
+  };
 
   if (loading) return null;
 
@@ -144,7 +157,7 @@ const FeaturedUsers = () => {
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  <UserCard user={producer} type="producer" />
+                  <UserCard user={producer} type="producer" onSelect={(u) => setSelected(u)} />
                 </motion.div>
               ))}
             </div>
@@ -173,12 +186,62 @@ const FeaturedUsers = () => {
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.05 }}
                 >
-                  <UserCard user={artist} type="artist" />
+                  <UserCard user={artist} type="artist" onSelect={(u) => setSelected(u)} />
                 </motion.div>
               ))}
             </div>
           </div>
         )}
+        <AnimatePresence>
+          {selected && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80"
+            >
+              <motion.div
+                initial={{ scale: 0.95 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0.95 }}
+                className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-sm overflow-hidden"
+              >
+                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-beatwap-black">
+                  <h3 className="text-lg font-bold text-white">Visitar Perfil</h3>
+                  <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-white">
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="p-6 space-y-3">
+                  <button
+                    onClick={() => openLink(selected.instagram_url, 'do Instagram')}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-pink-500/20 flex items-center justify-center text-pink-500">
+                      <IgIcon size={20} />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-white font-bold text-sm">Instagram</div>
+                      <div className="text-xs text-gray-400 truncate">{selected.instagram_url || 'Ainda não possui'}</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => openLink(selected.site_url, 'do site')}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-500">
+                      <Globe size={20} />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-white font-bold text-sm">Site</div>
+                      <div className="text-xs text-gray-400 truncate">{selected.site_url || 'Ainda não possui'}</div>
+                    </div>
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </section>
   );

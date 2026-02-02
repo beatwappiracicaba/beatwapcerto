@@ -22,6 +22,8 @@ export const DashboardArtistProfile = () => {
     email: '',
     cpf_cnpj: '',
     celular: '',
+    instagram_url: '',
+    site_url: '',
     tema: 'dark',
     // Endereço
     cep: '',
@@ -49,6 +51,8 @@ export const DashboardArtistProfile = () => {
         email: user.email || '',
         cpf_cnpj: profile.cpf_cnpj || '',
         celular: profile.celular || '',
+        instagram_url: profile.instagram_url || '',
+        site_url: profile.site_url || '',
         tema: profile.tema || 'dark',
         cep: profile.cep || '',
         logradouro: profile.logradouro || '',
@@ -74,6 +78,8 @@ export const DashboardArtistProfile = () => {
           nome_completo_razao_social: formData.nome_completo_razao_social,
           cpf_cnpj: formData.cpf_cnpj,
           celular: formData.celular,
+          instagram_url: formData.instagram_url,
+          site_url: formData.site_url,
           tema: formData.tema,
           cep: formData.cep,
           logradouro: formData.logradouro,
@@ -251,6 +257,18 @@ export const DashboardArtistProfile = () => {
                       value={formData.celular} 
                       onChange={(e) => setFormData({...formData, celular: e.target.value})} 
                     />
+                  <AnimatedInput 
+                    label="Instagram (URL)" 
+                    value={formData.instagram_url} 
+                    onChange={(e) => setFormData({...formData, instagram_url: e.target.value})} 
+                    placeholder="https://instagram.com/seu_perfil"
+                  />
+                  <AnimatedInput 
+                    label="Site (URL)" 
+                    value={formData.site_url} 
+                    onChange={(e) => setFormData({...formData, site_url: e.target.value})} 
+                    placeholder="https://seusite.com"
+                  />
                   </div>
                   <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10 mt-4">
                     <span className="text-gray-300">Tema da Interface</span>

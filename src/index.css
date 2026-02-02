@@ -6,6 +6,10 @@
   body {
     @apply bg-beatwap-black text-beatwap-white;
   }
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+  }
   :root {
     color-scheme: dark;
   }

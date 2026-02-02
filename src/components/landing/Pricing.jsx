@@ -12,12 +12,25 @@ const Pricing = () => {
   const navigate = useNavigate();
 
   const openPlan = (planLabel, url) => {
-    window.open(url, '_blank');
-    const artistName = profile?.nome || profile?.nome_completo_razao_social || '';
-    const msg = artistName ? `Comprei o ${planLabel} - ${artistName}` : `Comprei o ${planLabel}`;
-    setTimeout(() => {
-      window.open('https://wa.me/5519981083497?text=' + encodeURIComponent(msg), '_blank');
-    }, 300);
+    try {
+      const artistName = profile?.nome || profile?.nome_completo_razao_social || '';
+      const msg = artistName ? `Comprei o ${planLabel} - ${artistName}` : `Comprei o ${planLabel}`;
+      const wa = 'https://wa.me/5519981083497?text=' + encodeURIComponent(msg);
+      const a1 = document.createElement('a');
+      a1.href = url;
+      a1.target = '_blank';
+      a1.rel = 'noopener,noreferrer';
+      document.body.appendChild(a1);
+      a1.click();
+      const a2 = document.createElement('a');
+      a2.href = wa;
+      a2.target = '_blank';
+      a2.rel = 'noopener,noreferrer';
+      document.body.appendChild(a2);
+      a2.click();
+      a1.remove();
+      a2.remove();
+    } catch {}
   };
 
   const handleSelectPlan = (plan) => {

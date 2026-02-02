@@ -23,7 +23,9 @@ add column if not exists bairro text,
 add column if not exists cidade text,
 add column if not exists estado text,
 add column if not exists plano text default 'Gratuito',
-add column if not exists tema text default 'dark'; -- 'dark' ou 'light'
+add column if not exists tema text default 'dark', -- 'dark' ou 'light'
+add column if not exists instagram_url text,
+add column if not exists site_url text;
 
 -- Criação dos buckets de storage (se não existirem)
 insert into storage.buckets (id, name, public)
