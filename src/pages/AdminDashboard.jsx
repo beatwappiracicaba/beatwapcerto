@@ -402,8 +402,39 @@ export const AdminArtists = () => {
               })
               .map(a => <option key={a.id} value={a.id}>{a.nome || a.nome_completo_razao_social || 'Sem nome'}</option>)}
           </select>
-          <AnimatedButton onClick={() => setIsProfileOpen(true)}>Editar Perfil</AnimatedButton>
         </div>
+        {selectedArtist && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-beatwap-gold/10 via-white/5 to-black/40 p-4"
+          >
+            <div className="absolute -top-20 -right-24 w-72 h-72 rounded-full bg-beatwap-gold/10 blur-3xl pointer-events-none" />
+            <div className="flex items-center gap-4">
+              <div className="w-20 h-20 rounded-2xl overflow-hidden ring-2 ring-beatwap-gold/60 border border-white/10 bg-black/30 flex items-center justify-center shadow-[0_0_30px_rgba(245,197,66,0.25)]">
+                {(artists.find(a => a.id === selectedArtist)?.avatar_url) ? (
+                  <img
+                    src={artists.find(a => a.id === selectedArtist)?.avatar_url}
+                    alt={artists.find(a => a.id === selectedArtist)?.nome || 'Artista'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-xl font-extrabold text-beatwap-gold">
+                    {((artists.find(a => a.id === selectedArtist)?.nome || artists.find(a => a.id === selectedArtist)?.nome_completo_razao_social || 'A') || 'A')[0].toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="text-2xl font-extrabold text-white tracking-wide">
+                  {artists.find(a => a.id === selectedArtist)?.nome || artists.find(a => a.id === selectedArtist)?.nome_completo_razao_social || 'Artista'}
+                </div>
+                <div className="text-xs text-gray-400">Artista selecionado</div>
+              </div>
+              <AnimatedButton onClick={() => setIsProfileOpen(true)}>Editar Perfil</AnimatedButton>
+            </div>
+          </motion.div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <AnimatedInput placeholder="Plays" value={metricsForm.plays} onChange={(e) => setMetricsForm({ ...metricsForm, plays: e.target.value })} />
           <AnimatedInput placeholder="Listeners" value={metricsForm.listeners} onChange={(e) => setMetricsForm({ ...metricsForm, listeners: e.target.value })} />
