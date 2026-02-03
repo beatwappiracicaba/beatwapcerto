@@ -29,6 +29,40 @@ export const AdminHome = () => {
   });
   const [projectCoverFile, setProjectCoverFile] = useState(null);
   const [projectCoverPreview, setProjectCoverPreview] = useState(null);
+  const [projectCropImage, setProjectCropImage] = useState(null);
+  const [projectCrop, setProjectCrop] = useState({ x: 0, y: 0 });
+  const [projectZoom, setProjectZoom] = useState(1);
+  const [projectAspect, setProjectAspect] = useState(16 / 9);
+  const [projectCroppedAreaPixels, setProjectCroppedAreaPixels] = useState(null);
+
+  const onProjectFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setProjectCropImage(reader.result);
+      setProjectAspect(projectForm.platform === 'YouTube' ? 16 / 9 : 1);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = null;
+  };
+
+  const onProjectCropComplete = useCallback((croppedArea, pixels) => {
+    setProjectCroppedAreaPixels(pixels);
+  }, []);
+
+  const handleProjectCropConfirm = async () => {
+    try {
+      const blob = await getCroppedImg(projectCropImage, projectCroppedAreaPixels);
+      const preview = URL.createObjectURL(blob);
+      setProjectCoverPreview(preview);
+      setProjectCoverFile(blob);
+      setProjectCropImage(null);
+    } catch (e) {
+      addToast('Falha ao recortar imagem', 'error');
+    }
+  };
+
   const validateCover = async (file, platform) => {
     return new Promise((resolve) => {
       const img = new Image();
@@ -139,11 +173,7 @@ export const AdminHome = () => {
               id="project-cover"
               type="file"
               accept="image/*"
-              onChange={(e) => {
-                const f = e.target.files?.[0] || null;
-                setProjectCoverFile(f);
-                setProjectCoverPreview(f ? URL.createObjectURL(f) : null);
-              }}
+              onChange={onProjectFileChange}
               className="hidden"
             />
             <label htmlFor="project-cover" className="cursor-pointer flex flex-col items-center gap-2">
@@ -185,6 +215,72 @@ export const AdminHome = () => {
           </div>
         </div>
       </Card>
+      {projectCropImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-beatwap-black">
+              <h3 className="text-xl font-bold text-white">Ajustar Capa</h3>
+              <button onClick={() => setProjectCropImage(null)} className="text-gray-400 hover:text-white">
+                <ImageIcon size={24} />
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="relative w-full h-64 bg-black rounded-lg overflow-hidden">
+                <Cropper
+                  image={projectCropImage}
+                  crop={projectCrop}
+                  zoom={projectZoom}
+                  aspect={projectAspect}
+                  onCropChange={setProjectCrop}
+                  onCropComplete={onProjectCropComplete}
+                  onZoomChange={setProjectZoom}
+                  showGrid={true}
+                />
+              </div>
+              <div className="flex justify-center gap-4">
+                <button
+                  onClick={() => setProjectAspect(16 / 9)}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${projectAspect === 16 / 9 ? 'bg-beatwap-gold text-black border-beatwap-gold' : 'bg-transparent text-gray-400 border-white/10 hover:border-white/30'}`}
+                >
+                  Paisagem (16:9)
+                </button>
+                <button
+                  onClick={() => setProjectAspect(1)}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${projectAspect === 1 ? 'bg-beatwap-gold text-black border-beatwap-gold' : 'bg-transparent text-gray-400 border-white/10 hover:border-white/30'}`}
+                >
+                  Perfil (1:1)
+                </button>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs text-gray-400">
+                  <span>Zoom</span>
+                  <span>{projectZoom}x</span>
+                </div>
+                <input
+                  type="range"
+                  value={projectZoom}
+                  min={1}
+                  max={3}
+                  step={0.1}
+                  onChange={(e) => setProjectZoom(e.target.value)}
+                  className="w-full accent-beatwap-gold h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button 
+                  onClick={() => setProjectCropImage(null)}
+                  className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                >
+                  Cancelar
+                </button>
+                <AnimatedButton onClick={handleProjectCropConfirm}>
+                  Confirmar e Usar
+                </AnimatedButton>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 };
@@ -667,7 +763,7 @@ export const AdminMusics = () => {
               animate={{ opacity: 1, y: 0 }}
               whileHover={{ scale: 1.01 }}
               transition={{ duration: 0.2 }}
-              className="p-4 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-black/20 flex items-center gap-4 hover:border-beatwap-gold/40 hover:shadow-[0_0_30px_rgba(245,197,66,0.18)]"
+              className="p-4 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-black/20 flex flex-col md:flex-row items-start md:items-center gap-4 hover:border-beatwap-gold/40 hover:shadow-[0_0_30px_rgba(245,197,66,0.18)]"
             >
               <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gray-800 border border-white/10 ring-1 ring-black/50 flex items-center justify-center relative cursor-pointer"
                    onClick={() => togglePlay(m.id, m.preview_url || m.audio_url)}>
@@ -734,32 +830,32 @@ export const AdminMusics = () => {
                 </div>
               </div>
               {m.status === 'pendente' && (
-                <>
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-col w-full gap-3 mt-2 md:mt-0">
+                  <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
                     <AnimatedInput
                       placeholder="UPC"
                       value={localInputs[m.id]?.upc || ''}
                       onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), upc: e.target.value } }))}
-                      className="w-32"
+                      className="w-full md:w-32"
                     />
                     <AnimatedInput
                       placeholder="Link de Pre-save"
                       value={localInputs[m.id]?.presave || ''}
                       onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), presave: e.target.value } }))}
-                      className="w-48"
+                      className="w-full md:w-48"
                     />
                     <AnimatedButton onClick={() => approve(m)} icon={Save}>Aprovar</AnimatedButton>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
                     <AnimatedInput
                       placeholder="Motivo da reprovação"
                       value={localInputs[m.id]?.reject || ''}
                       onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), reject: e.target.value } }))}
-                      className="w-48"
+                      className="w-full md:w-48"
                     />
                     <AnimatedButton onClick={() => reject(m)} icon={AlertTriangle}>Reprovar</AnimatedButton>
                   </div>
-                </>
+                </div>
               )}
             </motion.div>
           ))}
