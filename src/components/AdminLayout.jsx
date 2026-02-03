@@ -47,7 +47,7 @@ export const AdminLayout = ({ children }) => {
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />}
       <main className="flex-1 md:ml-0 ml-0">
         <div className="container max-w-7xl mx-auto px-4 md:px-6 py-4">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-3">
           <div className="flex items-center gap-3">
             <button className="md:hidden p-2 rounded-xl bg-white/5 border border-white/10" onClick={() => setSidebarOpen(true)}>
               <Menu size={18} />
