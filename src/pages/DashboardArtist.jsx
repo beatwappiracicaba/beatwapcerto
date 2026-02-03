@@ -50,6 +50,7 @@ export const DashboardArtistMusics = () => {
   const [loading, setLoading] = useState(true);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [remainingUploads, setRemainingUploads] = useState(null);
+  const [musicMetrics, setMusicMetrics] = useState({});
 
   const fetchMusics = useCallback(async () => {
     setLoading(true);
@@ -65,6 +66,29 @@ export const DashboardArtistMusics = () => {
   useEffect(() => {
     if (user) fetchMusics();
   }, [user, fetchMusics]);
+  useEffect(() => {
+    const loadMetrics = async () => {
+      if (!user) return;
+      const { data: ev } = await supabase
+        .from('analytics_events')
+        .select('type,music_id,duration_seconds')
+        .eq('artist_id', user.id)
+        .in('type', ['music_play','music_click_presave']);
+      const agg = {};
+      (ev || []).forEach(e => {
+        const mid = e.music_id || 'unknown';
+        if (!agg[mid]) agg[mid] = { plays: 0, totalSeconds: 0, presaves: 0 };
+        if (e.type === 'music_play') {
+          agg[mid].plays += 1;
+          agg[mid].totalSeconds += Number(e.duration_seconds || 0);
+        } else if (e.type === 'music_click_presave') {
+          agg[mid].presaves += 1;
+        }
+      });
+      setMusicMetrics(agg);
+    };
+    loadMetrics();
+  }, [user]);
 
   const computeRemaining = useCallback(async () => {
     if (!user) return;
@@ -153,6 +177,18 @@ export const DashboardArtistMusics = () => {
               <div className="flex-1">
                 <div className="font-bold text-white">{m.titulo}</div>
                 <div className="text-xs text-gray-400">{m.nome_artista} • {new Date(m.created_at).toLocaleDateString()}</div>
+                {m.status === 'aprovado' && (
+                  <div className="mt-1 text-xs text-gray-300">
+                    {(() => {
+                      const mm = musicMetrics[m.id] || { plays: 0, totalSeconds: 0, presaves: 0 };
+                      const hh = Math.floor(mm.totalSeconds / 3600);
+                      const mmn = Math.floor((mm.totalSeconds % 3600) / 60);
+                      const ss = mm.totalSeconds % 60;
+                      const totalFmt = `${hh}h ${mmn}m ${ss}s`;
+                      return `Plays: ${mm.plays} • Tempo total: ${totalFmt} • Pré-saves: ${mm.presaves}`;
+                    })()}
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-4">
                 <div className={`text-xs px-3 py-1 rounded-full font-bold uppercase ${

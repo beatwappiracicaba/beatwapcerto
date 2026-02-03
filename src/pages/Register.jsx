@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, User, CheckCircle, Key } from 'lucide-react';
+import { Mail, Lock, User, CheckCircle } from 'lucide-react';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Card } from '../components/ui/Card';
@@ -68,7 +68,7 @@ const Register = () => {
               .update({ cargo: roleParam === 'Produtor' ? 'Produtor' : 'Artista', nome: capitalizedName })
               .eq('id', authData.session.user.id);
           }
-        } catch {}
+        } catch (err) { console.error(err); }
         addToast('Conta criada com sucesso!', 'success');
         navigate('/dashboard');
       } else if (authData.user) {

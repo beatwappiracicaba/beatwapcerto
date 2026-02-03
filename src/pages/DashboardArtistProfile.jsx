@@ -24,6 +24,10 @@ export const DashboardArtistProfile = () => {
     celular: '',
     instagram_url: '',
     site_url: '',
+    youtube_url: '',
+    spotify_url: '',
+    deezer_url: '',
+    tiktok_url: '',
     genero_musical: '',
     tema: 'dark',
     // Endereço
@@ -56,6 +60,10 @@ export const DashboardArtistProfile = () => {
         celular: profile.celular || '',
         instagram_url: profile.instagram_url || '',
         site_url: profile.site_url || '',
+        youtube_url: profile.youtube_url || '',
+        spotify_url: profile.spotify_url || '',
+        deezer_url: profile.deezer_url || '',
+        tiktok_url: profile.tiktok_url || '',
         genero_musical: profile.genero_musical || '',
         tema: profile.tema || 'dark',
         cep: profile.cep || '',
@@ -131,6 +139,10 @@ export const DashboardArtistProfile = () => {
           celular: formData.celular,
           instagram_url: formData.instagram_url,
           site_url: formData.site_url,
+          youtube_url: formData.youtube_url,
+          spotify_url: formData.spotify_url,
+          deezer_url: formData.deezer_url,
+          tiktok_url: formData.tiktok_url,
           genero_musical: formData.genero_musical,
           tema: formData.tema,
           cep: formData.cep,
@@ -320,6 +332,30 @@ export const DashboardArtistProfile = () => {
                     value={formData.site_url} 
                     onChange={(e) => setFormData({...formData, site_url: e.target.value})} 
                     placeholder="https://seusite.com"
+                  />
+                  <AnimatedInput 
+                    label="YouTube (URL)" 
+                    value={formData.youtube_url} 
+                    onChange={(e) => setFormData({...formData, youtube_url: e.target.value})} 
+                    placeholder="https://youtube.com/@seu_canal"
+                  />
+                  <AnimatedInput 
+                    label="Spotify (URL)" 
+                    value={formData.spotify_url} 
+                    onChange={(e) => setFormData({...formData, spotify_url: e.target.value})} 
+                    placeholder="https://open.spotify.com/artist/..."
+                  />
+                  <AnimatedInput 
+                    label="Deezer (URL)" 
+                    value={formData.deezer_url} 
+                    onChange={(e) => setFormData({...formData, deezer_url: e.target.value})} 
+                    placeholder="https://deezer.com/br/artist/..."
+                  />
+                  <AnimatedInput 
+                    label="TikTok (URL)" 
+                    value={formData.tiktok_url} 
+                    onChange={(e) => setFormData({...formData, tiktok_url: e.target.value})} 
+                    placeholder="https://tiktok.com/@seu_usuario"
                   />
                   <AnimatedInput 
                     label="Gênero Musical" 

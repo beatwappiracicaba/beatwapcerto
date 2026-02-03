@@ -45,6 +45,7 @@ create table public.musics (
   estilo text,
   upc text,
   presave_link text,
+  release_date date,
   status text default 'pendente',
   motivo_recusa text,
   created_at timestamptz default now(),

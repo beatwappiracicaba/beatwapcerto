@@ -9,7 +9,8 @@ add column if not exists authorization_url text,
 add column if not exists plataformas text[], -- Ex: ['Spotify', 'Apple Music'] ou ['Todas']
 add column if not exists estilo text,
 add column if not exists upc text,
-add column if not exists presave_link text;
+add column if not exists presave_link text,
+add column if not exists release_date date;
 
 -- Atualização da tabela profiles
 alter table public.profiles
@@ -27,7 +28,11 @@ add column if not exists plan_started_at timestamptz default now(),
 add column if not exists tema text default 'dark', -- 'dark' ou 'light'
 add column if not exists instagram_url text,
 add column if not exists site_url text,
-add column if not exists genero_musical text;
+add column if not exists genero_musical text,
+add column if not exists youtube_url text,
+add column if not exists spotify_url text,
+add column if not exists deezer_url text,
+add column if not exists tiktok_url text;
 
 -- Criação dos buckets de storage (se não existirem)
 insert into storage.buckets (id, name, public)
@@ -131,6 +136,9 @@ create policy musics_update_admin on public.musics for update using (
 -- Allow authenticated users to read approved releases (paridade com bootstrap)
 drop policy if exists musics_select_public_auth on public.musics;
 create policy musics_select_public_auth on public.musics for select to authenticated using (status = 'aprovado');
+-- Allow anonymous users to read approved releases (landing/Home)
+drop policy if exists musics_select_public_anon on public.musics;
+create policy musics_select_public_anon on public.musics for select to anon using (status = 'aprovado');
 
 -- Allow artists and producers to insert new musics
 drop policy if exists musics_insert_self on public.musics;
@@ -201,6 +209,53 @@ begin
   end if;
 end
 $$;
+
+-- Eventos de Analytics (plays, cliques)
+create table if not exists public.analytics_events (
+  id uuid primary key default gen_random_uuid(),
+  type text not null check (type in (
+    'music_play',
+    'music_click_presave',
+    'artist_click_instagram',
+    'artist_click_site',
+    'artist_click_youtube',
+    'artist_click_spotify',
+    'artist_click_deezer',
+    'artist_click_tiktok',
+    'sponsor_click'
+  )),
+  music_id uuid references public.musics(id) on delete cascade,
+  artist_id uuid references public.profiles(id) on delete cascade,
+  sponsor_id uuid references public.sponsors(id) on delete cascade,
+  duration_seconds integer,
+  ip_hash text not null,
+  created_at timestamptz default now()
+);
+alter table public.analytics_events enable row level security;
+drop policy if exists analytics_events_insert_public on public.analytics_events;
+drop policy if exists analytics_events_select_artist on public.analytics_events;
+drop policy if exists analytics_events_select_admin on public.analytics_events;
+-- Inserção pública para registrar eventos (Home/landing)
+create policy analytics_events_insert_public on public.analytics_events for insert to anon with check (ip_hash is not null);
+-- Leitura por artista (apenas seus eventos)
+create policy analytics_events_select_artist on public.analytics_events for select to authenticated using (artist_id = auth.uid());
+-- Leitura por produtor
+create policy analytics_events_select_admin on public.analytics_events for select using (public.is_produtor());
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_rel pr
+    join pg_class c on pr.prrelid = c.oid
+    join pg_namespace n on c.relnamespace = n.oid
+    where pr.prpubid = (select oid from pg_publication where pubname = 'supabase_realtime')
+      and n.nspname = 'public'
+      and c.relname = 'analytics_events'
+  ) then
+    alter publication supabase_realtime add table public.analytics_events;
+  end if;
+end
+$$;
+notify pgrst, 'reload schema';
 
 -- Patrocinadores: tabela, storage e políticas
 create table if not exists public.sponsors (

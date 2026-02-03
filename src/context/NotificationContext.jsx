@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
@@ -9,6 +9,23 @@ export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const { user } = useAuth();
   const { addToast } = useToast();
+
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('recipient_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setNotifications(data || []);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      addToast('Erro ao carregar notificações', 'error');
+    }
+  }, [user, addToast]);
 
   useEffect(() => {
     if (user) {
@@ -33,35 +50,19 @@ export const NotificationProvider = ({ children }) => {
     } else {
       setNotifications([]);
     }
-  }, [user]);
+  }, [user, fetchNotifications, addToast]);
 
-  const fetchNotifications = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('recipient_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setNotifications(data || []);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-      addToast('Erro ao carregar notificações', 'error');
-    }
-  };
-
-  const getNotifications = (userId) => {
+  const getNotifications = () => {
     return notifications; 
   };
 
-  const getUnreadCount = (userId) => {
+  const getUnreadCount = () => {
     return notifications.filter(n => !n.read).length;
   };
 
   const addNotification = async (notification) => {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('notifications')
         .insert([{
             recipient_id: notification.recipientId,

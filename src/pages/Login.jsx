@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, MessageCircle } from 'lucide-react';
 import { AnimatedInput } from '../components/ui/AnimatedInput';

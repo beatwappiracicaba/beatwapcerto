@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, MapPin, CreditCard, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause } from 'lucide-react';
+import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -300,6 +300,8 @@ export const AdminArtists = () => {
   const [todoForm, setTodoForm] = useState({ title: '', due_date: '' });
   const [workEvents, setWorkEvents] = useState([]);
   const [workTodos, setWorkTodos] = useState([]);
+  const [approvedMusics, setApprovedMusics] = useState([]);
+  const [musicMetrics, setMusicMetrics] = useState({});
   const load = useCallback(async () => {
     const { data } = await supabase.from('profiles').select('id, nome, nome_completo_razao_social, avatar_url').eq('cargo', 'Artista');
     setArtists(data || []);
@@ -343,8 +345,38 @@ export const AdminArtists = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'artist_todos', filter: `artista_id=eq.${selectedArtist}` }, loadWork)
       .subscribe();
     return () => {
-      try { supabase.removeChannel(channel); } catch {}
+      try { supabase.removeChannel(channel); } catch (e) { console.error(e); }
     };
+  }, [selectedArtist]);
+  useEffect(() => {
+    const loadArtistMusics = async () => {
+      if (!selectedArtist) { setApprovedMusics([]); setMusicMetrics({}); return; }
+      const { data: mus } = await supabase
+        .from('musics')
+        .select('id,titulo')
+        .eq('artista_id', selectedArtist)
+        .eq('status', 'aprovado')
+        .order('created_at', { ascending: false });
+      setApprovedMusics(mus || []);
+      const { data: ev } = await supabase
+        .from('analytics_events')
+        .select('type,music_id,duration_seconds')
+        .eq('artist_id', selectedArtist)
+        .in('type', ['music_play','music_click_presave']);
+      const agg = {};
+      (ev || []).forEach(e => {
+        const mid = e.music_id || 'unknown';
+        if (!agg[mid]) agg[mid] = { plays: 0, totalSeconds: 0, presaves: 0 };
+        if (e.type === 'music_play') {
+          agg[mid].plays += 1;
+          agg[mid].totalSeconds += Number(e.duration_seconds || 0);
+        } else if (e.type === 'music_click_presave') {
+          agg[mid].presaves += 1;
+        }
+      });
+      setMusicMetrics(agg);
+    };
+    loadArtistMusics();
   }, [selectedArtist]);
   useEffect(() => {
     const loadPlan = async () => {
@@ -597,6 +629,30 @@ export const AdminArtists = () => {
           <AnimatedInput placeholder="Crescimento" value={metricsForm.growth} onChange={(e) => setMetricsForm({ ...metricsForm, growth: e.target.value })} />
         </div>
         <AnimatedButton onClick={handleUpdateMetrics}>Salvar métricas</AnimatedButton>
+        {approvedMusics.length > 0 && (
+          <div className="pt-6">
+            <div className="font-bold mb-2">Métricas por Música (automático)</div>
+            <div className="space-y-2">
+              {approvedMusics.map(m => {
+                const mm = musicMetrics[m.id] || { plays: 0, totalSeconds: 0, presaves: 0 };
+                const hh = Math.floor(mm.totalSeconds / 3600);
+                const mmn = Math.floor((mm.totalSeconds % 3600) / 60);
+                const ss = mm.totalSeconds % 60;
+                const totalFmt = `${hh}h ${mmn}m ${ss}s`;
+                return (
+                  <div key={m.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
+                    <div className="text-white font-semibold">{m.titulo || 'Sem título'}</div>
+                    <div className="flex items-center gap-4 text-sm text-gray-300">
+                      <span>Plays: <span className="text-white font-bold">{mm.plays}</span></span>
+                      <span>Tempo total: <span className="text-white font-bold">{totalFmt}</span></span>
+                      <span>Pré-saves: <span className="text-white font-bold">{mm.presaves}</span></span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div className="pt-4 space-y-3">
           <div className="font-bold">Plano do artista</div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -665,7 +721,7 @@ export const AdminMusics = () => {
   const load = useCallback(async () => {
     let q = supabase
       .from('musics')
-      .select('id,titulo,status,motivo_recusa,artista_id,upc,presave_link,created_at,cover_url,audio_url,authorization_url')
+      .select('id,titulo,status,motivo_recusa,artista_id,upc,presave_link,release_date,created_at,cover_url,audio_url,authorization_url')
       .order('created_at', { ascending: false });
     if (statusFilter !== 'todos') q = q.eq('status', statusFilter);
     if (artistFilter) q = q.eq('artista_id', artistFilter);
@@ -690,10 +746,20 @@ export const AdminMusics = () => {
     const inputs = localInputs[m.id] || {};
     const upcVal = (inputs.upc || '').trim();
     const presaveVal = (inputs.presave || '').trim();
+    const releaseVal = (inputs.release_date || '').trim();
     if (!upcVal) { addToast('Informe o UPC', 'error'); return; }
-    await supabase.from('musics').update({ status: 'aprovado', upc: upcVal, presave_link: presaveVal || null }).eq('id', m.id);
-    await addNotification({ recipientId: m.artista_id, title: 'Música aprovada', message: `UPC: ${upcVal}. Pre-save: ${presaveVal || 'N/A'}`, type: 'success', link: presaveVal || null });
-    setLocalInputs((prev) => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), upc: '', presave: '' } }));
+    await supabase
+      .from('musics')
+      .update({ status: 'aprovado', upc: upcVal, presave_link: presaveVal || null, release_date: releaseVal || null })
+      .eq('id', m.id);
+    await addNotification({
+      recipientId: m.artista_id,
+      title: 'Música aprovada',
+      message: `UPC: ${upcVal}. Pre-save: ${presaveVal || 'N/A'}. Lançamento: ${releaseVal || 'N/A'}`,
+      type: 'success',
+      link: presaveVal || null
+    });
+    setLocalInputs((prev) => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), upc: '', presave: '', release_date: '' } }));
     load();
   };
   const reject = async (m) => {
@@ -825,6 +891,11 @@ export const AdminMusics = () => {
                           Pré-save disponível
                         </div>
                       )}
+                      {m.release_date && (
+                        <div className="text-[11px] px-2 py-1 rounded-full bg-white/10 text-white border border-white/10">
+                          Lançamento: {m.release_date}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -843,6 +914,13 @@ export const AdminMusics = () => {
                       value={localInputs[m.id]?.presave || ''}
                       onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), presave: e.target.value } }))}
                       className="w-full md:w-48"
+                    />
+                    <input
+                      type="date"
+                      className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-full md:w-40"
+                      value={localInputs[m.id]?.release_date || ''}
+                      onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), release_date: e.target.value } }))}
+                      placeholder="Data de lançamento"
                     />
                     <AnimatedButton onClick={() => approve(m)} icon={Save}>Aprovar</AnimatedButton>
                   </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
@@ -30,7 +30,7 @@ export const DashboardWork = () => {
   const startOfMonth = useMemo(() => new Date(month.getFullYear(), month.getMonth(), 1), [month]);
   const endOfMonth = useMemo(() => new Date(month.getFullYear(), month.getMonth() + 1, 0), [month]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     const startISO = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), 1).toISOString().slice(0, 10);
@@ -50,8 +50,9 @@ export const DashboardWork = () => {
       .order('created_at', { ascending: false });
     setTodos(td || []);
     setLoading(false);
-  };
-  useEffect(() => { fetchData(); }, [user, month]);
+  }, [user, startOfMonth, endOfMonth]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => {
     if (!user) return;
     const channel = supabase
@@ -60,9 +61,9 @@ export const DashboardWork = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'artist_todos', filter: `artista_id=eq.${user.id}` }, fetchData)
       .subscribe();
     return () => {
-      try { supabase.removeChannel(channel); } catch {}
+      try { supabase.removeChannel(channel); } catch (e) { console.error(e); }
     };
-  }, [user, startOfMonth, endOfMonth]);
+  }, [user, fetchData]);
 
   const createEvent = async () => {
     if (!eventForm.title.trim() || !eventForm.date) return;

@@ -46,6 +46,7 @@ const FeaturedUsers = () => {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const { addToast } = useToast();
+  const [ipHash, setIpHash] = useState(null);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -73,9 +74,18 @@ const FeaturedUsers = () => {
     };
 
     fetchUsers();
+    (async () => {
+      try {
+        const res = await fetch('https://api.ipify.org?format=json');
+        const json = await res.json();
+        setIpHash(json?.ip || null);
+      } catch {
+        setIpHash(null);
+      }
+    })();
   }, []);
 
-  const openLink = (url, type) => {
+  const openLink = async (url, type) => {
     const valid = (url || '').trim();
     if (!valid) {
       addToast(`Perfil ${type} ainda não possui`, 'info');
@@ -89,6 +99,18 @@ const FeaturedUsers = () => {
       document.body.appendChild(a);
       a.click();
       a.remove();
+      if (selected?.id) {
+        let evType = null;
+        if (type.includes('Instagram')) evType = 'artist_click_instagram';
+        else if (type.includes('site')) evType = 'artist_click_site';
+        else if (type.includes('YouTube')) evType = 'artist_click_youtube';
+        else if (type.includes('Spotify')) evType = 'artist_click_spotify';
+        else if (type.includes('Deezer')) evType = 'artist_click_deezer';
+        else if (type.includes('TikTok')) evType = 'artist_click_tiktok';
+        if (evType) {
+          try { await supabase.from('analytics_events').insert([{ type: evType, artist_id: selected.id, ip_hash: ipHash || 'unknown' }]); } catch {}
+        }
+      }
     } catch {}
   };
 
@@ -237,6 +259,52 @@ const FeaturedUsers = () => {
                       <div className="text-white font-bold text-sm">Site</div>
                     </div>
                   </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => openLink(selected.youtube_url, 'do YouTube')}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
+                    >
+                      <div className="w-9 h-9 rounded-lg bg-red-500/20 flex items-center justify-center text-red-500">
+                        <span className="text-xs font-bold">YT</span>
+                      </div>
+                      <div className="text-left">
+                        <div className="text-white font-bold text-sm">YouTube</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => openLink(selected.spotify_url, 'do Spotify')}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
+                    >
+                      <div className="w-9 h-9 rounded-lg bg-green-500/20 flex items-center justify-center text-green-500">
+                        <span className="text-xs font-bold">SP</span>
+                      </div>
+                      <div className="text-left">
+                        <div className="text-white font-bold text-sm">Spotify</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => openLink(selected.deezer_url, 'do Deezer')}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
+                    >
+                      <div className="w-9 h-9 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-500">
+                        <span className="text-xs font-bold">DZ</span>
+                      </div>
+                      <div className="text-left">
+                        <div className="text-white font-bold text-sm">Deezer</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => openLink(selected.tiktok_url, 'do TikTok')}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
+                    >
+                      <div className="w-9 h-9 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-500">
+                        <span className="text-xs font-bold">TT</span>
+                      </div>
+                      <div className="text-left">
+                        <div className="text-white font-bold text-sm">TikTok</div>
+                      </div>
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             </motion.div>

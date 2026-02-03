@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Header from '../components/landing/Header';
 import Hero from '../components/landing/Hero';
 import FeaturedUsers from '../components/landing/FeaturedUsers';
@@ -7,10 +7,8 @@ import Benefits from '../components/landing/Benefits';
 import Transparency from '../components/landing/Transparency';
 import Pricing from '../components/landing/Pricing';
 import Contact from '../components/landing/Contact';
-import FAQ from '../components/landing/FAQ';
 import Footer from '../components/landing/Footer';
 import { supabase } from '../services/supabaseClient';
-import { Card } from '../components/ui/Card';
 import { Play, Pause } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -26,6 +24,8 @@ const Home = () => {
   const [audioElement, setAudioElement] = useState(null);
   const [activeSponsorMenu, setActiveSponsorMenu] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [ipHash, setIpHash] = useState(null);
+  const [playStartTS, setPlayStartTS] = useState(null);
   
 
   // Reset scroll on mount
@@ -35,6 +35,15 @@ const Home = () => {
     fetchLatestProjects();
     fetchSellers();
     fetchSponsors();
+    (async () => {
+      try {
+        const res = await fetch('https://api.ipify.org?format=json');
+        const json = await res.json();
+        setIpHash(json?.ip || null);
+      } catch {
+        setIpHash(null);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -49,16 +58,36 @@ const Home = () => {
     try {
       const { data, error } = await supabase
         .from('musics')
-        .select('id,titulo,nome_artista,estilo,cover_url,preview_url,audio_url,presave_link')
+        .select('id,titulo,nome_artista,estilo,cover_url,preview_url,audio_url,presave_link,release_date,created_at,artista_id')
         .eq('status', 'aprovado')
         .order('created_at', { ascending: false })
-        .limit(8);
+        .limit(24);
 
       if (error) throw error;
-      setLatestReleases(data || []);
+      const today = new Date();
+      const parsed = (data || []).map(r => {
+        const rd = r.release_date ? new Date(r.release_date) : null;
+        const isUpcoming = rd ? rd >= new Date(today.getFullYear(), today.getMonth(), today.getDate()) : false;
+        return { ...r, _rd: rd, _isUpcoming: isUpcoming };
+      });
+      const upcoming = parsed.filter(r => r._isUpcoming).sort((a, b) => (a._rd - b._rd));
+      const pastOrNoDate = parsed.filter(r => !r._isUpcoming).sort((a, b) => {
+        if (a._rd && b._rd) return b._rd - a._rd;
+        if (a._rd && !b._rd) return -1;
+        if (!a._rd && b._rd) return 1;
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
+      const combined = [...upcoming, ...pastOrNoDate].slice(0, 8).map(({ _rd, _isUpcoming, ...rest }) => rest);
+      setLatestReleases(combined);
     } catch (error) {
       console.error('Error fetching releases:', error);
     }
+  };
+ 
+  const recordEvent = async (payload) => {
+    try {
+      await supabase.from('analytics_events').insert([{ ...payload, ip_hash: ipHash || 'unknown' }]);
+    } catch {}
   };
 
   const fetchSponsors = async () => {
@@ -97,9 +126,16 @@ const Home = () => {
       if (isPaused) {
         audioElement.play().catch(() => {});
         setIsPaused(false);
+        setPlayStartTS(Date.now());
       } else {
         audioElement.pause();
         setIsPaused(true);
+        if (playStartTS) {
+          const duration = Math.max(0, Math.round((Date.now() - playStartTS) / 1000));
+          const rel = latestReleases.find(r => r.id === trackId);
+          if (rel) recordEvent({ type: 'music_play', music_id: rel.id, artist_id: rel.artista_id, duration_seconds: duration });
+          setPlayStartTS(null);
+        }
       }
       return;
     }
@@ -108,11 +144,18 @@ const Home = () => {
     }
     const audio = new Audio(url);
     audio.onended = () => {
+      if (playStartTS) {
+        const duration = Math.max(0, Math.round((Date.now() - playStartTS) / 1000));
+        const rel = latestReleases.find(r => r.id === trackId);
+        if (rel) recordEvent({ type: 'music_play', music_id: rel.id, artist_id: rel.artista_id, duration_seconds: duration });
+        setPlayStartTS(null);
+      }
       setPlayingTrack(null);
       setAudioElement(null);
       setIsPaused(false);
     };
     audio.play().catch(() => {});
+    setPlayStartTS(Date.now());
     setAudioElement(audio);
     setPlayingTrack(trackId);
     setIsPaused(false);
@@ -170,6 +213,11 @@ const Home = () => {
                         alt={release.titulo || 'Capa'} 
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
                       />
+                      {release.release_date && new Date(release.release_date) >= new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()) && (
+                        <div className="absolute top-2 left-2 bg-beatwap-gold text-black text-xs font-bold px-2 py-1 rounded">
+                          Lança em {new Date(release.release_date).toLocaleDateString('pt-BR')}
+                        </div>
+                      )}
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <button 
                           className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
@@ -188,9 +236,15 @@ const Home = () => {
                     <h3 className="font-bold text-lg truncate">{release.titulo || 'Lançamento'}</h3>
                     <p className="text-sm text-gray-400 truncate">{release.nome_artista || 'Artista'}</p>
                     <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider">{release.estilo || ''}</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Lançamento: {release.release_date ? new Date(release.release_date).toLocaleDateString('pt-BR') : 'Em breve'}
+                    </p>
                     {release.presave_link && (
                       <div className="mt-2">
-                        <AnimatedButton onClick={() => window.open(release.presave_link, '_blank')}>
+                        <AnimatedButton onClick={() => { 
+                          recordEvent({ type: 'music_click_presave', music_id: release.id, artist_id: release.artista_id });
+                          window.open(release.presave_link, '_blank');
+                        }}>
                           Pré-save
                         </AnimatedButton>
                       </div>
@@ -315,7 +369,7 @@ const Home = () => {
                           {s.instagram_url && (
                             <button
                               className="p-2 rounded-full bg-beatwap-gold text-black hover:bg-white transition-colors"
-                              onClick={(e) => { e.stopPropagation(); window.open(s.instagram_url, '_blank'); }}
+                              onClick={(e) => { e.stopPropagation(); recordEvent({ type: 'sponsor_click', sponsor_id: s.id }); window.open(s.instagram_url, '_blank'); }}
                               aria-label="Instagram"
                             >
                               <Instagram size={18} />
@@ -324,7 +378,7 @@ const Home = () => {
                           {s.site_url && (
                             <button
                               className="p-2 rounded-full bg-beatwap-gold text-black hover:bg-white transition-colors"
-                              onClick={(e) => { e.stopPropagation(); window.open(s.site_url, '_blank'); }}
+                              onClick={(e) => { e.stopPropagation(); recordEvent({ type: 'sponsor_click', sponsor_id: s.id }); window.open(s.site_url, '_blank'); }}
                               aria-label="Site"
                             >
                               <Globe size={18} />
