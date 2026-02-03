@@ -49,6 +49,7 @@ export const DashboardArtistMusics = () => {
   const [musics, setMusics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [remainingUploads, setRemainingUploads] = useState(null);
 
   const fetchMusics = useCallback(async () => {
     setLoading(true);
@@ -65,17 +66,71 @@ export const DashboardArtistMusics = () => {
     if (user) fetchMusics();
   }, [user, fetchMusics]);
 
+  const computeRemaining = useCallback(async () => {
+    if (!user) return;
+    const { data: prof } = await supabase.from('profiles').select('plano, bonus_quota, plan_started_at').eq('id', user.id).maybeSingle();
+    const plan = (prof?.plano || 'Gratuito').toLowerCase();
+    const bonus = Number(prof?.bonus_quota || 0);
+    let base = 0;
+    let start = null;
+    let end = null;
+    const now = new Date();
+    if (plan.includes('avulso')) {
+      base = 1;
+      const ps = prof?.plan_started_at ? new Date(prof.plan_started_at) : now;
+      start = ps.toISOString();
+    } else if (plan.includes('mensal')) {
+      base = 4;
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      start = monthStart.toISOString();
+      end = monthEnd.toISOString();
+    } else if (plan.includes('anual')) {
+      base = 48;
+      const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
+      const yearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+      start = yearStart.toISOString();
+      end = yearEnd.toISOString();
+    } else {
+      base = 0;
+    }
+    let q = supabase
+      .from('musics')
+      .select('id', { count: 'exact', head: true })
+      .eq('artista_id', user.id);
+    if (start) q = q.gte('created_at', start);
+    if (end) q = q.lte('created_at', end);
+    const { count } = await q;
+    const used = Number(count || 0);
+    const remaining = Math.max(0, base + bonus - used);
+    setRemainingUploads(remaining);
+  }, [user]);
+
+  useEffect(() => {
+    computeRemaining();
+  }, [computeRemaining]);
+
   return (
     <DashboardLayout>
       <Card>
         <div className="flex items-center justify-between mb-6">
           <div className="text-xl font-semibold text-white">Minhas Músicas</div>
           <AnimatedButton 
-            onClick={() => setIsUploadModalOpen(true)}
+            onClick={() => {
+              if (remainingUploads !== null && remainingUploads <= 0) {
+                const wa = 'https://wa.me/5519981083497?text=Quero%20contratar%20mais%20envios';
+                window.open(wa, '_blank');
+              } else {
+                setIsUploadModalOpen(true);
+              }
+            }}
             icon={Plus}
           >
             Nova Música
           </AnimatedButton>
+        </div>
+        <div className="mb-3 text-sm text-gray-300">
+          Envios restantes: {remainingUploads === null ? '...' : remainingUploads}
         </div>
 
         <div className="space-y-3">
@@ -137,7 +192,7 @@ export const DashboardArtistMusics = () => {
       <MusicUploadModal 
         isOpen={isUploadModalOpen} 
         onClose={() => setIsUploadModalOpen(false)}
-        onSuccess={fetchMusics}
+        onSuccess={async () => { await fetchMusics(); await computeRemaining(); }}
       />
     </DashboardLayout>
   );

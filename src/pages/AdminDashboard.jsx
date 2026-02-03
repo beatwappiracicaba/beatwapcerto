@@ -136,6 +136,7 @@ export const AdminArtists = () => {
   const [isManagerOpen, setIsManagerOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [metricsForm, setMetricsForm] = useState({ plays: '', listeners: '', revenue: '', growth: '' });
+  const [planForm, setPlanForm] = useState({ plano: 'Gratuito', bonus_quota: 0, plan_started_at: '' });
   const [searchName, setSearchName] = useState('');
   const { addNotification } = useNotification();
   const { addToast } = useToast();
@@ -190,6 +191,22 @@ export const AdminArtists = () => {
       try { supabase.removeChannel(channel); } catch {}
     };
   }, [selectedArtist]);
+  useEffect(() => {
+    const loadPlan = async () => {
+      if (!selectedArtist) { setPlanForm({ plano: 'Gratuito', bonus_quota: 0, plan_started_at: '' }); return; }
+      const { data } = await supabase
+        .from('profiles')
+        .select('plano, bonus_quota, plan_started_at')
+        .eq('id', selectedArtist)
+        .maybeSingle();
+      setPlanForm({
+        plano: data?.plano || 'Gratuito',
+        bonus_quota: Number(data?.bonus_quota || 0),
+        plan_started_at: data?.plan_started_at ? String(data.plan_started_at).slice(0, 10) : ''
+      });
+    };
+    loadPlan();
+  }, [selectedArtist]);
   const handleSaveProfile = async ({ name, bio, blob }) => {
     try {
       if (!selectedArtist) return;
@@ -228,6 +245,26 @@ export const AdminArtists = () => {
       addToast('Métricas atualizadas', 'success');
     } catch {
       addToast('Falha ao atualizar métricas', 'error');
+    }
+  };
+  const handleSavePlan = async () => {
+    if (!selectedArtist) { addToast('Selecione o artista', 'error'); return; }
+    try {
+      const update = {
+        plano: planForm.plano,
+        bonus_quota: Number(planForm.bonus_quota || 0),
+      };
+      if (planForm.plan_started_at) {
+        update.plan_started_at = new Date(planForm.plan_started_at).toISOString();
+      }
+      const { error } = await supabase
+        .from('profiles')
+        .update(update)
+        .eq('id', selectedArtist);
+      if (error) throw error;
+      addToast('Plano do artista atualizado', 'success');
+    } catch {
+      addToast('Falha ao atualizar plano', 'error');
     }
   };
   const createWorkEvent = async () => {
@@ -348,7 +385,7 @@ export const AdminArtists = () => {
       </Card>
       <Card className="space-y-4">
         <div className="font-bold">Gerenciar perfil e métricas do artista</div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col md:flex-row md:items-center gap-3">
           <AnimatedInput 
             placeholder="Buscar artista pelo nome" 
             value={searchName} 
@@ -374,6 +411,20 @@ export const AdminArtists = () => {
           <AnimatedInput placeholder="Crescimento" value={metricsForm.growth} onChange={(e) => setMetricsForm({ ...metricsForm, growth: e.target.value })} />
         </div>
         <AnimatedButton onClick={handleUpdateMetrics}>Salvar métricas</AnimatedButton>
+        <div className="pt-4 space-y-3">
+          <div className="font-bold">Plano do artista</div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={planForm.plano} onChange={(e) => setPlanForm({ ...planForm, plano: e.target.value })}>
+              <option value="Gratuito">Gratuito</option>
+              <option value="Avulso">Avulso</option>
+              <option value="Mensal">Mensal</option>
+              <option value="Anual">Anual</option>
+            </select>
+            <AnimatedInput placeholder="Envios extras (bonus_quota)" type="number" value={planForm.bonus_quota} onChange={(e) => setPlanForm({ ...planForm, bonus_quota: e.target.value })} />
+            <AnimatedInput placeholder="Início do plano" type="date" value={planForm.plan_started_at} onChange={(e) => setPlanForm({ ...planForm, plan_started_at: e.target.value })} />
+            <AnimatedButton onClick={handleSavePlan}>Salvar Plano</AnimatedButton>
+          </div>
+        </div>
       </Card>
       {isManagerOpen && (
         <ArtistContentManager
@@ -485,7 +536,7 @@ export const AdminMusics = () => {
             Todas
           </button>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2">
           <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="todos">Status: Todos</option>
             <option value="pendente">Pendente</option>

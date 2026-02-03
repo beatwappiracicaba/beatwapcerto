@@ -23,6 +23,7 @@ add column if not exists bairro text,
 add column if not exists cidade text,
 add column if not exists estado text,
 add column if not exists plano text default 'Gratuito',
+add column if not exists plan_started_at timestamptz default now(),
 add column if not exists tema text default 'dark', -- 'dark' ou 'light'
 add column if not exists instagram_url text,
 add column if not exists site_url text;
@@ -63,6 +64,7 @@ create policy "Authenticated Upload Avatars" on storage.objects for insert with 
 
 -- Perfis: permitir leitura por Produtor
 alter table public.profiles enable row level security;
+alter table public.profiles add column if not exists bonus_quota integer default 0;
 drop policy if exists profiles_select_admin on public.profiles;
 create policy profiles_select_admin on public.profiles for select using (
   public.is_produtor()

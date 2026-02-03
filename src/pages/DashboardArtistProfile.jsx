@@ -42,6 +42,8 @@ export const DashboardArtistProfile = () => {
   const [mandatoryMissing, setMandatoryMissing] = useState(false);
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [remainingUploads, setRemainingUploads] = useState(null);
+  const [periodLabel, setPeriodLabel] = useState('');
 
   useEffect(() => {
     if (user && profile) {
@@ -67,6 +69,53 @@ export const DashboardArtistProfile = () => {
       const missing = !profile.nome_completo_razao_social || !profile.cpf_cnpj || !profile.celular || !profile.cep || !profile.logradouro || !profile.cidade || !profile.estado;
       setMandatoryMissing(missing);
     }
+  }, [user, profile]);
+
+  useEffect(() => {
+    const computeQuota = async () => {
+      if (!user || !profile) return;
+      const plan = (profile.plano || 'Gratuito').toLowerCase();
+      const bonus = Number(profile.bonus_quota || 0);
+      let base = 0;
+      let start = null;
+      let end = null;
+      const now = new Date();
+      if (plan.includes('avulso')) {
+        base = 1;
+        const ps = profile.plan_started_at ? new Date(profile.plan_started_at) : now;
+        start = ps.toISOString();
+        end = null;
+        setPeriodLabel('Avulso (desde a contratação)');
+      } else if (plan.includes('mensal')) {
+        base = 4;
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        start = monthStart.toISOString();
+        end = monthEnd.toISOString();
+        setPeriodLabel('Mensal (mês calendário atual)');
+      } else if (plan.includes('anual')) {
+        base = 48;
+        const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
+        const yearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+        start = yearStart.toISOString();
+        end = yearEnd.toISOString();
+        setPeriodLabel('Anual (ano calendário atual)');
+      } else {
+        base = 0;
+        setPeriodLabel('Gratuito');
+      }
+      let q = supabase
+        .from('musics')
+        .select('id', { count: 'exact', head: true })
+        .eq('artista_id', user.id);
+      if (start) q = q.gte('created_at', start);
+      if (end) q = q.lte('created_at', end);
+      const { count } = await q;
+      const used = Number(count || 0);
+      const remaining = Math.max(0, base + bonus - used);
+      setRemainingUploads(remaining);
+    };
+    computeQuota();
   }, [user, profile]);
 
   const handleSave = async () => {
@@ -334,9 +383,27 @@ export const DashboardArtistProfile = () => {
                   </div>
                   <h3 className="text-2xl font-bold text-white">Seu Plano Atual</h3>
                   <p className="text-4xl font-bold text-beatwap-gold">{formData.plano}</p>
-                  <p className="text-gray-400 max-w-md mx-auto">
-                    Aproveite todos os recursos do seu plano atual. Você pode fazer o upgrade a qualquer momento para liberar mais funcionalidades.
-                  </p>
+                  <div className="mt-4 space-y-1">
+                    <p className="text-gray-300">Período: {periodLabel}</p>
+                    <p className="text-white font-bold">Envios restantes: {remainingUploads === null ? '...' : remainingUploads}</p>
+                  </div>
+                  {remainingUploads !== null && remainingUploads <= 0 ? (
+                    <div className="mt-6 space-y-4">
+                      <p className="text-red-400">Você atingiu o limite de envios do seu plano.</p>
+                      <div className="flex justify-center gap-4">
+                        <AnimatedButton onClick={() => window.open('https://wa.me/5519981083497?text=Quero%20contratar%20mais%20envios', '_blank')} variant="secondary">
+                          Falar no WhatsApp
+                        </AnimatedButton>
+                        <AnimatedButton onClick={() => window.open('/#planos', '_self')}>
+                          Contratar mais plano
+                        </AnimatedButton>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-gray-400 max-w-md mx-auto">
+                      Aproveite todos os recursos do seu plano atual. Você pode fazer o upgrade a qualquer momento para liberar mais funcionalidades.
+                    </p>
+                  )}
                   <div className="flex justify-center gap-4 mt-8">
                     <AnimatedButton variant="secondary">Ver Detalhes</AnimatedButton>
                     <AnimatedButton>Renovar / Upgrade</AnimatedButton>

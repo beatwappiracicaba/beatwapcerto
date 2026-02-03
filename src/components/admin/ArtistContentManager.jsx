@@ -31,7 +31,9 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
     isOriginal: false,
     authorizationFile: null,
     audioFile: null,
-    coverFile: null
+    coverFile: null,
+    isAlbum: false,
+    audioFiles: []
   });
 
   // Filter music for this artist
@@ -51,7 +53,9 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
       isOriginal: false,
       authorizationFile: null,
       audioFile: null,
-      coverFile: null
+      coverFile: null,
+      isAlbum: false,
+      audioFiles: []
     });
   };
 
@@ -86,6 +90,12 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
       setFormData(prev => ({ ...prev, [type]: file }));
       addToast(type === 'audioFile' ? 'Áudio carregado!' : type === 'coverFile' ? 'Capa carregada!' : 'Documento carregado!', 'success');
     }
+  };
+  const handleFilesChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setFormData(prev => ({ ...prev, audioFiles: files, isAlbum: true, audioFile: null }));
+    addToast('Arquivos de áudio selecionados!', 'success');
   };
 
   const uploadFile = async (file, bucket) => {
@@ -128,32 +138,66 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
         }
       }
       if (view === 'add') {
-        await addMusic({
-          artistId: artist.id,
-          artist: artist.name,
-          title: formData.title,
-          genre: formData.genre,
-          upc: formData.upc,
-          internalNote: formData.internalNote,
-          songwriter: formData.songwriter,
-          hasFeaturing: formData.hasFeaturing,
-          featuringArtist: formData.featuringArtist,
-          distributeAll: formData.distributeAll,
-          isOriginal: formData.isOriginal,
-          audioFile: audioUrl,
-          cover: coverUrl,
-          authorizationUrl: authorizationUrl,
-          status: 'pendente',
-          addedBy: 'admin'
-        });
-        addNotification({
-          recipientId: artist.id,
-          title: 'Nova Música Adicionada! 🎵',
-          message: `A música "${formData.title}" foi adicionada ao seu perfil pela equipe BeatWap.`,
-          type: 'success',
-          link: '/dashboard'
-        });
-        addToast('Música adicionada com sucesso!', 'success');
+        if (formData.isAlbum && formData.audioFiles.length) {
+          for (let i = 0; i < formData.audioFiles.length; i++) {
+            const f = formData.audioFiles[i];
+            const trackAudioUrl = await uploadFile(f, 'music_files');
+            const title = `${formData.title} - Faixa ${i + 1}`;
+            await addMusic({
+              artistId: artist.id,
+              artist: artist.name,
+              title,
+              genre: formData.genre,
+              upc: formData.upc,
+              internalNote: formData.internalNote,
+              songwriter: formData.songwriter,
+              hasFeaturing: formData.hasFeaturing,
+              featuringArtist: formData.featuringArtist,
+              distributeAll: formData.distributeAll,
+              isOriginal: formData.isOriginal,
+              audioFile: trackAudioUrl,
+              cover: coverUrl,
+              authorizationUrl: authorizationUrl,
+              status: 'pendente',
+              addedBy: 'admin'
+            });
+          }
+          addNotification({
+            recipientId: artist.id,
+            title: 'Álbum Adicionado! 🎵',
+            message: `O álbum "${formData.title}" foi adicionado ao seu perfil pela equipe BeatWap.`,
+            type: 'success',
+            link: '/dashboard'
+          });
+          addToast('Álbum adicionado com sucesso!', 'success');
+        } else {
+          await addMusic({
+            artistId: artist.id,
+            artist: artist.name,
+            title: formData.title,
+            genre: formData.genre,
+            upc: formData.upc,
+            internalNote: formData.internalNote,
+            songwriter: formData.songwriter,
+            hasFeaturing: formData.hasFeaturing,
+            featuringArtist: formData.featuringArtist,
+            distributeAll: formData.distributeAll,
+            isOriginal: formData.isOriginal,
+            audioFile: audioUrl,
+            cover: coverUrl,
+            authorizationUrl: authorizationUrl,
+            status: 'pendente',
+            addedBy: 'admin'
+          });
+          addNotification({
+            recipientId: artist.id,
+            title: 'Nova Música Adicionada! 🎵',
+            message: `A música "${formData.title}" foi adicionada ao seu perfil pela equipe BeatWap.`,
+            type: 'success',
+            link: '/dashboard'
+          });
+          addToast('Música adicionada com sucesso!', 'success');
+        }
       } else if (view === 'edit') {
         await editMusic(selectedMusic.id, {
           title: formData.title,
@@ -411,17 +455,40 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
                       <Upload className="text-beatwap-gold" /> Arquivos
                     </h2>
                     <div className="grid grid-cols-1 gap-6">
-                      <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${formData.audioFile ? 'border-beatwap-gold bg-beatwap-gold/5' : 'border-gray-700 hover:border-gray-500'}`}>
-                        <input type="file" id="audio-admin" className="hidden" accept="audio/*" onChange={(e) => handleFileChange(e, 'audioFile')} />
-                        <label htmlFor="audio-admin" className="cursor-pointer flex flex-col items-center gap-2">
-                          <div className="p-3 bg-gray-800 rounded-full text-white">
-                            <FileAudio size={24} />
-                          </div>
-                          <span className="font-bold text-sm">Arquivo de Áudio</span>
-                          <span className="text-xs text-gray-500">WAV ou MP3 (320kbps)</span>
-                          {formData.audioFile && <span className="text-beatwap-gold text-xs font-bold mt-2">{formData.audioFile.name}</span>}
-                        </label>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="checkbox" 
+                          id="isAlbumAdmin" 
+                          checked={formData.isAlbum} 
+                          onChange={(e) => setFormData(prev => ({ ...prev, isAlbum: e.target.checked, audioFiles: e.target.checked ? prev.audioFiles : [], audioFile: e.target.checked ? null : prev.audioFile }))}
+                        />
+                        <label htmlFor="isAlbumAdmin" className="text-sm text-gray-300">Enviar álbum (várias faixas)</label>
                       </div>
+                      {!formData.isAlbum ? (
+                        <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${formData.audioFile ? 'border-beatwap-gold bg-beatwap-gold/5' : 'border-gray-700 hover:border-gray-500'}`}>
+                          <input type="file" id="audio-admin" className="hidden" accept="audio/*" onChange={(e) => handleFileChange(e, 'audioFile')} />
+                          <label htmlFor="audio-admin" className="cursor-pointer flex flex-col items-center gap-2">
+                            <div className="p-3 bg-gray-800 rounded-full text-white">
+                              <FileAudio size={24} />
+                            </div>
+                            <span className="font-bold text-sm">Arquivo de Áudio</span>
+                            <span className="text-xs text-gray-500">WAV ou MP3 (320kbps)</span>
+                            {formData.audioFile && <span className="text-beatwap-gold text-xs font-bold mt-2">{formData.audioFile.name}</span>}
+                          </label>
+                        </div>
+                      ) : (
+                        <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${formData.audioFiles.length ? 'border-beatwap-gold bg-beatwap-gold/5' : 'border-gray-700 hover:border-gray-500'}`}>
+                          <input type="file" id="audio-admin-multi" className="hidden" accept="audio/*" multiple onChange={handleFilesChange} />
+                          <label htmlFor="audio-admin-multi" className="cursor-pointer flex flex-col items-center gap-2">
+                            <div className="p-3 bg-gray-800 rounded-full text-white">
+                              <FileAudio size={24} />
+                            </div>
+                            <span className="font-bold text-sm">Arquivos de Áudio (Múltiplos)</span>
+                            <span className="text-xs text-gray-500">Selecione várias faixas</span>
+                            {formData.audioFiles.length > 0 && <span className="text-beatwap-gold text-xs font-bold mt-2">{formData.audioFiles.length} arquivo(s)</span>}
+                          </label>
+                        </div>
+                      )}
                       <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${formData.coverFile ? 'border-beatwap-gold bg-beatwap-gold/5' : 'border-gray-700 hover:border-gray-500'}`}>
                         <input type="file" id="cover-admin" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'coverFile')} />
                         <label htmlFor="cover-admin" className="cursor-pointer flex flex-col items-center gap-2">
