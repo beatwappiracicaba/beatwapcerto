@@ -23,8 +23,8 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
     authorization_file: null,
     cover_file: null,
     audio_file: null,
-    audio_files: [],
-    is_album: false
+    is_album: false,
+    tracks: [] // [{ titulo: '', estilo: '', audio_file: File|null, authorization_file: File|null }]
   });
 
   const [previews, setPreviews] = useState({
@@ -85,24 +85,47 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
   const uploadFile = async (file, bucket) => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${user.id}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-    const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, file);
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, file, { upsert: true });
     if (uploadError) throw uploadError;
     
     const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
     return data.publicUrl;
   };
   
-  const handleFilesChange = (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-    setFormData(prev => ({ ...prev, audio_files: files, is_album: true, audio_file: null }));
-    setPreviews(prev => ({ ...prev, audio: null }));
+  const addTrack = () => {
+    setFormData(prev => ({ 
+      ...prev, 
+      tracks: [...prev.tracks, { titulo: '', estilo: '', audio_file: null, authorization_file: null }] 
+    }));
+  };
+  const updateTrackField = (index, field, value) => {
+    setFormData(prev => {
+      const next = [...prev.tracks];
+      next[index] = { ...next[index], [field]: value };
+      return { ...prev, tracks: next };
+    });
+  };
+  const handleTrackFileChange = (index, e, field) => {
+    const file = e.target.files?.[0] || null;
+    if (!file) return;
+    updateTrackField(index, field, file);
   };
 
   const handleSubmit = async () => {
-    if (!formData.titulo || !formData.nome_artista || !formData.cover_file || (!formData.is_album && !formData.audio_file) || (formData.is_album && formData.audio_files.length === 0) || !formData.estilo) {
+    if (!formData.titulo || !formData.nome_artista || !formData.cover_file || (!formData.is_album && !formData.audio_file) || !formData.estilo) {
       setErrors(prev => ({ ...prev, submit: 'Preencha todos os campos obrigatórios.' }));
       return;
+    }
+    if (formData.is_album) {
+      if (!formData.tracks.length) {
+        setErrors(prev => ({ ...prev, submit: 'Adicione pelo menos uma faixa.' }));
+        return;
+      }
+      const missing = formData.tracks.find(t => !t.titulo || !t.estilo || !t.audio_file);
+      if (missing) {
+        setErrors(prev => ({ ...prev, submit: 'Informe título, estilo e arquivo de áudio para cada faixa.' }));
+        return;
+      }
     }
 
     setLoading(true);
@@ -152,36 +175,40 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
         return;
       }
 
-      // Upload Files
-      const coverUrl = await uploadFile(formData.cover_file, 'music_covers');
-      let audioUrl = null;
-      if (!formData.is_album) {
-        audioUrl = await uploadFile(formData.audio_file, 'music_files');
-      }
-      let authUrl = null;
-      if (formData.authorization_file) {
-        authUrl = await uploadFile(formData.authorization_file, 'music_docs');
-      }
+      // Upload Files em paralelo
+      const uploads = [
+        uploadFile(formData.cover_file, 'music_covers'),
+        formData.is_album ? Promise.resolve(null) : uploadFile(formData.audio_file, 'music_files'),
+        formData.authorization_file ? uploadFile(formData.authorization_file, 'music_docs') : Promise.resolve(null)
+      ];
+      const [coverUrl, audioUrl, authUrl] = await Promise.all(uploads);
 
-      // Insert into DB
+      // Insert into DB (álbum em lote, single direto)
       if (formData.is_album) {
-        for (let i = 0; i < formData.audio_files.length; i++) {
-          const f = formData.audio_files[i];
-          const trackAudioUrl = await uploadFile(f, 'music_files');
-          const title = `${formData.titulo} - Faixa ${i + 1}`;
-          const { error: errIns } = await supabase.from('musics').insert({
-            artista_id: user.id,
-            titulo: title,
-            nome_artista: formData.nome_artista,
-            estilo: formData.estilo,
-            isrc: (formData.isrc || '').trim() || null,
-            cover_url: coverUrl,
-            audio_url: trackAudioUrl,
-            plataformas: formData.plataformas.includes('Todas') ? ['Todas'] : formData.plataformas_selecionadas,
-            status: 'pendente'
-          });
-          if (errIns) throw errIns;
-        }
+        // Upload de todas faixas (áudio e autorização por faixa) em paralelo
+        const trackUploads = await Promise.all(
+          formData.tracks.map(async (t) => {
+            const [audioU, authU] = await Promise.all([
+              uploadFile(t.audio_file, 'music_files'),
+              t.authorization_file ? uploadFile(t.authorization_file, 'music_docs') : Promise.resolve(null)
+            ]);
+            return { audioUrl: audioU, authUrl: authU, titulo: t.titulo, estilo: t.estilo };
+          })
+        );
+        const rows = trackUploads.map((tu) => ({
+          artista_id: user.id,
+          titulo: tu.titulo,
+          nome_artista: formData.nome_artista,
+          estilo: tu.estilo,
+          isrc: (formData.isrc || '').trim() || null,
+          cover_url: coverUrl,
+          audio_url: tu.audioUrl,
+          authorization_url: tu.authUrl ?? authUrl,
+          plataformas: formData.plataformas.includes('Todas') ? ['Todas'] : formData.plataformas_selecionadas,
+          status: 'pendente'
+        }));
+        const { error: errBatch } = await supabase.from('musics').insert(rows);
+        if (errBatch) throw errBatch;
       } else {
         const { error } = await supabase.from('musics').insert({
           artista_id: user.id,
@@ -191,6 +218,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
           isrc: (formData.isrc || '').trim() || null,
           cover_url: coverUrl,
           audio_url: audioUrl,
+          authorization_url: authUrl,
           plataformas: formData.plataformas.includes('Todas') ? ['Todas'] : formData.plataformas_selecionadas,
           status: 'pendente'
         });
@@ -207,7 +235,8 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
         hint: err?.hint,
         code: err?.code
       });
-      setErrors(prev => ({ ...prev, submit: 'Erro ao enviar música. Tente novamente.' }));
+      addToast(err?.message || 'Erro ao enviar música', 'error');
+      setErrors(prev => ({ ...prev, submit: err?.message || 'Erro ao enviar música. Tente novamente.' }));
     } finally {
       setLoading(false);
     }
@@ -313,19 +342,63 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
                     )}
                   </>
                 ) : (
-                  <div className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-xl">
-                    <div className="p-2 bg-beatwap-gold/20 rounded-lg text-beatwap-gold">
-                      <Music size={20} />
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Faixas</span>
+                      <button 
+                        onClick={addTrack} 
+                        className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs cursor-pointer transition-colors"
+                      >
+                        Adicionar Faixa
+                      </button>
                     </div>
-                    <div className="flex-1 overflow-hidden">
-                      <p className="text-sm text-white truncate">
-                        {formData.audio_files.length ? `${formData.audio_files.length} arquivos selecionados` : 'Nenhum arquivo'}
-                      </p>
-                    </div>
-                    <label className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs cursor-pointer transition-colors">
-                      Selecionar múltiplos
-                      <input type="file" multiple accept=".mp3,.wav" className="hidden" onChange={handleFilesChange} />
-                    </label>
+                    {formData.tracks.map((t, idx) => (
+                      <div key={idx} className="p-3 bg-white/5 border border-white/10 rounded-xl space-y-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          <AnimatedInput 
+                            label="Título da faixa" 
+                            value={t.titulo} 
+                            onChange={(e) => updateTrackField(idx, 'titulo', e.target.value)} 
+                            placeholder="Ex: Intro (Prod. ...)"
+                          />
+                          <AnimatedInput 
+                            label="Estilo / Gênero da faixa" 
+                            value={t.estilo} 
+                            onChange={(e) => updateTrackField(idx, 'estilo', e.target.value)} 
+                            placeholder="Ex: Trap, Funk, Pop"
+                          />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          <div className="flex items-center gap-3 p-3 bg-black/20 border border-white/10 rounded-xl">
+                            <div className="p-2 bg-beatwap-gold/20 rounded-lg text-beatwap-gold">
+                              <Music size={20} />
+                            </div>
+                            <div className="flex-1 overflow-hidden">
+                              <p className="text-xs text-white truncate">{t.audio_file ? t.audio_file.name : 'Nenhum arquivo'}</p>
+                            </div>
+                            <label className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs cursor-pointer transition-colors">
+                              Áudio
+                              <input type="file" accept=".mp3,.wav" className="hidden" onChange={(e) => handleTrackFileChange(idx, e, 'audio_file')} />
+                            </label>
+                          </div>
+                          <div className="flex items-center gap-3 p-3 bg-black/20 border border-white/10 rounded-xl">
+                            <div className="p-2 bg-blue-500/20 rounded-lg text-blue-500">
+                              <FileText size={20} />
+                            </div>
+                            <div className="flex-1 overflow-hidden">
+                              <p className="text-xs text-white truncate">{t.authorization_file ? t.authorization_file.name : 'Nenhum arquivo'}</p>
+                            </div>
+                            <label className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs cursor-pointer transition-colors">
+                              Autorização (opcional)
+                              <input type="file" accept=".pdf,.doc,.docx,.jpg,.png" className="hidden" onChange={(e) => handleTrackFileChange(idx, e, 'authorization_file')} />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {formData.tracks.length === 0 && (
+                      <div className="text-xs text-gray-500">Nenhuma faixa adicionada.</div>
+                    )}
                   </div>
                 )}
               </div>

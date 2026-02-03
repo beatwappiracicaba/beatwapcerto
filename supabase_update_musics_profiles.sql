@@ -132,6 +132,13 @@ create policy musics_update_admin on public.musics for update using (
 drop policy if exists musics_select_public_auth on public.musics;
 create policy musics_select_public_auth on public.musics for select to authenticated using (status = 'aprovado');
 
+-- Allow artists and producers to insert new musics
+drop policy if exists musics_insert_self on public.musics;
+drop policy if exists musics_insert_admin on public.musics;
+create policy musics_insert_self on public.musics for insert with check (artista_id = auth.uid());
+create policy musics_insert_admin on public.musics for insert with check (public.is_produtor());
+notify pgrst, 'reload schema';
+
 -- Notifications: allow producers to insert for others
 drop policy if exists notifications_insert_admin on public.notifications;
 create policy notifications_insert_admin on public.notifications for insert with check (
