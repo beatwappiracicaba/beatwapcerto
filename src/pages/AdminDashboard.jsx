@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, MapPin, CreditCard, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon } from 'lucide-react';
+import { User, MapPin, CreditCard, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -27,6 +27,25 @@ export const AdminHome = () => {
     url: '',
     platform: 'YouTube'
   });
+  const [projectCoverFile, setProjectCoverFile] = useState(null);
+  const [projectCoverPreview, setProjectCoverPreview] = useState(null);
+  const validateCover = async (file, platform) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const w = img.naturalWidth, h = img.naturalHeight;
+        const ratio = Number((w / h).toFixed(2));
+        if (platform === 'YouTube') {
+          resolve(Math.abs(ratio - 1.78) < 0.1);
+        } else if (platform === 'Spotify') {
+          resolve(Math.abs(ratio - 1.0) < 0.1);
+        } else {
+          resolve(true);
+        }
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  };
   useEffect(() => {
     const load = async () => {
       const { count: artistsCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('cargo', 'Artista');
@@ -60,16 +79,29 @@ export const AdminHome = () => {
     if (!title || !url || !platform) { addToast('Informe título, link e plataforma', 'error'); return; }
     try {
       if (!user?.id) { addToast('Usuário inválido', 'error'); return; }
+      let cover_url = null;
+      if (projectCoverFile) {
+        const ok = await validateCover(projectCoverFile, platform);
+        if (!ok) { addToast('Capa com proporção incorreta para a plataforma selecionada', 'error'); return; }
+        const fileName = `${user.id}/${Date.now()}-${projectCoverFile.name}`;
+        const { data: up, error: upErr } = await supabase.storage.from('project_covers').upload(fileName, projectCoverFile, { upsert: true });
+        if (upErr) { addToast('Falha ao enviar capa', 'error'); return; }
+        const { data: pub } = supabase.storage.from('project_covers').getPublicUrl(up.path);
+        cover_url = pub.publicUrl;
+      }
       const { error } = await supabase.from('producer_projects').insert({
         producer_id: user.id,
         title,
         url,
         platform,
+        cover_url,
         published: true
       });
       if (error) throw error;
       addToast('Projeto adicionado', 'success');
       setProjectForm({ title: '', url: '', platform: 'YouTube' });
+      setProjectCoverFile(null);
+      setProjectCoverPreview(null);
       loadProjects();
     } catch {
       addToast('Falha ao adicionar projeto', 'error');
@@ -102,6 +134,22 @@ export const AdminHome = () => {
             <option value="Spotify">Spotify</option>
             <option value="Outro">Outro</option>
           </select>
+          <div className="space-y-2">
+            <div className="text-sm text-gray-300 flex items-center gap-2"><ImageIcon size={16} /> Capa do Projeto</div>
+            <input type="file" accept="image/*" onChange={(e) => {
+              const f = e.target.files?.[0] || null;
+              setProjectCoverFile(f);
+              setProjectCoverPreview(f ? URL.createObjectURL(f) : null);
+            }} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" />
+            {projectCoverPreview && (
+              <div className="w-full h-24 rounded-xl overflow-hidden bg-black/30 border border-white/10">
+                <img src={projectCoverPreview} alt="Prévia da capa" className="w-full h-full object-cover" />
+              </div>
+            )}
+            <div className="text-xs text-gray-500">
+              YouTube: 16:9 • Spotify: 1:1
+            </div>
+          </div>
         </div>
         <AnimatedButton onClick={createProject}>Adicionar Projeto</AnimatedButton>
         <div className="pt-4">
@@ -109,7 +157,9 @@ export const AdminHome = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {(loadingProjects ? [] : projects).map((p) => (
               <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
-                <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center text-xs text-gray-300">{(p.platform || '').toUpperCase()}</div>
+                <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center text-xs text-gray-300">
+                  {p.cover_url ? <img src={p.cover_url} alt={p.title} className="w-full h-full object-cover" /> : (p.platform || '').toUpperCase()}
+                </div>
                 <div className="flex-1">
                   <div className="font-bold text-white text-sm truncate">{p.title}</div>
                   <div className="text-xs text-gray-400">{p.platform}</div>
@@ -489,6 +539,24 @@ export const AdminMusics = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [localInputs, setLocalInputs] = useState({});
+  const [playingTrack, setPlayingTrack] = useState(null);
+  const [audioElement, setAudioElement] = useState(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const togglePlay = (trackId, url) => {
+    if (!url) return;
+    if (playingTrack === trackId && audioElement) {
+      if (isPaused) { audioElement.play().catch(() => {}); setIsPaused(false); }
+      else { audioElement.pause(); setIsPaused(true); }
+      return;
+    }
+    if (audioElement) { audioElement.pause(); }
+    const audio = new Audio(url);
+    audio.onended = () => { setPlayingTrack(null); setAudioElement(null); setIsPaused(false); };
+    audio.play().catch(() => {});
+    setAudioElement(audio);
+    setPlayingTrack(trackId);
+    setIsPaused(false);
+  };
   const load = useCallback(async () => {
     let q = supabase
       .from('musics')
@@ -592,12 +660,21 @@ export const AdminMusics = () => {
               transition={{ duration: 0.2 }}
               className="p-4 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-black/20 flex items-center gap-4 hover:border-beatwap-gold/40 hover:shadow-[0_0_30px_rgba(245,197,66,0.18)]"
             >
-              <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gray-800 border border-white/10 ring-1 ring-black/50 flex items-center justify-center">
+              <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gray-800 border border-white/10 ring-1 ring-black/50 flex items-center justify-center relative cursor-pointer"
+                   onClick={() => togglePlay(m.id, m.preview_url || m.audio_url)}>
                 {m.cover_url ? (
                   <img src={m.cover_url} alt={m.titulo} className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-xs text-gray-400">Sem capa</span>
                 )}
+                <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <button 
+                    className="w-8 h-8 bg-beatwap-gold rounded-full flex items-center justify-center text-black hover:bg-white"
+                    onClick={(e) => { e.stopPropagation(); togglePlay(m.id, m.preview_url || m.audio_url); }}
+                  >
+                    {playingTrack === m.id && !isPaused ? <Pause size={16} /> : <Play size={16} />}
+                  </button>
+                </div>
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-3">

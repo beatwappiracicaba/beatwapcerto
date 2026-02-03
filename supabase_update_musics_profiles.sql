@@ -116,6 +116,7 @@ begin
   end if;
 end
 $$;
+notify pgrst, 'reload schema';
 
 -- Policies for musics to allow producer access
 alter table public.musics enable row level security;
@@ -302,6 +303,7 @@ create table if not exists public.producer_projects (
   title text not null,
   platform text, -- Ex.: 'YouTube', 'Spotify', 'Instagram', 'Site'
   url text not null,
+  cover_url text,
   published boolean default true,
   created_at timestamptz default now()
 );
@@ -338,6 +340,15 @@ begin
   end if;
 end
 $$;
+
+-- Bucket para capas de projetos da produtora
+insert into storage.buckets (id, name, public)
+values ('project_covers', 'project_covers', true)
+on conflict (id) do nothing;
+drop policy if exists "Public Read Project Covers" on storage.objects;
+drop policy if exists "Authenticated Upload Project Covers" on storage.objects;
+create policy "Public Read Project Covers" on storage.objects for select using (bucket_id = 'project_covers');
+create policy "Authenticated Upload Project Covers" on storage.objects for insert with check (bucket_id = 'project_covers' and auth.role() = 'authenticated');
 
 -- Trabalho do Artista: eventos e afazeres
 create table if not exists public.artist_work_events (

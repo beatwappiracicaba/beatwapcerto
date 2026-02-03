@@ -15,7 +15,7 @@ import { Play, Pause } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Instagram, Globe } from 'lucide-react';
-import { useToast } from '../context/ToastContext';
+ 
 
 const Home = () => {
   const [latestReleases, setLatestReleases] = useState([]);
@@ -26,7 +26,7 @@ const Home = () => {
   const [audioElement, setAudioElement] = useState(null);
   const [activeSponsorMenu, setActiveSponsorMenu] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
-  const { addToast } = useToast();
+  
 
   // Reset scroll on mount
   useEffect(() => {
@@ -173,7 +173,8 @@ const Home = () => {
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <button 
                           className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             const url = release.preview_url || release.audio_url;
                             togglePlay(release.id, url);
                           }}
@@ -182,22 +183,6 @@ const Home = () => {
                             ? <Pause fill="currentColor" className="ml-1" />
                             : <Play fill="currentColor" className="ml-1" />}
                         </button>
-                      {release.presave_link && (
-                        <button
-                          className="ml-3 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white text-xs transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white/20"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            try {
-                              navigator.clipboard.writeText(release.presave_link);
-                              addToast('Link de pré-save copiado!', 'success');
-                            } catch {
-                              window.open(release.presave_link, '_blank');
-                            }
-                          }}
-                        >
-                          Copiar Pré-save
-                        </button>
-                      )}
                       </div>
                     </div>
                     <h3 className="font-bold text-lg truncate">{release.titulo || 'Lançamento'}</h3>

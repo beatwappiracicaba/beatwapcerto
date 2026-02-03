@@ -13,7 +13,6 @@ const Register = () => {
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState('register'); // 'register' | 'verify'
-  const [otp, setOtp] = useState('');
   const [formData, setFormData] = useState({ 
     name: '', 
     email: '', 
@@ -54,7 +53,7 @@ const Register = () => {
           data: {
             name: capitalizedName,
           },
-          emailRedirectTo: `${window.location.origin}/login`, // Redirect to login or dashboard after confirmation
+          emailRedirectTo: `${window.location.origin}/`,
         }
       });
       
@@ -73,9 +72,8 @@ const Register = () => {
         addToast('Conta criada com sucesso!', 'success');
         navigate('/dashboard');
       } else if (authData.user) {
-        // Needs verification
         setStep('verify');
-        addToast('Verifique seu email para confirmar a conta.', 'info');
+        addToast('Verifique seu email e clique no link de confirmação enviado.', 'info');
       }
 
     } catch (error) {
@@ -86,37 +84,8 @@ const Register = () => {
     }
   };
 
-  const handleVerify = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: formData.email,
-        token: otp,
-        type: 'signup'
-      });
-
-      if (error) throw error;
-
-      if (data.session) {
-        try {
-          if (roleParam) {
-            await supabase
-              .from('profiles')
-              .update({ cargo: roleParam === 'Produtor' ? 'Produtor' : 'Artista', nome: formData.name })
-              .eq('id', data.session.user.id);
-          }
-        } catch {}
-        addToast('Email verificado com sucesso!', 'success');
-        navigate('/');
-      }
-    } catch (error) {
-      console.error('Verification error:', error);
-      addToast(error.message || 'Código inválido ou expirado.', 'error');
-    } finally {
-      setLoading(false);
-    }
+  const goToLogin = () => {
+    navigate('/login');
   };
 
   if (step === 'verify') {
@@ -126,29 +95,19 @@ const Register = () => {
           <h1 className="text-3xl font-bold text-white">Verificar Email</h1>
           <p className="text-gray-400">
             Enviamos um link de confirmação para {formData.email}.<br/>
-            Clique no link enviado ou insira o código abaixo se houver.
+            Clique no link enviado para confirmar sua conta e depois faça login.
           </p>
         </div>
 
         <Card className="space-y-6">
-          <form onSubmit={handleVerify} className="space-y-4">
-            <AnimatedInput
-              label="Código de Verificação"
-              type="text"
-              placeholder="123456"
-              icon={Key}
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-            />
-
+          <div className="space-y-4">
             <AnimatedButton 
               fullWidth 
-              type="submit" 
+              onClick={goToLogin}
               isLoading={loading}
             >
-              Verificar Código
+              Ir para Login
             </AnimatedButton>
-            
             <button
               type="button"
               onClick={() => setStep('register')}
@@ -156,7 +115,7 @@ const Register = () => {
             >
               Voltar para cadastro
             </button>
-          </form>
+          </div>
         </Card>
       </div>
     );
