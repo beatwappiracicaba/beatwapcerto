@@ -500,10 +500,17 @@ export const AdminMusics = () => {
           <input type="date" className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
           <AnimatedButton onClick={load}>Filtrar</AnimatedButton>
         </div>
-        <div className="grid grid-cols-1 gap-3">
+        <div className="grid grid-cols-1 gap-4">
           {musics.map(m => (
-            <div key={m.id} className="p-3 rounded-xl border border-white/10 bg-white/5 flex items-center gap-3">
-              <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-800 border border-white/10 flex items-center justify-center">
+            <motion.div
+              key={m.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ scale: 1.01 }}
+              transition={{ duration: 0.2 }}
+              className="p-4 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-black/20 flex items-center gap-4 hover:border-beatwap-gold/40 hover:shadow-[0_0_30px_rgba(245,197,66,0.18)]"
+            >
+              <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gray-800 border border-white/10 ring-1 ring-black/50 flex items-center justify-center">
                 {m.cover_url ? (
                   <img src={m.cover_url} alt={m.titulo} className="w-full h-full object-cover" />
                 ) : (
@@ -511,9 +518,19 @@ export const AdminMusics = () => {
                 )}
               </div>
               <div className="flex-1">
-                <div className="font-bold text-white">{m.titulo}</div>
-                <div className="text-xs text-gray-400">{m.status}</div>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="text-lg font-extrabold text-white tracking-wide">{m.titulo}</div>
+                  <div className={`text-[11px] px-2 py-0.5 rounded-full border ${
+                    m.status === 'aprovado' 
+                      ? 'bg-green-500/15 text-green-400 border-green-500/30' 
+                      : m.status === 'recusado' 
+                        ? 'bg-red-500/15 text-red-400 border-red-500/30' 
+                        : 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30'
+                  }`}>
+                    {m.status}
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                   {m.audio_url && (
                     <AnimatedButton onClick={() => window.open(m.audio_url, '_blank')}>
                       <Download size={16} />
@@ -532,37 +549,51 @@ export const AdminMusics = () => {
                       Baixar Capa
                     </AnimatedButton>
                   )}
+                  {m.status === 'aprovado' && (
+                    <div className="flex items-center gap-2">
+                      {m.upc && (
+                        <div className="text-[11px] px-2 py-1 rounded-full bg-white/10 text-white border border-white/10">
+                          UPC: {m.upc}
+                        </div>
+                      )}
+                      {m.presave_link && (
+                        <div className="text-[11px] px-2 py-1 rounded-full bg-white/10 text-white border border-white/10">
+                          Pré-save disponível
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               {m.status === 'pendente' && (
                 <>
                   <div className="flex items-center gap-2">
-                    <input
-                      className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-32"
+                    <AnimatedInput
                       placeholder="UPC"
                       value={localInputs[m.id]?.upc || ''}
                       onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), upc: e.target.value } }))}
+                      className="w-32"
                     />
-                    <input
-                      className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-48"
+                    <AnimatedInput
                       placeholder="Link de Pre-save"
                       value={localInputs[m.id]?.presave || ''}
                       onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), presave: e.target.value } }))}
+                      className="w-48"
                     />
-                    <AnimatedButton onClick={() => approve(m)}>Aprovar</AnimatedButton>
+                    <AnimatedButton onClick={() => approve(m)} icon={Save}>Aprovar</AnimatedButton>
                   </div>
                   <div className="flex items-center gap-2">
-                    <input
-                      className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-48"
+                    <AnimatedInput
                       placeholder="Motivo da reprovação"
                       value={localInputs[m.id]?.reject || ''}
                       onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), reject: e.target.value } }))}
+                      className="w-48"
                     />
-                    <AnimatedButton onClick={() => reject(m)}>Reprovar</AnimatedButton>
+                    <AnimatedButton onClick={() => reject(m)} icon={AlertTriangle}>Reprovar</AnimatedButton>
                   </div>
                 </>
               )}
-            </div>
+            </motion.div>
           ))}
         </div>
       </Card>
