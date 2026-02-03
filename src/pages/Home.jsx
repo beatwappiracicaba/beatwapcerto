@@ -24,6 +24,7 @@ const Home = () => {
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
   const [activeSponsorMenu, setActiveSponsorMenu] = useState(null);
+  const [isPaused, setIsPaused] = useState(false);
 
   // Reset scroll on mount
   useEffect(() => {
@@ -90,11 +91,14 @@ const Home = () => {
 
   const togglePlay = (trackId, url) => {
     if (!url) return;
-    if (playingTrack === trackId) {
-      if (audioElement) {
+    if (playingTrack === trackId && audioElement) {
+      if (isPaused) {
+        audioElement.play().catch(() => {});
+        setIsPaused(false);
+      } else {
         audioElement.pause();
+        setIsPaused(true);
       }
-      setPlayingTrack(null);
       return;
     }
     if (audioElement) {
@@ -104,10 +108,12 @@ const Home = () => {
     audio.onended = () => {
       setPlayingTrack(null);
       setAudioElement(null);
+      setIsPaused(false);
     };
     audio.play().catch(() => {});
     setAudioElement(audio);
     setPlayingTrack(trackId);
+    setIsPaused(false);
   };
 
   const fetchSellers = async () => {
@@ -164,11 +170,9 @@ const Home = () => {
                             togglePlay(release.id, url);
                           }}
                         >
-                          {playingTrack === release.id ? (
-                            <Pause fill="currentColor" className="ml-1" />
-                          ) : (
-                            <Play fill="currentColor" className="ml-1" />
-                          )}
+                          {playingTrack === release.id && !isPaused
+                            ? <Pause fill="currentColor" className="ml-1" />
+                            : <Play fill="currentColor" className="ml-1" />}
                         </button>
                       </div>
                     </div>
