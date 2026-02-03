@@ -97,28 +97,45 @@ export const DataProvider = ({ children }) => {
 
   const updateArtistMetrics = async (artistId, newMetrics) => {
     try {
-      // Optimistic update
       setArtists(prev => prev.map(artist => 
         artist.id === artistId 
           ? { ...artist, metrics: { ...artist.metrics, ...newMetrics } }
           : artist
       ));
 
-      // Database upsert to artist_metrics (schema real)
       const payload = {
         artista_id: artistId,
         total_plays: Number(newMetrics.plays ?? 0),
         ouvintes_mensais: Number(newMetrics.listeners ?? 0),
         receita_estimada: Number(String(newMetrics.revenue ?? '0').replace(/[^\d.-]/g, '')) || 0
       };
-      const { error } = await supabase
-        .from('artist_metrics')
-        .upsert(payload, { onConflict: 'artista_id' });
 
-      if (error) throw error;
+      const { data: existing, error: selectError } = await supabase
+        .from('artist_metrics')
+        .select('id')
+        .eq('artista_id', artistId)
+        .maybeSingle();
+      if (selectError) throw selectError;
+
+      if (existing?.id) {
+        const { error: updateError } = await supabase
+          .from('artist_metrics')
+          .update({
+            total_plays: payload.total_plays,
+            ouvintes_mensais: payload.ouvintes_mensais,
+            receita_estimada: payload.receita_estimada
+          })
+          .eq('artista_id', artistId);
+        if (updateError) throw updateError;
+      } else {
+        const { error: insertError } = await supabase
+          .from('artist_metrics')
+          .insert([payload]);
+        if (insertError) throw insertError;
+      }
     } catch (error) {
       console.error('Error updating metrics:', error);
-      // Revert logic could be added here
+      console.error('Error details:', error?.message, error?.details, error?.hint);
     }
   };
 

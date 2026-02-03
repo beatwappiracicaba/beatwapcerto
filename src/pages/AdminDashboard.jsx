@@ -99,7 +99,8 @@ export const AdminHome = () => {
         .limit(10);
       if (error) throw error;
       setProjects(data || []);
-    } catch {
+    } catch (error) {
+      console.error('Error loading producer projects:', error);
       addToast('Falha ao carregar projetos', 'error');
     } finally {
       setLoadingProjects(false);
@@ -113,6 +114,14 @@ export const AdminHome = () => {
     if (!title || !url || !platform) { addToast('Informe título, link e plataforma', 'error'); return; }
     try {
       if (!user?.id) { addToast('Usuário inválido', 'error'); return; }
+      const { error: tableError } = await supabase
+        .from('producer_projects')
+        .select('id')
+        .limit(1);
+      if (tableError && /relation.*does not exist/i.test(String(tableError?.message || ''))) {
+        addToast('Tabela producer_projects ausente no banco. Aplique as migrações SQL.', 'error');
+        return;
+      }
       let cover_url = null;
       if (projectCoverFile) {
         const ok = await validateCover(projectCoverFile, platform);
@@ -137,7 +146,9 @@ export const AdminHome = () => {
       setProjectCoverFile(null);
       setProjectCoverPreview(null);
       loadProjects();
-    } catch {
+    } catch (error) {
+      console.error('Error creating producer project:', error);
+      console.error('Error details:', error?.message, error?.details, error?.hint);
       addToast('Falha ao adicionar projeto', 'error');
     }
   };
@@ -147,7 +158,8 @@ export const AdminHome = () => {
       if (error) throw error;
       addToast('Projeto removido', 'success');
       loadProjects();
-    } catch {
+    } catch (error) {
+      console.error('Error deleting producer project:', error);
       addToast('Falha ao remover projeto', 'error');
     }
   };
