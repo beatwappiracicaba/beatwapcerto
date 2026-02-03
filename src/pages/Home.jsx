@@ -87,7 +87,7 @@ const Home = () => {
   const recordEvent = async (payload) => {
     try {
       await supabase.from('analytics_events').insert([{ ...payload, ip_hash: ipHash || 'unknown' }]);
-    } catch {}
+    } catch (e) { void 0; }
   };
 
   const fetchSponsors = async () => {

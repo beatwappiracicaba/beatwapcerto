@@ -572,24 +572,6 @@ export const AdminArtists = () => {
       </Card>
       <Card className="space-y-4">
         <div className="font-bold">Gerenciar perfil e métricas do artista</div>
-        <div className="flex flex-col md:flex-row md:items-center gap-3">
-          <AnimatedInput 
-            placeholder="Buscar artista pelo nome" 
-            value={searchName} 
-            onChange={(e) => setSearchName(e.target.value)} 
-          />
-          <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={selectedArtist || ''} onChange={(e) => setSelectedArtist(e.target.value)}>
-            <option value="">Selecione o artista</option>
-            {(artists || [])
-              .filter(a => {
-                const term = searchName.toLowerCase();
-                const n1 = (a.nome || '').toLowerCase();
-                const n2 = (a.nome_completo_razao_social || '').toLowerCase();
-                return n1.includes(term) || n2.includes(term);
-              })
-              .map(a => <option key={a.id} value={a.id}>{a.nome || a.nome_completo_razao_social || 'Sem nome'}</option>)}
-          </select>
-        </div>
         {selectedArtist && (
           <motion.div
             initial={{ opacity: 0, y: 12 }}
