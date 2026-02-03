@@ -45,7 +45,7 @@ const Home = () => {
     try {
       const { data, error } = await supabase
         .from('musics')
-        .select('id,titulo,nome_artista,estilo,cover_url,preview_url,audio_url')
+        .select('id,titulo,nome_artista,estilo,cover_url,preview_url,audio_url,presave_link')
         .eq('status', 'aprovado')
         .order('created_at', { ascending: false })
         .limit(8);
@@ -174,6 +174,13 @@ const Home = () => {
                     <h3 className="font-bold text-lg truncate">{release.titulo || 'Lançamento'}</h3>
                     <p className="text-sm text-gray-400 truncate">{release.nome_artista || 'Artista'}</p>
                     <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider">{release.estilo || ''}</p>
+                    {release.presave_link && (
+                      <div className="mt-2">
+                        <AnimatedButton onClick={() => window.open(release.presave_link, '_blank')}>
+                          Pré-save
+                        </AnimatedButton>
+                      </div>
+                    )}
                   </motion.div>
                 ))}
               </div>

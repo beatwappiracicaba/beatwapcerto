@@ -94,6 +94,9 @@ drop policy if exists notifications_update_self on public.notifications;
 create policy notifications_select_self on public.notifications for select using (recipient_id = auth.uid());
 create policy notifications_insert_self on public.notifications for insert with check (recipient_id = auth.uid());
 create policy notifications_update_self on public.notifications for update using (recipient_id = auth.uid());
+-- Permitir que Produtor insira notificações para outros perfis
+drop policy if exists notifications_insert_produtor on public.notifications;
+create policy notifications_insert_produtor on public.notifications for insert with check (public.is_produtor());
 
 do $$
 begin
