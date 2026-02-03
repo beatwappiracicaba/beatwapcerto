@@ -1,4 +1,4 @@
-﻿﻿import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Check, Clock, Info, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -63,7 +63,7 @@ export const NotificationBell = ({ userId }) => {
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
-            className="absolute right-0 mt-2 w-[380px] bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50"
+            className="absolute right-0 mt-2 bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 w-[92vw] sm:w-[360px] max-w-[92vw]"
           >
             <div className="flex items-center justify-between p-3 border-b border-white/10">
               <div className="flex items-center gap-2">
@@ -80,7 +80,7 @@ export const NotificationBell = ({ userId }) => {
               )}
             </div>
 
-            <div className="max-h-96 overflow-y-auto custom-scrollbar">
+            <div className="max-h-[70vh] sm:max-h-96 overflow-y-auto custom-scrollbar">
               {notifications.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
                   <Bell size={40} className="mb-3 opacity-20 mx-auto" />

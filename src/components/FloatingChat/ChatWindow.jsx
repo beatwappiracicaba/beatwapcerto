@@ -98,7 +98,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
       initial={{ opacity: 0, y: 20, scale: 0.9 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 20, scale: 0.9 }}
-      className="fixed bottom-24 right-6 w-80 sm:w-96 h-[500px] bg-[#121212] border border-white/10 rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden"
+      className="fixed bottom-20 right-2 sm:right-6 w-[94vw] sm:w-96 h-[70vh] sm:h-[500px] bg-[#121212] border border-white/10 rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden"
     >
       {/* Header */}
       <div className="p-4 bg-beatwap-gold/10 border-b border-white/10 flex justify-between items-center">
