@@ -75,11 +75,13 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
 
   // Filter chats for Admin list
   const filteredChats = isAdmin 
-    ? chats.filter(c => 
-        c.lastMessage.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (c.artistName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.artistId.toString().includes(searchTerm)
-      ) 
+    ? chats
+        .filter(c => !c.assignedTo || c.assignedTo === currentUserId)
+        .filter(c => 
+          c.lastMessage.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (c.artistName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          c.artistId.toString().includes(searchTerm)
+        )
     : [];
 
   const getAssignedAdminName = (adminId) => {
@@ -145,22 +147,41 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
         </div>
         <div className="flex items-center gap-2">
           {isAdmin && activeChatId && (
-            <button 
-              onClick={async () => {
-                if (window.confirm('Finalizar e apagar esta conversa?')) {
-                  try {
-                    await deleteChat(activeChatId);
-                    setActiveChatId(null);
-                  } catch (e) {
-                    console.error('Falha ao apagar conversa', e);
+            <>
+              <button 
+                onClick={async () => {
+                  // Build transcript
+                  const chat = chats.find(c => c.id === activeChatId);
+                  const transcript = (chat?.messages || [])
+                    .map(m => `${new Date(m.created_at || m.timestamp).toLocaleString()} - ${m.sender === 'admin' ? 'Produtor' : 'Artista'}: ${m.content ?? m.message ?? ''}`)
+                    .join('\n');
+                  const subject = encodeURIComponent(`Atendimento BeatWap - Conversa finalizada`);
+                  const body = encodeURIComponent(`Olá,\n\nSegue o histórico da conversa:\n\n${transcript}\n\nObrigado!`);
+                  // Open mail client (fill recipient manualmente se não houver e-mail disponível)
+                  window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+                }}
+                className="text-white hover:bg-white/10 p-1 rounded-full"
+                title="Enviar resumo por e-mail"
+              >
+                <Send size={18} />
+              </button>
+              <button 
+                onClick={async () => {
+                  if (window.confirm('Finalizar e apagar esta conversa?')) {
+                    try {
+                      await deleteChat(activeChatId);
+                      setActiveChatId(null);
+                    } catch (e) {
+                      console.error('Falha ao apagar conversa', e);
+                    }
                   }
-                }
-              }} 
-              className="text-red-400 hover:bg-red-500/10 p-1 rounded-full"
-              title="Finalizar e Apagar"
-            >
-              <Trash2 size={18} />
-            </button>
+                }} 
+                className="text-red-400 hover:bg-red-500/10 p-1 rounded-full"
+                title="Finalizar e Apagar"
+              >
+                <Trash2 size={18} />
+              </button>
+            </>
           )}
           <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white">
             <X size={20} />
@@ -188,8 +209,14 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                 onClick={() => setActiveChatId(chat.id)}
                 className="p-3 hover:bg-white/5 rounded-xl cursor-pointer transition-colors flex gap-3 items-center"
               >
-                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-beatwap-gold relative">
-                  <User size={20} />
+                <div className="w-10 h-10 rounded-full bg-white/10 overflow-hidden relative flex items-center justify-center">
+                  {chat.artistAvatarUrl ? (
+                    <img src={chat.artistAvatarUrl} alt={chat.artistName} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-beatwap-gold">
+                      <User size={20} />
+                    </div>
+                  )}
                   {chat.assignedTo && (
                      <div className="absolute -bottom-1 -right-1 bg-gray-800 rounded-full border border-black" title="Atendido">
                         <UserCheck size={12} className="text-green-500" />

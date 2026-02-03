@@ -43,12 +43,7 @@ export const NotificationBell = ({ userId }) => {
   return (
     <div className="relative" ref={dropdownRef}>
       <button
-        onClick={() => {
-          const latest = notifications[0];
-          if (latest) {
-            openInNewTab(latest);
-          }
-        }}
+        onClick={() => setOpen((prev) => !prev)}
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
         className={clsx(

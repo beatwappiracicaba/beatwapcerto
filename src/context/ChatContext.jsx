@@ -117,16 +117,18 @@ export const ChatProvider = ({ children }) => {
 
       if (error) throw error;
 
-      // Fetch artist names in batch
+      // Fetch artist names and avatars in batch
       const artistIds = Array.from(new Set((data || []).map(c => c.artista_id ?? c.artist_id).filter(Boolean)));
       let artistNameMap = {};
+      let artistAvatarMap = {};
       if (artistIds.length) {
         const { data: profilesData } = await supabase
           .from('profiles')
-          .select('id, nome, nome_completo_razao_social')
+          .select('id, nome, nome_completo_razao_social, avatar_url')
           .in('id', artistIds);
         (profilesData || []).forEach(p => {
           artistNameMap[p.id] = p.nome || p.nome_completo_razao_social || 'Artista';
+          artistAvatarMap[p.id] = p.avatar_url || null;
         });
       }
 
@@ -178,11 +180,13 @@ export const ChatProvider = ({ children }) => {
         const assignedTo = chat.assigned_to ?? null;
         const artistId = chat.artista_id ?? chat.artist_id;
         const artistName = artistNameMap[artistId] || `Artista #${String(artistId || '').slice(0,4)}...`;
+        const artistAvatarUrl = artistAvatarMap[artistId] || null;
 
         return {
           id: chat.id,
           artistId,
           artistName,
+          artistAvatarUrl,
           adminId: 'admin',
           assignedTo,
           messages: messagesWithSender,
