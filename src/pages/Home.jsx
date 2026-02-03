@@ -9,7 +9,7 @@ import Pricing from '../components/landing/Pricing';
 import Contact from '../components/landing/Contact';
 import Footer from '../components/landing/Footer';
 import { supabase } from '../services/supabaseClient';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, BadgeCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Instagram, Globe } from 'lucide-react';
@@ -58,8 +58,9 @@ const Home = () => {
     try {
       const { data, error } = await supabase
         .from('musics')
-        .select('id,titulo,nome_artista,estilo,cover_url,preview_url,audio_url,presave_link,release_date,created_at,artista_id')
+        .select('id,titulo,nome_artista,estilo,cover_url,preview_url,audio_url,presave_link,release_date,created_at,artista_id,is_beatwap_produced,show_on_home')
         .eq('status', 'aprovado')
+        .eq('show_on_home', true)
         .order('created_at', { ascending: false })
         .limit(24);
 
@@ -218,6 +219,11 @@ const Home = () => {
                           Lança em {new Date(release.release_date).toLocaleDateString('pt-BR')}
                         </div>
                       )}
+                      {release.is_beatwap_produced && (
+                        <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm p-1.5 rounded-full border border-beatwap-gold/50 z-10" title="Produzido, Mixado e Masterizado pela BeatWap">
+                          <BadgeCheck className="text-beatwap-gold w-5 h-5" />
+                        </div>
+                      )}
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <button 
                           className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
@@ -236,6 +242,16 @@ const Home = () => {
                     <h3 className="font-bold text-lg truncate">{release.titulo || 'Lançamento'}</h3>
                     <p className="text-sm text-gray-400 truncate">{release.nome_artista || 'Artista'}</p>
                     <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider">{release.estilo || ''}</p>
+                    <p className="text-[10px] text-gray-500 mt-1 flex items-center gap-1">
+                      {release.is_beatwap_produced ? (
+                        <>
+                          <BadgeCheck size={12} className="text-beatwap-gold" />
+                          <span className="text-beatwap-gold font-medium">Produzido por BeatWap</span>
+                        </>
+                      ) : (
+                        'Não produzido pela BeatWap'
+                      )}
+                    </p>
                     <p className="text-xs text-gray-400 mt-1">
                       Lançamento: {release.release_date ? new Date(release.release_date).toLocaleDateString('pt-BR') : 'Em breve'}
                     </p>

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause } from 'lucide-react';
+import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause, Check } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -742,10 +742,20 @@ export const AdminMusics = () => {
     const upcVal = (inputs.upc || '').trim();
     const presaveVal = (inputs.presave || '').trim();
     const releaseVal = (inputs.release_date || '').trim();
+    const isProduced = inputs.is_beatwap_produced || false;
+    const showHome = inputs.show_on_home || false;
+
     if (!upcVal) { addToast('Informe o UPC', 'error'); return; }
     await supabase
       .from('musics')
-      .update({ status: 'aprovado', upc: upcVal, presave_link: presaveVal || null, release_date: releaseVal || null })
+      .update({ 
+        status: 'aprovado', 
+        upc: upcVal, 
+        presave_link: presaveVal || null, 
+        release_date: releaseVal || null,
+        is_beatwap_produced: isProduced,
+        show_on_home: showHome
+      })
       .eq('id', m.id);
     await addNotification({
       recipientId: m.artista_id,
@@ -917,6 +927,20 @@ export const AdminMusics = () => {
                       onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), release_date: e.target.value } }))}
                       placeholder="Data de lançamento"
                     />
+                    <div className="flex flex-col gap-1 px-2">
+                      <div className="flex items-center gap-2 cursor-pointer" onClick={() => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), is_beatwap_produced: !localInputs[m.id]?.is_beatwap_produced } }))}>
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${localInputs[m.id]?.is_beatwap_produced ? 'bg-beatwap-gold border-beatwap-gold text-black' : 'border-white/20 bg-white/5'}`}>
+                          {localInputs[m.id]?.is_beatwap_produced && <Check size={12} strokeWidth={4} />}
+                        </div>
+                        <span className="text-[10px] text-gray-300 select-none">Prod. BeatWap</span>
+                      </div>
+                      <div className="flex items-center gap-2 cursor-pointer" onClick={() => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), show_on_home: !localInputs[m.id]?.show_on_home } }))}>
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${localInputs[m.id]?.show_on_home ? 'bg-beatwap-gold border-beatwap-gold text-black' : 'border-white/20 bg-white/5'}`}>
+                          {localInputs[m.id]?.show_on_home && <Check size={12} strokeWidth={4} />}
+                        </div>
+                        <span className="text-[10px] text-gray-300 select-none">Mostrar Home</span>
+                      </div>
+                    </div>
                     <AnimatedButton onClick={() => approve(m)} icon={Save}>Aprovar</AnimatedButton>
                   </div>
                   <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
