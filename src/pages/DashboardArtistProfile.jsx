@@ -48,6 +48,7 @@ export const DashboardArtistProfile = () => {
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [remainingUploads, setRemainingUploads] = useState(null);
+  const [isUnlimited, setIsUnlimited] = useState(false);
   const [periodLabel, setPeriodLabel] = useState('');
 
   useEffect(() => {
@@ -90,12 +91,18 @@ export const DashboardArtistProfile = () => {
       let start = null;
       let end = null;
       const now = new Date();
+      setIsUnlimited(false);
       if (plan.includes('avulso')) {
         base = 1;
         const ps = profile.plan_started_at ? new Date(profile.plan_started_at) : now;
         start = ps.toISOString();
         end = null;
         setPeriodLabel('Avulso (desde a contratação)');
+      } else if (plan.includes('vitalicio')) {
+        setIsUnlimited(true);
+        setPeriodLabel('Vitalício (ilimitado)');
+        setRemainingUploads(null);
+        return;
       } else if (plan.includes('mensal')) {
         base = 4;
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
@@ -430,9 +437,9 @@ export const DashboardArtistProfile = () => {
                   <p className="text-4xl font-bold text-beatwap-gold">{formData.plano}</p>
                   <div className="mt-4 space-y-1">
                     <p className="text-gray-300">Período: {periodLabel}</p>
-                    <p className="text-white font-bold">Envios restantes: {remainingUploads === null ? '...' : remainingUploads}</p>
+                    <p className="text-white font-bold">Envios restantes: {isUnlimited ? 'Ilimitado' : (remainingUploads === null ? '...' : remainingUploads)}</p>
                   </div>
-                  {remainingUploads !== null && remainingUploads <= 0 ? (
+                  {!isUnlimited && remainingUploads !== null && remainingUploads <= 0 ? (
                     <div className="mt-6 space-y-4">
                       <p className="text-red-400">Você atingiu o limite de envios do seu plano.</p>
                       <div className="flex justify-center gap-4">

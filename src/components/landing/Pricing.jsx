@@ -8,6 +8,7 @@ import CheckoutModal from './CheckoutModal';
 const Pricing = () => {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const [isAvulsoChoiceOpen, setIsAvulsoChoiceOpen] = useState(false);
   const { user, profile } = useAuth();
   const navigate = useNavigate();
 
@@ -44,6 +45,55 @@ const Pricing = () => {
 
   return (
     <section className="py-20 px-6 bg-gradient-to-b from-beatwap-black to-black relative overflow-hidden">
+      {isAvulsoChoiceOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#121212] w-full max-w-md rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-white/10 bg-white/5">
+              <h3 className="text-xl font-bold text-white">Plano Avulso</h3>
+              <p className="text-sm text-gray-400">É apenas 1 música ou mais de 1?</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <AnimatedButton
+                className="w-full"
+                onClick={() => {
+                  setIsAvulsoChoiceOpen(false);
+                  const a = document.createElement('a');
+                  a.href = 'https://mpago.la/1bNzgUz';
+                  a.target = '_blank';
+                  a.rel = 'noopener,noreferrer';
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                }}
+              >
+                Só 1 música
+              </AnimatedButton>
+              <AnimatedButton
+                variant="secondary"
+                className="w-full"
+                onClick={() => {
+                  setIsAvulsoChoiceOpen(false);
+                  const artistName = profile?.nome || profile?.nome_completo_razao_social || '';
+                  const msg = artistName ? `Quero contratar plano avulso para mais de 1 música - ${artistName}` : 'Quero contratar plano avulso para mais de 1 música';
+                  const wa = 'https://wa.me/5519981083497?text=' + encodeURIComponent(msg);
+                  const a = document.createElement('a');
+                  a.href = wa;
+                  a.target = '_blank';
+                  a.rel = 'noopener,noreferrer';
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                }}
+              >
+                Mais de 1 música
+              </AnimatedButton>
+              <div className="text-center">
+                <button onClick={() => setIsAvulsoChoiceOpen(false)} className="text-gray-400 hover:text-white text-sm">Cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <CheckoutModal 
         isOpen={isCheckoutOpen} 
         onClose={() => setIsCheckoutOpen(false)} 
@@ -89,7 +139,19 @@ const Pricing = () => {
                 <Check size={18} className="text-beatwap-gold" /> 75% Royalties para você
               </li>
             </ul>
-            <AnimatedButton variant="outline" className="w-full" onClick={() => openPlan('Plano por música', 'https://mpago.la/1bNzgUz')}>Comprar Plano por Música</AnimatedButton>
+            <AnimatedButton 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => {
+                if (!user) {
+                  navigate('/login');
+                  return;
+                }
+                setIsAvulsoChoiceOpen(true);
+              }}
+            >
+              Comprar Plano por Música
+            </AnimatedButton>
           </div>
 
           {/* Plano Mensal */}

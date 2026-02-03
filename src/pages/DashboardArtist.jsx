@@ -50,6 +50,7 @@ export const DashboardArtistMusics = () => {
   const [loading, setLoading] = useState(true);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [remainingUploads, setRemainingUploads] = useState(null);
+  const [isUnlimited, setIsUnlimited] = useState(false);
   const [musicMetrics, setMusicMetrics] = useState({});
 
   const fetchMusics = useCallback(async () => {
@@ -99,10 +100,15 @@ export const DashboardArtistMusics = () => {
     let start = null;
     let end = null;
     const now = new Date();
+    setIsUnlimited(false);
     if (plan.includes('avulso')) {
       base = 1;
       const ps = prof?.plan_started_at ? new Date(prof.plan_started_at) : now;
       start = ps.toISOString();
+    } else if (plan.includes('vitalicio')) {
+      setIsUnlimited(true);
+      setRemainingUploads(null);
+      return;
     } else if (plan.includes('mensal')) {
       base = 4;
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
@@ -141,7 +147,7 @@ export const DashboardArtistMusics = () => {
           <div className="text-xl font-semibold text-white">Minhas Músicas</div>
           <AnimatedButton 
             onClick={() => {
-              if (remainingUploads !== null && remainingUploads <= 0) {
+              if (!isUnlimited && remainingUploads !== null && remainingUploads <= 0) {
                 const wa = 'https://wa.me/5519981083497?text=Quero%20contratar%20mais%20envios';
                 window.open(wa, '_blank');
               } else {
@@ -154,7 +160,7 @@ export const DashboardArtistMusics = () => {
           </AnimatedButton>
         </div>
         <div className="mb-3 text-sm text-gray-300">
-          Envios restantes: {remainingUploads === null ? '...' : remainingUploads}
+          Envios restantes: {isUnlimited ? 'Ilimitado' : (remainingUploads === null ? '...' : remainingUploads)}
         </div>
 
         <div className="space-y-3">
