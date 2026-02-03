@@ -410,7 +410,7 @@ export const AdminMusics = () => {
   const load = useCallback(async () => {
     let q = supabase
       .from('musics')
-      .select('id,titulo,status,motivo_recusa,artista_id,upc,presave_link,created_at')
+      .select('id,titulo,status,motivo_recusa,artista_id,upc,presave_link,created_at,cover_url,audio_url,authorization_url')
       .order('created_at', { ascending: false });
     if (statusFilter !== 'todos') q = q.eq('status', statusFilter);
     if (artistFilter) q = q.eq('artista_id', artistFilter);
@@ -503,34 +503,65 @@ export const AdminMusics = () => {
         <div className="grid grid-cols-1 gap-3">
           {musics.map(m => (
             <div key={m.id} className="p-3 rounded-xl border border-white/10 bg-white/5 flex items-center gap-3">
+              <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-800 border border-white/10 flex items-center justify-center">
+                {m.cover_url ? (
+                  <img src={m.cover_url} alt={m.titulo} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xs text-gray-400">Sem capa</span>
+                )}
+              </div>
               <div className="flex-1">
                 <div className="font-bold text-white">{m.titulo}</div>
                 <div className="text-xs text-gray-400">{m.status}</div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {m.audio_url && (
+                    <AnimatedButton onClick={() => window.open(m.audio_url, '_blank')}>
+                      <Download size={16} />
+                      Baixar Áudio
+                    </AnimatedButton>
+                  )}
+                  {m.authorization_url && (
+                    <AnimatedButton onClick={() => window.open(m.authorization_url, '_blank')}>
+                      <Download size={16} />
+                      Baixar Documento
+                    </AnimatedButton>
+                  )}
+                  {m.cover_url && (
+                    <AnimatedButton onClick={() => window.open(m.cover_url, '_blank')}>
+                      <Download size={16} />
+                      Baixar Capa
+                    </AnimatedButton>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-32"
-                  placeholder="UPC"
-                  value={localInputs[m.id]?.upc || ''}
-                  onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), upc: e.target.value } }))}
-                />
-                <input
-                  className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-48"
-                  placeholder="Link de Pre-save"
-                  value={localInputs[m.id]?.presave || ''}
-                  onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), presave: e.target.value } }))}
-                />
-                <AnimatedButton onClick={() => approve(m)}>Aprovar</AnimatedButton>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-48"
-                  placeholder="Motivo da reprovação"
-                  value={localInputs[m.id]?.reject || ''}
-                  onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), reject: e.target.value } }))}
-                />
-                <AnimatedButton onClick={() => reject(m)}>Reprovar</AnimatedButton>
-              </div>
+              {m.status === 'pendente' && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <input
+                      className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-32"
+                      placeholder="UPC"
+                      value={localInputs[m.id]?.upc || ''}
+                      onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), upc: e.target.value } }))}
+                    />
+                    <input
+                      className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-48"
+                      placeholder="Link de Pre-save"
+                      value={localInputs[m.id]?.presave || ''}
+                      onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), presave: e.target.value } }))}
+                    />
+                    <AnimatedButton onClick={() => approve(m)}>Aprovar</AnimatedButton>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-48"
+                      placeholder="Motivo da reprovação"
+                      value={localInputs[m.id]?.reject || ''}
+                      onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), reject: e.target.value } }))}
+                    />
+                    <AnimatedButton onClick={() => reject(m)}>Reprovar</AnimatedButton>
+                  </div>
+                </>
+              )}
             </div>
           ))}
         </div>
