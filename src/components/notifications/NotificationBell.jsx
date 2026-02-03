@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Check, Clock, Info, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -12,6 +12,7 @@ export const NotificationBell = ({ userId }) => {
   const unreadCount = getUnreadCount(userId);
 
   const [open, setOpen] = useState(false);
+  const [hovering, setHovering] = useState(false);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -33,16 +34,23 @@ export const NotificationBell = ({ userId }) => {
     }
   };
 
-  const onClickNotif = async (notif) => {
+  const openInNewTab = async (notif) => {
     await markAsRead(notif.id);
-    if (notif.link) navigate(notif.link);
-    setOpen(false);
+    const target = notif.link || '/';
+    window.open(target, '_blank');
   };
 
   return (
     <div className="relative" ref={dropdownRef}>
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          const latest = notifications[0];
+          if (latest) {
+            openInNewTab(latest);
+          }
+        }}
+        onMouseEnter={() => setHovering(true)}
+        onMouseLeave={() => setHovering(false)}
         className={clsx(
           "relative p-2 rounded-xl border transition-colors",
           open ? "border-beatwap-gold text-white" : "border-white/10 text-gray-400 hover:bg-white/10"
@@ -56,6 +64,33 @@ export const NotificationBell = ({ userId }) => {
           </span>
         )}
       </button>
+
+      <AnimatePresence>
+        {hovering && notifications[0] && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            className="absolute right-0 bottom-10 bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 w-[86vw] sm:w-[300px] max-w-[86vw]"
+          >
+            <div className="p-3 border-b border-white/10 flex items-center gap-2">
+              <Bell size={16} className="text-beatwap-gold" />
+              <span className="font-bold text-sm">Prévia</span>
+            </div>
+            <div className="p-3">
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 p-1.5 bg-white/5 rounded-lg">
+                  {iconFor(notifications[0].type)}
+                </div>
+                <div className="flex-1">
+                  <div className="font-bold text-white text-sm">{notifications[0].title}</div>
+                  <div className="text-xs text-gray-400 mt-1">{notifications[0].message}</div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {open && (
@@ -91,7 +126,7 @@ export const NotificationBell = ({ userId }) => {
                   <div
                     key={notif.id}
                     className={`p-4 hover:bg-white/5 cursor-pointer transition-colors ${!notif.read ? 'bg-white/[0.02]' : ''}`}
-                    onClick={() => onClickNotif(notif)}
+                    onClick={() => openInNewTab(notif)}
                   >
                     <div className="flex items-start gap-3">
                       <div className="shrink-0 p-1.5 bg-white/5 rounded-lg">

@@ -135,20 +135,29 @@ export const AdminHome = () => {
             <option value="Outro">Outro</option>
           </select>
           <div className="space-y-2">
-            <div className="text-sm text-gray-300 flex items-center gap-2"><ImageIcon size={16} /> Capa do Projeto</div>
-            <input type="file" accept="image/*" onChange={(e) => {
-              const f = e.target.files?.[0] || null;
-              setProjectCoverFile(f);
-              setProjectCoverPreview(f ? URL.createObjectURL(f) : null);
-            }} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" />
+            <input
+              id="project-cover"
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const f = e.target.files?.[0] || null;
+                setProjectCoverFile(f);
+                setProjectCoverPreview(f ? URL.createObjectURL(f) : null);
+              }}
+              className="hidden"
+            />
+            <label htmlFor="project-cover" className="cursor-pointer flex flex-col items-center gap-2">
+              <div className="p-3 bg-gray-800 rounded-full text-white">
+                <ImageIcon size={24} />
+              </div>
+              <span className="font-bold text-sm">Capa do Projeto</span>
+              <span className="text-xs text-gray-500">YouTube 16:9 • Spotify 1:1</span>
+            </label>
             {projectCoverPreview && (
               <div className="w-full h-24 rounded-xl overflow-hidden bg-black/30 border border-white/10">
                 <img src={projectCoverPreview} alt="Prévia da capa" className="w-full h-full object-cover" />
               </div>
             )}
-            <div className="text-xs text-gray-500">
-              YouTube: 16:9 • Spotify: 1:1
-            </div>
           </div>
         </div>
         <AnimatedButton onClick={createProject}>Adicionar Projeto</AnimatedButton>
