@@ -340,6 +340,32 @@ export const ChatProvider = ({ children }) => {
     }
   };
  
+   const markChatRead = async (chatId) => {
+     try {
+       const { error } = await supabase
+         .from('messages')
+         .update({ read: true })
+         .eq('chat_id', chatId)
+         .eq('read', false);
+       if (error) {
+         console.error('Error marking messages read:', error);
+       }
+     } catch (e) {
+       console.error('Error marking messages read:', e);
+     } finally {
+       setChats(prev => prev.map(c => {
+         if (c.id !== chatId) return c;
+         const updatedMessages = (c.messages || []).map(m => ({ ...m, read: true }));
+         const unreadCount = updatedMessages.filter(m => {
+           const roleStr = String(profile?.cargo || '').toLowerCase();
+           const isAdmin = roleStr === 'produtor' || roleStr === 'seller' || roleStr === 'vendedor';
+           return !m.read && ((isAdmin && m.sender === 'artist') || (!isAdmin && m.sender === 'admin'));
+         }).length;
+         return { ...c, messages: updatedMessages, unreadCount };
+       }));
+     }
+   };
+ 
   return (
     <ChatContext.Provider value={{ 
       chats, 
@@ -355,7 +381,8 @@ export const ChatProvider = ({ children }) => {
       loading,
       admins,
       assignChat,
-      deleteChat
+      deleteChat,
+      markChatRead
     }}>
       {children}
     </ChatContext.Provider>

@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { MessageCircle } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 
 export const ChatButton = ({ isAdmin = false, currentUserId = 1 }) => {
   const { toggleChat, isOpen, chats } = useChat();
+  const prevUnreadRef = useRef(0);
+  const audioRef = useRef(null);
 
   // Calculate unread count
   const unreadCount = chats.reduce((acc, chat) => {
@@ -20,6 +22,17 @@ export const ChatButton = ({ isAdmin = false, currentUserId = 1 }) => {
     }
     return acc;
   }, 0);
+
+  useEffect(() => {
+    if (!isOpen && unreadCount > prevUnreadRef.current) {
+      if (!audioRef.current) {
+        audioRef.current = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQA=');
+      }
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {});
+    }
+    prevUnreadRef.current = unreadCount;
+  }, [unreadCount, isOpen]);
 
   return (
     <motion.button

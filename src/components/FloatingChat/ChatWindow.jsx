@@ -18,12 +18,16 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
     admins,
     assignChat,
     deleteChat,
-    loading
+    loading,
+    markChatRead
   } = useChat();
   
   const [inputText, setInputText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const messagesEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+  const [showNewMessageToast, setShowNewMessageToast] = useState(false);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -32,6 +36,17 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
   useEffect(() => {
     scrollToBottom();
   }, [chats, activeChatId, isOpen]);
+
+  useEffect(() => {
+    const handlerOnline = () => setIsOnline(true);
+    const handlerOffline = () => setIsOnline(false);
+    window.addEventListener('online', handlerOnline);
+    window.addEventListener('offline', handlerOffline);
+    return () => {
+      window.removeEventListener('online', handlerOnline);
+      window.removeEventListener('offline', handlerOffline);
+    };
+  }, []);
 
   // Determine which chat is active
   const activeChat = isAdmin 
@@ -45,6 +60,52 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
     }
   }, [loading, isAdmin, activeChat, isOpen, currentUserId, createChat]);
 
+  useEffect(() => {
+    const id = isAdmin ? activeChatId : activeChat?.id;
+    if (isOpen && id) {
+      markChatRead(id);
+    }
+  }, [isOpen, activeChatId, activeChat?.id, markChatRead, isAdmin]);
+
+  useEffect(() => {
+    const key = `chatDraft:${isAdmin ? activeChatId || 'admin' : activeChat?.id || currentUserId || 'artist'}`;
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      setInputText(stored);
+    } else {
+      setInputText('');
+    }
+  }, [activeChatId, activeChat?.id, isAdmin, currentUserId]);
+
+  useEffect(() => {
+    const key = `chatDraft:${isAdmin ? activeChatId || 'admin' : activeChat?.id || currentUserId || 'artist'}`;
+    localStorage.setItem(key, inputText);
+  }, [inputText, isAdmin, activeChatId, activeChat?.id, currentUserId]);
+
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      if (nearBottom) {
+        setShowNewMessageToast(false);
+      }
+    };
+    el.addEventListener('scroll', onScroll);
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [scrollContainerRef.current]);
+ 
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    const msgs = activeChat?.messages?.length || 0;
+    const prev = (ChatWindow.__prevMsgCount || 0);
+    if (msgs > prev && !nearBottom) {
+      setShowNewMessageToast(true);
+    }
+    ChatWindow.__prevMsgCount = msgs;
+  }, [chats, activeChatId, activeChat?.messages?.length, isOpen]);
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -138,8 +199,8 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                 Atendido por {getAssignedAdminName(activeChat.assignedTo)}
               </p>
             ) : (
-              <p className="text-xs text-green-500 flex items-center gap-1">
-                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Online
+              <p className={`text-xs flex items-center gap-1 ${isOnline ? 'text-green-500' : 'text-red-500'}`}>
+                 <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`}></span> {isOnline ? 'Online' : 'Offline'}
               </p>
             )}
 
@@ -190,7 +251,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto bg-black/20 relative">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto bg-black/20 relative">
         {isAdmin && !activeChatId ? (
           // Admin Chat List
           <div className="p-2 space-y-2">
@@ -261,6 +322,12 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                ))
              )}
              <div ref={messagesEndRef} />
+             {showNewMessageToast && (
+               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-beatwap-gold text-black text-xs font-bold px-3 py-2 rounded-full shadow">
+                 Novas mensagens
+                 <button className="ml-2 underline" onClick={scrollToBottom}>Ver</button>
+               </div>
+             )}
           </div>
         )}
       </div>
@@ -289,6 +356,14 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                 className="flex-1 bg-black/30 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (inputText.trim()) {
+                      handleSend(e);
+                    }
+                  }
+                }}
               />
               <button 
                 type="submit" 
