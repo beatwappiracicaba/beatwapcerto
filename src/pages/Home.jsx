@@ -23,6 +23,7 @@ const Home = () => {
   const [sponsors, setSponsors] = useState([]);
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
+  const [activeSponsorMenu, setActiveSponsorMenu] = useState(null);
 
   // Reset scroll on mount
   useEffect(() => {
@@ -285,27 +286,37 @@ const Home = () => {
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="group p-4 rounded-2xl bg-white/5 border border-white/10"
+                    className="group relative inline-block"
+                    onClick={() => setActiveSponsorMenu(activeSponsorMenu === s.id ? null : s.id)}
                   >
-                    <div className="w-24 h-24 rounded-xl overflow-hidden mx-auto mb-4 bg-gray-800 border-2 border-black flex items-center justify-center">
+                    <div className="w-24 h-24 rounded-xl overflow-hidden mx-auto bg-gray-800 border-2 border-black flex items-center justify-center">
                       {s.logo_url ? (
                         <img src={s.logo_url} alt={s.name} className="w-full h-full object-contain" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-white text-sm">Sem logo</div>
                       )}
                     </div>
-                    <h3 className="font-bold text-lg text-center">{s.name}</h3>
-                    <div className="flex items-center justify-center gap-3 mt-2">
-                      {s.instagram_url && (
-                        <a href={s.instagram_url} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white">
-                          <Instagram size={18} />
-                        </a>
-                      )}
-                      {s.site_url && (
-                        <a href={s.site_url} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white">
-                          <Globe size={18} />
-                        </a>
-                      )}
+                    <div className={`absolute inset-0 rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center ${activeSponsorMenu === s.id ? 'opacity-100' : ''}`}>
+                      <div className="flex items-center gap-4">
+                        {s.instagram_url && (
+                          <button
+                            className="p-2 rounded-full bg-beatwap-gold text-black hover:bg-white transition-colors"
+                            onClick={(e) => { e.stopPropagation(); window.open(s.instagram_url, '_blank'); }}
+                            aria-label="Instagram"
+                          >
+                            <Instagram size={18} />
+                          </button>
+                        )}
+                        {s.site_url && (
+                          <button
+                            className="p-2 rounded-full bg-beatwap-gold text-black hover:bg-white transition-colors"
+                            onClick={(e) => { e.stopPropagation(); window.open(s.site_url, '_blank'); }}
+                            aria-label="Site"
+                          >
+                            <Globe size={18} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </motion.div>
                 ))}
