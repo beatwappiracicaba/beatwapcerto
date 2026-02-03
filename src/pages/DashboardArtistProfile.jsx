@@ -24,6 +24,7 @@ export const DashboardArtistProfile = () => {
     celular: '',
     instagram_url: '',
     site_url: '',
+    genero_musical: '',
     tema: 'dark',
     // Endereço
     cep: '',
@@ -55,6 +56,7 @@ export const DashboardArtistProfile = () => {
         celular: profile.celular || '',
         instagram_url: profile.instagram_url || '',
         site_url: profile.site_url || '',
+        genero_musical: profile.genero_musical || '',
         tema: profile.tema || 'dark',
         cep: profile.cep || '',
         logradouro: profile.logradouro || '',
@@ -129,6 +131,7 @@ export const DashboardArtistProfile = () => {
           celular: formData.celular,
           instagram_url: formData.instagram_url,
           site_url: formData.site_url,
+          genero_musical: formData.genero_musical,
           tema: formData.tema,
           cep: formData.cep,
           logradouro: formData.logradouro,
@@ -318,6 +321,29 @@ export const DashboardArtistProfile = () => {
                     onChange={(e) => setFormData({...formData, site_url: e.target.value})} 
                     placeholder="https://seusite.com"
                   />
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Gênero Musical</label>
+                    <select
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      value={formData.genero_musical}
+                      onChange={(e) => setFormData({ ...formData, genero_musical: e.target.value })}
+                    >
+                      <option value="" className="bg-[#121212] text-white">Selecione</option>
+                      <option value="Sertanejo" className="bg-[#121212] text-white">Sertanejo</option>
+                      <option value="Funk" className="bg-[#121212] text-white">Funk</option>
+                      <option value="Rap" className="bg-[#121212] text-white">Rap</option>
+                      <option value="Pagode" className="bg-[#121212] text-white">Pagode</option>
+                      <option value="Samba" className="bg-[#121212] text-white">Samba</option>
+                      <option value="MPB" className="bg-[#121212] text-white">MPB</option>
+                      <option value="Axé" className="bg-[#121212] text-white">Axé</option>
+                      <option value="Brega Funk" className="bg-[#121212] text-white">Brega Funk</option>
+                      <option value="Hip Hop" className="bg-[#121212] text-white">Hip Hop</option>
+                      <option value="Pop" className="bg-[#121212] text-white">Pop</option>
+                      <option value="Eletrônica" className="bg-[#121212] text-white">Eletrônica</option>
+                      <option value="Rock" className="bg-[#121212] text-white">Rock</option>
+                      <option value="Outro" className="bg-[#121212] text-white">Outro</option>
+                    </select>
+                  </div>
                   </div>
                   <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10 mt-4">
                     <span className="text-gray-300">Tema da Interface</span>

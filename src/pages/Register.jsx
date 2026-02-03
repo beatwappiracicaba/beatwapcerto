@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock, User, CheckCircle, Key } from 'lucide-react';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -9,6 +9,7 @@ import { useToast } from '../context/ToastContext';
 
 const Register = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState('register'); // 'register' | 'verify'
@@ -19,6 +20,18 @@ const Register = () => {
     password: '', 
     confirmPassword: '' 
   });
+  const [roleParam, setRoleParam] = useState(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const name = params.get('name') || '';
+    const email = params.get('email') || '';
+    const role = params.get('role') || '';
+    if (name || email || role) {
+      setFormData(prev => ({ ...prev, name, email }));
+      setRoleParam(role);
+    }
+  }, [location.search]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -49,6 +62,14 @@ const Register = () => {
       
       if (authData.session) {
         // Logged in immediately (Email confirmation disabled)
+        try {
+          if (roleParam) {
+            await supabase
+              .from('profiles')
+              .update({ cargo: roleParam === 'Produtor' ? 'Produtor' : 'Artista', nome: capitalizedName })
+              .eq('id', authData.session.user.id);
+          }
+        } catch {}
         addToast('Conta criada com sucesso!', 'success');
         navigate('/dashboard');
       } else if (authData.user) {
@@ -79,6 +100,14 @@ const Register = () => {
       if (error) throw error;
 
       if (data.session) {
+        try {
+          if (roleParam) {
+            await supabase
+              .from('profiles')
+              .update({ cargo: roleParam === 'Produtor' ? 'Produtor' : 'Artista', nome: formData.name })
+              .eq('id', data.session.user.id);
+          }
+        } catch {}
         addToast('Email verificado com sucesso!', 'success');
         navigate('/');
       }

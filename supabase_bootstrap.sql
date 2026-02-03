@@ -27,6 +27,7 @@ create table public.profiles (
   estado text,
   plano text default 'Gratuito',
   tema text default 'dark',
+  genero_musical text,
   created_at timestamptz default now(),
   check (cargo in ('Artista','Produtor','Vendedor'))
 );

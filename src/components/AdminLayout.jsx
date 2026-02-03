@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutGrid, Users, Music, LogOut, Menu, X } from 'lucide-react';
+import { LayoutGrid, Users, Music, LogOut, Menu, X, Settings } from 'lucide-react';
 import { Card } from './ui/Card';
 import { AnimatedButton } from './ui/AnimatedButton';
 import { useAuth } from '../context/AuthContext';
@@ -34,6 +34,9 @@ export const AdminLayout = ({ children }) => {
           </NavLink>
           <NavLink to="/admin/sponsors" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
             <Users size={18} /> Patrocinadores/Parcerias
+          </NavLink>
+          <NavLink to="/admin/settings" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+            <Settings size={18} /> Configurações
           </NavLink>
           {/* Chat removido do menu, manter apenas flutuante */}
         </nav>

@@ -26,7 +26,8 @@ add column if not exists plano text default 'Gratuito',
 add column if not exists plan_started_at timestamptz default now(),
 add column if not exists tema text default 'dark', -- 'dark' ou 'light'
 add column if not exists instagram_url text,
-add column if not exists site_url text;
+add column if not exists site_url text,
+add column if not exists genero_musical text;
 
 -- Criação dos buckets de storage (se não existirem)
 insert into storage.buckets (id, name, public)

@@ -290,36 +290,38 @@ const Home = () => {
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="group relative inline-block"
-                    onClick={() => setActiveSponsorMenu(activeSponsorMenu === s.id ? null : s.id)}
+                    className="inline-block"
                   >
-                    <div className="w-24 h-24 rounded-xl overflow-hidden mx-auto bg-gray-800 border-2 border-black flex items-center justify-center">
+                    <div
+                      className="group relative w-24 h-24 rounded-xl overflow-hidden mx-auto bg-gray-800 border-2 border-black flex items-center justify-center cursor-pointer"
+                      onClick={() => setActiveSponsorMenu(activeSponsorMenu === s.id ? null : s.id)}
+                    >
                       {s.logo_url ? (
                         <img src={s.logo_url} alt={s.name} className="w-full h-full object-contain" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-white text-sm">Sem logo</div>
                       )}
-                    </div>
-                    <div className={`absolute inset-0 rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center ${activeSponsorMenu === s.id ? 'opacity-100' : ''}`}>
-                      <div className="flex items-center gap-4">
-                        {s.instagram_url && (
-                          <button
-                            className="p-2 rounded-full bg-beatwap-gold text-black hover:bg-white transition-colors"
-                            onClick={(e) => { e.stopPropagation(); window.open(s.instagram_url, '_blank'); }}
-                            aria-label="Instagram"
-                          >
-                            <Instagram size={18} />
-                          </button>
-                        )}
-                        {s.site_url && (
-                          <button
-                            className="p-2 rounded-full bg-beatwap-gold text-black hover:bg-white transition-colors"
-                            onClick={(e) => { e.stopPropagation(); window.open(s.site_url, '_blank'); }}
-                            aria-label="Site"
-                          >
-                            <Globe size={18} />
-                          </button>
-                        )}
+                      <div className={`absolute inset-0 rounded-xl bg-black/40 opacity-0 transition-opacity flex items-center justify-center ${activeSponsorMenu === s.id ? 'opacity-100' : 'group-hover:opacity-100'}`}>
+                        <div className="flex items-center gap-4">
+                          {s.instagram_url && (
+                            <button
+                              className="p-2 rounded-full bg-beatwap-gold text-black hover:bg-white transition-colors"
+                              onClick={(e) => { e.stopPropagation(); window.open(s.instagram_url, '_blank'); }}
+                              aria-label="Instagram"
+                            >
+                              <Instagram size={18} />
+                            </button>
+                          )}
+                          {s.site_url && (
+                            <button
+                              className="p-2 rounded-full bg-beatwap-gold text-black hover:bg-white transition-colors"
+                              onClick={(e) => { e.stopPropagation(); window.open(s.site_url, '_blank'); }}
+                              aria-label="Site"
+                            >
+                              <Globe size={18} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </motion.div>

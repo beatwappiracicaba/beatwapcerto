@@ -31,7 +31,9 @@ const UserCard = ({ user, type, onSelect }) => {
       </div>
       <div className="p-4">
         <h3 className="font-bold text-lg text-white truncate">{user.name || (type === 'producer' ? 'Produtor' : 'Artista')}</h3>
-        <p className="text-sm text-gray-400 truncate">{type === 'producer' ? 'Produtor' : 'Artista'}</p>
+        <p className="text-sm text-gray-400 truncate">
+          {(type === 'producer' ? 'Produtor' : 'Artista')}{user.genero_musical ? ` • ${user.genero_musical}` : ''}
+        </p>
       </div>
     </motion.div>
   );
