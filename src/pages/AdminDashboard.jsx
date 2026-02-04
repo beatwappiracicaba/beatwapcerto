@@ -553,7 +553,7 @@ export const AdminArtists = () => {
               {workEvents.map(ev => (
                 <div key={ev.id} className="p-2 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
                   <div>
-                    <div className="font-bold text-white text-sm">{ev.type}: {ev.title}</div>
+                    <div className="font-bold text-white text-sm truncate max-w-[150px]">{ev.type}: {ev.title}</div>
                     <div className="text-xs text-gray-400">{new Date(ev.date).toLocaleDateString()}</div>
                   </div>
                 </div>
@@ -567,7 +567,7 @@ export const AdminArtists = () => {
               {workTodos.map(td => (
                 <div key={td.id} className="p-2 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
                   <div>
-                    <div className="font-bold text-white text-sm">{td.title}</div>
+                    <div className="font-bold text-white text-sm truncate max-w-[150px]">{td.title}</div>
                     <div className="text-xs text-gray-400">{td.due_date ? new Date(td.due_date).toLocaleDateString() : 'Sem prazo'}</div>
                   </div>
                   <select className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs" value={td.status} onChange={(e) => updateTodoStatus(td.id, e.target.value)}>
@@ -834,9 +834,9 @@ export const AdminMusics = () => {
               animate={{ opacity: 1, y: 0 }}
               whileHover={{ scale: 1.01 }}
               transition={{ duration: 0.2 }}
-              className="p-4 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-black/20 flex flex-col md:flex-row items-start md:items-center gap-4 hover:border-beatwap-gold/40 hover:shadow-[0_0_30px_rgba(245,197,66,0.18)]"
+              className="p-4 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-black/20 flex flex-col md:flex-row items-center gap-4 hover:border-beatwap-gold/40 hover:shadow-[0_0_30px_rgba(245,197,66,0.18)]"
             >
-              <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gray-800 border border-white/10 ring-1 ring-black/50 flex items-center justify-center relative cursor-pointer"
+              <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gray-800 border border-white/10 ring-1 ring-black/50 flex items-center justify-center relative cursor-pointer flex-shrink-0"
                    onClick={() => togglePlay(m.id, m.preview_url || m.audio_url)}>
                 {m.cover_url ? (
                   <img src={m.cover_url} alt={m.titulo} className="w-full h-full object-cover" />
@@ -1630,8 +1630,8 @@ export const AdminSponsors = () => {
               <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center">
                 {s.logo_url ? <img src={s.logo_url} alt={s.name} className="w-full h-full object-contain" /> : <span className="text-xs text-gray-400">Sem logo</span>}
               </div>
-              <div className="flex-1">
-                <div className="font-bold text-white text-sm">{s.name}</div>
+              <div className="flex-1 overflow-hidden">
+                <div className="font-bold text-white text-sm truncate">{s.name}</div>
                 <div className="text-xs text-gray-400 flex gap-2 mt-1">
                   {s.instagram_url && <a href={s.instagram_url} target="_blank" rel="noreferrer" className="hover:underline">Instagram</a>}
                   {s.site_url && <a href={s.site_url} target="_blank" rel="noreferrer" className="hover:underline">Site</a>}
