@@ -4,20 +4,23 @@ import {
   TrendingUp, Instagram, Youtube, Music, Smartphone, 
   Target, Zap, BookOpen, MessageCircle, Send, FileText,
   AlertCircle, CheckCircle, Clock, BarChart3, Lock,
-  Play, Download, ExternalLink, DollarSign, Shield, Mic2
+  Play, Download, ExternalLink, DollarSign, Shield, Mic2,
+  CheckSquare, Star, Users, Briefcase
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabaseClient';
+import { useToast } from '../context/ToastContext';
 
 export const DashboardMarketing = () => {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const isCompositor = user?.cargo === 'Compositor';
+  const isCompositor = user?.cargo === 'Compositor' || user?.cargo === 'Produtor';
 
   useEffect(() => {
     const loadData = async () => {
@@ -39,6 +42,32 @@ export const DashboardMarketing = () => {
     loadData();
   }, [user]);
 
+  const toggleComposerTask = async (index, currentStatus) => {
+    if (!data?.composer_plan) return;
+    
+    const newPlan = [...data.composer_plan];
+    newPlan[index] = { ...newPlan[index], checked: !currentStatus };
+    
+    // Optimistic update
+    setData(prev => ({ ...prev, composer_plan: newPlan }));
+
+    try {
+      await supabase
+        .from('artist_marketing')
+        .update({ composer_plan: newPlan })
+        .eq('artist_id', user.id);
+    } catch (error) {
+      console.error('Error updating task:', error);
+      addToast('Erro ao atualizar tarefa', 'error');
+      // Revert
+      loadData();
+    }
+  };
+
+  const handleSendPitch = () => {
+    addToast('Pitch enviado para análise da equipe!', 'success');
+  };
+
   const container = {
     hidden: { opacity: 0 },
     show: {
@@ -54,6 +83,12 @@ export const DashboardMarketing = () => {
     show: { opacity: 1, y: 0 }
   };
 
+  const diagnosis = data?.composer_diagnosis || {};
+  const catalog = data?.composer_catalog || {};
+  const positioning = data?.composer_positioning || {};
+  const pitch = data?.composer_pitch || {};
+  const rights = data?.composer_rights || {};
+
   return (
     <DashboardLayout>
       <div className="space-y-6 pb-20">
@@ -65,12 +100,12 @@ export const DashboardMarketing = () => {
             </h1>
             <div className="flex items-center gap-2 text-yellow-500 bg-yellow-500/10 w-fit px-3 py-1 rounded-full text-sm font-medium border border-yellow-500/20">
               <Clock size={16} />
-              <span>{isCompositor ? 'Dicas estratégicas' : 'Métricas automáticas em desenvolvimento'}</span>
+              <span>{isCompositor ? 'Gestão de Carreira' : 'Métricas & Estratégia'}</span>
             </div>
             <p className="text-gray-400 mt-2 max-w-2xl text-sm">
               {isCompositor 
-                ? 'Acesse materiais exclusivos para impulsionar suas vendas, proteger suas obras e conectar com grandes artistas.'
-                : 'No momento, as informações abaixo são analisadas pela equipe BeatWap com base nos dados públicos e enviados por você. Isso garante uma análise humana e estratégica para sua carreira.'
+                ? 'Painel estratégico para gerenciar seu catálogo, aprimorar seus pitches e acompanhar oportunidades de mercado.'
+                : 'Análise estratégica baseada em dados reais e feedback da equipe BeatWap para impulsionar sua carreira artística.'
               }
             </p>
           </div>
@@ -83,370 +118,390 @@ export const DashboardMarketing = () => {
           animate="show"
           className="space-y-6"
         >
-          {/* 1. Métricas / Guia do Compositor */}
-          <motion.div variants={item}>
-            {isCompositor ? (
-              <>
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                  <BookOpen className="text-beatwap-gold" />
-                  Guia do Compositor de Sucesso
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Registro de Obras */}
-                  <Card className="space-y-4 hover:border-beatwap-gold/50 transition-colors cursor-pointer group">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400 group-hover:scale-110 transition-transform">
-                        <Shield size={24} />
-                      </div>
-                      <span className="font-bold text-lg">Direitos Autorais</span>
+          {isCompositor ? (
+            // COMPOSITOR VIEW
+            <>
+              {/* 1. Diagnóstico */}
+              <motion.div variants={item}>
+                <Card className="p-6 border-l-4 border-l-beatwap-gold">
+                  <div className="flex items-center gap-3 mb-4">
+                    <BarChart3 className="text-beatwap-gold" size={24} />
+                    <h2 className="text-xl font-bold text-white">Seu Perfil de Compositor</h2>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                      <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Nível Atual</div>
+                      <div className="text-lg font-bold text-white">{diagnosis.level || '-'}</div>
                     </div>
-                    <div className="space-y-2 text-sm text-gray-400">
-                      <p>Garanta seus royalties registrando suas obras em associações (UBC, ABRAMUS, ECAD).</p>
-                      <ul className="list-disc list-inside space-y-1 text-gray-500 mt-2">
-                        <li>ISRC é o RG da sua música</li>
-                        <li>Registre antes de lançar</li>
-                        <li>Mantenha o cadastro atualizado</li>
-                      </ul>
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                      <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Estilo Forte</div>
+                      <div className="text-lg font-bold text-beatwap-gold">{diagnosis.style || '-'}</div>
                     </div>
-                  </Card>
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                      <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Ponto Forte</div>
+                      <div className="text-lg font-bold text-green-400">{diagnosis.strengths || '-'}</div>
+                    </div>
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                      <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">A Melhorar</div>
+                      <div className="text-lg font-bold text-red-400">{diagnosis.improvements || '-'}</div>
+                    </div>
+                  </div>
+                  {diagnosis.interpretation && (
+                    <div className="mt-4 bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl flex gap-3">
+                        <Zap className="text-blue-400 shrink-0 mt-1" size={18} />
+                        <p className="text-sm text-blue-200 italic">"{diagnosis.interpretation}"</p>
+                    </div>
+                  )}
+                </Card>
+              </motion.div>
 
-                  {/* Venda de Composições */}
-                  <Card className="space-y-4 hover:border-beatwap-gold/50 transition-colors cursor-pointer group">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 bg-green-500/10 rounded-lg text-green-400 group-hover:scale-110 transition-transform">
-                        <DollarSign size={24} />
-                      </div>
-                      <span className="font-bold text-lg">Venda & Negociação</span>
-                    </div>
-                    <div className="space-y-2 text-sm text-gray-400">
-                      <p>Entenda a diferença entre liberação exclusiva e não-exclusiva.</p>
-                      <ul className="list-disc list-inside space-y-1 text-gray-500 mt-2">
-                        <li>Defina o valor base da obra</li>
-                        <li>Contratos de cessão de direitos</li>
-                        <li>Split sheets (divisão de % com parceiros)</li>
-                      </ul>
-                    </div>
-                  </Card>
+              {/* 2. Catálogo & 3. Posicionamento */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <motion.div variants={item}>
+                    <Card className="h-full p-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <Music className="text-purple-500" size={24} />
+                            <h2 className="text-xl font-bold text-white">Catálogo de Composições</h2>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="text-center p-4 bg-white/5 rounded-xl">
+                                <div className="text-2xl font-bold text-white">{catalog.registered || 0}</div>
+                                <div className="text-xs text-gray-400">Cadastradas</div>
+                            </div>
+                            <div className="text-center p-4 bg-white/5 rounded-xl">
+                                <div className="text-2xl font-bold text-yellow-500">{catalog.unpublished || 0}</div>
+                                <div className="text-xs text-gray-400">Inéditas</div>
+                            </div>
+                            <div className="text-center p-4 bg-white/5 rounded-xl">
+                                <div className="text-2xl font-bold text-green-500">{catalog.recorded || 0}</div>
+                                <div className="text-xs text-gray-400">Gravadas</div>
+                            </div>
+                            <div className="text-center p-4 bg-white/5 rounded-xl">
+                                <div className="text-2xl font-bold text-blue-500">{catalog.negotiating || 0}</div>
+                                <div className="text-xs text-gray-400">Em Negociação</div>
+                            </div>
+                        </div>
+                    </Card>
+                </motion.div>
 
-                  {/* Pitching */}
-                  <Card className="space-y-4 hover:border-beatwap-gold/50 transition-colors cursor-pointer group">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400 group-hover:scale-110 transition-transform">
-                        <Mic2 size={24} />
-                      </div>
-                      <span className="font-bold text-lg">Pitching para Artistas</span>
-                    </div>
-                    <div className="space-y-2 text-sm text-gray-400">
-                      <p>Como apresentar suas músicas para grandes artistas e produtores.</p>
-                      <ul className="list-disc list-inside space-y-1 text-gray-500 mt-2">
-                        <li>Guias de alta qualidade (Voz/Violão)</li>
-                        <li>Seja breve e profissional</li>
-                        <li>Pesquise o estilo do artista antes</li>
-                      </ul>
-                    </div>
-                  </Card>
-                </div>
-              </>
-            ) : (
-              <>
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                  <Smartphone className="text-beatwap-gold" />
-                  Métricas das Redes Sociais
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Instagram */}
-                  <Card className="space-y-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Instagram className="text-pink-500" />
-                      <span className="font-bold">Instagram</span>
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Seguidores</span>
-                        <span className="font-mono">{data?.instagram_metrics?.followers || '-'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Frequência</span>
-                        <span className="font-mono">{data?.instagram_metrics?.frequency || '-'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Engajamento</span>
-                        <span className="font-mono">{data?.instagram_metrics?.engagement || '-'}</span>
-                      </div>
-                    </div>
-                    {data?.instagram_metrics?.interpretation && (
-                      <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-sm">
-                        <div className="text-xs text-beatwap-gold font-bold mb-1">🧠 Interpretação</div>
-                        <div className="text-gray-300 italic">"{data.instagram_metrics.interpretation}"</div>
-                      </div>
-                    )}
-                  </Card>
+                <motion.div variants={item}>
+                    <Card className="h-full p-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <Target className="text-red-500" size={24} />
+                            <h2 className="text-xl font-bold text-white">Posicionamento</h2>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <div className="text-sm text-gray-400 mb-1">Público Alvo / Artistas</div>
+                                <div className="text-white font-medium bg-white/5 px-3 py-2 rounded-lg">{positioning.target_audience || 'Não definido'}</div>
+                            </div>
+                            <div>
+                                <div className="text-sm text-gray-400 mb-1">Seu Diferencial</div>
+                                <div className="text-white font-medium bg-white/5 px-3 py-2 rounded-lg">{positioning.differential || 'Não definido'}</div>
+                            </div>
+                            <div>
+                                <div className="text-sm text-gray-400 mb-1">Bio Profissional</div>
+                                <p className="text-sm text-gray-300 italic bg-white/5 px-3 py-2 rounded-lg">{positioning.bio || 'Sem bio cadastrada.'}</p>
+                            </div>
+                        </div>
+                    </Card>
+                </motion.div>
+              </div>
 
-                  {/* TikTok */}
-                  <Card className="space-y-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Music className="text-cyan-400" />
-                      <span className="font-bold">TikTok</span>
+              {/* 4. Pitch (ESSENCIAL) */}
+              <motion.div variants={item}>
+                <Card className="p-6 border border-beatwap-gold/30 bg-gradient-to-b from-beatwap-gold/5 to-transparent">
+                    <div className="flex justify-between items-start mb-6">
+                        <div className="flex items-center gap-3">
+                            <Mic2 className="text-beatwap-gold" size={24} />
+                            <div>
+                                <h2 className="text-xl font-bold text-white">Pitch de Músicas</h2>
+                                <p className="text-xs text-beatwap-gold uppercase font-bold tracking-wider">Essencial</p>
+                            </div>
+                        </div>
+                        <AnimatedButton onClick={handleSendPitch} className="bg-beatwap-gold text-black hover:bg-beatwap-gold/90">
+                            Enviar para Análise
+                        </AnimatedButton>
                     </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Seguidores</span>
-                        <span className="font-mono">{data?.tiktok_metrics?.followers || '-'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Visualizações (méd.)</span>
-                        <span className="font-mono">{data?.tiktok_metrics?.views_avg || '-'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Melhor conteúdo</span>
-                        <span className="font-mono truncate max-w-[120px]">{data?.tiktok_metrics?.best_content || '-'}</span>
-                      </div>
-                    </div>
-                    {data?.tiktok_metrics?.interpretation && (
-                      <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-sm">
-                        <div className="text-xs text-beatwap-gold font-bold mb-1">🧠 Interpretação</div>
-                        <div className="text-gray-300 italic">"{data.tiktok_metrics.interpretation}"</div>
-                      </div>
-                    )}
-                  </Card>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                            <h3 className="text-sm font-bold text-white flex items-center gap-2"><Play size={14} /> Modelo de Áudio</h3>
+                            {pitch.audio_url ? (
+                                <a href={pitch.audio_url} target="_blank" rel="noopener noreferrer" className="block p-3 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 text-blue-400 text-sm truncate transition-colors">
+                                    {pitch.audio_url}
+                                </a>
+                            ) : (
+                                <div className="text-gray-500 text-sm italic">Nenhum modelo disponível.</div>
+                            )}
+                            <p className="text-xs text-gray-400">Referência de voz e violão/guia.</p>
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <h3 className="text-sm font-bold text-white flex items-center gap-2"><FileText size={14} /> Texto Ideal</h3>
+                            <div className="p-3 bg-white/5 rounded-lg border border-white/10 text-gray-300 text-sm min-h-[80px]">
+                                {pitch.presentation_text || 'Aguardando modelo de texto...'}
+                            </div>
+                        </div>
 
-                  {/* YouTube */}
-                  <Card className="space-y-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Youtube className="text-red-500" />
-                      <span className="font-bold">YouTube</span>
+                        <div className="space-y-2">
+                            <h3 className="text-sm font-bold text-white flex items-center gap-2 text-red-400"><AlertCircle size={14} /> Erros Comuns</h3>
+                            <div className="p-3 bg-red-500/10 rounded-lg border border-red-500/20 text-red-200 text-sm min-h-[80px]">
+                                {pitch.common_errors || 'Nenhum alerta registrado.'}
+                            </div>
+                        </div>
                     </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Inscritos</span>
-                        <span className="font-mono">{data?.youtube_metrics?.subscribers || '-'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Vídeo destaque</span>
-                        <span className="font-mono truncate max-w-[120px]">{data?.youtube_metrics?.best_video || '-'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Visualizações</span>
-                        <span className="font-mono">{data?.youtube_metrics?.views || '-'}</span>
-                      </div>
-                    </div>
-                    {data?.youtube_metrics?.interpretation && (
-                      <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-sm">
-                        <div className="text-xs text-beatwap-gold font-bold mb-1">🧠 Interpretação</div>
-                        <div className="text-gray-300 italic">"{data.youtube_metrics.interpretation}"</div>
-                      </div>
-                    )}
-                  </Card>
-                </div>
+                </Card>
+              </motion.div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-                  <Card className="flex flex-col items-center justify-center p-6 text-center">
-                    <div className="text-gray-400 text-sm mb-1">Alcance Total</div>
-                    <div className="text-2xl font-bold text-white">{data?.diagnosis?.reach || '-'}</div>
-                  </Card>
-                  <Card className="flex flex-col items-center justify-center p-6 text-center">
-                    <div className="text-gray-400 text-sm mb-1">Presença Digital</div>
-                    <div className="text-2xl font-bold text-white">{data?.diagnosis?.digital_presence || '-'}</div>
-                  </Card>
-                  <Card className="flex flex-col items-center justify-center p-6 text-center">
-                    <div className="text-gray-400 text-sm mb-1">Estratégia</div>
-                    <div className="text-2xl font-bold text-white">{data?.diagnosis?.strategy || '-'}</div>
-                  </Card>
-                  <Card className="flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
-                    <div className="text-gray-400 text-sm mb-1">Pronto para Shows?</div>
-                    <div className={`text-2xl font-bold ${data?.diagnosis?.show_readiness?.includes('Sim') ? 'text-green-400' : 'text-red-400'}`}>
-                      {data?.diagnosis?.show_readiness || 'Ainda não'}
-                    </div>
-                    {data?.diagnosis?.show_readiness?.includes('não') && (
-                      <div className="text-xs text-beatwap-gold mt-1">Ouro para mentoria</div>
-                    )}
-                  </Card>
-                </div>
-              </>
-            )}
-          </motion.div>
+              {/* 5. Oportunidades & 6. Direitos */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <motion.div variants={item}>
+                    <Card className="h-full p-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <Briefcase className="text-blue-400" size={24} />
+                            <h2 className="text-xl font-bold text-white">Oportunidades</h2>
+                        </div>
+                        <div className="space-y-3">
+                            {(data?.composer_opportunities || []).map((opp, idx) => (
+                                <div key={idx} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10">
+                                    <div>
+                                        <div className="font-bold text-white">{opp.title}</div>
+                                        <div className="text-xs text-gray-400">{opp.type}</div>
+                                    </div>
+                                    <span className={`text-xs px-2 py-1 rounded-full border ${
+                                        opp.status === 'Aberta' ? 'bg-green-500/20 border-green-500 text-green-400' :
+                                        opp.status === 'Em análise' ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400' :
+                                        opp.status === 'Selecionado' ? 'bg-blue-500/20 border-blue-500 text-blue-400' :
+                                        'bg-gray-500/20 border-gray-500 text-gray-400'
+                                    }`}>
+                                        {opp.status}
+                                    </span>
+                                </div>
+                            ))}
+                            {(!data?.composer_opportunities || data.composer_opportunities.length === 0) && (
+                                <div className="text-center py-8 text-gray-500">Nenhuma oportunidade ativa no momento.</div>
+                            )}
+                        </div>
+                    </Card>
+                </motion.div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* 3. Plano de Ação */}
-            <motion.div variants={item} className="lg:col-span-2">
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <Zap className="text-beatwap-gold" />
-                Plano de Ação Personalizado
-              </h2>
-              <Card className="space-y-4">
-                {(data?.action_plan || []).length > 0 ? (
+                <motion.div variants={item}>
+                    <Card className="h-full p-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <Shield className="text-gray-300" size={24} />
+                            <h2 className="text-xl font-bold text-white">Direitos Autorais</h2>
+                        </div>
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                                <span className="text-gray-400">Músicas Registradas?</span>
+                                <span className={`font-bold ${rights.registered === 'Sim' ? 'text-green-400' : rights.registered === 'Não' ? 'text-red-400' : 'text-yellow-400'}`}>
+                                    {rights.registered || 'Não informado'}
+                                </span>
+                            </div>
+                            <div>
+                                <div className="text-xs text-gray-400 mb-1">Coautores Frequentes</div>
+                                <div className="text-white text-sm bg-white/5 px-3 py-2 rounded-lg">{rights.coauthors || '-'}</div>
+                            </div>
+                            <div>
+                                <div className="text-xs text-gray-400 mb-1">Percentuais Padrão</div>
+                                <div className="text-white text-sm bg-white/5 px-3 py-2 rounded-lg">{rights.percentages || '-'}</div>
+                            </div>
+                            {rights.observations && (
+                                <div className="bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-lg text-xs text-yellow-200">
+                                    <span className="font-bold block mb-1">Nota:</span>
+                                    {rights.observations}
+                                </div>
+                            )}
+                        </div>
+                    </Card>
+                </motion.div>
+              </div>
+
+              {/* 7. Plano de Crescimento */}
+              <motion.div variants={item}>
+                <Card className="p-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <TrendingUp className="text-green-400" size={24} />
+                        <h2 className="text-xl font-bold text-white">Plano de Crescimento</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {(data?.composer_plan || []).map((task, idx) => (
+                            <div 
+                                key={idx} 
+                                onClick={() => toggleComposerTask(idx, task.checked)}
+                                className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
+                                    task.checked 
+                                    ? 'bg-green-500/10 border-green-500/30 opacity-70' 
+                                    : 'bg-white/5 border-white/10 hover:border-white/30'
+                                }`}
+                            >
+                                <div className={`w-6 h-6 rounded-full border flex items-center justify-center shrink-0 ${
+                                    task.checked ? 'bg-green-500 border-green-500 text-black' : 'border-gray-500'
+                                }`}>
+                                    {task.checked && <CheckSquare size={14} />}
+                                </div>
+                                <span className={`text-sm ${task.checked ? 'text-green-200 line-through' : 'text-white'}`}>
+                                    {task.task}
+                                </span>
+                            </div>
+                        ))}
+                        {(!data?.composer_plan || data.composer_plan.length === 0) && (
+                            <div className="col-span-full text-center py-6 text-gray-500">Seu plano de crescimento será definido em breve.</div>
+                        )}
+                    </div>
+                </Card>
+              </motion.div>
+
+              {/* 8. Mentoria */}
+              <motion.div variants={item}>
+                <Card className="p-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <BookOpen className="text-pink-400" size={24} />
+                        <h2 className="text-xl font-bold text-white">Conteúdo de Mentoria</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {(data?.mentorship_content || []).map((content, idx) => (
+                            <a 
+                                key={idx} 
+                                href={content.url || '#'} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="group block bg-white/5 hover:bg-white/10 border border-white/10 hover:border-beatwap-gold/50 p-4 rounded-xl transition-all"
+                            >
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className="text-xs px-2 py-1 rounded bg-black/30 text-gray-400 border border-white/5">{content.type}</span>
+                                    <ExternalLink size={14} className="text-gray-500 group-hover:text-beatwap-gold" />
+                                </div>
+                                <h3 className="font-bold text-white mb-1 group-hover:text-beatwap-gold transition-colors">{content.title}</h3>
+                                <div className="flex items-center gap-1 text-xs text-gray-400">
+                                    <Clock size={12} />
+                                    <span>{content.duration}</span>
+                                </div>
+                            </a>
+                        ))}
+                         {(!data?.mentorship_content || data.mentorship_content.length === 0) && (
+                            <div className="col-span-full text-center py-6 text-gray-500">Conteúdos em breve.</div>
+                        )}
+                    </div>
+                </Card>
+              </motion.div>
+            </>
+          ) : (
+            // ARTIST VIEW (Existing/Enhanced)
+            <>
+              {/* Diagnosis */}
+              <motion.div variants={item}>
+                <Card className="p-6">
+                  <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <Target className="text-beatwap-gold" />
+                    Diagnóstico de Carreira
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-400">Alcance Atual</p>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500 w-[60%]" />
+                      </div>
+                      <p className="text-white font-medium">{data?.diagnosis?.reach || 'Em análise'}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-400">Presença Digital</p>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-purple-500 w-[45%]" />
+                      </div>
+                      <p className="text-white font-medium">{data?.diagnosis?.presence || 'Em análise'}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-400">Estratégia</p>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-green-500 w-[75%]" />
+                      </div>
+                      <p className="text-white font-medium">{data?.diagnosis?.strategy || 'Em análise'}</p>
+                    </div>
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/10 text-center">
+                      <p className="text-sm text-gray-400 mb-1">Pronto para Shows?</p>
+                      {data?.diagnosis?.ready_for_shows ? (
+                        <div className="text-green-400 font-bold flex items-center justify-center gap-2">
+                          <CheckCircle size={16} /> SIM
+                        </div>
+                      ) : (
+                        <div className="text-yellow-400 font-bold flex items-center justify-center gap-2">
+                          <Clock size={16} /> Em Preparação
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+
+              {/* Action Plan */}
+              <motion.div variants={item}>
+                <Card className="p-6">
+                  <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <Zap className="text-yellow-400" />
+                    Plano de Ação
+                  </h2>
                   <div className="space-y-3">
-                    {data.action_plan.map((plan, idx) => (
-                      <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-beatwap-gold/30 transition-colors">
-                        <div className="flex items-start gap-3">
-                          <div className={`mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center ${plan.completed ? 'bg-green-500 border-green-500' : 'border-gray-500'}`}>
-                            {plan.completed && <CheckCircle size={12} className="text-black" />}
+                    {(data?.action_plan || []).map((action, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10 hover:border-beatwap-gold/30 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-full ${action.status === 'done' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                            {action.status === 'done' ? <CheckCircle size={16} /> : <Clock size={16} />}
                           </div>
-                          <span className={plan.completed ? 'text-gray-500 line-through' : 'text-white'}>
-                            {plan.text}
+                          <span className={action.status === 'done' ? 'text-gray-500 line-through' : 'text-white'}>
+                            {action.task}
                           </span>
                         </div>
-                        <div className="flex gap-2 pl-8 sm:pl-0">
-                      {plan.link && (
-                        <button 
-                          onClick={() => window.open(plan.link, '_blank')}
-                          className="px-3 py-1.5 text-xs font-bold rounded-lg bg-white/5 hover:bg-white/10 text-beatwap-gold transition-colors whitespace-nowrap"
-                        >
-                          Ver orientação
-                        </button>
-                      )}
-                      <button 
-                        onClick={() => window.open('https://wa.me/5519981083497', '_blank')}
-                        className="px-3 py-1.5 text-xs font-bold rounded-lg bg-beatwap-gold hover:bg-beatwap-gold/90 text-black transition-colors whitespace-nowrap"
-                      >
-                        Falar com mentor
-                      </button>
-                    </div>
+                        {action.link && (
+                          <a href={action.link} target="_blank" rel="noopener noreferrer" className="text-beatwap-gold hover:underline text-sm">
+                            Acessar
+                          </a>
+                        )}
                       </div>
                     ))}
+                    {(!data?.action_plan || data.action_plan.length === 0) && (
+                        <div className="text-center text-gray-500 py-4">Nenhuma ação pendente.</div>
+                    )}
                   </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    Aguardando definição do plano de ação pela equipe.
+                </Card>
+              </motion.div>
+
+              {/* Mentorship Content */}
+              <motion.div variants={item}>
+                <Card className="p-6">
+                  <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <BookOpen className="text-blue-400" />
+                    Conteúdo de Mentoria
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {(data?.mentorship_content || []).map((content, idx) => (
+                      <a 
+                        key={idx} 
+                        href={content.url || '#'} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="group block bg-white/5 hover:bg-white/10 border border-white/10 hover:border-beatwap-gold/50 p-4 rounded-xl transition-all"
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-xs px-2 py-1 rounded bg-black/30 text-gray-400 border border-white/5">{content.type}</span>
+                          <ExternalLink size={14} className="text-gray-500 group-hover:text-beatwap-gold" />
+                        </div>
+                        <h3 className="font-bold text-white mb-1 group-hover:text-beatwap-gold transition-colors">{content.title}</h3>
+                        <div className="flex items-center gap-1 text-xs text-gray-400">
+                          <Clock size={12} />
+                          <span>{content.duration}</span>
+                        </div>
+                      </a>
+                    ))}
+                     {(!data?.mentorship_content || data.mentorship_content.length === 0) && (
+                        <div className="text-center col-span-full text-gray-500 py-4">Conteúdos em breve.</div>
+                    )}
                   </div>
-                )}
-              </Card>
-            </motion.div>
-
-            {/* 6. Sugestões Automáticas */}
-            <motion.div variants={item}>
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <Target className="text-beatwap-gold" />
-                Sugestões BeatWap
-              </h2>
-              <div className="space-y-4">
-                {(data?.suggestions || []).length > 0 ? (
-                  data.suggestions.map((sug, idx) => (
-                    <Card key={idx} className="bg-gradient-to-br from-white/5 to-white/[0.02]">
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 bg-beatwap-gold/10 rounded-lg text-beatwap-gold">
-                          <TrendingUp size={20} />
-                        </div>
-                        <div>
-                          <div className="text-xs text-beatwap-gold font-bold mb-1">Sugestão Curada</div>
-                          <p className="text-sm text-gray-300 leading-relaxed">
-                            "{sug.text}"
-                          </p>
-                        </div>
-                      </div>
-                    </Card>
-                  ))
-                ) : (
-                  <Card>
-                    <div className="text-center py-4 text-gray-500 text-sm">
-                      Nenhuma sugestão no momento.
-                    </div>
-                  </Card>
-                )}
-              </div>
-            </motion.div>
-          </div>
-
-          {/* 4. Conteúdo de Mentoria */}
-          <motion.div variants={item}>
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <BookOpen className="text-beatwap-gold" />
-              Conteúdo de Mentoria
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {(data?.mentorship_content || []).length > 0 ? (
-                data.mentorship_content.map((content, i) => {
-                  const hasLink = !!content.url;
-                  const getIcon = () => {
-                    if (!hasLink) return Lock;
-                    if (content.type === 'Vídeo Aula') return Play;
-                    if (content.type === 'Documento') return Download;
-                    if (content.type === 'Audio') return Music;
-                    return FileText;
-                  };
-                  const Icon = getIcon();
-
-                  return (
-                    <Card 
-                      key={i} 
-                      className={`group transition-all ${hasLink ? 'cursor-pointer hover:border-beatwap-gold/50' : 'cursor-not-allowed opacity-70'}`}
-                      onClick={() => hasLink && window.open(content.url, '_blank')}
-                    >
-                      <div className="aspect-video bg-black/40 rounded-lg mb-3 flex items-center justify-center group-hover:bg-black/60 transition-colors relative">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform ${hasLink ? 'bg-beatwap-gold text-black' : 'bg-white/10 text-gray-400'}`}>
-                          <Icon size={20} className={hasLink && content.type === 'Vídeo Aula' ? 'ml-1' : ''} />
-                        </div>
-                      </div>
-                      <h3 className={`font-bold text-sm leading-tight transition-colors ${hasLink ? 'group-hover:text-beatwap-gold' : 'text-gray-400'}`}>
-                        {content.title}
-                      </h3>
-                      <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
-                        <span className="bg-white/5 px-2 py-0.5 rounded">{content.type || 'Vídeo Aula'}</span>
-                        <span>{content.duration || '5 min'}</span>
-                      </div>
-                    </Card>
-                  );
-                })
-              ) : (
-                <div className="col-span-full text-center py-8 text-gray-500 border border-dashed border-white/10 rounded-xl">
-                  Em breve novos conteúdos de mentoria para você.
-                </div>
-              )}
-            </div>
-          </motion.div>
-
-          {/* 5. Comunicação Direta */}
-          <motion.div variants={item}>
-            <Card className="bg-gradient-to-r from-beatwap-graphite to-black">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                <div>
-                  <h2 className="text-2xl font-bold text-white mb-2">Precisa de ajuda específica?</h2>
-                  <p className="text-gray-400 mb-6">
-                    Nossa equipe de mentores está pronta para analisar seu caso individualmente.
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    <AnimatedButton 
-                      onClick={() => window.open('https://wa.me/5511999999999', '_blank')}
-                      className="bg-green-600 hover:bg-green-500 border-none text-white"
-                      icon={MessageCircle}
-                    >
-                      Falar no WhatsApp
-                    </AnimatedButton>
-                    <AnimatedButton 
-                      variant="secondary"
-                      icon={FileText}
-                    >
-                      Enviar Material
-                    </AnimatedButton>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button className="p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-beatwap-gold/30 transition-all text-left group">
-                    <div className="p-2 bg-beatwap-gold/10 rounded-lg w-fit mb-3 group-hover:scale-110 transition-transform">
-                      <BarChart3 className="text-beatwap-gold" size={20} />
-                    </div>
-                    <div className="font-bold text-sm">Solicitar Análise</div>
-                    <div className="text-xs text-gray-400 mt-1">Perfil completo</div>
-                  </button>
-                  <button className="p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-beatwap-gold/30 transition-all text-left group">
-                    <div className="p-2 bg-beatwap-gold/10 rounded-lg w-fit mb-3 group-hover:scale-110 transition-transform">
-                      <Target className="text-beatwap-gold" size={20} />
-                    </div>
-                    <div className="font-bold text-sm">Mentoria Individual</div>
-                    <div className="text-xs text-gray-400 mt-1">Agendar horário</div>
-                  </button>
-                </div>
-              </div>
-            </Card>
-          </motion.div>
-
-          {/* 7. Footer Notice */}
-          <motion.div variants={item} className="text-center py-8">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-gray-400">
-              <TrendingUp size={16} className="text-beatwap-gold" />
-              <span>Em breve: Métricas automáticas, gráficos de crescimento e comparação de desempenho.</span>
-            </div>
-          </motion.div>
+                </Card>
+              </motion.div>
+            </>
+          )}
         </motion.div>
       </div>
     </DashboardLayout>

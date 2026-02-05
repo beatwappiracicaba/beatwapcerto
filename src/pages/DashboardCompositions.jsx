@@ -13,6 +13,13 @@ export const DashboardCompositions = () => {
   const [loading, setLoading] = useState(true);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [compMetrics, setCompMetrics] = useState({});
+  const [summaryMetrics, setSummaryMetrics] = useState({
+    plays: 0,
+    listeners: 0,
+    time: 0,
+    profile_views: 0,
+    social_clicks: 0
+  });
 
   const fetchCompositions = useCallback(async () => {
     setLoading(true);
@@ -34,12 +41,31 @@ export const DashboardCompositions = () => {
       if (!user) return;
       const { data: ev } = await supabase
         .from('analytics_events')
-        .select('type,music_id,duration_seconds')
-        .eq('artist_id', user.id)
-        .in('type', ['music_play']);
+        .select('type,music_id,duration_seconds,ip_hash')
+        .eq('artist_id', user.id);
       
       const agg = {};
+      const summary = {
+        plays: 0,
+        listeners: new Set(),
+        time: 0,
+        profile_views: 0,
+        social_clicks: 0
+      };
+
       (ev || []).forEach(e => {
+        // Summary Metrics
+        if (e.type === 'music_play') {
+          summary.plays++;
+          summary.time += Number(e.duration_seconds || 0);
+          if (e.ip_hash) summary.listeners.add(e.ip_hash);
+        } else if (e.type === 'profile_view') {
+          summary.profile_views++;
+        } else if (e.type && e.type.startsWith('artist_click_')) {
+          summary.social_clicks++;
+        }
+
+        // Individual Composition Metrics
         const mid = e.music_id || 'unknown';
         if (!agg[mid]) agg[mid] = { plays: 0, totalSeconds: 0 };
         if (e.type === 'music_play') {
@@ -47,13 +73,54 @@ export const DashboardCompositions = () => {
           agg[mid].totalSeconds += Number(e.duration_seconds || 0);
         }
       });
+
       setCompMetrics(agg);
+      setSummaryMetrics({
+        plays: summary.plays,
+        listeners: summary.listeners.size,
+        time: summary.time,
+        profile_views: summary.profile_views,
+        social_clicks: summary.social_clicks
+      });
     };
     loadMetrics();
   }, [user]);
 
   return (
     <DashboardLayout>
+      {/* Summary Metrics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <Card>
+          <div className="text-sm text-gray-400">Total de Plays</div>
+          <div className="text-3xl font-bold">{loading ? '...' : summaryMetrics.plays}</div>
+        </Card>
+        <Card>
+          <div className="text-sm text-gray-400">Ouvintes</div>
+          <div className="text-3xl font-bold">{loading ? '...' : summaryMetrics.listeners}</div>
+        </Card>
+        <Card>
+          <div className="text-sm text-gray-400">Tempo Ouvido</div>
+          <div className="text-3xl font-bold">
+            {loading ? '...' : (() => {
+               const s = summaryMetrics.time || 0;
+               const h = Math.floor(s / 3600);
+               const m = Math.floor((s % 3600) / 60);
+               return `${h}h ${m}m`;
+            })()}
+          </div>
+        </Card>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <Card>
+          <div className="text-sm text-gray-400">Visitas no Perfil</div>
+          <div className="text-3xl font-bold">{loading ? '...' : summaryMetrics.profile_views}</div>
+        </Card>
+        <Card>
+          <div className="text-sm text-gray-400">Cliques Sociais</div>
+          <div className="text-3xl font-bold">{loading ? '...' : summaryMetrics.social_clicks}</div>
+        </Card>
+      </div>
+
       <Card>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-3">
           <div className="text-xl font-semibold text-white">Minhas Composições</div>

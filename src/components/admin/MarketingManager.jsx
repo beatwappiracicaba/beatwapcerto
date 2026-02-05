@@ -5,9 +5,9 @@ import { useToast } from '../../context/ToastContext';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
 import { Card } from '../ui/Card';
-import { Plus, Trash, Save, Loader, X } from 'lucide-react';
+import { Plus, Trash, Save, Loader, X, Check, ChevronDown, ChevronUp } from 'lucide-react';
 
-export const MarketingManager = ({ isOpen, onClose, artistId, artistName }) => {
+export const MarketingManager = ({ isOpen, onClose, artistId, artistName, artistRole = 'Artista' }) => {
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -18,8 +18,18 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName }) => {
     diagnosis: { reach: '', presence: '', strategy: '', ready_for_shows: false },
     action_plan: [],
     suggestions: [],
-    mentorship_content: []
+    mentorship_content: [],
+    // Composer specific fields
+    composer_diagnosis: { level: '', style: '', strengths: '', improvements: '', interpretation: '' },
+    composer_catalog: { registered: '', unpublished: '', recorded: '', negotiating: '', highlights: [] },
+    composer_positioning: { target_audience: '', differential: '', bio: '' },
+    composer_pitch: { audio_url: '', presentation_text: '', common_errors: '' },
+    composer_opportunities: [],
+    composer_rights: { registered: 'Não', coauthors: '', percentages: '', observations: '' },
+    composer_plan: []
   });
+
+  const isComposer = artistRole === 'Compositor' || artistRole === 'Produtor';
 
   useEffect(() => {
     if (isOpen && artistId) loadData();
@@ -44,29 +54,30 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName }) => {
           diagnosis: existingData.diagnosis || {},
           action_plan: existingData.action_plan || [],
           suggestions: existingData.suggestions || [],
-          mentorship_content: (existingData.mentorship_content && existingData.mentorship_content.length > 0) ? existingData.mentorship_content : [
-            { title: "Como crescer no Instagram sem gastar", duration: "5 min", type: "Vídeo Aula" },
-            { title: "O que postar quando não tem show", duration: "5 min", type: "Vídeo Aula" },
-            { title: "Quando impulsionar ou não", duration: "5 min", type: "Vídeo Aula" },
-            { title: "Como transformar seguidor em público", duration: "5 min", type: "Vídeo Aula" }
-          ]
+          mentorship_content: existingData.mentorship_content || [],
+          composer_diagnosis: existingData.composer_diagnosis || { level: '', style: '', strengths: '', improvements: '', interpretation: '' },
+          composer_catalog: existingData.composer_catalog || { registered: '', unpublished: '', recorded: '', negotiating: '', highlights: [] },
+          composer_positioning: existingData.composer_positioning || { target_audience: '', differential: '', bio: '' },
+          composer_pitch: existingData.composer_pitch || { audio_url: '', presentation_text: '', common_errors: '' },
+          composer_opportunities: existingData.composer_opportunities || [],
+          composer_rights: existingData.composer_rights || { registered: 'Não', coauthors: '', percentages: '', observations: '' },
+          composer_plan: existingData.composer_plan || []
         });
       } else {
-        // Reset defaults if no data exists
-        setData({
-          instagram_metrics: { followers: '', frequency: '', engagement: '', growth: '', interpretation: '' },
-          tiktok_metrics: { followers: '', views_avg: '', top_content: '', interpretation: '' },
-          youtube_metrics: { subs: '', top_video: '', freq_ideal: '', interpretation: '' },
-          diagnosis: { reach: '', presence: '', strategy: '', ready_for_shows: false },
-          action_plan: [],
-          suggestions: [],
-          mentorship_content: [
-            { title: "Como crescer no Instagram sem gastar", duration: "5 min", type: "Vídeo Aula" },
-            { title: "O que postar quando não tem show", duration: "5 min", type: "Vídeo Aula" },
-            { title: "Quando impulsionar ou não", duration: "5 min", type: "Vídeo Aula" },
-            { title: "Como transformar seguidor em público", duration: "5 min", type: "Vídeo Aula" }
-          ]
-        });
+        // Defaults
+        const defaultMentorship = isComposer ? [
+          { title: "Como um artista escolhe uma música", duration: "5 min", type: "Vídeo Aula" },
+          { title: "O que faz uma letra ser gravável", duration: "5 min", type: "Vídeo Aula" },
+          { title: "Erro que faz compositor ser ignorado", duration: "5 min", type: "Vídeo Aula" },
+          { title: "Quando cobrar e quando ceder", duration: "5 min", type: "Vídeo Aula" }
+        ] : [
+          { title: "Como crescer no Instagram sem gastar", duration: "5 min", type: "Vídeo Aula" },
+          { title: "O que postar quando não tem show", duration: "5 min", type: "Vídeo Aula" },
+          { title: "Quando impulsionar ou não", duration: "5 min", type: "Vídeo Aula" },
+          { title: "Como transformar seguidor em público", duration: "5 min", type: "Vídeo Aula" }
+        ];
+
+        setData(prev => ({ ...prev, mentorship_content: defaultMentorship }));
       }
     } catch (error) {
       console.error('Error loading marketing data:', error);
@@ -88,7 +99,8 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName }) => {
         }, { onConflict: 'artist_id' });
 
       if (error) throw error;
-      addToast('Dados de marketing salvos com sucesso!', 'success');
+      addToast('Dados salvos com sucesso!', 'success');
+      onClose();
     } catch (error) {
       console.error('Error saving marketing data:', error);
       addToast(`Erro ao salvar dados: ${error.message || 'Erro desconhecido'}`, 'error');
@@ -104,58 +116,21 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName }) => {
     }));
   };
 
-  const addActionItem = () => {
-    setData(prev => ({
-      ...prev,
-      action_plan: [...prev.action_plan, { task: '', status: 'pending', link: '' }]
-    }));
+  // Helper to manage arrays
+  const addItem = (field, item) => {
+    setData(prev => ({ ...prev, [field]: [...prev[field], item] }));
+  };
+  
+  const updateItem = (field, index, key, value) => {
+    const newList = [...data[field]];
+    if (key) newList[index] = { ...newList[index], [key]: value };
+    else newList[index] = value; // for simple arrays
+    setData(prev => ({ ...prev, [field]: newList }));
   };
 
-  const updateActionItem = (index, field, value) => {
-    const newPlan = [...data.action_plan];
-    newPlan[index] = { ...newPlan[index], [field]: value };
-    setData(prev => ({ ...prev, action_plan: newPlan }));
-  };
-
-  const removeActionItem = (index) => {
-    const newPlan = data.action_plan.filter((_, i) => i !== index);
-    setData(prev => ({ ...prev, action_plan: newPlan }));
-  };
-
-  const addSuggestion = () => {
-    setData(prev => ({
-      ...prev,
-      suggestions: [...prev.suggestions, { text: '' }]
-    }));
-  };
-
-  const updateSuggestion = (index, value) => {
-    const newSuggestions = [...data.suggestions];
-    newSuggestions[index] = { ...newSuggestions[index], text: value };
-    setData(prev => ({ ...prev, suggestions: newSuggestions }));
-  };
-
-  const removeSuggestion = (index) => {
-    const newSuggestions = data.suggestions.filter((_, i) => i !== index);
-    setData(prev => ({ ...prev, suggestions: newSuggestions }));
-  };
-
-  const addMentorshipContent = () => {
-    setData(prev => ({
-      ...prev,
-      mentorship_content: [...prev.mentorship_content, { title: '', duration: '5 min', type: 'Vídeo Aula', url: '' }]
-    }));
-  };
-
-  const updateMentorshipContent = (index, field, value) => {
-    const newContent = [...data.mentorship_content];
-    newContent[index] = { ...newContent[index], [field]: value };
-    setData(prev => ({ ...prev, mentorship_content: newContent }));
-  };
-
-  const removeMentorshipContent = (index) => {
-    const newContent = data.mentorship_content.filter((_, i) => i !== index);
-    setData(prev => ({ ...prev, mentorship_content: newContent }));
+  const removeItem = (field, index) => {
+    const newList = data[field].filter((_, i) => i !== index);
+    setData(prev => ({ ...prev, [field]: newList }));
   };
 
   if (!isOpen) return null;
@@ -170,10 +145,16 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName }) => {
           className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-6xl overflow-hidden flex flex-col max-h-[90vh]"
         >
           <div className="p-4 border-b border-white/10 flex justify-between items-center bg-beatwap-black">
-            <h3 className="text-xl font-bold text-white">Gerenciar Marketing - {artistName}</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-white">
-              <X size={24} />
-            </button>
+            <h3 className="text-xl font-bold text-white">Gerenciar {isComposer ? 'Carreira & Negócios' : 'Marketing'} - {artistName}</h3>
+            <div className="flex items-center gap-4">
+                <AnimatedButton onClick={handleSave} disabled={saving}>
+                    {saving ? <Loader className="animate-spin" size={20} /> : <Save size={20} />}
+                    <span className="ml-2">Salvar</span>
+                </AnimatedButton>
+                <button onClick={onClose} className="text-gray-400 hover:text-white">
+                <X size={24} />
+                </button>
+            </div>
           </div>
 
           <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
@@ -181,102 +162,219 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName }) => {
               <div className="flex items-center justify-center h-64">
                 <Loader className="animate-spin text-beatwap-gold" size={48} />
               </div>
-            ) : (
+            ) : isComposer ? (
+              // COMPOSER VIEW
               <div className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Instagram */}
-                  <Card className="space-y-3">
-                    <div className="font-bold text-pink-500">Instagram</div>
-                    <AnimatedInput 
-                      label="Seguidores" 
-                      value={data.instagram_metrics.followers || ''} 
-                      onChange={(e) => updateMetric('instagram_metrics', 'followers', e.target.value)} 
-                    />
-                    <AnimatedInput 
-                      label="Frequência" 
-                      value={data.instagram_metrics.frequency || ''} 
-                      onChange={(e) => updateMetric('instagram_metrics', 'frequency', e.target.value)} 
-                    />
-                    <AnimatedInput 
-                      label="Engajamento" 
-                      value={data.instagram_metrics.engagement || ''} 
-                      onChange={(e) => updateMetric('instagram_metrics', 'engagement', e.target.value)} 
-                    />
-                    <AnimatedInput 
-                      label="Crescimento" 
-                      value={data.instagram_metrics.growth || ''} 
-                      onChange={(e) => updateMetric('instagram_metrics', 'growth', e.target.value)} 
-                    />
+                {/* 1. Diagnóstico */}
+                <Card className="space-y-4">
+                  <div className="font-bold text-beatwap-gold text-lg">1. Diagnóstico do Compositor</div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-xs text-gray-400 ml-1">Interpretação</label>
+                        <label className="text-xs text-gray-400">Nível</label>
+                        <select 
+                            className="w-full bg-beatwap-graphite/50 border border-white/10 rounded-xl px-4 py-2 text-white"
+                            value={data.composer_diagnosis.level}
+                            onChange={(e) => updateMetric('composer_diagnosis', 'level', e.target.value)}
+                        >
+                            <option value="">Selecione...</option>
+                            <option value="Iniciante">Iniciante</option>
+                            <option value="Catálogo em crescimento">Catálogo em crescimento</option>
+                            <option value="Profissional">Profissional</option>
+                        </select>
+                    </div>
+                    <AnimatedInput label="Estilo Forte" placeholder="Ex: Piseiro, Sertanejo" value={data.composer_diagnosis.style} onChange={(e) => updateMetric('composer_diagnosis', 'style', e.target.value)} />
+                    <AnimatedInput label="Pontos Fortes" placeholder="Ex: Letra, Melodia" value={data.composer_diagnosis.strengths} onChange={(e) => updateMetric('composer_diagnosis', 'strengths', e.target.value)} />
+                    <AnimatedInput label="Pontos a Melhorar" placeholder="Ex: Networking, Pitch" value={data.composer_diagnosis.improvements} onChange={(e) => updateMetric('composer_diagnosis', 'improvements', e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                      <label className="text-xs text-gray-400">Interpretação (Feedback)</label>
                       <textarea 
-                        className="w-full bg-beatwap-graphite/50 border border-white/10 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors text-sm"
+                        className="w-full bg-beatwap-graphite/50 border border-white/10 rounded-xl px-4 py-2 text-white text-sm"
                         rows={2}
-                        value={data.instagram_metrics.interpretation || ''}
-                        onChange={(e) => updateMetric('instagram_metrics', 'interpretation', e.target.value)}
+                        placeholder="Ex: Seu talento está pronto, falta posicionamento."
+                        value={data.composer_diagnosis.interpretation}
+                        onChange={(e) => updateMetric('composer_diagnosis', 'interpretation', e.target.value)}
+                      />
+                  </div>
+                </Card>
+
+                {/* 2. Catálogo */}
+                <Card className="space-y-4">
+                  <div className="font-bold text-beatwap-gold text-lg">2. Catálogo de Composições</div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <AnimatedInput label="Cadastradas" type="number" value={data.composer_catalog.registered} onChange={(e) => updateMetric('composer_catalog', 'registered', e.target.value)} />
+                    <AnimatedInput label="Inéditas" type="number" value={data.composer_catalog.unpublished} onChange={(e) => updateMetric('composer_catalog', 'unpublished', e.target.value)} />
+                    <AnimatedInput label="Gravadas" type="number" value={data.composer_catalog.recorded} onChange={(e) => updateMetric('composer_catalog', 'recorded', e.target.value)} />
+                    <AnimatedInput label="Em Negociação" type="number" value={data.composer_catalog.negotiating} onChange={(e) => updateMetric('composer_catalog', 'negotiating', e.target.value)} />
+                  </div>
+                  {/* Highlights list can be added here if needed, keeping it simple for now as per "Numbers" priority */}
+                </Card>
+
+                {/* 3. Posicionamento */}
+                <Card className="space-y-4">
+                    <div className="font-bold text-beatwap-gold text-lg">3. Posicionamento no Mercado</div>
+                    <AnimatedInput label="Escreve para (Público/Artistas)" placeholder="Ex: Artista local, Nacional, Gravadora" value={data.composer_positioning.target_audience} onChange={(e) => updateMetric('composer_positioning', 'target_audience', e.target.value)} />
+                    <AnimatedInput label="Diferencial" placeholder="Ex: Letras chiclete, Sofrência" value={data.composer_positioning.differential} onChange={(e) => updateMetric('composer_positioning', 'differential', e.target.value)} />
+                    <div className="space-y-1">
+                      <label className="text-xs text-gray-400">Bio Profissional</label>
+                      <textarea 
+                        className="w-full bg-beatwap-graphite/50 border border-white/10 rounded-xl px-4 py-2 text-white text-sm"
+                        rows={3}
+                        value={data.composer_positioning.bio}
+                        onChange={(e) => updateMetric('composer_positioning', 'bio', e.target.value)}
                       />
                     </div>
-                  </Card>
+                </Card>
 
-                  {/* TikTok */}
-                  <Card className="space-y-3">
-                    <div className="font-bold text-white">TikTok</div>
-                    <AnimatedInput 
-                      label="Seguidores" 
-                      value={data.tiktok_metrics.followers || ''} 
-                      onChange={(e) => updateMetric('tiktok_metrics', 'followers', e.target.value)} 
-                    />
-                    <AnimatedInput 
-                      label="Média Views" 
-                      value={data.tiktok_metrics.views_avg || ''} 
-                      onChange={(e) => updateMetric('tiktok_metrics', 'views_avg', e.target.value)} 
-                    />
-                    <AnimatedInput 
-                      label="Top Content" 
-                      value={data.tiktok_metrics.top_content || ''} 
-                      onChange={(e) => updateMetric('tiktok_metrics', 'top_content', e.target.value)} 
-                    />
+                {/* 4. Pitch */}
+                <Card className="space-y-4">
+                    <div className="font-bold text-beatwap-gold text-lg">4. Pitch de Músicas</div>
+                    <AnimatedInput label="Modelo de Áudio (URL Exemplo)" placeholder="Link para um áudio referência" value={data.composer_pitch.audio_url} onChange={(e) => updateMetric('composer_pitch', 'audio_url', e.target.value)} />
                     <div className="space-y-1">
-                      <label className="text-xs text-gray-400 ml-1">Interpretação</label>
+                      <label className="text-xs text-gray-400">Texto de Apresentação Ideal</label>
                       <textarea 
-                        className="w-full bg-beatwap-graphite/50 border border-white/10 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors text-sm"
-                        rows={2}
-                        value={data.tiktok_metrics.interpretation || ''}
-                        onChange={(e) => updateMetric('tiktok_metrics', 'interpretation', e.target.value)}
+                        className="w-full bg-beatwap-graphite/50 border border-white/10 rounded-xl px-4 py-2 text-white text-sm"
+                        rows={3}
+                        placeholder="Modelo de texto para envio"
+                        value={data.composer_pitch.presentation_text}
+                        onChange={(e) => updateMetric('composer_pitch', 'presentation_text', e.target.value)}
                       />
                     </div>
-                  </Card>
-
-                  {/* YouTube */}
-                  <Card className="space-y-3">
-                    <div className="font-bold text-red-500">YouTube</div>
-                    <AnimatedInput 
-                      label="Inscritos" 
-                      value={data.youtube_metrics.subs || ''} 
-                      onChange={(e) => updateMetric('youtube_metrics', 'subs', e.target.value)} 
-                    />
-                    <AnimatedInput 
-                      label="Vídeo Destaque" 
-                      value={data.youtube_metrics.top_video || ''} 
-                      onChange={(e) => updateMetric('youtube_metrics', 'top_video', e.target.value)} 
-                    />
-                    <AnimatedInput 
-                      label="Freq. Ideal" 
-                      value={data.youtube_metrics.freq_ideal || ''} 
-                      onChange={(e) => updateMetric('youtube_metrics', 'freq_ideal', e.target.value)} 
-                    />
                     <div className="space-y-1">
-                      <label className="text-xs text-gray-400 ml-1">Interpretação</label>
+                      <label className="text-xs text-gray-400">Erros Comuns</label>
                       <textarea 
-                        className="w-full bg-beatwap-graphite/50 border border-white/10 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors text-sm"
+                        className="w-full bg-beatwap-graphite/50 border border-white/10 rounded-xl px-4 py-2 text-white text-sm"
                         rows={2}
-                        value={data.youtube_metrics.interpretation || ''}
-                        onChange={(e) => updateMetric('youtube_metrics', 'interpretation', e.target.value)}
+                        placeholder="O que não fazer"
+                        value={data.composer_pitch.common_errors}
+                        onChange={(e) => updateMetric('composer_pitch', 'common_errors', e.target.value)}
                       />
                     </div>
-                  </Card>
-                </div>
+                </Card>
 
+                {/* 5. Oportunidades */}
+                <Card className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <div className="font-bold text-beatwap-gold text-lg">5. Oportunidades Específicas</div>
+                        <AnimatedButton onClick={() => addItem('composer_opportunities', { title: '', type: 'Encomenda', status: 'Aberta' })} size="sm" variant="secondary"><Plus size={16} /></AnimatedButton>
+                    </div>
+                    <div className="space-y-2">
+                        {data.composer_opportunities.map((opp, idx) => (
+                            <div key={idx} className="flex gap-2 items-center bg-white/5 p-2 rounded-lg">
+                                <input className="flex-1 bg-transparent border-b border-white/10 text-white text-sm outline-none" placeholder="Título/Descrição" value={opp.title} onChange={(e) => updateItem('composer_opportunities', idx, 'title', e.target.value)} />
+                                <select className="bg-black/20 text-xs text-white rounded p-1 border border-white/10" value={opp.type} onChange={(e) => updateItem('composer_opportunities', idx, 'type', e.target.value)}>
+                                    <option value="Encomenda">Encomenda</option>
+                                    <option value="Parceria">Parceria</option>
+                                    <option value="Projeto">Projeto</option>
+                                    <option value="Campanha">Campanha</option>
+                                </select>
+                                <select className="bg-black/20 text-xs text-white rounded p-1 border border-white/10" value={opp.status} onChange={(e) => updateItem('composer_opportunities', idx, 'status', e.target.value)}>
+                                    <option value="Aberta">Aberta</option>
+                                    <option value="Em análise">Em análise</option>
+                                    <option value="Selecionado">Selecionado</option>
+                                    <option value="Fechado">Fechado</option>
+                                </select>
+                                <button onClick={() => removeItem('composer_opportunities', idx)} className="text-red-400"><Trash size={14} /></button>
+                            </div>
+                        ))}
+                    </div>
+                </Card>
+
+                {/* 6. Direitos Autorais */}
+                <Card className="space-y-4">
+                    <div className="font-bold text-beatwap-gold text-lg">6. Direitos Autorais & Organização</div>
+                    <div className="flex gap-4 items-center">
+                        <span className="text-sm text-gray-400">Música Registrada?</span>
+                        <select className="bg-beatwap-graphite border border-white/10 rounded px-2 py-1 text-white" value={data.composer_rights.registered} onChange={(e) => updateMetric('composer_rights', 'registered', e.target.value)}>
+                            <option value="Sim">Sim</option>
+                            <option value="Não">Não</option>
+                            <option value="Parcialmente">Parcialmente</option>
+                        </select>
+                    </div>
+                    <AnimatedInput label="Coautores" value={data.composer_rights.coauthors} onChange={(e) => updateMetric('composer_rights', 'coauthors', e.target.value)} />
+                    <AnimatedInput label="Percentuais" value={data.composer_rights.percentages} onChange={(e) => updateMetric('composer_rights', 'percentages', e.target.value)} />
+                    <div className="space-y-1">
+                      <label className="text-xs text-gray-400">Observações</label>
+                      <textarea 
+                        className="w-full bg-beatwap-graphite/50 border border-white/10 rounded-xl px-4 py-2 text-white text-sm"
+                        rows={2}
+                        value={data.composer_rights.observations}
+                        onChange={(e) => updateMetric('composer_rights', 'observations', e.target.value)}
+                      />
+                    </div>
+                </Card>
+
+                {/* 7. Plano de Crescimento */}
+                <Card className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <div className="font-bold text-beatwap-gold text-lg">7. Plano de Crescimento</div>
+                        <AnimatedButton onClick={() => addItem('composer_plan', { task: '', checked: false })} size="sm" variant="secondary"><Plus size={16} /></AnimatedButton>
+                    </div>
+                    <div className="space-y-2">
+                        {data.composer_plan.map((item, idx) => (
+                            <div key={idx} className="flex gap-2 items-center bg-white/5 p-2 rounded-lg">
+                                <input type="checkbox" checked={item.checked} onChange={(e) => updateItem('composer_plan', idx, 'checked', e.target.checked)} className="accent-beatwap-gold" />
+                                <input className="flex-1 bg-transparent border-b border-white/10 text-white text-sm outline-none" placeholder="Meta/Passo" value={item.task} onChange={(e) => updateItem('composer_plan', idx, 'task', e.target.value)} />
+                                <button onClick={() => removeItem('composer_plan', idx)} className="text-red-400"><Trash size={14} /></button>
+                            </div>
+                        ))}
+                    </div>
+                </Card>
+
+                 {/* 8. Mentoria */}
+                 <Card className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div className="font-bold text-beatwap-gold text-lg">8. Conteúdo de Mentoria</div>
+                    <AnimatedButton onClick={() => addItem('mentorship_content', { title: '', duration: '5 min', type: 'Vídeo Aula', url: '' })} size="sm" variant="secondary"><Plus size={16} /></AnimatedButton>
+                  </div>
+                  <div className="space-y-3">
+                    {data.mentorship_content.map((item, index) => (
+                      <div key={index} className="flex flex-col gap-2 bg-white/5 p-3 rounded-xl border border-white/10">
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="Título da Aula"
+                            className="flex-1 bg-transparent border-b border-white/10 focus:border-beatwap-gold outline-none text-white pb-1"
+                            value={item.title}
+                            onChange={(e) => updateItem('mentorship_content', index, 'title', e.target.value)}
+                          />
+                          <button onClick={() => removeItem('mentorship_content', index)} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg">
+                            <Trash size={16} />
+                          </button>
+                        </div>
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="Link (URL)"
+                            className="flex-1 bg-transparent border-b border-white/10 focus:border-beatwap-gold outline-none text-xs text-gray-300 pb-1"
+                            value={item.url || ''}
+                            onChange={(e) => updateItem('mentorship_content', index, 'url', e.target.value)}
+                          />
+                          <input 
+                            type="text" 
+                            placeholder="Duração"
+                            className="w-20 bg-transparent border-b border-white/10 focus:border-beatwap-gold outline-none text-xs text-gray-300 pb-1"
+                            value={item.duration}
+                            onChange={(e) => updateItem('mentorship_content', index, 'duration', e.target.value)}
+                          />
+                           <select 
+                            className="bg-black/20 border border-white/10 rounded text-xs text-gray-300 px-2"
+                            value={item.type}
+                            onChange={(e) => updateItem('mentorship_content', index, 'type', e.target.value)}
+                          >
+                            <option value="Vídeo Aula">Vídeo</option>
+                            <option value="Documento">Doc</option>
+                            <option value="Audio">Áudio</option>
+                          </select>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+            ) : (
+              // ARTIST VIEW (Existing)
+              <div className="space-y-6">
                 <Card className="space-y-4">
                   <div className="font-bold text-beatwap-gold">Diagnóstico Geral</div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -318,7 +416,7 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName }) => {
                 <Card className="space-y-4">
                   <div className="flex justify-between items-center">
                     <div className="font-bold text-beatwap-gold">Plano de Ação</div>
-                    <AnimatedButton onClick={addActionItem} size="sm" variant="secondary"><Plus size={16} /> Adicionar Item</AnimatedButton>
+                    <AnimatedButton onClick={() => addItem('action_plan', { task: '', status: 'pending', link: '' })} size="sm" variant="secondary"><Plus size={16} /> Adicionar Item</AnimatedButton>
                   </div>
                   <div className="space-y-3">
                     {data.action_plan.map((item, index) => (
@@ -329,7 +427,7 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName }) => {
                             placeholder="Tarefa"
                             className="w-full bg-transparent border-b border-white/10 focus:border-beatwap-gold outline-none text-white pb-1"
                             value={item.task}
-                            onChange={(e) => updateActionItem(index, 'task', e.target.value)}
+                            onChange={(e) => updateItem('action_plan', index, 'task', e.target.value)}
                           />
                           <div className="flex gap-2">
                             <input 
@@ -337,19 +435,19 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName }) => {
                               placeholder="Link (opcional)"
                               className="flex-1 bg-transparent border-b border-white/10 focus:border-beatwap-gold outline-none text-xs text-gray-300 pb-1"
                               value={item.link || ''}
-                              onChange={(e) => updateActionItem(index, 'link', e.target.value)}
+                              onChange={(e) => updateItem('action_plan', index, 'link', e.target.value)}
                             />
                             <select 
                               className="bg-black/20 border border-white/10 rounded text-xs text-gray-300 px-2"
                               value={item.status}
-                              onChange={(e) => updateActionItem(index, 'status', e.target.value)}
+                              onChange={(e) => updateItem('action_plan', index, 'status', e.target.value)}
                             >
                               <option value="pending">Pendente</option>
                               <option value="done">Concluído</option>
                             </select>
                           </div>
                         </div>
-                        <button onClick={() => removeActionItem(index)} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg">
+                        <button onClick={() => removeItem('action_plan', index)} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg">
                           <Trash size={16} />
                         </button>
                       </div>
@@ -361,7 +459,7 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName }) => {
                 <Card className="space-y-4">
                   <div className="flex justify-between items-center">
                     <div className="font-bold text-beatwap-gold">Sugestões BeatWap (Curadoria)</div>
-                    <AnimatedButton onClick={addSuggestion} size="sm" variant="secondary"><Plus size={16} /> Adicionar Sugestão</AnimatedButton>
+                    <AnimatedButton onClick={() => addItem('suggestions', { text: '' })} size="sm" variant="secondary"><Plus size={16} /> Adicionar Sugestão</AnimatedButton>
                   </div>
                   <div className="space-y-3">
                     {data.suggestions.map((item, index) => (
@@ -370,10 +468,10 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName }) => {
                           className="w-full bg-transparent border-b border-white/10 focus:border-beatwap-gold outline-none text-white pb-1 text-sm"
                           rows={2}
                           value={item.text}
-                          onChange={(e) => updateSuggestion(index, e.target.value)}
+                          onChange={(e) => updateItem('suggestions', index, 'text', e.target.value)}
                           placeholder="Escreva a sugestão aqui..."
                         />
-                        <button onClick={() => removeSuggestion(index)} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg">
+                        <button onClick={() => removeItem('suggestions', index)} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg">
                           <Trash size={16} />
                         </button>
                       </div>
@@ -385,7 +483,7 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName }) => {
                 <Card className="space-y-4">
                   <div className="flex justify-between items-center">
                     <div className="font-bold text-beatwap-gold">Conteúdo de Mentoria (Mini Aulas)</div>
-                    <AnimatedButton onClick={addMentorshipContent} size="sm" variant="secondary"><Plus size={16} /> Adicionar Aula</AnimatedButton>
+                    <AnimatedButton onClick={() => addItem('mentorship_content', { title: '', duration: '5 min', type: 'Vídeo Aula', url: '' })} size="sm" variant="secondary"><Plus size={16} /> Adicionar Aula</AnimatedButton>
                   </div>
                   <div className="space-y-3">
                     {data.mentorship_content.map((item, index) => (
@@ -396,57 +494,34 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName }) => {
                             placeholder="Título da Aula"
                             className="flex-1 bg-transparent border-b border-white/10 focus:border-beatwap-gold outline-none text-white pb-1"
                             value={item.title}
-                            onChange={(e) => updateMentorshipContent(index, 'title', e.target.value)}
+                            onChange={(e) => updateItem('mentorship_content', index, 'title', e.target.value)}
                           />
-                          <button onClick={() => removeMentorshipContent(index)} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg">
+                          <button onClick={() => removeItem('mentorship_content', index)} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg">
                             <Trash size={16} />
                           </button>
                         </div>
                         <div className="flex gap-2">
                           <input 
                             type="text" 
-                            placeholder="Duração (ex: 5 min)"
-                            className="w-24 bg-transparent border-b border-white/10 focus:border-beatwap-gold outline-none text-xs text-gray-300 pb-1"
-                            value={item.duration}
-                            onChange={(e) => updateMentorshipContent(index, 'duration', e.target.value)}
+                            placeholder="Link (URL)"
+                            className="flex-1 bg-transparent border-b border-white/10 focus:border-beatwap-gold outline-none text-xs text-gray-300 pb-1"
+                            value={item.url || ''}
+                            onChange={(e) => updateItem('mentorship_content', index, 'url', e.target.value)}
                           />
-                          <select 
-                            className="bg-black/20 border border-white/10 rounded text-xs text-gray-300 px-2"
-                            value={item.type}
-                            onChange={(e) => updateMentorshipContent(index, 'type', e.target.value)}
-                          >
-                            <option value="Vídeo Aula">Vídeo Aula</option>
-                            <option value="Artigo">Artigo</option>
-                            <option value="Audio">Áudio</option>
-                            <option value="Documento">Documento</option>
-                          </select>
-                        </div>
-                        <div className="w-full">
                           <input 
                             type="text" 
-                            placeholder={item.type === 'Vídeo Aula' ? "Link do YouTube / Vídeo" : "Link para Download / Documento"}
-                            className="w-full bg-transparent border-b border-white/10 focus:border-beatwap-gold outline-none text-xs text-gray-300 pb-1"
-                            value={item.url || ''}
-                            onChange={(e) => updateMentorshipContent(index, 'url', e.target.value)}
+                            placeholder="Duração"
+                            className="w-20 bg-transparent border-b border-white/10 focus:border-beatwap-gold outline-none text-xs text-gray-300 pb-1"
+                            value={item.duration}
+                            onChange={(e) => updateItem('mentorship_content', index, 'duration', e.target.value)}
                           />
                         </div>
                       </div>
                     ))}
-                    {data.mentorship_content.length === 0 && <div className="text-gray-500 italic text-sm text-center py-4">Nenhum conteúdo de mentoria.</div>}
                   </div>
                 </Card>
               </div>
             )}
-          </div>
-
-          <div className="p-4 border-t border-white/10 flex justify-end gap-2 bg-beatwap-black">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">
-              Fechar
-            </button>
-            <AnimatedButton onClick={handleSave} disabled={saving} className="bg-green-600 hover:bg-green-700 text-white">
-              {saving ? <Loader size={16} className="animate-spin" /> : <Save size={16} />}
-              Salvar Alterações
-            </AnimatedButton>
           </div>
         </motion.div>
       </div>

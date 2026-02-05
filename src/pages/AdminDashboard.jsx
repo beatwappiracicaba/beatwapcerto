@@ -382,7 +382,10 @@ export const AdminArtists = () => {
   const [approvedMusics, setApprovedMusics] = useState([]);
   const [musicMetrics, setMusicMetrics] = useState({});
   const load = useCallback(async () => {
-    const { data } = await supabase.from('profiles').select('id, nome, nome_completo_razao_social, avatar_url').eq('cargo', 'Artista');
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, nome, nome_completo_razao_social, avatar_url, cargo')
+      .in('cargo', ['Artista', 'Compositor']);
     setArtists(data || []);
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -583,7 +586,7 @@ export const AdminArtists = () => {
             />
           </div>
           <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-full md:w-auto flex-1" value={selectedArtist || ''} onChange={(e) => setSelectedArtist(e.target.value)}>
-            <option value="">Selecione o artista</option>
+            <option value="">Selecione o usuário</option>
             {(artists || [])
               .filter(a => {
                 const term = searchName.toLowerCase();
@@ -591,7 +594,7 @@ export const AdminArtists = () => {
                 const n2 = (a.nome_completo_razao_social || '').toLowerCase();
                 return n1.includes(term) || n2.includes(term);
               })
-              .map(a => <option key={a.id} value={a.id}>{a.nome || a.nome_completo_razao_social || 'Sem nome'}</option>)}
+              .map(a => <option key={a.id} value={a.id}>{a.nome || a.nome_completo_razao_social || 'Sem nome'} ({a.cargo})</option>)}
           </select>
           <AnimatedButton onClick={() => setIsManagerOpen(true)} className="w-full md:w-auto whitespace-nowrap">Enviar Música</AnimatedButton>
         </div>
@@ -747,7 +750,8 @@ export const AdminArtists = () => {
           isOpen={isMarketingOpen}
           onClose={() => setIsMarketingOpen(false)}
           artistId={selectedArtist}
-          artistName={artists.find(a => a.id === selectedArtist)?.nome || 'Artista'}
+          artistName={artists.find(a => a.id === selectedArtist)?.nome || 'Usuário'}
+          artistRole={artists.find(a => a.id === selectedArtist)?.cargo || 'Artista'}
         />
       )}
       {isProfileOpen && (
