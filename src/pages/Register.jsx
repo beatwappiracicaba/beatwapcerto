@@ -63,9 +63,22 @@ const Register = () => {
         // Logged in immediately (Email confirmation disabled)
         try {
           if (roleParam) {
+            // Get permissions from URL
+            const params = new URLSearchParams(location.search);
+            const access_control = {
+              chat: params.get('p_chat') === '1',
+              musics: params.get('p_musics') === '1',
+              work: params.get('p_work') !== '0', // Default true if not specified
+              marketing: params.get('p_marketing') !== '0' // Default true if not specified
+            };
+
             await supabase
               .from('profiles')
-              .update({ cargo: roleParam === 'Produtor' ? 'Produtor' : 'Artista', nome: capitalizedName })
+              .update({ 
+                cargo: roleParam === 'Produtor' ? 'Produtor' : 'Artista', 
+                nome: capitalizedName,
+                access_control
+              })
               .eq('id', authData.session.user.id);
           }
         } catch (err) { console.error(err); }

@@ -1,23 +1,69 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AdminLayout } from '../components/AdminLayout';
 import { useToast } from '../context/ToastContext';
-import { Mail, User, Settings } from 'lucide-react';
+import { Mail, User, Settings, Shield, Search, Save, Check, Loader } from 'lucide-react';
+import { supabase } from '../services/supabaseClient';
 
 export const AdminSettings = () => {
   const { addToast } = useToast();
+  
+  // Invite Form State
   const [form, setForm] = useState({
     name: '',
     email: '',
     role: 'Artista',
     p_chat: true,
     p_musics: true,
-    p_reports: false
+    p_work: true,
+    p_marketing: true
   });
   const [inviteLink, setInviteLink] = useState('');
+  
+  // Artists Management State
+  const [artists, setArtists] = useState([]);
+  const [loadingArtists, setLoadingArtists] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [savingId, setSavingId] = useState(null);
+
   const validEmail = String(form.email).trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+
+  useEffect(() => {
+    fetchArtists();
+  }, []);
+
+  const fetchArtists = async () => {
+    setLoadingArtists(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('cargo', 'Artista')
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      
+      // Normalize permissions
+      const formatted = (data || []).map(artist => ({
+        ...artist,
+        access_control: artist.access_control || {
+          chat: true,
+          musics: true,
+          work: true,
+          marketing: true
+        }
+      }));
+      
+      setArtists(formatted);
+    } catch (error) {
+      console.error('Error fetching artists:', error);
+      addToast('Erro ao carregar artistas', 'error');
+    } finally {
+      setLoadingArtists(false);
+    }
+  };
 
   const generateLink = () => {
     if (!form.name.trim() || !validEmail) {
@@ -30,7 +76,9 @@ export const AdminSettings = () => {
     params.set('role', form.role === 'Produtor' ? 'Produtor' : 'Artista');
     params.set('p_chat', form.p_chat ? '1' : '0');
     params.set('p_musics', form.p_musics ? '1' : '0');
-    params.set('p_reports', form.p_reports ? '1' : '0');
+    params.set('p_work', form.p_work ? '1' : '0');
+    params.set('p_marketing', form.p_marketing ? '1' : '0');
+    
     const url = `${window.location.origin}/register?${params.toString()}`;
     setInviteLink(url);
     navigator.clipboard.writeText(url).then(() => {
@@ -50,86 +98,205 @@ export const AdminSettings = () => {
     window.location.href = `mailto:${form.email}?subject=${subject}&body=${body}`;
   };
 
+  const handlePermissionChange = (artistId, key, value) => {
+    setArtists(artists.map(a => {
+      if (a.id === artistId) {
+        return {
+          ...a,
+          access_control: {
+            ...a.access_control,
+            [key]: value
+          }
+        };
+      }
+      return a;
+    }));
+  };
+
+  const savePermissions = async (artist) => {
+    setSavingId(artist.id);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ access_control: artist.access_control })
+        .eq('id', artist.id);
+
+      if (error) throw error;
+      addToast('Permissões atualizadas com sucesso!', 'success');
+    } catch (error) {
+      console.error('Error saving permissions:', error);
+      addToast('Erro ao salvar permissões', 'error');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const filteredArtists = artists.filter(a => 
+    a.nome?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    a.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <AdminLayout>
-      <Card className="space-y-6">
-        <div className="flex items-center gap-2 text-xl font-bold">
-          <Settings size={20} className="text-beatwap-gold" />
-          Configurações
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="space-y-4">
-            <div className="text-lg font-bold">Criar novo usuário</div>
-            <AnimatedInput
-              label="Nome"
-              icon={User}
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Ex: MC Future"
-            />
-            <AnimatedInput
-              label="Email"
-              type="email"
-              icon={Mail}
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              placeholder="seu@email.com"
-            />
-            <div className="space-y-2">
-              <div className="text-sm text-gray-300">Cargo</div>
-              <select
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white"
-                value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value })}
-              >
-                <option value="Artista" className="bg-[#121212] text-white">Artista</option>
-                <option value="Produtor" className="bg-[#121212] text-white">Produtor</option>
-              </select>
-            </div>
-            <div className="space-y-3">
-              <div className="text-sm text-gray-300">Permissões</div>
-              <div className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10">
-                <div className="text-sm">Acesso ao Chat</div>
-                <input
-                  type="checkbox"
-                  checked={form.p_chat}
-                  onChange={(e) => setForm({ ...form, p_chat: e.target.checked })}
-                />
+      <div className="space-y-8">
+        <Card className="space-y-6">
+          <div className="flex items-center gap-2 text-xl font-bold">
+            <Settings size={20} className="text-beatwap-gold" />
+            Configurações e Convites
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="space-y-4 bg-white/5 border-white/10">
+              <div className="text-lg font-bold flex items-center gap-2">
+                <User size={18} /> Criar novo convite
               </div>
-              <div className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10">
-                <div className="text-sm">Gerenciar Músicas</div>
-                <input
-                  type="checkbox"
-                  checked={form.p_musics}
-                  onChange={(e) => setForm({ ...form, p_musics: e.target.checked })}
-                />
+              <AnimatedInput
+                label="Nome"
+                icon={User}
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Ex: MC Future"
+              />
+              <AnimatedInput
+                label="Email"
+                type="email"
+                icon={Mail}
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="seu@email.com"
+              />
+              <div className="space-y-2">
+                <div className="text-sm text-gray-300">Cargo</div>
+                <select
+                  className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
+                  value={form.role}
+                  onChange={(e) => setForm({ ...form, role: e.target.value })}
+                >
+                  <option value="Artista" className="bg-[#121212]">Artista</option>
+                  <option value="Produtor" className="bg-[#121212]">Produtor</option>
+                </select>
               </div>
-              <div className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10">
-                <div className="text-sm">Visualizar Relatórios</div>
-                <input
-                  type="checkbox"
-                  checked={form.p_reports}
-                  onChange={(e) => setForm({ ...form, p_reports: e.target.checked })}
-                />
+              
+              <div className="space-y-3 pt-2">
+                <div className="text-sm text-gray-300 font-bold">Permissões Iniciais</div>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { key: 'p_chat', label: 'Chat' },
+                    { key: 'p_musics', label: 'Músicas' },
+                    { key: 'p_work', label: 'Trabalho' },
+                    { key: 'p_marketing', label: 'Marketing' }
+                  ].map((perm) => (
+                    <label key={perm.key} className="flex items-center gap-2 p-2 rounded-lg bg-black/20 border border-white/10 cursor-pointer hover:border-white/30 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={form[perm.key]}
+                        onChange={(e) => setForm({ ...form, [perm.key]: e.target.checked })}
+                        className="rounded border-gray-600 text-beatwap-gold focus:ring-beatwap-gold bg-transparent"
+                      />
+                      <span className="text-sm">{perm.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <AnimatedButton onClick={generateLink} className="flex-1">Gerar Link</AnimatedButton>
+                <AnimatedButton onClick={sendEmail} variant="outline" className="flex-1">Enviar Email</AnimatedButton>
+              </div>
+              
+              {inviteLink && (
+                <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <div className="text-xs text-green-400 break-all font-mono">{inviteLink}</div>
+                </div>
+              )}
+            </Card>
+
+            <Card className="space-y-4 bg-white/5 border-white/10">
+              <div className="text-lg font-bold">Instruções</div>
+              <ul className="space-y-3 text-sm text-gray-400 list-disc list-inside">
+                <li>Use este formulário para convidar novos artistas ou produtores.</li>
+                <li>Defina as permissões iniciais que o usuário terá ao se cadastrar.</li>
+                <li>O link gerado contém todas as configurações e expira apenas se o email mudar.</li>
+                <li>Para usuários existentes, use a seção "Gerenciar Permissões" abaixo.</li>
+              </ul>
+            </Card>
+          </div>
+        </Card>
+
+        <Card className="space-y-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-center gap-2 text-xl font-bold">
+              <Shield size={20} className="text-beatwap-gold" />
+              Gerenciar Permissões de Artistas
             </div>
-            <div className="flex items-center gap-3">
-              <AnimatedButton onClick={generateLink}>Gerar link de convite</AnimatedButton>
-              <AnimatedButton onClick={sendEmail}>Enviar por email</AnimatedButton>
+            <div className="relative w-full md:w-64">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                type="text"
+                placeholder="Buscar artista..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-black/20 border border-white/10 rounded-full pl-9 pr-4 py-2 text-sm text-white focus:border-beatwap-gold outline-none"
+              />
             </div>
-            {inviteLink && (
-              <div className="text-xs text-gray-400 break-all">{inviteLink}</div>
+          </div>
+
+          <div className="space-y-4">
+            {loadingArtists ? (
+              <div className="text-center py-8 text-gray-500">Carregando artistas...</div>
+            ) : filteredArtists.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">Nenhum artista encontrado.</div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {filteredArtists.map(artist => (
+                  <div key={artist.id} className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 min-w-[200px]">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-beatwap-gold to-yellow-600 flex items-center justify-center text-black font-bold">
+                          {artist.nome?.charAt(0) || 'A'}
+                        </div>
+                        <div>
+                          <div className="font-bold text-white">{artist.nome}</div>
+                          <div className="text-xs text-gray-400">{artist.email}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 lg:gap-4 flex-1 justify-end">
+                        {[
+                          { key: 'musics', label: 'Músicas' },
+                          { key: 'work', label: 'Trabalho' },
+                          { key: 'marketing', label: 'Marketing' },
+                          { key: 'chat', label: 'Chat' }
+                        ].map((perm) => (
+                          <label key={perm.key} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 border border-white/5 cursor-pointer hover:border-white/20 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={artist.access_control?.[perm.key] !== false}
+                              onChange={(e) => handlePermissionChange(artist.id, perm.key, e.target.checked)}
+                              className="rounded border-gray-600 text-beatwap-gold focus:ring-beatwap-gold bg-transparent"
+                            />
+                            <span className="text-xs sm:text-sm text-gray-300">{perm.label}</span>
+                          </label>
+                        ))}
+                      </div>
+
+                      <div className="flex justify-end lg:w-auto w-full">
+                        <AnimatedButton 
+                          onClick={() => savePermissions(artist)} 
+                          disabled={savingId === artist.id}
+                          className="w-full lg:w-auto"
+                        >
+                          {savingId === artist.id ? <Loader size={16} className="animate-spin" /> : <Save size={16} />}
+                          <span className="lg:hidden ml-2">Salvar</span>
+                        </AnimatedButton>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
-          </Card>
-          <Card className="space-y-4">
-            <div className="text-lg font-bold">Como funciona</div>
-            <div className="text-sm text-gray-400">
-              Gere um link de convite com o cargo e permissões. O convidado acessa o link e finaliza o cadastro na página de registro.
-            </div>
-          </Card>
-        </div>
-      </Card>
+          </div>
+        </Card>
+      </div>
     </AdminLayout>
   );
 };
-

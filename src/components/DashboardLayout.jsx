@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
-import { LayoutGrid, Music, LogOut, Menu, X, TrendingUp } from 'lucide-react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { LayoutGrid, Music, LogOut, Menu, X, TrendingUp, Lock } from 'lucide-react';
 import { Card } from './ui/Card';
 import { AnimatedButton } from './ui/AnimatedButton';
 import { useAuth } from '../context/AuthContext';
@@ -14,6 +14,25 @@ export const DashboardLayout = ({ children }) => {
   const isAdmin = profile?.cargo === 'Produtor';
   const currentUserId = user?.id;
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Default permissions (all enabled) if not set
+  const permissions = profile?.access_control || { 
+    musics: true, 
+    work: true, 
+    marketing: true, 
+    chat: true 
+  };
+
+  const location = useLocation();
+
+  const hasAccess = () => {
+    const path = location.pathname;
+    if (path.includes('/dashboard/musics') && permissions.musics === false) return false;
+    if (path.includes('/dashboard/work') && permissions.work === false) return false;
+    if (path.includes('/dashboard/marketing') && permissions.marketing === false) return false;
+    return true;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-[#0b0b0b] to-[#161616] text-white flex">
       <aside className={`fixed md:static top-0 left-0 h-full md:h-auto w-64 p-6 space-y-4 border-r border-white/10 bg-white/[0.02] backdrop-blur-md transition-transform md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} z-50`}>
@@ -27,15 +46,25 @@ export const DashboardLayout = ({ children }) => {
           <NavLink to="/dashboard" end className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
             <LayoutGrid size={18} /> Visão Geral
           </NavLink>
-          <NavLink to="/dashboard/musics" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-            <Music size={18} /> Minhas Músicas
-          </NavLink>
-          <NavLink to="/dashboard/work" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-            <LayoutGrid size={18} /> Trabalho
-          </NavLink>
-          <NavLink to="/dashboard/marketing" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-            <TrendingUp size={18} /> Mentoria/Marketing
-          </NavLink>
+          
+          {permissions.musics !== false && (
+            <NavLink to="/dashboard/musics" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+              <Music size={18} /> Minhas Músicas
+            </NavLink>
+          )}
+          
+          {permissions.work !== false && (
+            <NavLink to="/dashboard/work" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+              <LayoutGrid size={18} /> Trabalho
+            </NavLink>
+          )}
+          
+          {permissions.marketing !== false && (
+            <NavLink to="/dashboard/marketing" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+              <TrendingUp size={18} /> Mentoria/Marketing
+            </NavLink>
+          )}
+          
           {/* Chat removido do menu, manter apenas flutuante */}
         </nav>
         <Card className="mt-8 bg-white/[0.03] border-white/10">
@@ -59,10 +88,27 @@ export const DashboardLayout = ({ children }) => {
             <ProfileButton profile={profile} />
           </div>
         </div>
-        <div className="space-y-6 max-w-7xl mx-auto w-full">{children}</div>
+        <div className="space-y-6 max-w-7xl mx-auto w-full">
+          {hasAccess() ? children : (
+            <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-4">
+              <div className="p-4 rounded-full bg-red-500/10 text-red-500">
+                <Lock size={48} />
+              </div>
+              <h2 className="text-2xl font-bold">Acesso Restrito</h2>
+              <p className="text-gray-400 max-w-md">
+                Você não tem permissão para acessar esta seção. Entre em contato com seu produtor para solicitar acesso.
+              </p>
+            </div>
+          )}
+        </div>
       </main>
-      <ChatButton isAdmin={isAdmin} currentUserId={currentUserId} />
-      <ChatWindow isAdmin={isAdmin} currentUserId={currentUserId} />
+      
+      {permissions.chat !== false && (
+        <>
+          <ChatButton isAdmin={isAdmin} currentUserId={currentUserId} />
+          <ChatWindow isAdmin={isAdmin} currentUserId={currentUserId} />
+        </>
+      )}
     </div>
   );
 };
