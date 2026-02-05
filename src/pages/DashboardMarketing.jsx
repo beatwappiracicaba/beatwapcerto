@@ -315,7 +315,6 @@ export const DashboardMarketing = () => {
                         </div>
                     </Card>
                 </motion.div>
-              </div>
 
               {/* 7. Plano de Crescimento */}
               <motion.div variants={item}>
