@@ -91,7 +91,7 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName }) => {
       addToast('Dados de marketing salvos com sucesso!', 'success');
     } catch (error) {
       console.error('Error saving marketing data:', error);
-      addToast('Erro ao salvar dados', 'error');
+      addToast(`Erro ao salvar dados: ${error.message || 'Erro desconhecido'}`, 'error');
     } finally {
       setSaving(false);
     }
