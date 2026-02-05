@@ -33,6 +33,7 @@ export const AdminSettings = () => {
   const [artists, setArtists] = useState([]);
   const [loadingArtists, setLoadingArtists] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('Artista');
   const [savingId, setSavingId] = useState(null);
 
   const validEmail = String(form.email).trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
@@ -47,7 +48,7 @@ export const AdminSettings = () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .in('cargo', ['Artista', 'Produtor', 'Compositor', 'Vendedor']) // Include Vendedor to show them before migration
+        .in('cargo', ['Artista', 'Produtor', 'Compositor', 'Vendedor']) 
         .order('created_at', { ascending: false });
         
       if (error) throw error;
@@ -200,8 +201,9 @@ export const AdminSettings = () => {
   };
 
   const filteredArtists = artists.filter(a => 
-    (a.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (a.email || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (a.cargo === activeTab || (activeTab === 'Compositor' && a.cargo === 'Vendedor')) &&
+    ((a.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (a.email || '').toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -349,10 +351,26 @@ export const AdminSettings = () => {
           </div>
 
           <div className="space-y-4">
+            <div className="flex gap-2 border-b border-white/10 pb-4 overflow-x-auto">
+              {['Artista', 'Compositor', 'Produtor'].map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors whitespace-nowrap ${
+                    activeTab === tab 
+                      ? 'bg-beatwap-gold text-black' 
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                  }`}
+                >
+                  {tab}s
+                </button>
+              ))}
+            </div>
+
             {loadingArtists ? (
-              <div className="text-center py-8 text-gray-500">Carregando artistas...</div>
+              <div className="text-center py-8 text-gray-500">Carregando...</div>
             ) : filteredArtists.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">Nenhum artista encontrado.</div>
+              <div className="text-center py-8 text-gray-500">Nenhum usuário encontrado nesta categoria.</div>
             ) : (
               <div className="grid grid-cols-1 gap-4">
                 {filteredArtists.map(artist => (
