@@ -203,7 +203,8 @@ export const AdminSettings = () => {
   const filteredArtists = artists.filter(a => 
     (a.cargo === activeTab || (activeTab === 'Compositor' && a.cargo === 'Vendedor')) &&
     ((a.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (a.email || '').toLowerCase().includes(searchTerm.toLowerCase()))
+     (a.nome_completo_razao_social || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+     (a.email || '').toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -362,7 +363,7 @@ export const AdminSettings = () => {
                       : 'bg-white/5 text-gray-400 hover:bg-white/10'
                   }`}
                 >
-                  {tab}s
+                  {tab === 'Artista' ? 'Artistas' : tab === 'Compositor' ? 'Compositores' : 'Produtores'}
                 </button>
               ))}
             </div>
@@ -379,15 +380,15 @@ export const AdminSettings = () => {
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center shrink-0">
                           {artist.avatar_url ? (
-                            <img src={artist.avatar_url} alt={artist.nome} className="w-full h-full object-cover" />
+                            <img src={artist.avatar_url} alt={artist.nome || artist.nome_completo_razao_social} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full bg-gradient-to-br from-beatwap-gold to-yellow-600 flex items-center justify-center text-black font-bold">
-                              {artist.nome?.charAt(0) || 'U'}
+                              {(artist.nome || artist.nome_completo_razao_social || 'U').charAt(0).toUpperCase()}
                             </div>
                           )}
                         </div>
                         <div className="min-w-0">
-                          <div className="font-bold text-white truncate">{artist.nome || 'Sem Nome'}</div>
+                          <div className="font-bold text-white truncate">{artist.nome || artist.nome_completo_razao_social || 'Sem Nome'}</div>
                           <div className="text-xs text-gray-400 truncate">{artist.email}</div>
                           <div className="text-xs text-beatwap-gold mt-1">{artist.cargo}</div>
                         </div>
