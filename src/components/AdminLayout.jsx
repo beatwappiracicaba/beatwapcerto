@@ -13,6 +13,15 @@ export const AdminLayout = ({ children }) => {
   const { signOut, user, profile } = useAuth();
   const currentUserId = user?.id;
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Default permissions for admin (all enabled if not set)
+  const permissions = profile?.access_control || {
+    admin_artists: true,
+    admin_musics: true,
+    admin_sponsors: true,
+    admin_settings: true
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-[#0b0b0b] to-[#161616] text-white flex">
       <aside className={`fixed md:static top-0 left-0 h-full md:h-auto w-64 p-6 space-y-4 border-r border-white/10 bg-white/[0.02] backdrop-blur-md transition-transform md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} z-50`}>
@@ -26,18 +35,30 @@ export const AdminLayout = ({ children }) => {
           <NavLink to="/admin" end className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
             <LayoutGrid size={18} /> Visão Geral
           </NavLink>
-          <NavLink to="/admin/artists" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-            <Users size={18} /> Artistas
-          </NavLink>
-          <NavLink to="/admin/musics" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-            <Music size={18} /> Músicas
-          </NavLink>
-          <NavLink to="/admin/sponsors" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-            <Users size={18} /> Patrocinadores/Parcerias
-          </NavLink>
-          <NavLink to="/admin/settings" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-            <Settings size={18} /> Configurações
-          </NavLink>
+          
+          {permissions.admin_artists !== false && (
+            <NavLink to="/admin/artists" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+              <Users size={18} /> Artistas
+            </NavLink>
+          )}
+
+          {permissions.admin_musics !== false && (
+            <NavLink to="/admin/musics" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+              <Music size={18} /> Músicas
+            </NavLink>
+          )}
+
+          {permissions.admin_sponsors !== false && (
+            <NavLink to="/admin/sponsors" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+              <Users size={18} /> Patrocinadores/Parcerias
+            </NavLink>
+          )}
+
+          {permissions.admin_settings !== false && (
+            <NavLink to="/admin/settings" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+              <Settings size={18} /> Configurações
+            </NavLink>
+          )}
           {/* Chat removido do menu, manter apenas flutuante */}
         </nav>
         <Card className="mt-8 bg-white/[0.03] border-white/10">

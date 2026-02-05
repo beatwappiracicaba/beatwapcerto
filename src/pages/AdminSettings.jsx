@@ -18,7 +18,12 @@ export const AdminSettings = () => {
     p_chat: true,
     p_musics: true,
     p_work: true,
-    p_marketing: true
+    p_marketing: true,
+    // Admin permissions
+    p_admin_artists: true,
+    p_admin_musics: true,
+    p_admin_sponsors: true,
+    p_admin_settings: true
   });
   const [inviteLink, setInviteLink] = useState('');
   
@@ -40,7 +45,7 @@ export const AdminSettings = () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('cargo', 'Artista')
+        .in('cargo', ['Artista', 'Produtor'])
         .order('created_at', { ascending: false });
         
       if (error) throw error;
@@ -52,7 +57,11 @@ export const AdminSettings = () => {
           chat: true,
           musics: true,
           work: true,
-          marketing: true
+          marketing: true,
+          admin_artists: true,
+          admin_musics: true,
+          admin_sponsors: true,
+          admin_settings: true
         }
       }));
       
@@ -75,9 +84,17 @@ export const AdminSettings = () => {
     params.set('email', form.email.trim());
     params.set('role', form.role === 'Produtor' ? 'Produtor' : 'Artista');
     params.set('p_chat', form.p_chat ? '1' : '0');
-    params.set('p_musics', form.p_musics ? '1' : '0');
-    params.set('p_work', form.p_work ? '1' : '0');
-    params.set('p_marketing', form.p_marketing ? '1' : '0');
+    
+    if (form.role === 'Produtor') {
+      params.set('p_admin_artists', form.p_admin_artists ? '1' : '0');
+      params.set('p_admin_musics', form.p_admin_musics ? '1' : '0');
+      params.set('p_admin_sponsors', form.p_admin_sponsors ? '1' : '0');
+      params.set('p_admin_settings', form.p_admin_settings ? '1' : '0');
+    } else {
+      params.set('p_musics', form.p_musics ? '1' : '0');
+      params.set('p_work', form.p_work ? '1' : '0');
+      params.set('p_marketing', form.p_marketing ? '1' : '0');
+    }
     
     const url = `${window.location.origin}/register?${params.toString()}`;
     setInviteLink(url);
@@ -179,22 +196,52 @@ export const AdminSettings = () => {
               <div className="space-y-3 pt-2">
                 <div className="text-sm text-gray-300 font-bold">Permissões Iniciais</div>
                 <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { key: 'p_chat', label: 'Chat' },
-                    { key: 'p_musics', label: 'Músicas' },
-                    { key: 'p_work', label: 'Trabalho' },
-                    { key: 'p_marketing', label: 'Marketing' }
-                  ].map((perm) => (
-                    <label key={perm.key} className="flex items-center gap-2 p-2 rounded-lg bg-black/20 border border-white/10 cursor-pointer hover:border-white/30 transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={form[perm.key]}
-                        onChange={(e) => setForm({ ...form, [perm.key]: e.target.checked })}
-                        className="rounded border-gray-600 text-beatwap-gold focus:ring-beatwap-gold bg-transparent"
-                      />
-                      <span className="text-sm">{perm.label}</span>
-                    </label>
-                  ))}
+                  <label className="flex items-center gap-2 p-2 rounded-lg bg-black/20 border border-white/10 cursor-pointer hover:border-white/30 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={form.p_chat}
+                      onChange={(e) => setForm({ ...form, p_chat: e.target.checked })}
+                      className="rounded border-gray-600 text-beatwap-gold focus:ring-beatwap-gold bg-transparent"
+                    />
+                    <span className="text-sm">Chat</span>
+                  </label>
+
+                  {form.role === 'Produtor' ? (
+                    // Admin Permissions
+                    [
+                      { key: 'p_admin_artists', label: 'Artistas' },
+                      { key: 'p_admin_musics', label: 'Músicas' },
+                      { key: 'p_admin_sponsors', label: 'Patrocinadores' },
+                      { key: 'p_admin_settings', label: 'Configurações' }
+                    ].map((perm) => (
+                      <label key={perm.key} className="flex items-center gap-2 p-2 rounded-lg bg-black/20 border border-white/10 cursor-pointer hover:border-white/30 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={form[perm.key]}
+                          onChange={(e) => setForm({ ...form, [perm.key]: e.target.checked })}
+                          className="rounded border-gray-600 text-beatwap-gold focus:ring-beatwap-gold bg-transparent"
+                        />
+                        <span className="text-sm">{perm.label}</span>
+                      </label>
+                    ))
+                  ) : (
+                    // Artist Permissions
+                    [
+                      { key: 'p_musics', label: 'Músicas' },
+                      { key: 'p_work', label: 'Trabalho' },
+                      { key: 'p_marketing', label: 'Marketing' }
+                    ].map((perm) => (
+                      <label key={perm.key} className="flex items-center gap-2 p-2 rounded-lg bg-black/20 border border-white/10 cursor-pointer hover:border-white/30 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={form[perm.key]}
+                          onChange={(e) => setForm({ ...form, [perm.key]: e.target.checked })}
+                          className="rounded border-gray-600 text-beatwap-gold focus:ring-beatwap-gold bg-transparent"
+                        />
+                        <span className="text-sm">{perm.label}</span>
+                      </label>
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -226,13 +273,13 @@ export const AdminSettings = () => {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex items-center gap-2 text-xl font-bold">
               <Shield size={20} className="text-beatwap-gold" />
-              Gerenciar Permissões de Artistas
+              Gerenciar Permissões
             </div>
             <div className="relative w-full md:w-64">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
               <input
                 type="text"
-                placeholder="Buscar artista..."
+                placeholder="Buscar usuário..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full bg-black/20 border border-white/10 rounded-full pl-9 pr-4 py-2 text-sm text-white focus:border-beatwap-gold outline-none"
@@ -267,22 +314,52 @@ export const AdminSettings = () => {
                       </div>
 
                       <div className="flex flex-wrap gap-2 lg:gap-4 flex-1 justify-end">
-                        {[
-                          { key: 'musics', label: 'Músicas' },
-                          { key: 'work', label: 'Trabalho' },
-                          { key: 'marketing', label: 'Marketing' },
-                          { key: 'chat', label: 'Chat' }
-                        ].map((perm) => (
-                          <label key={perm.key} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 border border-white/5 cursor-pointer hover:border-white/20 transition-colors">
-                            <input
-                              type="checkbox"
-                              checked={artist.access_control?.[perm.key] !== false}
-                              onChange={(e) => handlePermissionChange(artist.id, perm.key, e.target.checked)}
-                              className="rounded border-gray-600 text-beatwap-gold focus:ring-beatwap-gold bg-transparent"
-                            />
-                            <span className="text-xs sm:text-sm text-gray-300">{perm.label}</span>
-                          </label>
-                        ))}
+                        <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 border border-white/5 cursor-pointer hover:border-white/20 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={artist.access_control?.chat !== false}
+                            onChange={(e) => handlePermissionChange(artist.id, 'chat', e.target.checked)}
+                            className="rounded border-gray-600 text-beatwap-gold focus:ring-beatwap-gold bg-transparent"
+                          />
+                          <span className="text-xs sm:text-sm text-gray-300">Chat</span>
+                        </label>
+
+                        {artist.cargo === 'Produtor' ? (
+                          // Admin Permissions
+                          [
+                            { key: 'admin_artists', label: 'Artistas' },
+                            { key: 'admin_musics', label: 'Músicas' },
+                            { key: 'admin_sponsors', label: 'Patrocinadores' },
+                            { key: 'admin_settings', label: 'Configurações' }
+                          ].map((perm) => (
+                            <label key={perm.key} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 border border-white/5 cursor-pointer hover:border-white/20 transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={artist.access_control?.[perm.key] !== false}
+                                onChange={(e) => handlePermissionChange(artist.id, perm.key, e.target.checked)}
+                                className="rounded border-gray-600 text-beatwap-gold focus:ring-beatwap-gold bg-transparent"
+                              />
+                              <span className="text-xs sm:text-sm text-gray-300">{perm.label}</span>
+                            </label>
+                          ))
+                        ) : (
+                          // Artist Permissions
+                          [
+                            { key: 'musics', label: 'Músicas' },
+                            { key: 'work', label: 'Trabalho' },
+                            { key: 'marketing', label: 'Marketing' }
+                          ].map((perm) => (
+                            <label key={perm.key} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 border border-white/5 cursor-pointer hover:border-white/20 transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={artist.access_control?.[perm.key] !== false}
+                                onChange={(e) => handlePermissionChange(artist.id, perm.key, e.target.checked)}
+                                className="rounded border-gray-600 text-beatwap-gold focus:ring-beatwap-gold bg-transparent"
+                              />
+                              <span className="text-xs sm:text-sm text-gray-300">{perm.label}</span>
+                            </label>
+                          ))
+                        )}
                       </div>
 
                       <div className="flex justify-end lg:w-auto w-full">
