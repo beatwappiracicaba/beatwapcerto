@@ -783,7 +783,7 @@ export const AdminMusics = () => {
   };
   return (
     <AdminLayout>
-      <Card className="space-y-4">
+      <Card className="space-y-4 p-4 md:p-6">
         <div className="font-bold">Aprovar / Reprovar</div>
         <div className="flex gap-2 overflow-x-auto pb-2">
           <button
