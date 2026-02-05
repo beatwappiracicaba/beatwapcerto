@@ -63,6 +63,9 @@ const Register = () => {
         // Logged in immediately (Email confirmation disabled)
         try {
           if (roleParam) {
+            // Normalize role param (capitalize first letter)
+            const normalizedRole = roleParam.charAt(0).toUpperCase() + roleParam.slice(1).toLowerCase();
+            
             // Get permissions from URL
             const params = new URLSearchParams(location.search);
             const access_control = {
@@ -82,7 +85,7 @@ const Register = () => {
             await supabase
               .from('profiles')
               .update({ 
-                cargo: ['Artista', 'Produtor', 'Compositor'].includes(roleParam) ? roleParam : 'Artista', 
+                cargo: ['Artista', 'Produtor', 'Compositor'].includes(normalizedRole) ? normalizedRole : 'Artista', 
                 nome: capitalizedName,
                 access_control
               })

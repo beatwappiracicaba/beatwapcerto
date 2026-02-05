@@ -33,22 +33,22 @@ const HowItWorks = () => {
     {
       icon: UserPlus,
       title: 'Crie sua conta',
-      description: 'Cadastre-se gratuitamente em poucos segundos e tenha acesso ao painel do artista.',
+      description: 'Cadastre-se como Artista, Produtor ou Compositor e acesse ferramentas exclusivas para sua carreira.',
     },
     {
       icon: Upload,
-      title: 'Envie sua música',
-      description: 'Faça o upload dos seus arquivos de áudio e capa com nosso checklist inteligente.',
+      title: 'Gerencie seu conteúdo',
+      description: 'Artistas enviam músicas, Compositores gerenciam catálogo e Produtores organizam lançamentos.',
     },
     {
       icon: Activity,
-      title: 'Acompanhe o status',
-      description: 'Receba atualizações em tempo real sobre a análise e aprovação do seu lançamento.',
+      title: 'Acompanhe métricas',
+      description: 'Visualize plays, ouvintes e engajamento em tempo real no seu dashboard personalizado.',
     },
     {
       icon: Globe,
-      title: 'Sua música publicada',
-      description: 'Sua música disponível nas maiores plataformas digitais do mundo.',
+      title: 'Distribuição Global',
+      description: 'Sua música e composições disponíveis para o mundo com transparência e controle total.',
     },
   ];
 

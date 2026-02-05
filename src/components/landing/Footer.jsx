@@ -67,7 +67,7 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-500">
-          <p>&copy; {new Date().getFullYear()} BeatWap. Todos os direitos reservados.</p>
+          <p>&copy; 2026 BeatWap. Todos os direitos reservados.</p>
           <p className="flex items-center gap-1">
             Feito com <Heart size={14} className="text-red-500 fill-red-500" /> para a música.
           </p>

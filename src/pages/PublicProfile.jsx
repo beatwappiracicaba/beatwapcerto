@@ -65,6 +65,13 @@ const PublicProfile = () => {
 
   const fetchProfileData = async () => {
     try {
+      // Validate UUID to prevent 400 errors
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!id || !uuidRegex.test(id)) {
+        console.warn('Invalid profile ID:', id);
+        return;
+      }
+
       setLoading(true);
       
       // Fetch Profile
@@ -90,13 +97,7 @@ const PublicProfile = () => {
         if (musicError) throw musicError;
         setItems(musicData || []);
       } else if (profileData.cargo === 'Produtor') {
-         // Fetch Musics produced by this producer (assuming we add produced_by later or use logic)
-         // For now, maybe just show musics where they are the artist? Or nothing?
-         // User requested "tudo que ja tem e tbm as musicas lançadas pelos artistas" -> implies artists
-         // For producers, user said "quando for aceitar a musica... pedir para ele marcar qual produtor produziu"
-         // and "aparece na apagina inciial junto com a musica".
-         // On the profile page, we should probably show musics produced by them.
-         // Let's assume we will add 'produced_by' field.
+         // Fetch Musics produced by this producer
          const { data: producedData, error: producedError } = await supabase
           .from('musics')
           .select('*')
