@@ -10,7 +10,7 @@ import SpecialOffer from '../components/landing/SpecialOffer';
 import Contact from '../components/landing/Contact';
 import Footer from '../components/landing/Footer';
 import { supabase } from '../services/supabaseClient';
-import { Play, Pause, BadgeCheck } from 'lucide-react';
+import { Play, Pause, BadgeCheck, Music } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Instagram, Globe } from 'lucide-react';
@@ -19,7 +19,7 @@ import { Instagram, Globe } from 'lucide-react';
 const Home = () => {
   const [latestReleases, setLatestReleases] = useState([]);
   const [latestProjects, setLatestProjects] = useState([]);
-  const [sellers, setSellers] = useState([]);
+  const [composers, setComposers] = useState([]);
   const [sponsors, setSponsors] = useState([]);
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
@@ -33,8 +33,9 @@ const Home = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
     fetchLatestReleases();
+    fetchLatestCompositions();
     fetchLatestProjects();
-    fetchSellers();
+    fetchComposers();
     fetchSponsors();
     (async () => {
       try {
@@ -86,6 +87,27 @@ const Home = () => {
     }
   };
  
+  const fetchLatestCompositions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('compositions')
+        .select('id, title, genre, cover_url, audio_url, created_at, composer_id, status, profiles:composer_id(nome, nome_completo_razao_social)')
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false })
+        .limit(8);
+
+      if (error) throw error;
+      
+      const mapped = (data || []).map(c => ({
+        ...c,
+        composer_name: c.profiles?.nome || c.profiles?.nome_completo_razao_social || 'Compositor'
+      }));
+      setLatestCompositions(mapped);
+    } catch (error) {
+      console.error('Error fetching compositions:', error);
+    }
+  };
+
   const recordEvent = async (payload) => {
     try {
       await supabase.from('analytics_events').insert([{ ...payload, ip_hash: ipHash || 'unknown' }]);
@@ -163,19 +185,19 @@ const Home = () => {
     setIsPaused(false);
   };
 
-  const fetchSellers = async () => {
+  const fetchComposers = async () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('id, nome, nome_completo_razao_social, avatar_url')
-        .eq('cargo', 'Vendedor')
+        .eq('cargo', 'Compositor')
         .order('created_at', { ascending: false })
         .limit(8);
       if (error) throw error;
       const mapped = (data || []).map(s => ({ ...s, name: s.nome || s.nome_completo_razao_social || '' }));
-      setSellers(mapped);
+      setComposers(mapped);
     } catch (error) {
-      console.error('Error fetching sellers:', error);
+      console.error('Error fetching composers:', error);
     }
   };
 
@@ -286,6 +308,63 @@ const Home = () => {
           </section>
         )}
 
+        {/* Latest Compositions Section */}
+        {latestCompositions.length > 0 && (
+          <section className="py-20 px-6 bg-black/20">
+            <div className="max-w-7xl mx-auto">
+              <div className="text-center mb-12">
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">Últimas Composições Lançadas</h2>
+                <p className="text-gray-400">Obras exclusivas de nossos compositores parceiros</p>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {latestCompositions.map((comp, index) => (
+                  <motion.div 
+                    key={comp.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="group relative"
+                  >
+                    <div 
+                      className="aspect-square rounded-2xl overflow-hidden mb-4 relative shadow-lg cursor-pointer bg-gray-800"
+                      onClick={() => togglePlay(comp.id, comp.audio_url)}
+                    >
+                      {comp.cover_url ? (
+                        <img 
+                          src={comp.cover_url} 
+                          alt={comp.title} 
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-500">
+                          <Music size={40} />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button 
+                          className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePlay(comp.id, comp.audio_url);
+                          }}
+                        >
+                          {playingTrack === comp.id && !isPaused
+                            ? <Pause fill="currentColor" className="ml-1" />
+                            : <Play fill="currentColor" className="ml-1" />}
+                        </button>
+                      </div>
+                    </div>
+                    <h3 className="font-bold text-lg truncate">{comp.title}</h3>
+                    <p className="text-sm text-gray-400 truncate">{comp.composer_name}</p>
+                    <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider">{comp.genre || 'Gênero'}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Latest Producer Video Projects */}
         {latestProjects.length > 0 && (
           <section className="py-20 px-6 bg-black/25">
@@ -324,34 +403,34 @@ const Home = () => {
           </section>
         )}
 
-        {/* Sellers Section */}
-        {sellers.length > 0 && (
+        {/* Composers Section */}
+        {composers.length > 0 && (
           <section className="py-20 px-6 bg-black/20">
             <div className="max-w-7xl mx-auto">
               <div className="text-center mb-12">
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">Vendedores de Shows</h2>
-                <p className="text-gray-400">Profissionais disponíveis para fechar shows</p>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">Compositores Parceiros</h2>
+                <p className="text-gray-400">Profissionais disponíveis para suas produções</p>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {sellers.map((seller, index) => (
+                {composers.map((composer, index) => (
                   <motion.div
-                    key={seller.id}
+                    key={composer.id}
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
                     className="group p-4 rounded-2xl bg-white/5 border border-white/10"
                   >
                     <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-4 bg-gray-700 border-2 border-black">
-                      {seller.avatar_url ? (
-                        <img src={seller.avatar_url} alt={seller.name} className="w-full h-full object-cover" />
+                      {composer.avatar_url ? (
+                        <img src={composer.avatar_url} alt={composer.name} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-xl text-white font-bold">
-                          {seller.name?.charAt(0) || 'V'}
+                          {composer.name?.charAt(0) || 'C'}
                         </div>
                       )}
                     </div>
-                    <h3 className="font-bold text-lg text-center">{seller.name || 'Vendedor'}</h3>
-                    <p className="text-sm text-gray-400 text-center line-clamp-2 mt-1">{seller.bio || 'Vendedor de shows'}</p>
+                    <h3 className="font-bold text-lg text-center">{composer.name || 'Compositor'}</h3>
+                    <p className="text-sm text-gray-400 text-center line-clamp-2 mt-1">{composer.bio || 'Compositor parceiro'}</p>
                   </motion.div>
                 ))}
               </div>

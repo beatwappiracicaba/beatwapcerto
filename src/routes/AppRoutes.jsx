@@ -22,8 +22,10 @@ import { DashboardMarketing } from '../pages/DashboardMarketing';
 import DashboardWork from '../pages/DashboardWork';
 import { DashboardArtistProfile } from '../pages/DashboardArtistProfile';
 import { AdminHome, AdminArtists, AdminMusics, AdminChat, AdminProfile } from '../pages/AdminDashboard';
+import { AdminCompositions } from '../pages/AdminCompositions';
 import { AdminSponsors } from '../pages/AdminDashboard';
 import { AdminSettings } from '../pages/AdminSettings';
+import { DashboardCompositions } from '../pages/DashboardCompositions';
 
 // Admin temporariamente desativado
 
@@ -38,11 +40,12 @@ export const AppRoutes = () => {
 
   const isArtista = profile?.cargo === 'Artista';
   const isProdutor = profile?.cargo === 'Produtor';
+  const isCompositor = profile?.cargo === 'Compositor';
 
   return (
       <Routes location={location}>
         {/* Public Route - Landing Page */}
-        <Route path="/" element={loading ? <SplashScreen onComplete={() => {}} /> : (isProdutor ? <Navigate to="/admin" replace /> : (isArtista ? <Navigate to="/dashboard" replace /> : <Home />))} />
+        <Route path="/" element={loading ? <SplashScreen onComplete={() => {}} /> : (isProdutor ? <Navigate to="/admin" replace /> : ((isArtista || isCompositor) ? <Navigate to="/dashboard" replace /> : <Home />))} />
         
         {/* Auth Routes */}
         <Route element={<AuthLayout />}>
@@ -50,17 +53,19 @@ export const AppRoutes = () => {
           <Route path="/register" element={<Register />} />
         </Route>
 
-        <Route path="/dashboard" element={isArtista ? <DashboardArtistHome /> : <Navigate to="/" replace />} />
+        <Route path="/dashboard" element={(isArtista || isCompositor) ? <DashboardArtistHome /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/musics" element={isArtista ? <DashboardArtistMusics /> : <Navigate to="/" replace />} />
-        <Route path="/dashboard/profile" element={isArtista ? <DashboardArtistProfile /> : <Navigate to="/" replace />} />
-        <Route path="/dashboard/chat" element={isArtista ? <DashboardArtistChat /> : <Navigate to="/" replace />} />
+        <Route path="/dashboard/compositions" element={isCompositor ? <DashboardCompositions /> : <Navigate to="/" replace />} />
+        <Route path="/dashboard/profile" element={(isArtista || isCompositor) ? <DashboardArtistProfile /> : <Navigate to="/" replace />} />
+        <Route path="/dashboard/chat" element={(isArtista || isCompositor) ? <DashboardArtistChat /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/work" element={isArtista ? <DashboardWork /> : <Navigate to="/" replace />} />
-        <Route path="/dashboard/marketing" element={isArtista ? <DashboardMarketing /> : <Navigate to="/" replace />} />
+        <Route path="/dashboard/marketing" element={(isArtista || isCompositor) ? <DashboardMarketing /> : <Navigate to="/" replace />} />
 
         <Route path="/admin" element={isProdutor ? <AdminHome /> : (loading ? <SplashScreen onComplete={() => {}} /> : <Navigate to="/" replace />)} />
         <Route path="/admin/profile" element={isProdutor ? <AdminProfile /> : <Navigate to="/" replace />} />
         <Route path="/admin/artists" element={isProdutor ? <AdminArtists /> : <Navigate to="/" replace />} />
         <Route path="/admin/musics" element={isProdutor ? <AdminMusics /> : <Navigate to="/" replace />} />
+        <Route path="/admin/compositions" element={isProdutor ? <AdminCompositions /> : <Navigate to="/" replace />} />
         <Route path="/admin/chat" element={isProdutor ? <AdminChat /> : <Navigate to="/" replace />} />
         <Route path="/admin/sponsors" element={isProdutor ? <AdminSponsors /> : <Navigate to="/" replace />} />
         <Route path="/admin/settings" element={isProdutor ? <AdminSettings /> : <Navigate to="/" replace />} />

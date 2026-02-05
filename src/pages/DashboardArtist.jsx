@@ -245,7 +245,7 @@ export const DashboardArtistChat = () => {
   const [chatId, setChatId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
-  const [sellers, setSellers] = useState([]);
+  const [composers, setComposers] = useState([]);
   const [presence, setPresence] = useState([]);
   useEffect(() => {
     const init = async () => {
@@ -282,11 +282,11 @@ export const DashboardArtistChat = () => {
     if (user) init();
   }, [user]);
   useEffect(() => {
-    const loadSellers = async () => {
+    const loadComposers = async () => {
       const { data } = await supabase
         .from('profiles')
         .select('id, nome, avatar_url')
-        .eq('cargo', 'Vendedor');
+        .eq('cargo', 'Compositor');
       const ids = (data || []).map(d => d.id);
       let pres = [];
       if (ids.length) {
@@ -296,14 +296,14 @@ export const DashboardArtistChat = () => {
           .in('profile_id', ids);
         pres = p || [];
       }
-      setSellers(data || []);
+      setComposers(data || []);
       setPresence(pres);
     };
-    loadSellers();
+    loadComposers();
     const channel = supabase
       .channel('public:online_status')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'online_status' }, () => {
-        loadSellers();
+        loadComposers();
       })
       .subscribe();
     return () => {
@@ -318,18 +318,18 @@ export const DashboardArtistChat = () => {
   return (
     <DashboardLayout>
       <Card className="space-y-4">
-        <div className="text-sm text-beatwap-gold font-bold">Chat com Vendedor de Show</div>
+        <div className="text-sm text-beatwap-gold font-bold">Chat com Compositor</div>
         <div className="flex -space-x-2">
-          {sellers.slice(0, 6).map(s => {
+          {composers.slice(0, 6).map(s => {
             const st = presence.find(p => p.profile_id === s.id);
             const fresh = st?.updated_at ? (Date.now() - new Date(st.updated_at).getTime()) < 120000 : false;
             return (
               <div key={s.id} className="w-8 h-8 rounded-full border-2 border-[#121212] overflow-hidden bg-gray-700 relative">
                 {s.avatar_url ? (
-                  <img src={s.avatar_url} alt={s.nome || 'Vendedor'} className="w-full h-full object-cover" />
+                  <img src={s.avatar_url} alt={s.nome || 'Compositor'} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-[10px] text-white font-bold">
-                    {(s.nome || 'V').charAt(0)}
+                    {(s.nome || 'C').charAt(0)}
                   </div>
                 )}
                 {(st?.online && fresh) && <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-[#121212]" />}

@@ -12,13 +12,15 @@ import { ProfileButton } from './ProfileButton';
 export const DashboardLayout = ({ children }) => {
   const { signOut, user, profile } = useAuth();
   const isAdmin = profile?.cargo === 'Produtor';
+  const isCompositor = profile?.cargo === 'Compositor';
   const currentUserId = user?.id;
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Default permissions (all enabled) if not set
   const permissions = profile?.access_control || { 
-    musics: true, 
-    work: true, 
+    musics: !isCompositor, 
+    compositions: isCompositor,
+    work: !isCompositor, 
     marketing: true, 
     chat: true 
   };
@@ -28,6 +30,7 @@ export const DashboardLayout = ({ children }) => {
   const hasAccess = () => {
     const path = location.pathname;
     if (path.includes('/dashboard/musics') && permissions.musics === false) return false;
+    if (path.includes('/dashboard/compositions') && permissions.compositions === false) return false;
     if (path.includes('/dashboard/work') && permissions.work === false) return false;
     if (path.includes('/dashboard/marketing') && permissions.marketing === false) return false;
     return true;
@@ -47,13 +50,19 @@ export const DashboardLayout = ({ children }) => {
             <LayoutGrid size={18} /> Visão Geral
           </NavLink>
           
-          {permissions.musics !== false && (
+          {permissions.musics !== false && !isCompositor && (
             <NavLink to="/dashboard/musics" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
               <Music size={18} /> Minhas Músicas
             </NavLink>
           )}
+
+          {permissions.compositions !== false && isCompositor && (
+            <NavLink to="/dashboard/compositions" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+              <Music size={18} /> Minhas Composições
+            </NavLink>
+          )}
           
-          {permissions.work !== false && (
+          {permissions.work !== false && !isCompositor && (
             <NavLink to="/dashboard/work" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
               <LayoutGrid size={18} /> Trabalho
             </NavLink>
@@ -80,7 +89,7 @@ export const DashboardLayout = ({ children }) => {
             </button>
             <div className="text-xs text-gray-400">Bem-vindo</div>
             <div className="text-2xl font-bold">
-              {profile?.nome || 'Artista'}
+              {profile?.nome || profile?.cargo || 'Usuário'}
             </div>
           </div>
           <div className="flex items-center gap-4">

@@ -68,11 +68,13 @@ const Register = () => {
             const access_control = {
               chat: params.get('p_chat') === '1',
               musics: params.get('p_musics') === '1',
+              compositions: params.get('p_compositions') === '1',
               work: params.get('p_work') !== '0', // Default true if not specified
               marketing: params.get('p_marketing') !== '0', // Default true if not specified
               // Admin permissions (default true if not specified)
               admin_artists: params.get('p_admin_artists') !== '0',
               admin_musics: params.get('p_admin_musics') !== '0',
+              admin_compositions: params.get('p_admin_compositions') !== '0',
               admin_sponsors: params.get('p_admin_sponsors') !== '0',
               admin_settings: params.get('p_admin_settings') !== '0'
             };
@@ -80,7 +82,7 @@ const Register = () => {
             await supabase
               .from('profiles')
               .update({ 
-                cargo: roleParam === 'Produtor' ? 'Produtor' : 'Artista', 
+                cargo: ['Artista', 'Produtor', 'Compositor'].includes(roleParam) ? roleParam : 'Artista', 
                 nome: capitalizedName,
                 access_control
               })

@@ -108,8 +108,8 @@ export const ChatProvider = ({ children }) => {
 
       const cargo = profile?.cargo;
       const isAdmin = cargo === 'Produtor';
-      const isSeller = cargo === 'Vendedor';
-      if (!isAdmin && !isSeller) {
+      const isCompositor = cargo === 'Compositor';
+      if (!isAdmin && !isCompositor) {
         query = query.eq('artista_id', user.id);
       }
 
@@ -187,7 +187,7 @@ export const ChatProvider = ({ children }) => {
           artistId,
           artistName,
           artistAvatarUrl,
-          adminId: 'admin',
+          adminId: assignedTo,
           assignedTo,
           messages: messagesWithSender,
           lastMessage: (lastMsg?.content ?? lastMsg?.message) || '',
@@ -358,7 +358,7 @@ export const ChatProvider = ({ children }) => {
          const updatedMessages = (c.messages || []).map(m => ({ ...m, read: true }));
          const unreadCount = updatedMessages.filter(m => {
            const roleStr = String(profile?.cargo || '').toLowerCase();
-           const isAdmin = roleStr === 'produtor' || roleStr === 'seller' || roleStr === 'vendedor';
+           const isAdmin = roleStr === 'produtor' || roleStr === 'compositor';
            return !m.read && ((isAdmin && m.sender === 'artist') || (!isAdmin && m.sender === 'admin'));
          }).length;
          return { ...c, messages: updatedMessages, unreadCount };

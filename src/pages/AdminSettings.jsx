@@ -17,11 +17,13 @@ export const AdminSettings = () => {
     role: 'Artista',
     p_chat: true,
     p_musics: true,
+    p_compositions: true,
     p_work: true,
     p_marketing: true,
     // Admin permissions
     p_admin_artists: true,
     p_admin_musics: true,
+    p_admin_compositions: true,
     p_admin_sponsors: true,
     p_admin_settings: true
   });
@@ -45,7 +47,7 @@ export const AdminSettings = () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .in('cargo', ['Artista', 'Produtor'])
+        .in('cargo', ['Artista', 'Produtor', 'Compositor', 'Vendedor']) // Include Vendedor to show them before migration
         .order('created_at', { ascending: false });
         
       if (error) throw error;
@@ -60,6 +62,7 @@ export const AdminSettings = () => {
           marketing: true,
           admin_artists: true,
           admin_musics: true,
+          admin_compositions: true,
           admin_sponsors: true,
           admin_settings: true
         }
@@ -74,6 +77,50 @@ export const AdminSettings = () => {
     }
   };
 
+  const checkSchema = async () => {
+    const { error } = await supabase.from('compositions').select('id').limit(1);
+    if (error && error.code === '42P01') { // undefined_table
+      addToast('ATENÇÃO: Tabela "compositions" não existe. Execute o script SQL!', 'error');
+    }
+  };
+
+  useEffect(() => {
+    checkSchema();
+  }, []);
+
+  const migrateRoles = async () => {
+    if (!confirm('Isso irá renomear todos os perfis "Vendedor" para "Compositor". Continuar?')) return;
+    
+    try {
+      const { data: profiles, error: fetchError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('cargo', 'Vendedor');
+        
+      if (fetchError) throw fetchError;
+      
+      if (!profiles || profiles.length === 0) {
+        addToast('Nenhum perfil "Vendedor" encontrado.', 'info');
+        return;
+      }
+
+      // Update strictly via ID to avoid RLS issues if possible, but standard update should work
+      // Note: updating in a loop or batch.
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ cargo: 'Compositor' })
+        .eq('cargo', 'Vendedor');
+
+      if (updateError) throw updateError;
+      
+      addToast(`Perfis migrados com sucesso!`, 'success');
+      fetchArtists();
+    } catch (error) {
+      console.error('Migration error:', error);
+      addToast('Erro ao migrar: ' + error.message, 'error');
+    }
+  };
+
   const generateLink = () => {
     if (!form.name.trim() || !validEmail) {
       addToast('Preencha nome e um email válido.', 'error');
@@ -82,14 +129,18 @@ export const AdminSettings = () => {
     const params = new URLSearchParams();
     params.set('name', form.name.trim());
     params.set('email', form.email.trim());
-    params.set('role', form.role === 'Produtor' ? 'Produtor' : 'Artista');
+    params.set('role', form.role);
     params.set('p_chat', form.p_chat ? '1' : '0');
     
     if (form.role === 'Produtor') {
       params.set('p_admin_artists', form.p_admin_artists ? '1' : '0');
       params.set('p_admin_musics', form.p_admin_musics ? '1' : '0');
+      params.set('p_admin_compositions', form.p_admin_compositions ? '1' : '0');
       params.set('p_admin_sponsors', form.p_admin_sponsors ? '1' : '0');
       params.set('p_admin_settings', form.p_admin_settings ? '1' : '0');
+    } else if (form.role === 'Compositor') {
+      params.set('p_compositions', form.p_compositions ? '1' : '0');
+      params.set('p_marketing', form.p_marketing ? '1' : '0');
     } else {
       params.set('p_musics', form.p_musics ? '1' : '0');
       params.set('p_work', form.p_work ? '1' : '0');
@@ -149,8 +200,8 @@ export const AdminSettings = () => {
   };
 
   const filteredArtists = artists.filter(a => 
-    a.nome?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    a.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    (a.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (a.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -189,6 +240,7 @@ export const AdminSettings = () => {
                   onChange={(e) => setForm({ ...form, role: e.target.value })}
                 >
                   <option value="Artista" className="bg-[#121212]">Artista</option>
+                  <option value="Compositor" className="bg-[#121212]">Compositor</option>
                   <option value="Produtor" className="bg-[#121212]">Produtor</option>
                 </select>
               </div>
@@ -211,6 +263,7 @@ export const AdminSettings = () => {
                     [
                       { key: 'p_admin_artists', label: 'Artistas' },
                       { key: 'p_admin_musics', label: 'Músicas' },
+                      { key: 'p_admin_compositions', label: 'Composições' },
                       { key: 'p_admin_sponsors', label: 'Patrocinadores' },
                       { key: 'p_admin_settings', label: 'Configurações' }
                     ].map((perm) => (
@@ -225,12 +278,15 @@ export const AdminSettings = () => {
                       </label>
                     ))
                   ) : (
-                    // Artist Permissions
-                    [
+                    // Artist & Composer Permissions
+                    (form.role === 'Compositor' ? [
+                      { key: 'p_compositions', label: 'Composições' },
+                      { key: 'p_marketing', label: 'Marketing' }
+                    ] : [
                       { key: 'p_musics', label: 'Músicas' },
                       { key: 'p_work', label: 'Trabalho' },
                       { key: 'p_marketing', label: 'Marketing' }
-                    ].map((perm) => (
+                    ]).map((perm) => (
                       <label key={perm.key} className="flex items-center gap-2 p-2 rounded-lg bg-black/20 border border-white/10 cursor-pointer hover:border-white/30 transition-colors">
                         <input
                           type="checkbox"
@@ -275,15 +331,20 @@ export const AdminSettings = () => {
               <Shield size={20} className="text-beatwap-gold" />
               Gerenciar Permissões
             </div>
-            <div className="relative w-full md:w-64">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-              <input
-                type="text"
-                placeholder="Buscar usuário..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-black/20 border border-white/10 rounded-full pl-9 pr-4 py-2 text-sm text-white focus:border-beatwap-gold outline-none"
-              />
+            <div className="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto">
+              <AnimatedButton onClick={migrateRoles} variant="outline" className="text-xs w-full md:w-auto">
+                 Migrar Vendedores
+              </AnimatedButton>
+              <div className="relative w-full md:w-64">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Buscar usuário..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-black/20 border border-white/10 rounded-full pl-9 pr-4 py-2 text-sm text-white focus:border-beatwap-gold outline-none"
+                />
+              </div>
             </div>
           </div>
 
@@ -297,67 +358,83 @@ export const AdminSettings = () => {
                 {filteredArtists.map(artist => (
                   <div key={artist.id} className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all">
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                      <div className="flex items-center gap-3 min-w-[200px]">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center shrink-0">
                           {artist.avatar_url ? (
                             <img src={artist.avatar_url} alt={artist.nome} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full bg-gradient-to-br from-beatwap-gold to-yellow-600 flex items-center justify-center text-black font-bold">
-                              {artist.nome?.charAt(0) || 'A'}
+                              {artist.nome?.charAt(0) || 'U'}
                             </div>
                           )}
                         </div>
-                        <div>
-                          <div className="font-bold text-white">{artist.nome}</div>
-                          <div className="text-xs text-gray-400">{artist.email}</div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-white truncate">{artist.nome || 'Sem Nome'}</div>
+                          <div className="text-xs text-gray-400 truncate">{artist.email}</div>
+                          <div className="text-xs text-beatwap-gold mt-1">{artist.cargo}</div>
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-2 lg:gap-4 flex-1 justify-end">
-                        <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 border border-white/5 cursor-pointer hover:border-white/20 transition-colors">
-                          <input
-                            type="checkbox"
-                            checked={artist.access_control?.chat !== false}
-                            onChange={(e) => handlePermissionChange(artist.id, 'chat', e.target.checked)}
-                            className="rounded border-gray-600 text-beatwap-gold focus:ring-beatwap-gold bg-transparent"
-                          />
-                          <span className="text-xs sm:text-sm text-gray-300">Chat</span>
-                        </label>
-
+                      <div className="flex flex-wrap gap-2 lg:justify-end flex-1">
                         {artist.cargo === 'Produtor' ? (
                           // Admin Permissions
                           [
                             { key: 'admin_artists', label: 'Artistas' },
                             { key: 'admin_musics', label: 'Músicas' },
+                            { key: 'admin_compositions', label: 'Composições' },
                             { key: 'admin_sponsors', label: 'Patrocinadores' },
                             { key: 'admin_settings', label: 'Configurações' }
-                          ].map((perm) => (
-                            <label key={perm.key} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 border border-white/5 cursor-pointer hover:border-white/20 transition-colors">
-                              <input
-                                type="checkbox"
-                                checked={artist.access_control?.[perm.key] !== false}
-                                onChange={(e) => handlePermissionChange(artist.id, perm.key, e.target.checked)}
-                                className="rounded border-gray-600 text-beatwap-gold focus:ring-beatwap-gold bg-transparent"
-                              />
-                              <span className="text-xs sm:text-sm text-gray-300">{perm.label}</span>
-                            </label>
+                          ].map(perm => (
+                            <button
+                              key={perm.key}
+                              onClick={() => handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key])}
+                              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                                artist.access_control[perm.key]
+                                  ? 'bg-beatwap-gold/20 border-beatwap-gold text-beatwap-gold'
+                                  : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20'
+                              }`}
+                            >
+                              {perm.label}
+                            </button>
+                          ))
+                        ) : artist.cargo === 'Compositor' ? (
+                          // Composer Permissions
+                          [
+                            { key: 'compositions', label: 'Composições' },
+                            { key: 'marketing', label: 'Marketing' },
+                            { key: 'chat', label: 'Chat' }
+                          ].map(perm => (
+                            <button
+                              key={perm.key}
+                              onClick={() => handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key])}
+                              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                                artist.access_control[perm.key] !== false
+                                  ? 'bg-beatwap-gold/20 border-beatwap-gold text-beatwap-gold'
+                                  : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20'
+                              }`}
+                            >
+                              {perm.label}
+                            </button>
                           ))
                         ) : (
                           // Artist Permissions
                           [
                             { key: 'musics', label: 'Músicas' },
                             { key: 'work', label: 'Trabalho' },
-                            { key: 'marketing', label: 'Marketing' }
-                          ].map((perm) => (
-                            <label key={perm.key} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 border border-white/5 cursor-pointer hover:border-white/20 transition-colors">
-                              <input
-                                type="checkbox"
-                                checked={artist.access_control?.[perm.key] !== false}
-                                onChange={(e) => handlePermissionChange(artist.id, perm.key, e.target.checked)}
-                                className="rounded border-gray-600 text-beatwap-gold focus:ring-beatwap-gold bg-transparent"
-                              />
-                              <span className="text-xs sm:text-sm text-gray-300">{perm.label}</span>
-                            </label>
+                            { key: 'marketing', label: 'Marketing' },
+                            { key: 'chat', label: 'Chat' }
+                          ].map(perm => (
+                            <button
+                              key={perm.key}
+                              onClick={() => handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key])}
+                              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                                artist.access_control[perm.key] !== false
+                                  ? 'bg-beatwap-gold/20 border-beatwap-gold text-beatwap-gold'
+                                  : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20'
+                              }`}
+                            >
+                              {perm.label}
+                            </button>
                           ))
                         )}
                       </div>

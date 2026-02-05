@@ -18,6 +18,7 @@ export const AdminLayout = ({ children }) => {
   const permissions = profile?.access_control || {
     admin_artists: true,
     admin_musics: true,
+    admin_compositions: true,
     admin_sponsors: true,
     admin_settings: true
   };
@@ -45,6 +46,12 @@ export const AdminLayout = ({ children }) => {
           {permissions.admin_musics !== false && (
             <NavLink to="/admin/musics" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
               <Music size={18} /> Músicas
+            </NavLink>
+          )}
+
+          {permissions.admin_compositions !== false && (
+            <NavLink to="/admin/compositions" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+              <Music size={18} /> Composições
             </NavLink>
           )}
 
