@@ -1261,24 +1261,24 @@ export const AdminProfile = () => {
           )}
         </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-2">
+        <div className="grid grid-cols-2 md:flex md:flex-row gap-2 pb-2">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
+              className={`flex items-center justify-center md:justify-start gap-2 px-3 py-2 md:px-4 rounded-xl transition-all whitespace-nowrap text-sm md:text-base ${
                 activeTab === tab.id 
                   ? 'bg-beatwap-gold text-beatwap-black font-bold' 
                   : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
               }`}
             >
               <tab.icon size={18} />
-              {tab.label}
+              <span className="truncate">{tab.label}</span>
             </button>
           ))}
         </div>
 
-        <Card className="min-h-[400px]">
+        <Card className="min-h-[400px] p-4 md:p-6">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -1289,8 +1289,8 @@ export const AdminProfile = () => {
             >
               {activeTab === 'detalhes' && (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-6">
-                    <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-beatwap-gold/20 bg-gray-800">
+                  <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+                    <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-beatwap-gold/20 bg-gray-800 flex-shrink-0">
                       {profile?.avatar_url ? (
                         <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                       ) : (
@@ -1299,11 +1299,11 @@ export const AdminProfile = () => {
                         </div>
                       )}
                     </div>
-                    <AnimatedButton onClick={() => setAvatarModalOpen(true)} variant="secondary">
+                    <AnimatedButton onClick={() => setAvatarModalOpen(true)} variant="secondary" className="w-full sm:w-auto justify-center">
                       Modificar Foto
                     </AnimatedButton>
                   </div>
-                  <h3 className="text-lg font-bold text-white mb-4">Dados Pessoais</h3>
+                  <h3 className="text-lg font-bold text-white mb-4 text-center sm:text-left">Dados Pessoais</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <AnimatedInput 
                       label="Nome Completo / Razão Social" 
@@ -1356,8 +1356,8 @@ export const AdminProfile = () => {
                       <span className="text-sm capitalize">{formData.tema}</span>
                     </button>
                   </div>
-                  <div className="pt-4 flex justify-end">
-                    <AnimatedButton onClick={handleSave} isLoading={loading} icon={Save}>Salvar Detalhes</AnimatedButton>
+                  <div className="pt-4 flex flex-col sm:flex-row justify-end">
+                    <AnimatedButton onClick={handleSave} isLoading={loading} icon={Save} className="w-full sm:w-auto justify-center">Salvar Detalhes</AnimatedButton>
                   </div>
                 </div>
               )}
@@ -1373,8 +1373,8 @@ export const AdminProfile = () => {
                     <AnimatedInput label="Cidade" value={formData.cidade} onChange={(e) => setFormData({...formData, cidade: e.target.value})} />
                     <AnimatedInput label="Estado (UF)" value={formData.estado} onChange={(e) => setFormData({...formData, estado: e.target.value})} />
                   </div>
-                  <div className="pt-4 flex justify-end">
-                    <AnimatedButton onClick={handleSave} isLoading={loading} icon={Save}>Salvar Endereço</AnimatedButton>
+                  <div className="pt-4 flex flex-col sm:flex-row justify-end">
+                    <AnimatedButton onClick={handleSave} isLoading={loading} icon={Save} className="w-full sm:w-auto justify-center">Salvar Endereço</AnimatedButton>
                   </div>
                 </div>
               )}
@@ -1409,8 +1409,8 @@ export const AdminProfile = () => {
                   <div className="max-w-md space-y-4">
                     <AnimatedInput label="Nova Senha" type="password" value={formData.nova_senha} onChange={(e) => setFormData({...formData, nova_senha: e.target.value})} />
                     <AnimatedInput label="Confirmar Nova Senha" type="password" value={formData.confirmar_senha} onChange={(e) => setFormData({...formData, confirmar_senha: e.target.value})} />
-                    <div className="pt-4">
-                      <AnimatedButton onClick={handlePasswordChange} isLoading={loading} icon={Lock}>Atualizar Senha</AnimatedButton>
+                    <div className="pt-4 flex flex-col sm:flex-row justify-end">
+                      <AnimatedButton onClick={handlePasswordChange} isLoading={loading} icon={Lock} className="w-full sm:w-auto justify-center">Atualizar Senha</AnimatedButton>
                     </div>
                   </div>
                 </div>
