@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS public.artist_marketing (
   youtube_metrics JSONB DEFAULT '{}'::jsonb, -- { subscribers, best_video, frequency_ideal, interpretation }
   diagnosis JSONB DEFAULT '{}'::jsonb, -- { reach, digital_presence, strategy, show_readiness }
   action_plan JSONB DEFAULT '[]'::jsonb, -- Array of { id, text, type: 'orientation'|'mentor', completed }
-  suggestions JSONB DEFAULT '[]'::jsonb, -- Array of { id, text, type }
+  suggestions JSONB DEFAULT '[]'::jsonb, -- Array of { text }
+  mentorship_content JSONB DEFAULT '[]'::jsonb, -- Array of { title, duration, type }
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

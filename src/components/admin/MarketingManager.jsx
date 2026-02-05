@@ -16,7 +16,8 @@ export const MarketingManager = ({ artistId }) => {
     youtube_metrics: { subs: '', top_video: '', freq_ideal: '', interpretation: '' },
     diagnosis: { reach: '', presence: '', strategy: '', ready_for_shows: false },
     action_plan: [],
-    suggestion: ''
+    suggestions: [],
+    mentorship_content: []
   });
 
   useEffect(() => {
@@ -41,7 +42,13 @@ export const MarketingManager = ({ artistId }) => {
           youtube_metrics: existingData.youtube_metrics || {},
           diagnosis: existingData.diagnosis || {},
           action_plan: existingData.action_plan || [],
-          suggestion: existingData.suggestion || ''
+          suggestions: existingData.suggestions || [],
+          mentorship_content: (existingData.mentorship_content && existingData.mentorship_content.length > 0) ? existingData.mentorship_content : [
+            { title: "Como crescer no Instagram sem gastar", duration: "5 min", type: "Vídeo Aula" },
+            { title: "O que postar quando não tem show", duration: "5 min", type: "Vídeo Aula" },
+            { title: "Quando impulsionar ou não", duration: "5 min", type: "Vídeo Aula" },
+            { title: "Como transformar seguidor em público", duration: "5 min", type: "Vídeo Aula" }
+          ]
         });
       } else {
         // Reset defaults if no data exists
@@ -51,7 +58,13 @@ export const MarketingManager = ({ artistId }) => {
           youtube_metrics: { subs: '', top_video: '', freq_ideal: '', interpretation: '' },
           diagnosis: { reach: '', presence: '', strategy: '', ready_for_shows: false },
           action_plan: [],
-          suggestion: ''
+          suggestions: [],
+          mentorship_content: [
+            { title: "Como crescer no Instagram sem gastar", duration: "5 min", type: "Vídeo Aula" },
+            { title: "O que postar quando não tem show", duration: "5 min", type: "Vídeo Aula" },
+            { title: "Quando impulsionar ou não", duration: "5 min", type: "Vídeo Aula" },
+            { title: "Como transformar seguidor em público", duration: "5 min", type: "Vídeo Aula" }
+          ]
         });
       }
     } catch (error) {
@@ -106,6 +119,42 @@ export const MarketingManager = ({ artistId }) => {
   const removeActionItem = (index) => {
     const newPlan = data.action_plan.filter((_, i) => i !== index);
     setData(prev => ({ ...prev, action_plan: newPlan }));
+  };
+
+  const addSuggestion = () => {
+    setData(prev => ({
+      ...prev,
+      suggestions: [...prev.suggestions, { text: '' }]
+    }));
+  };
+
+  const updateSuggestion = (index, value) => {
+    const newSuggestions = [...data.suggestions];
+    newSuggestions[index] = { ...newSuggestions[index], text: value };
+    setData(prev => ({ ...prev, suggestions: newSuggestions }));
+  };
+
+  const removeSuggestion = (index) => {
+    const newSuggestions = data.suggestions.filter((_, i) => i !== index);
+    setData(prev => ({ ...prev, suggestions: newSuggestions }));
+  };
+
+  const addMentorshipContent = () => {
+    setData(prev => ({
+      ...prev,
+      mentorship_content: [...prev.mentorship_content, { title: '', duration: '5 min', type: 'Vídeo Aula' }]
+    }));
+  };
+
+  const updateMentorshipContent = (index, field, value) => {
+    const newContent = [...data.mentorship_content];
+    newContent[index] = { ...newContent[index], [field]: value };
+    setData(prev => ({ ...prev, mentorship_content: newContent }));
+  };
+
+  const removeMentorshipContent = (index) => {
+    const newContent = data.mentorship_content.filter((_, i) => i !== index);
+    setData(prev => ({ ...prev, mentorship_content: newContent }));
   };
 
   if (loading) return <div className="p-4 text-center"><Loader className="animate-spin mx-auto" /></div>;
@@ -295,15 +344,72 @@ export const MarketingManager = ({ artistId }) => {
         </div>
       </Card>
 
-      <Card className="space-y-2">
-        <div className="font-bold text-beatwap-gold">Sugestão BeatWap (Curadoria)</div>
-        <textarea 
-          className="w-full bg-beatwap-graphite/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors"
-          rows={4}
-          placeholder="Escreva uma sugestão personalizada para o artista..."
-          value={data.suggestion || ''}
-          onChange={(e) => setData(prev => ({ ...prev, suggestion: e.target.value }))}
-        />
+      <Card className="space-y-4">
+        <div className="flex justify-between items-center">
+          <div className="font-bold text-beatwap-gold">Sugestões BeatWap (Curadoria)</div>
+          <AnimatedButton onClick={addSuggestion} size="sm" variant="secondary"><Plus size={16} /> Adicionar Sugestão</AnimatedButton>
+        </div>
+        <div className="space-y-3">
+          {data.suggestions.map((item, index) => (
+            <div key={index} className="flex gap-2 items-start bg-white/5 p-3 rounded-xl border border-white/10">
+              <textarea 
+                className="w-full bg-transparent border-b border-white/10 focus:border-beatwap-gold outline-none text-white pb-1 text-sm"
+                rows={2}
+                value={item.text}
+                onChange={(e) => updateSuggestion(index, e.target.value)}
+                placeholder="Escreva a sugestão aqui..."
+              />
+              <button onClick={() => removeSuggestion(index)} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg">
+                <Trash size={16} />
+              </button>
+            </div>
+          ))}
+          {data.suggestions.length === 0 && <div className="text-gray-500 italic text-sm text-center py-4">Nenhuma sugestão cadastrada.</div>}
+        </div>
+      </Card>
+
+      <Card className="space-y-4">
+        <div className="flex justify-between items-center">
+          <div className="font-bold text-beatwap-gold">Conteúdo de Mentoria (Mini Aulas)</div>
+          <AnimatedButton onClick={addMentorshipContent} size="sm" variant="secondary"><Plus size={16} /> Adicionar Aula</AnimatedButton>
+        </div>
+        <div className="space-y-3">
+          {data.mentorship_content.map((item, index) => (
+            <div key={index} className="flex flex-col gap-2 bg-white/5 p-3 rounded-xl border border-white/10">
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  placeholder="Título da Aula"
+                  className="flex-1 bg-transparent border-b border-white/10 focus:border-beatwap-gold outline-none text-white pb-1"
+                  value={item.title}
+                  onChange={(e) => updateMentorshipContent(index, 'title', e.target.value)}
+                />
+                <button onClick={() => removeMentorshipContent(index)} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg">
+                  <Trash size={16} />
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  placeholder="Duração (ex: 5 min)"
+                  className="w-24 bg-transparent border-b border-white/10 focus:border-beatwap-gold outline-none text-xs text-gray-300 pb-1"
+                  value={item.duration}
+                  onChange={(e) => updateMentorshipContent(index, 'duration', e.target.value)}
+                />
+                <select 
+                  className="bg-black/20 border border-white/10 rounded text-xs text-gray-300 px-2"
+                  value={item.type}
+                  onChange={(e) => updateMentorshipContent(index, 'type', e.target.value)}
+                >
+                  <option value="Vídeo Aula">Vídeo Aula</option>
+                  <option value="Artigo">Artigo</option>
+                  <option value="Audio">Áudio</option>
+                </select>
+              </div>
+            </div>
+          ))}
+          {data.mentorship_content.length === 0 && <div className="text-gray-500 italic text-sm text-center py-4">Nenhum conteúdo de mentoria.</div>}
+        </div>
       </Card>
     </div>
   );
