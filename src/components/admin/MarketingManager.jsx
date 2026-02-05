@@ -29,7 +29,7 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName, artist
     composer_plan: []
   });
 
-  const isComposer = artistRole === 'Compositor' || artistRole === 'Produtor';
+  const isComposer = ['Compositor', 'Produtor', 'compositor', 'produtor'].includes(artistRole);
 
   useEffect(() => {
     if (isOpen && artistId) loadData();

@@ -11,8 +11,8 @@ import { ProfileButton } from './ProfileButton';
 
 export const DashboardLayout = ({ children }) => {
   const { signOut, user, profile } = useAuth();
-  const isAdmin = profile?.cargo === 'Produtor';
-  const isCompositor = profile?.cargo === 'Compositor';
+  const isAdmin = profile?.cargo?.toLowerCase() === 'produtor';
+  const isCompositor = profile?.cargo?.toLowerCase() === 'compositor';
   const currentUserId = user?.id;
   const [sidebarOpen, setSidebarOpen] = useState(false);
 

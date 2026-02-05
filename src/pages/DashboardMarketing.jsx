@@ -20,7 +20,7 @@ export const DashboardMarketing = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const isCompositor = user?.cargo === 'Compositor' || user?.cargo === 'Produtor';
+  const isCompositor = ['Compositor', 'Produtor', 'compositor', 'produtor'].includes(user?.cargo);
 
   useEffect(() => {
     const loadData = async () => {
@@ -155,58 +155,57 @@ export const DashboardMarketing = () => {
                 </Card>
               </motion.div>
 
-              {/* 2. Catálogo & 3. Posicionamento */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <motion.div variants={item}>
-                    <Card className="h-full p-6">
-                        <div className="flex items-center gap-3 mb-6">
-                            <Music className="text-purple-500" size={24} />
-                            <h2 className="text-xl font-bold text-white">Catálogo de Composições</h2>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="text-center p-4 bg-white/5 rounded-xl">
-                                <div className="text-2xl font-bold text-white">{catalog.registered || 0}</div>
-                                <div className="text-xs text-gray-400">Cadastradas</div>
-                            </div>
-                            <div className="text-center p-4 bg-white/5 rounded-xl">
-                                <div className="text-2xl font-bold text-yellow-500">{catalog.unpublished || 0}</div>
-                                <div className="text-xs text-gray-400">Inéditas</div>
-                            </div>
-                            <div className="text-center p-4 bg-white/5 rounded-xl">
-                                <div className="text-2xl font-bold text-green-500">{catalog.recorded || 0}</div>
-                                <div className="text-xs text-gray-400">Gravadas</div>
-                            </div>
-                            <div className="text-center p-4 bg-white/5 rounded-xl">
-                                <div className="text-2xl font-bold text-blue-500">{catalog.negotiating || 0}</div>
-                                <div className="text-xs text-gray-400">Em Negociação</div>
-                            </div>
-                        </div>
-                    </Card>
-                </motion.div>
+              {/* 2. Catálogo */}
+              <motion.div variants={item}>
+                <Card className="h-full p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <Music className="text-purple-500" size={24} />
+                    <h2 className="text-xl font-bold text-white">Catálogo de Composições</h2>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-4 bg-white/5 rounded-xl">
+                      <div className="text-2xl font-bold text-white">{catalog.registered || 0}</div>
+                      <div className="text-xs text-gray-400">Cadastradas</div>
+                    </div>
+                    <div className="text-center p-4 bg-white/5 rounded-xl">
+                      <div className="text-2xl font-bold text-yellow-500">{catalog.unpublished || 0}</div>
+                      <div className="text-xs text-gray-400">Inéditas</div>
+                    </div>
+                    <div className="text-center p-4 bg-white/5 rounded-xl">
+                      <div className="text-2xl font-bold text-green-500">{catalog.recorded || 0}</div>
+                      <div className="text-xs text-gray-400">Gravadas</div>
+                    </div>
+                    <div className="text-center p-4 bg-white/5 rounded-xl">
+                      <div className="text-2xl font-bold text-blue-500">{catalog.negotiating || 0}</div>
+                      <div className="text-xs text-gray-400">Em Negociação</div>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
 
-                <motion.div variants={item}>
-                    <Card className="h-full p-6">
-                        <div className="flex items-center gap-3 mb-6">
-                            <Target className="text-red-500" size={24} />
-                            <h2 className="text-xl font-bold text-white">Posicionamento</h2>
-                        </div>
-                        <div className="space-y-4">
-                            <div>
-                                <div className="text-sm text-gray-400 mb-1">Público Alvo / Artistas</div>
-                                <div className="text-white font-medium bg-white/5 px-3 py-2 rounded-lg">{positioning.target_audience || 'Não definido'}</div>
-                            </div>
-                            <div>
-                                <div className="text-sm text-gray-400 mb-1">Seu Diferencial</div>
-                                <div className="text-white font-medium bg-white/5 px-3 py-2 rounded-lg">{positioning.differential || 'Não definido'}</div>
-                            </div>
-                            <div>
-                                <div className="text-sm text-gray-400 mb-1">Bio Profissional</div>
-                                <p className="text-sm text-gray-300 italic bg-white/5 px-3 py-2 rounded-lg">{positioning.bio || 'Sem bio cadastrada.'}</p>
-                            </div>
-                        </div>
-                    </Card>
-                </motion.div>
-              </div>
+              {/* 3. Posicionamento */}
+              <motion.div variants={item}>
+                <Card className="h-full p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <Target className="text-red-500" size={24} />
+                    <h2 className="text-xl font-bold text-white">Posicionamento</h2>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="text-sm text-gray-400 mb-1">Público Alvo / Artistas</div>
+                      <div className="text-white font-medium bg-white/5 px-3 py-2 rounded-lg">{positioning.target_audience || 'Não definido'}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-400 mb-1">Seu Diferencial</div>
+                      <div className="text-white font-medium bg-white/5 px-3 py-2 rounded-lg">{positioning.differential || 'Não definido'}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-400 mb-1">Bio Profissional</div>
+                      <p className="text-sm text-gray-300 italic bg-white/5 px-3 py-2 rounded-lg">{positioning.bio || 'Sem bio cadastrada.'}</p>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
 
               {/* 4. Pitch (ESSENCIAL) */}
               <motion.div variants={item}>
@@ -254,51 +253,51 @@ export const DashboardMarketing = () => {
                 </Card>
               </motion.div>
 
-              {/* 5. Oportunidades & 6. Direitos */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <motion.div variants={item}>
-                    <Card className="h-full p-6">
-                        <div className="flex items-center gap-3 mb-6">
-                            <Briefcase className="text-blue-400" size={24} />
-                            <h2 className="text-xl font-bold text-white">Oportunidades</h2>
+              {/* 5. Oportunidades */}
+              <motion.div variants={item}>
+                <Card className="h-full p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <Briefcase className="text-blue-400" size={24} />
+                    <h2 className="text-xl font-bold text-white">Oportunidades</h2>
+                  </div>
+                  <div className="space-y-3">
+                    {(data?.composer_opportunities || []).map((opp, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10">
+                        <div>
+                          <div className="font-bold text-white">{opp.title}</div>
+                          <div className="text-xs text-gray-400">{opp.type}</div>
                         </div>
-                        <div className="space-y-3">
-                            {(data?.composer_opportunities || []).map((opp, idx) => (
-                                <div key={idx} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10">
-                                    <div>
-                                        <div className="font-bold text-white">{opp.title}</div>
-                                        <div className="text-xs text-gray-400">{opp.type}</div>
-                                    </div>
-                                    <span className={`text-xs px-2 py-1 rounded-full border ${
-                                        opp.status === 'Aberta' ? 'bg-green-500/20 border-green-500 text-green-400' :
-                                        opp.status === 'Em análise' ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400' :
-                                        opp.status === 'Selecionado' ? 'bg-blue-500/20 border-blue-500 text-blue-400' :
-                                        'bg-gray-500/20 border-gray-500 text-gray-400'
-                                    }`}>
-                                        {opp.status}
-                                    </span>
-                                </div>
-                            ))}
-                            {(!data?.composer_opportunities || data.composer_opportunities.length === 0) && (
-                                <div className="text-center py-8 text-gray-500">Nenhuma oportunidade ativa no momento.</div>
-                            )}
-                        </div>
-                    </Card>
-                </motion.div>
+                        <span className={`text-xs px-2 py-1 rounded-full border ${
+                          opp.status === 'Aberta' ? 'bg-green-500/20 border-green-500 text-green-400' :
+                          opp.status === 'Em análise' ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400' :
+                          opp.status === 'Selecionado' ? 'bg-blue-500/20 border-blue-500 text-blue-400' :
+                          'bg-gray-500/20 border-gray-500 text-gray-400'
+                        }`}>
+                          {opp.status}
+                        </span>
+                      </div>
+                    ))}
+                    {(!data?.composer_opportunities || data.composer_opportunities.length === 0) && (
+                      <div className="text-center py-8 text-gray-500">Nenhuma oportunidade ativa no momento.</div>
+                    )}
+                  </div>
+                </Card>
+              </motion.div>
 
-                <motion.div variants={item}>
-                    <Card className="h-full p-6">
-                        <div className="flex items-center gap-3 mb-6">
-                            <Shield className="text-gray-300" size={24} />
-                            <h2 className="text-xl font-bold text-white">Direitos Autorais</h2>
-                        </div>
-                        <div className="space-y-4">
-                            <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-                                <span className="text-gray-400">Músicas Registradas?</span>
-                                <span className={`font-bold ${rights.registered === 'Sim' ? 'text-green-400' : rights.registered === 'Não' ? 'text-red-400' : 'text-yellow-400'}`}>
-                                    {rights.registered || 'Não informado'}
-                                </span>
-                            </div>
+              {/* 6. Direitos Autorais */}
+              <motion.div variants={item}>
+                <Card className="h-full p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <Shield className="text-gray-300" size={24} />
+                    <h2 className="text-xl font-bold text-white">Direitos Autorais</h2>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                      <span className="text-gray-400">Músicas Registradas?</span>
+                      <span className={`font-bold ${rights.registered === 'Sim' ? 'text-green-400' : rights.registered === 'Não' ? 'text-red-400' : 'text-yellow-400'}`}>
+                        {rights.registered || 'Não informado'}
+                      </span>
+                    </div>
                             <div>
                                 <div className="text-xs text-gray-400 mb-1">Coautores Frequentes</div>
                                 <div className="text-white text-sm bg-white/5 px-3 py-2 rounded-lg">{rights.coauthors || '-'}</div>
