@@ -18,6 +18,7 @@ import { Instagram, Globe } from 'lucide-react';
 
 const Home = () => {
   const [latestReleases, setLatestReleases] = useState([]);
+  const [latestCompositions, setLatestCompositions] = useState([]);
   const [latestProjects, setLatestProjects] = useState([]);
   const [composers, setComposers] = useState([]);
   const [sponsors, setSponsors] = useState([]);
