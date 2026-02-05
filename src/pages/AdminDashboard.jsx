@@ -1346,11 +1346,11 @@ export const AdminProfile = () => {
                       className="md:col-span-2"
                     />
                   </div>
-                  <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10 mt-4">
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10 mt-4 gap-3">
                     <span className="text-gray-300">Tema da Interface</span>
                     <button 
                       onClick={() => setFormData({...formData, tema: formData.tema === 'dark' ? 'light' : 'dark'})}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/50 border border-white/20"
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/50 border border-white/20 w-full md:w-auto justify-center"
                     >
                       {formData.tema === 'dark' ? <Moon size={16} className="text-blue-400" /> : <Sun size={16} className="text-yellow-400" />}
                       <span className="text-sm capitalize">{formData.tema}</span>
@@ -1385,12 +1385,12 @@ export const AdminProfile = () => {
                   <h3 className="text-lg font-bold text-white mb-4">Contrato de Serviço</h3>
                   <div className="p-6 bg-white/5 border border-white/10 rounded-xl">
                     <div className="flex items-start gap-4">
-                      <div className="p-3 bg-blue-500/20 rounded-lg text-blue-500">
+                      <div className="p-3 bg-blue-500/20 rounded-lg text-blue-500 flex-shrink-0">
                         <FileText size={24} />
                       </div>
-                      <div>
-                        <h4 className="text-white font-bold">Contrato de Distribuição Digital</h4>
-                        <p className="text-sm text-gray-400 mt-1">Este é o contrato padrão que rege nossa parceria. Baixe, leia e mantenha uma cópia para seus registros.</p>
+                      <div className="min-w-0">
+                        <h4 className="text-white font-bold break-words">Contrato de Distribuição Digital</h4>
+                        <p className="text-sm text-gray-400 mt-1 break-words">Este é o contrato padrão que rege nossa parceria. Baixe, leia e mantenha uma cópia para seus registros.</p>
                         <div className="mt-4">
                           <button onClick={generateContract} className="flex items-center gap-2 text-beatwap-gold hover:underline text-sm">
                             <Download size={16} />
