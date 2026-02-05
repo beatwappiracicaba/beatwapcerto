@@ -14,30 +14,86 @@ export const DashboardArtistHome = () => {
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     const fetchMetrics = async () => {
-      const { data, error } = await supabase
+      // Legacy metrics
+      const { data: legacy } = await supabase
         .from('artist_metrics')
         .select('*')
         .eq('artista_id', user.id)
         .maybeSingle();
-      if (!error) setMetrics(data || { total_plays: 0, ouvintes_mensais: 0, receita_estimada: 0 });
+
+      // Analytics events
+      const { data: events } = await supabase
+        .from('analytics_events')
+        .select('type, duration_seconds, ip_hash')
+        .eq('artist_id', user.id);
+
+      const agg = {
+        plays: 0,
+        listeners: new Set(),
+        time: 0,
+        profile_views: 0,
+        social_clicks: 0
+      };
+
+      (events || []).forEach(e => {
+        if (e.type === 'music_play') {
+          agg.plays++;
+          agg.time += Number(e.duration_seconds || 0);
+          if (e.ip_hash) agg.listeners.add(e.ip_hash);
+        } else if (e.type === 'profile_view') {
+          agg.profile_views++;
+        } else if (e.type && e.type.startsWith('artist_click_')) {
+          agg.social_clicks++;
+        }
+      });
+
+      setMetrics({ 
+        total_plays: agg.plays, 
+        ouvintes_mensais: agg.listeners.size, 
+        receita_estimada: legacy?.receita_estimada || 0,
+        tempo_ouvido: agg.time,
+        visitas_perfil: agg.profile_views,
+        cliques_sociais: agg.social_clicks
+      });
       setLoading(false);
     };
     if (user) fetchMetrics();
   }, [user]);
   return (
     <DashboardLayout>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <Card>
           <div className="text-sm text-gray-400">Total de Plays</div>
           <div className="text-3xl font-bold">{loading ? '...' : metrics?.total_plays ?? 0}</div>
         </Card>
         <Card>
-          <div className="text-sm text-gray-400">Ouvintes Mensais</div>
+          <div className="text-sm text-gray-400">Ouvintes</div>
           <div className="text-3xl font-bold">{loading ? '...' : metrics?.ouvintes_mensais ?? 0}</div>
         </Card>
         <Card>
           <div className="text-sm text-gray-400">Receita Estimada</div>
           <div className="text-3xl font-bold">{loading ? '...' : metrics?.receita_estimada ?? 0}</div>
+        </Card>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <div className="text-sm text-gray-400">Tempo Ouvido</div>
+          <div className="text-3xl font-bold">
+            {loading ? '...' : (() => {
+               const s = metrics?.tempo_ouvido || 0;
+               const h = Math.floor(s / 3600);
+               const m = Math.floor((s % 3600) / 60);
+               return `${h}h ${m}m`;
+            })()}
+          </div>
+        </Card>
+        <Card>
+          <div className="text-sm text-gray-400">Visitas no Perfil</div>
+          <div className="text-3xl font-bold">{loading ? '...' : metrics?.visitas_perfil ?? 0}</div>
+        </Card>
+        <Card>
+          <div className="text-sm text-gray-400">Cliques Sociais</div>
+          <div className="text-3xl font-bold">{loading ? '...' : metrics?.cliques_sociais ?? 0}</div>
         </Card>
       </div>
     </DashboardLayout>

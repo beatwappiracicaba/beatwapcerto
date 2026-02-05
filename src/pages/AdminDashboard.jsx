@@ -20,6 +20,7 @@ import { buildDistributionContractHTML } from '../utils/contractTemplate';
 
 export const AdminHome = () => {
   const [counts, setCounts] = useState({ artists: 0, musics: 0, pending: 0 });
+  const [myMetrics, setMyMetrics] = useState(null);
   const { user } = useAuth();
   const { addToast } = useToast();
   const [projects, setProjects] = useState([]);
@@ -91,6 +92,39 @@ export const AdminHome = () => {
     };
     load();
   }, []);
+
+  useEffect(() => {
+    const fetchMyMetrics = async () => {
+      if (!user) return;
+      const { data: events } = await supabase
+        .from('analytics_events')
+        .select('type, duration_seconds, ip_hash')
+        .eq('artist_id', user.id);
+        
+      const agg = {
+        plays: 0,
+        listeners: new Set(),
+        time: 0,
+        profile_views: 0,
+        social_clicks: 0
+      };
+      
+      (events || []).forEach(e => {
+        if (e.type === 'music_play') {
+          agg.plays++;
+          agg.time += Number(e.duration_seconds || 0);
+          if (e.ip_hash) agg.listeners.add(e.ip_hash);
+        } else if (e.type === 'profile_view') {
+          agg.profile_views++;
+        } else if (e.type && e.type.startsWith('artist_click_')) {
+          agg.social_clicks++;
+        }
+      });
+      
+      setMyMetrics(agg);
+    };
+    fetchMyMetrics();
+  }, [user]);
   const loadProjects = useCallback(async () => {
     try {
       setLoadingProjects(true);
@@ -167,7 +201,37 @@ export const AdminHome = () => {
   };
   return (
     <AdminLayout>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="mb-8">
+        <h2 className="text-xl font-bold mb-4">Meu Perfil</h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Card>
+              <div className="text-sm text-gray-400">Visitas no Perfil</div>
+              <div className="text-3xl font-bold">{myMetrics?.profile_views ?? 0}</div>
+            </Card>
+            <Card>
+              <div className="text-sm text-gray-400">Cliques Sociais</div>
+              <div className="text-3xl font-bold">{myMetrics?.social_clicks ?? 0}</div>
+            </Card>
+             <Card>
+              <div className="text-sm text-gray-400">Total Plays</div>
+              <div className="text-3xl font-bold">{myMetrics?.plays ?? 0}</div>
+            </Card>
+            <Card>
+              <div className="text-sm text-gray-400">Tempo Ouvido</div>
+              <div className="text-3xl font-bold">
+                {(() => {
+                   const s = myMetrics?.time || 0;
+                   const h = Math.floor(s / 3600);
+                   const m = Math.floor((s % 3600) / 60);
+                   return `${h}h ${m}m`;
+                })()}
+              </div>
+            </Card>
+        </div>
+      </div>
+
+      <h2 className="text-xl font-bold mb-4">Plataforma</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <Card><div className="text-sm text-gray-400">Artistas</div><div className="text-3xl font-bold">{counts.artists}</div></Card>
         <Card><div className="text-sm text-gray-400">Músicas</div><div className="text-3xl font-bold">{counts.musics}</div></Card>
         <Card><div className="text-sm text-gray-400">Pendentes</div><div className="text-3xl font-bold">{counts.pending}</div></Card>

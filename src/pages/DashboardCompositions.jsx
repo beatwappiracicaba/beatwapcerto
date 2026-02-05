@@ -12,6 +12,7 @@ export const DashboardCompositions = () => {
   const [compositions, setCompositions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [compMetrics, setCompMetrics] = useState({});
 
   const fetchCompositions = useCallback(async () => {
     setLoading(true);
@@ -27,6 +28,29 @@ export const DashboardCompositions = () => {
   useEffect(() => {
     if (user) fetchCompositions();
   }, [user, fetchCompositions]);
+
+  useEffect(() => {
+    const loadMetrics = async () => {
+      if (!user) return;
+      const { data: ev } = await supabase
+        .from('analytics_events')
+        .select('type,music_id,duration_seconds')
+        .eq('artist_id', user.id)
+        .in('type', ['music_play']);
+      
+      const agg = {};
+      (ev || []).forEach(e => {
+        const mid = e.music_id || 'unknown';
+        if (!agg[mid]) agg[mid] = { plays: 0, totalSeconds: 0 };
+        if (e.type === 'music_play') {
+          agg[mid].plays += 1;
+          agg[mid].totalSeconds += Number(e.duration_seconds || 0);
+        }
+      });
+      setCompMetrics(agg);
+    };
+    loadMetrics();
+  }, [user]);
 
   return (
     <DashboardLayout>
@@ -63,6 +87,18 @@ export const DashboardCompositions = () => {
               <div className="flex-1">
                 <div className="font-bold text-white">{comp.title}</div>
                 <div className="text-xs text-gray-400">{comp.genre} • {new Date(comp.created_at).toLocaleDateString()}</div>
+                {comp.status === 'approved' && (
+                  <div className="mt-1 text-xs text-gray-300">
+                    {(() => {
+                      const mm = compMetrics[comp.id] || { plays: 0, totalSeconds: 0 };
+                      const hh = Math.floor(mm.totalSeconds / 3600);
+                      const mmn = Math.floor((mm.totalSeconds % 3600) / 60);
+                      const ss = mm.totalSeconds % 60;
+                      const totalFmt = `${hh}h ${mmn}m ${ss}s`;
+                      return `Plays: ${mm.plays} • Tempo total: ${totalFmt}`;
+                    })()}
+                  </div>
+                )}
                 {comp.price && (
                     <div className="text-xs text-beatwap-gold mt-1 font-bold">R$ {comp.price}</div>
                 )}

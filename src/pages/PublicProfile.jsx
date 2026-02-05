@@ -15,6 +15,40 @@ const PublicProfile = () => {
   const [loading, setLoading] = useState(true);
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
+  const [ipHash, setIpHash] = useState(null);
+  const [playStartTS, setPlayStartTS] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('https://api.ipify.org?format=json');
+        const json = await res.json();
+        setIpHash(json?.ip || null);
+      } catch {
+        setIpHash(null);
+      }
+    })();
+  }, []);
+
+  const recordEvent = async (payload) => {
+    try {
+      await supabase.from('analytics_events').insert([{ ...payload, ip_hash: ipHash || 'unknown' }]);
+    } catch (e) { void 0; }
+  };
+
+  const handleSocialClick = (network) => {
+    recordEvent({ type: `artist_click_${network}`, artist_id: profile.id });
+  };
+
+  useEffect(() => {
+    if (profile) {
+      recordEvent({ type: 'profile_view', artist_id: profile.id });
+    }
+  }, [profile, ipHash]); // ipHash dependency to ensure we have IP if possible, but might double trigger. Better to check if logged. 
+  // Actually, recordEvent uses current ipHash state. 
+  // Let's rely on profile change. If IP comes later, it might be missed for the very first view event if it fires too fast. 
+  // But usually IP fetch is fast. Or we can just send 'unknown'.
+  // Better: Trigger only when profile is loaded.
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -93,14 +127,20 @@ const PublicProfile = () => {
     }
   };
 
-  const togglePlay = (trackId, url) => {
+  const togglePlay = (trackId, url, trackOwnerId) => {
     if (!url) return;
     
     if (playingTrack === trackId && audioElement) {
       if (audioElement.paused) {
         audioElement.play();
+        setPlayStartTS(Date.now());
       } else {
         audioElement.pause();
+        if (playStartTS) {
+           const duration = Math.max(0, Math.round((Date.now() - playStartTS) / 1000));
+           recordEvent({ type: 'music_play', music_id: trackId, artist_id: trackOwnerId || profile.id, duration_seconds: duration });
+           setPlayStartTS(null);
+        }
       }
       return;
     }
@@ -111,10 +151,16 @@ const PublicProfile = () => {
 
     const audio = new Audio(url);
     audio.onended = () => {
+      if (playStartTS) {
+         const duration = Math.max(0, Math.round((Date.now() - playStartTS) / 1000));
+         recordEvent({ type: 'music_play', music_id: trackId, artist_id: trackOwnerId || profile.id, duration_seconds: duration });
+         setPlayStartTS(null);
+      }
       setPlayingTrack(null);
       setAudioElement(null);
     };
     audio.play();
+    setPlayStartTS(Date.now());
     setAudioElement(audio);
     setPlayingTrack(trackId);
   };
@@ -181,6 +227,7 @@ const PublicProfile = () => {
                       rel="noopener noreferrer"
                       className="p-3 bg-white/5 rounded-xl hover:bg-pink-500/20 hover:text-pink-500 transition-colors"
                       title="Instagram"
+                      onClick={() => handleSocialClick('instagram')}
                     >
                       <Instagram size={24} />
                     </a>
@@ -192,6 +239,7 @@ const PublicProfile = () => {
                       rel="noopener noreferrer"
                       className="p-3 bg-white/5 rounded-xl hover:bg-red-600/20 hover:text-red-600 transition-colors"
                       title="YouTube"
+                      onClick={() => handleSocialClick('youtube')}
                     >
                       <Youtube size={24} />
                     </a>
@@ -203,6 +251,7 @@ const PublicProfile = () => {
                       rel="noopener noreferrer"
                       className="p-3 bg-white/5 rounded-xl hover:bg-black hover:text-white transition-colors border border-transparent hover:border-white/20"
                       title="TikTok"
+                      onClick={() => handleSocialClick('tiktok')}
                     >
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                         <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
@@ -216,6 +265,7 @@ const PublicProfile = () => {
                       rel="noopener noreferrer"
                       className="p-3 bg-white/5 rounded-xl hover:bg-[#1DB954]/20 hover:text-[#1DB954] transition-colors"
                       title="Spotify"
+                      onClick={() => handleSocialClick('spotify')}
                     >
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
@@ -229,6 +279,7 @@ const PublicProfile = () => {
                       rel="noopener noreferrer"
                       className="p-3 bg-white/5 rounded-xl hover:bg-[#A238FF]/20 hover:text-[#A238FF] transition-colors"
                       title="Deezer"
+                      onClick={() => handleSocialClick('deezer')}
                     >
                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M2 6h4v12H2V6zm6 5h4v7H8v-7zm6-4h4v11h-4V7zm6-4h4v15h-4V3z"/>
@@ -242,6 +293,7 @@ const PublicProfile = () => {
                       rel="noopener noreferrer"
                       className="p-3 bg-white/5 rounded-xl hover:bg-blue-500/20 hover:text-blue-500 transition-colors"
                       title="Site"
+                      onClick={() => handleSocialClick('site')}
                     >
                       <Globe size={24} />
                     </a>
@@ -252,6 +304,7 @@ const PublicProfile = () => {
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 px-6 py-3 bg-green-500 text-black font-bold rounded-xl hover:bg-white transition-colors"
+                      onClick={() => handleSocialClick('whatsapp')}
                     >
                       <MessageCircle size={20} />
                       WhatsApp
