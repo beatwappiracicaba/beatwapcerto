@@ -13,6 +13,7 @@ import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../utils/cropImage';
 import { ArtistContentManager } from '../components/admin/ArtistContentManager';
 import { ProfileEditModal } from '../components/ui/ProfileEditModal';
+import { MusicEditModal } from '../components/admin/MusicEditModal';
 import { useData } from '../context/DataContext';
 import { buildDistributionContractHTML } from '../utils/contractTemplate';
 
@@ -698,6 +699,9 @@ export const AdminMusics = () => {
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [musicToEdit, setMusicToEdit] = useState(null);
+
   const togglePlay = (trackId, url) => {
     if (!url) return;
     if (playingTrack === trackId && audioElement) {
@@ -716,7 +720,7 @@ export const AdminMusics = () => {
   const load = useCallback(async () => {
     let q = supabase
       .from('musics')
-      .select('id,titulo,status,motivo_recusa,artista_id,upc,presave_link,release_date,created_at,cover_url,audio_url,authorization_url')
+      .select('id,titulo,status,motivo_recusa,artista_id,upc,presave_link,release_date,created_at,cover_url,audio_url,authorization_url,is_beatwap_produced,show_on_home')
       .order('created_at', { ascending: false });
     if (statusFilter !== 'todos') q = q.eq('status', statusFilter);
     if (artistFilter) q = q.eq('artista_id', artistFilter);
@@ -885,7 +889,14 @@ export const AdminMusics = () => {
                     </AnimatedButton>
                   )}
                   {m.status === 'aprovado' && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <AnimatedButton 
+                        onClick={() => { setMusicToEdit(m); setEditModalOpen(true); }}
+                        className="!py-1 !px-2 text-[10px]"
+                        variant="secondary"
+                      >
+                        Editar Info
+                      </AnimatedButton>
                       {m.upc && (
                         <div className="text-[11px] px-2 py-1 rounded-full bg-white/10 text-white border border-white/10">
                           UPC: {m.upc}
@@ -957,6 +968,12 @@ export const AdminMusics = () => {
             </motion.div>
           ))}
         </div>
+        <MusicEditModal 
+          isOpen={editModalOpen} 
+          onClose={() => setEditModalOpen(false)} 
+          music={musicToEdit} 
+          onSuccess={load} 
+        />
       </Card>
     </AdminLayout>
   );
