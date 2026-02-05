@@ -785,10 +785,10 @@ export const AdminMusics = () => {
     <AdminLayout>
       <Card className="space-y-4 p-4 md:p-6">
         <div className="font-bold">Aprovar / Reprovar</div>
-        <div className="flex gap-2 overflow-x-auto pb-2">
+        <div className="flex flex-wrap gap-2 pb-2">
           <button
             onClick={() => setStatusFilter('aprovado')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
+            className={`flex-1 md:flex-none justify-center md:justify-start flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
               statusFilter === 'aprovado' 
                 ? 'bg-beatwap-gold text-beatwap-black font-bold' 
                 : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
@@ -798,7 +798,7 @@ export const AdminMusics = () => {
           </button>
           <button
             onClick={() => setStatusFilter('pendente')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
+            className={`flex-1 md:flex-none justify-center md:justify-start flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
               statusFilter === 'pendente' 
                 ? 'bg-beatwap-gold text-beatwap-black font-bold' 
                 : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
@@ -808,7 +808,7 @@ export const AdminMusics = () => {
           </button>
           <button
             onClick={() => setStatusFilter('todos')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
+            className={`flex-1 md:flex-none justify-center md:justify-start flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
               statusFilter === 'todos' 
                 ? 'bg-beatwap-gold text-beatwap-black font-bold' 
                 : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
@@ -817,20 +817,22 @@ export const AdminMusics = () => {
             Todas
           </button>
         </div>
-        <div className="flex flex-col gap-3 md:grid md:grid-cols-5 md:gap-2">
-          <select className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-2">
+          <select className="col-span-2 md:col-span-1 w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="todos">Status: Todos</option>
             <option value="pendente">Pendente</option>
             <option value="aprovado">Aprovado</option>
             <option value="recusado">Recusado</option>
           </select>
-          <select className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={artistFilter} onChange={(e) => setArtistFilter(e.target.value)}>
+          <select className="col-span-2 md:col-span-1 w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={artistFilter} onChange={(e) => setArtistFilter(e.target.value)}>
             <option value="">Artista: Todos</option>
             {artists.map(a => <option key={a.id} value={a.id}>{a.nome || a.nome_completo_razao_social || 'Sem nome'}</option>)}
           </select>
-          <input type="date" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          <input type="date" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-          <AnimatedButton onClick={load} className="w-full justify-center py-3 md:py-2">Filtrar</AnimatedButton>
+          <input type="date" className="col-span-1 w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <input type="date" className="col-span-1 w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <div className="col-span-2 md:col-span-1">
+            <AnimatedButton onClick={load} className="w-full justify-center py-3 md:py-2">Filtrar</AnimatedButton>
+          </div>
         </div>
         <div className="grid grid-cols-1 gap-4">
           {musics.map(m => (
