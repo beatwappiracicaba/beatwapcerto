@@ -5,7 +5,7 @@ import { useToast } from '../../context/ToastContext';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
 import { Card } from '../ui/Card';
-import { Plus, Trash, Save, Loader, X, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash, Save, Loader, X, Check, ChevronDown, ChevronUp, Instagram, Music, Youtube } from 'lucide-react';
 
 export const MarketingManager = ({ isOpen, onClose, artistId, artistName, artistRole = 'Artista' }) => {
   const { addToast } = useToast();
@@ -375,6 +375,68 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName, artist
             ) : (
               // ARTIST VIEW (Existing)
               <div className="space-y-6">
+                {/* Social Media Metrics */}
+                <Card className="space-y-4">
+                  <div className="font-bold text-beatwap-gold flex items-center gap-2">
+                    <Instagram size={20} /> Métricas Instagram
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <AnimatedInput label="Seguidores" value={data.instagram_metrics.followers} onChange={(e) => updateMetric('instagram_metrics', 'followers', e.target.value)} />
+                    <AnimatedInput label="Frequência" value={data.instagram_metrics.frequency} onChange={(e) => updateMetric('instagram_metrics', 'frequency', e.target.value)} />
+                    <AnimatedInput label="Engajamento" value={data.instagram_metrics.engagement} onChange={(e) => updateMetric('instagram_metrics', 'engagement', e.target.value)} />
+                    <AnimatedInput label="Crescimento" value={data.instagram_metrics.growth} onChange={(e) => updateMetric('instagram_metrics', 'growth', e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-400">Análise/Interpretação</label>
+                    <textarea 
+                      className="w-full bg-beatwap-graphite/50 border border-white/10 rounded-xl px-4 py-2 text-white text-sm"
+                      rows={2}
+                      value={data.instagram_metrics.interpretation}
+                      onChange={(e) => updateMetric('instagram_metrics', 'interpretation', e.target.value)}
+                    />
+                  </div>
+                </Card>
+
+                <Card className="space-y-4">
+                  <div className="font-bold text-beatwap-gold flex items-center gap-2">
+                    <Music size={20} /> Métricas TikTok
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <AnimatedInput label="Seguidores" value={data.tiktok_metrics.followers} onChange={(e) => updateMetric('tiktok_metrics', 'followers', e.target.value)} />
+                    <AnimatedInput label="Média Views" value={data.tiktok_metrics.views_avg} onChange={(e) => updateMetric('tiktok_metrics', 'views_avg', e.target.value)} />
+                    <AnimatedInput label="Melhor Conteúdo" value={data.tiktok_metrics.top_content} onChange={(e) => updateMetric('tiktok_metrics', 'top_content', e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-400">Análise/Interpretação</label>
+                    <textarea 
+                      className="w-full bg-beatwap-graphite/50 border border-white/10 rounded-xl px-4 py-2 text-white text-sm"
+                      rows={2}
+                      value={data.tiktok_metrics.interpretation}
+                      onChange={(e) => updateMetric('tiktok_metrics', 'interpretation', e.target.value)}
+                    />
+                  </div>
+                </Card>
+
+                <Card className="space-y-4">
+                  <div className="font-bold text-beatwap-gold flex items-center gap-2">
+                    <Youtube size={20} /> Métricas YouTube
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <AnimatedInput label="Inscritos" value={data.youtube_metrics.subs} onChange={(e) => updateMetric('youtube_metrics', 'subs', e.target.value)} />
+                    <AnimatedInput label="Vídeo Top" value={data.youtube_metrics.top_video} onChange={(e) => updateMetric('youtube_metrics', 'top_video', e.target.value)} />
+                    <AnimatedInput label="Freq. Ideal" value={data.youtube_metrics.freq_ideal} onChange={(e) => updateMetric('youtube_metrics', 'freq_ideal', e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-400">Análise/Interpretação</label>
+                    <textarea 
+                      className="w-full bg-beatwap-graphite/50 border border-white/10 rounded-xl px-4 py-2 text-white text-sm"
+                      rows={2}
+                      value={data.youtube_metrics.interpretation}
+                      onChange={(e) => updateMetric('youtube_metrics', 'interpretation', e.target.value)}
+                    />
+                  </div>
+                </Card>
+
                 <Card className="space-y-4">
                   <div className="font-bold text-beatwap-gold">Diagnóstico Geral</div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

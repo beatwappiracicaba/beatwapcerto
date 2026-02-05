@@ -389,6 +389,98 @@ export const DashboardMarketing = () => {
           ) : (
             // ARTIST VIEW (Existing/Enhanced)
             <>
+              {/* Social Media Metrics */}
+              <motion.div variants={item}>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Instagram */}
+                    <Card className="p-6 border-t-4 border-t-pink-500">
+                        <div className="flex items-center gap-3 mb-4">
+                            <Instagram className="text-pink-500" size={24} />
+                            <h2 className="text-lg font-bold text-white">Instagram</h2>
+                        </div>
+                        <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="bg-white/5 p-2 rounded-lg">
+                                    <div className="text-xs text-gray-400">Seguidores</div>
+                                    <div className="font-bold text-white">{data?.instagram_metrics?.followers || '-'}</div>
+                                </div>
+                                <div className="bg-white/5 p-2 rounded-lg">
+                                    <div className="text-xs text-gray-400">Crescimento</div>
+                                    <div className="font-bold text-green-400">{data?.instagram_metrics?.growth || '-'}</div>
+                                </div>
+                            </div>
+                            <div className="bg-white/5 p-2 rounded-lg">
+                                <div className="text-xs text-gray-400">Engajamento</div>
+                                <div className="font-bold text-white">{data?.instagram_metrics?.engagement || '-'}</div>
+                            </div>
+                            {data?.instagram_metrics?.interpretation && (
+                                <div className="text-xs text-gray-300 italic border-l-2 border-pink-500 pl-2">
+                                    "{data.instagram_metrics.interpretation}"
+                                </div>
+                            )}
+                        </div>
+                    </Card>
+
+                    {/* TikTok */}
+                    <Card className="p-6 border-t-4 border-t-cyan-400">
+                        <div className="flex items-center gap-3 mb-4">
+                            <Music className="text-cyan-400" size={24} />
+                            <h2 className="text-lg font-bold text-white">TikTok</h2>
+                        </div>
+                        <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="bg-white/5 p-2 rounded-lg">
+                                    <div className="text-xs text-gray-400">Seguidores</div>
+                                    <div className="font-bold text-white">{data?.tiktok_metrics?.followers || '-'}</div>
+                                </div>
+                                <div className="bg-white/5 p-2 rounded-lg">
+                                    <div className="text-xs text-gray-400">Média Views</div>
+                                    <div className="font-bold text-cyan-400">{data?.tiktok_metrics?.views_avg || '-'}</div>
+                                </div>
+                            </div>
+                            <div className="bg-white/5 p-2 rounded-lg">
+                                <div className="text-xs text-gray-400">Melhor Conteúdo</div>
+                                <div className="font-bold text-white truncate">{data?.tiktok_metrics?.top_content || '-'}</div>
+                            </div>
+                            {data?.tiktok_metrics?.interpretation && (
+                                <div className="text-xs text-gray-300 italic border-l-2 border-cyan-400 pl-2">
+                                    "{data.tiktok_metrics.interpretation}"
+                                </div>
+                            )}
+                        </div>
+                    </Card>
+
+                    {/* YouTube */}
+                    <Card className="p-6 border-t-4 border-t-red-500">
+                        <div className="flex items-center gap-3 mb-4">
+                            <Youtube className="text-red-500" size={24} />
+                            <h2 className="text-lg font-bold text-white">YouTube</h2>
+                        </div>
+                        <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="bg-white/5 p-2 rounded-lg">
+                                    <div className="text-xs text-gray-400">Inscritos</div>
+                                    <div className="font-bold text-white">{data?.youtube_metrics?.subs || '-'}</div>
+                                </div>
+                                <div className="bg-white/5 p-2 rounded-lg">
+                                    <div className="text-xs text-gray-400">Freq. Ideal</div>
+                                    <div className="font-bold text-red-400">{data?.youtube_metrics?.freq_ideal || '-'}</div>
+                                </div>
+                            </div>
+                            <div className="bg-white/5 p-2 rounded-lg">
+                                <div className="text-xs text-gray-400">Vídeo Top</div>
+                                <div className="font-bold text-white truncate">{data?.youtube_metrics?.top_video || '-'}</div>
+                            </div>
+                            {data?.youtube_metrics?.interpretation && (
+                                <div className="text-xs text-gray-300 italic border-l-2 border-red-500 pl-2">
+                                    "{data.youtube_metrics.interpretation}"
+                                </div>
+                            )}
+                        </div>
+                    </Card>
+                </div>
+              </motion.div>
+
               {/* Diagnosis */}
               <motion.div variants={item}>
                 <Card className="p-6">
@@ -461,6 +553,31 @@ export const DashboardMarketing = () => {
                     ))}
                     {(!data?.action_plan || data.action_plan.length === 0) && (
                         <div className="text-center text-gray-500 py-4">Nenhuma ação pendente.</div>
+                    )}
+                  </div>
+                </Card>
+              </motion.div>
+
+              {/* Suggestions */}
+              <motion.div variants={item}>
+                <Card className="p-6 border border-beatwap-gold/30 bg-gradient-to-b from-beatwap-gold/5 to-transparent">
+                  <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <Star className="text-beatwap-gold" />
+                    Sugestões da Curadoria
+                  </h2>
+                  <div className="space-y-3">
+                    {(data?.suggestions || []).map((suggestion, idx) => (
+                      <div key={idx} className="flex gap-3 p-4 bg-white/5 rounded-xl border border-white/10">
+                        <div className="mt-1">
+                            <Zap size={16} className="text-beatwap-gold" />
+                        </div>
+                        <p className="text-gray-200 text-sm leading-relaxed">
+                            {suggestion.text}
+                        </p>
+                      </div>
+                    ))}
+                    {(!data?.suggestions || data.suggestions.length === 0) && (
+                        <div className="text-center text-gray-500 py-4">Nenhuma sugestão disponível no momento.</div>
                     )}
                   </div>
                 </Card>
