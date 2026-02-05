@@ -63,7 +63,7 @@ const Home = () => {
     try {
       const { data, error } = await supabase
         .from('musics')
-        .select('id,titulo,nome_artista,estilo,cover_url,preview_url,audio_url,presave_link,release_date,created_at,artista_id,is_beatwap_produced,show_on_home')
+        .select('id,titulo,nome_artista,estilo,cover_url,preview_url,audio_url,presave_link,release_date,created_at,artista_id,is_beatwap_produced,show_on_home,produced_by,producer:profiles!produced_by(nome,nome_completo_razao_social)')
         .eq('status', 'aprovado')
         .eq('show_on_home', true)
         .order('created_at', { ascending: false })
@@ -280,10 +280,12 @@ const Home = () => {
                       {release.is_beatwap_produced ? (
                         <>
                           <BadgeCheck size={12} className="text-beatwap-gold" />
-                          <span className="text-beatwap-gold font-medium">Produzido por BeatWap</span>
+                          <span className="text-beatwap-gold font-medium">
+                            Prod. {release.producer?.nome || release.producer?.nome_completo_razao_social || 'BeatWap'}
+                          </span>
                         </>
                       ) : (
-                        'Não produzido pela BeatWap'
+                        'Produção Independente'
                       )}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">

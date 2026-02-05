@@ -708,6 +708,7 @@ export const AdminMusics = () => {
   const [statusFilter, setStatusFilter] = useState('pendente');
   const [artistFilter, setArtistFilter] = useState('');
   const [artists, setArtists] = useState([]);
+  const [producers, setProducers] = useState([]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [localInputs, setLocalInputs] = useState({});
@@ -756,15 +757,31 @@ export const AdminMusics = () => {
     };
     fetchArtists();
   }, []);
+
+  useEffect(() => {
+    const fetchProducers = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, nome, nome_completo_razao_social')
+        .eq('cargo', 'Produtor')
+        .order('nome', { ascending: true });
+      setProducers(data || []);
+    };
+    fetchProducers();
+  }, []);
+
   const approve = async (m) => {
     const inputs = localInputs[m.id] || {};
     const upcVal = (inputs.upc || '').trim();
     const presaveVal = (inputs.presave || '').trim();
     const releaseVal = (inputs.release_date || '').trim();
     const isProduced = inputs.is_beatwap_produced || false;
+    const producedBy = inputs.produced_by || null;
     const showHome = inputs.show_on_home || false;
 
     if (!upcVal) { addToast('Informe o UPC', 'error'); return; }
+    if (isProduced && !producedBy) { addToast('Selecione o produtor responsável', 'error'); return; }
+
     await supabase
       .from('musics')
       .update({ 
@@ -773,6 +790,7 @@ export const AdminMusics = () => {
         presave_link: presaveVal || null, 
         release_date: releaseVal || null,
         is_beatwap_produced: isProduced,
+        produced_by: isProduced ? producedBy : null,
         show_on_home: showHome
       })
       .eq('id', m.id);
@@ -962,6 +980,24 @@ export const AdminMusics = () => {
                         </div>
                         <span className="text-[10px] text-gray-300 select-none">Prod. BeatWap</span>
                       </div>
+                      
+                      {/* Producer Selection Dropdown */}
+                      {localInputs[m.id]?.is_beatwap_produced && (
+                        <select
+                          className="w-full bg-black/20 border border-white/10 rounded px-2 py-1 text-[10px] text-white focus:border-beatwap-gold outline-none"
+                          value={localInputs[m.id]?.produced_by || ''}
+                          onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), produced_by: e.target.value } }))}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <option value="">Selecione o Produtor</option>
+                          {producers.map(p => (
+                            <option key={p.id} value={p.id}>
+                              {p.nome || p.nome_completo_razao_social || 'Produtor'}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+
                       <div className="flex items-center gap-2 cursor-pointer" onClick={() => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), show_on_home: !localInputs[m.id]?.show_on_home } }))}>
                         <div className={`w-4 h-4 rounded border flex items-center justify-center ${localInputs[m.id]?.show_on_home ? 'bg-beatwap-gold border-beatwap-gold text-black' : 'border-white/20 bg-white/5'}`}>
                           {localInputs[m.id]?.show_on_home && <Check size={12} strokeWidth={4} />}

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Star, Music, Shield, Info, Instagram as IgIcon, Globe, X } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
@@ -8,7 +9,7 @@ const UserCard = ({ user, type, onSelect }) => {
   return (
     <motion.div
       whileHover={{ y: -5 }}
-      className="bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold/50 transition-colors group"
+      className="bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold transition-colors group"
       onClick={() => onSelect(user)}
     >
       <div className="aspect-square bg-gray-800 relative overflow-hidden">
@@ -40,6 +41,7 @@ const UserCard = ({ user, type, onSelect }) => {
 };
 
 const FeaturedUsers = () => {
+  const navigate = useNavigate();
   const [artists, setArtists] = useState([]);
   const [producers, setProducers] = useState([]);
   const [recentUsers, setRecentUsers] = useState([]);
@@ -85,104 +87,42 @@ const FeaturedUsers = () => {
     })();
   }, []);
 
-  const openLink = async (url, type) => {
-    const valid = (url || '').trim();
-    if (!valid) {
-      addToast(`Perfil ${type} ainda não possui`, 'info');
-      return;
-    }
-    try {
-      const a = document.createElement('a');
-      a.href = valid;
-      a.target = '_blank';
-      a.rel = 'noopener,noreferrer';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      if (selected?.id) {
-        let evType = null;
-        if (type.includes('Instagram')) evType = 'artist_click_instagram';
-        else if (type.includes('site')) evType = 'artist_click_site';
-        else if (type.includes('YouTube')) evType = 'artist_click_youtube';
-        else if (type.includes('Spotify')) evType = 'artist_click_spotify';
-        else if (type.includes('Deezer')) evType = 'artist_click_deezer';
-        else if (type.includes('TikTok')) evType = 'artist_click_tiktok';
-        if (evType) {
-          try { await supabase.from('analytics_events').insert([{ type: evType, artist_id: selected.id, ip_hash: ipHash || 'unknown' }]); } catch {}
-        }
-      }
-    } catch {}
+  const handleUserClick = (user) => {
+    navigate(`/profile/${user.id}`);
   };
 
   if (loading) return null;
 
   return (
-    <section className="py-20 bg-beatwap-dark relative overflow-hidden">
+    <section className="py-20 px-6 relative overflow-hidden">
       {/* Background Elements */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-beatwap-gold/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
-      </div>
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-[100px]" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-beatwap-gold/5 rounded-full blur-[100px]" />
 
-      <div className="container mx-auto px-4 relative z-10">
+      <div className="max-w-7xl mx-auto relative z-10">
         
-        {/* Recent Joins Notification Area */}
-        {recentUsers.length > 0 && (
-          <div className="mb-16">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-green-500/20 rounded-lg text-green-500">
-                  <Star size={20} />
-                </div>
-                <h2 className="text-xl font-bold text-white">Acabaram de Chegar</h2>
-              </div>
-              <div className="flex flex-wrap gap-4">
-                {recentUsers.map((user) => (
-                  <div key={user.id} className="flex items-center gap-3 bg-black/20 pr-4 rounded-full p-1 border border-white/5">
-                    <div className="w-8 h-8 rounded-full bg-gray-700 overflow-hidden">
-                      {user.avatar_url ? (
-                        <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <User size={16} className="w-full h-full p-1 text-gray-400" />
-                      )}
-                    </div>
-                    <span className="text-sm text-gray-300 font-medium">{user.name || 'Novo Usuário'}</span>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          </div>
-        )}
-
         {/* Producers Section */}
         {producers.length > 0 && (
           <div className="mb-20">
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-center mb-12"
+              className="flex items-center justify-between mb-8"
             >
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">Nossos <span className="text-beatwap-gold">Produtores</span></h2>
-              <p className="text-gray-400 max-w-2xl mx-auto">Conheça a equipe responsável por fazer a mágica acontecer.</p>
+              <h2 className="text-3xl font-bold text-white flex items-center gap-3">
+                <Shield className="text-beatwap-gold" />
+                Produtores
+              </h2>
             </motion.div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-              {producers.map((producer, index) => (
-                <motion.div
-                  key={producer.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <UserCard user={producer} type="producer" onSelect={(u) => setSelected(u)} />
-                </motion.div>
+              {producers.map((user) => (
+                <UserCard 
+                  key={user.id} 
+                  user={user} 
+                  type="producer" 
+                  onSelect={handleUserClick} 
+                />
               ))}
             </div>
           </div>
@@ -194,122 +134,26 @@ const FeaturedUsers = () => {
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-center mb-12"
+              className="flex items-center justify-between mb-8"
             >
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">Artistas da <span className="text-beatwap-gold">Casa</span></h2>
-              <p className="text-gray-400 max-w-2xl mx-auto">Talentos incríveis que fazem parte da nossa história.</p>
+              <h2 className="text-3xl font-bold text-white flex items-center gap-3">
+                <Star className="text-beatwap-gold" />
+                Artistas da Casa
+              </h2>
             </motion.div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-              {artists.map((artist, index) => (
-                <motion.div
-                  key={artist.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <UserCard user={artist} type="artist" onSelect={(u) => setSelected(u)} />
-                </motion.div>
+              {artists.map((user) => (
+                <UserCard 
+                  key={user.id} 
+                  user={user} 
+                  type="artist" 
+                  onSelect={handleUserClick} 
+                />
               ))}
             </div>
           </div>
         )}
-        <AnimatePresence>
-          {selected && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80"
-            >
-              <motion.div
-                initial={{ scale: 0.95 }}
-                animate={{ scale: 1 }}
-                exit={{ scale: 0.95 }}
-                className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-sm overflow-hidden"
-              >
-                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-beatwap-black">
-                  <h3 className="text-lg font-bold text-white">Visitar Perfil</h3>
-                  <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-white">
-                    <X size={20} />
-                  </button>
-                </div>
-                <div className="p-6 space-y-3">
-                  <button
-                    onClick={() => openLink(selected.instagram_url, 'do Instagram')}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
-                  >
-                    <div className="w-9 h-9 rounded-lg bg-pink-500/20 flex items-center justify-center text-pink-500">
-                      <IgIcon size={20} />
-                    </div>
-                    <div className="text-left">
-                      <div className="text-white font-bold text-sm">Instagram</div>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => openLink(selected.site_url, 'do site')}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
-                  >
-                    <div className="w-9 h-9 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-500">
-                      <Globe size={20} />
-                    </div>
-                    <div className="text-left">
-                      <div className="text-white font-bold text-sm">Site</div>
-                    </div>
-                  </button>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => openLink(selected.youtube_url, 'do YouTube')}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
-                    >
-                      <div className="w-9 h-9 rounded-lg bg-red-500/20 flex items-center justify-center text-red-500">
-                        <span className="text-xs font-bold">YT</span>
-                      </div>
-                      <div className="text-left">
-                        <div className="text-white font-bold text-sm">YouTube</div>
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => openLink(selected.spotify_url, 'do Spotify')}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
-                    >
-                      <div className="w-9 h-9 rounded-lg bg-green-500/20 flex items-center justify-center text-green-500">
-                        <span className="text-xs font-bold">SP</span>
-                      </div>
-                      <div className="text-left">
-                        <div className="text-white font-bold text-sm">Spotify</div>
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => openLink(selected.deezer_url, 'do Deezer')}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
-                    >
-                      <div className="w-9 h-9 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-500">
-                        <span className="text-xs font-bold">DZ</span>
-                      </div>
-                      <div className="text-left">
-                        <div className="text-white font-bold text-sm">Deezer</div>
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => openLink(selected.tiktok_url, 'do TikTok')}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
-                    >
-                      <div className="w-9 h-9 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-500">
-                        <span className="text-xs font-bold">TT</span>
-                      </div>
-                      <div className="text-left">
-                        <div className="text-white font-bold text-sm">TikTok</div>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     </section>
   );
