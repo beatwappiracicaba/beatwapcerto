@@ -215,11 +215,18 @@ const Home = () => {
                         alt={release.titulo || 'Capa'} 
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
                       />
-                      {release.release_date && new Date(release.release_date) >= new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()) && (
-                        <div className="absolute top-2 left-2 bg-beatwap-gold text-black text-xs font-bold px-2 py-1 rounded">
-                          Lança em {new Date(release.release_date).toLocaleDateString('pt-BR')}
-                        </div>
-                      )}
+                      {release.release_date && (() => {
+                        const [y, m, d] = release.release_date.split('-');
+                        const rDate = new Date(y, m - 1, d);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const isReleased = rDate <= today;
+                        return (
+                          <div className={`absolute top-2 left-2 text-black text-xs font-bold px-2 py-1 rounded ${isReleased ? 'bg-white' : 'bg-beatwap-gold'}`}>
+                            {isReleased ? 'Lançado em' : 'Lança em'} {rDate.toLocaleDateString('pt-BR')}
+                          </div>
+                        );
+                      })()}
                       {release.is_beatwap_produced && (
                         <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm p-1.5 rounded-full border border-beatwap-gold/50 z-10" title="Produzido, Mixado e Masterizado pela BeatWap">
                           <BadgeCheck className="text-beatwap-gold w-5 h-5" />
@@ -262,7 +269,13 @@ const Home = () => {
                           recordEvent({ type: 'music_click_presave', music_id: release.id, artist_id: release.artista_id });
                           window.open(release.presave_link, '_blank');
                         }}>
-                          Pré-save
+                          {(() => {
+                             const [y, m, d] = (release.release_date || '').split('-');
+                             const rDate = release.release_date ? new Date(y, m - 1, d) : new Date(8640000000000000);
+                             const today = new Date();
+                             today.setHours(0, 0, 0, 0);
+                             return rDate <= today ? 'SmartLink' : 'Pré-save';
+                          })()}
                         </AnimatedButton>
                       </div>
                     )}
