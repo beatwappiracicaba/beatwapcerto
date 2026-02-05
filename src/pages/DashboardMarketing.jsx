@@ -15,12 +15,12 @@ import { supabase } from '../services/supabaseClient';
 import { useToast } from '../context/ToastContext';
 
 export const DashboardMarketing = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { addToast } = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const isCompositor = user?.cargo && ['compositor', 'produtor'].includes(user.cargo.toLowerCase().trim());
+  const isCompositor = profile?.cargo && ['compositor', 'produtor'].includes(profile.cargo.toLowerCase().trim());
 
   useEffect(() => {
     const loadData = async () => {
@@ -138,11 +138,11 @@ export const DashboardMarketing = () => {
                       <div className="text-lg font-bold text-beatwap-gold">{diagnosis.style || '-'}</div>
                     </div>
                     <div className="bg-white/5 p-4 rounded-xl border border-white/10">
-                      <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Ponto Forte</div>
+                      <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Pontos Fortes</div>
                       <div className="text-lg font-bold text-green-400">{diagnosis.strengths || '-'}</div>
                     </div>
                     <div className="bg-white/5 p-4 rounded-xl border border-white/10">
-                      <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">A Melhorar</div>
+                      <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Pontos a Melhorar</div>
                       <div className="text-lg font-bold text-red-400">{diagnosis.improvements || '-'}</div>
                     </div>
                   </div>
@@ -192,11 +192,11 @@ export const DashboardMarketing = () => {
                   </div>
                   <div className="space-y-4">
                     <div>
-                      <div className="text-sm text-gray-400 mb-1">Público Alvo / Artistas</div>
+                      <div className="text-sm text-gray-400 mb-1">Escreve para (Público/Artistas)</div>
                       <div className="text-white font-medium bg-white/5 px-3 py-2 rounded-lg">{positioning.target_audience || 'Não definido'}</div>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-400 mb-1">Seu Diferencial</div>
+                      <div className="text-sm text-gray-400 mb-1">Diferencial</div>
                       <div className="text-white font-medium bg-white/5 px-3 py-2 rounded-lg">{positioning.differential || 'Não definido'}</div>
                     </div>
                     <div>
