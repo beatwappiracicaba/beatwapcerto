@@ -14,6 +14,7 @@ import { getCroppedImg } from '../utils/cropImage';
 import { ArtistContentManager } from '../components/admin/ArtistContentManager';
 import { ProfileEditModal } from '../components/ui/ProfileEditModal';
 import { MusicEditModal } from '../components/admin/MusicEditModal';
+import { MarketingManager } from '../components/admin/MarketingManager';
 import { useData } from '../context/DataContext';
 import { buildDistributionContractHTML } from '../utils/contractTemplate';
 
@@ -302,6 +303,7 @@ export const AdminArtists = () => {
   const [artists, setArtists] = useState([]);
   const [selectedArtist, setSelectedArtist] = useState(null);
   const [isManagerOpen, setIsManagerOpen] = useState(false);
+  const [isMarketingOpen, setIsMarketingOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [metricsForm, setMetricsForm] = useState({ plays: '', listeners: '', revenue: '', growth: '' });
   const [planForm, setPlanForm] = useState({ plano: 'Gratuito', bonus_quota: 0, plan_started_at: '' });
@@ -595,8 +597,8 @@ export const AdminArtists = () => {
             className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-beatwap-gold/10 via-white/5 to-black/40 p-4"
           >
             <div className="absolute -top-20 -right-24 w-72 h-72 rounded-full bg-beatwap-gold/10 blur-3xl pointer-events-none" />
-            <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-2xl overflow-hidden ring-2 ring-beatwap-gold/60 border border-white/10 bg-black/30 flex items-center justify-center shadow-[0_0_30px_rgba(245,197,66,0.25)]">
+            <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+              <div className="w-20 h-20 rounded-2xl overflow-hidden ring-2 ring-beatwap-gold/60 border border-white/10 bg-black/30 flex items-center justify-center shadow-[0_0_30px_rgba(245,197,66,0.25)] flex-shrink-0">
                 {(artists.find(a => a.id === selectedArtist)?.avatar_url) ? (
                   <img
                     src={artists.find(a => a.id === selectedArtist)?.avatar_url}
@@ -609,13 +611,16 @@ export const AdminArtists = () => {
                   </span>
                 )}
               </div>
-              <div className="flex-1">
-                <div className="text-2xl font-extrabold text-white tracking-wide">
+              <div className="flex-1 w-full sm:w-auto">
+                <div className="text-2xl font-extrabold text-white tracking-wide break-words">
                   {artists.find(a => a.id === selectedArtist)?.nome || artists.find(a => a.id === selectedArtist)?.nome_completo_razao_social || 'Artista'}
                 </div>
                 <div className="text-xs text-gray-400">Artista selecionado</div>
               </div>
-              <AnimatedButton onClick={() => setIsProfileOpen(true)}>Editar Perfil</AnimatedButton>
+              <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
+                <AnimatedButton onClick={() => setIsProfileOpen(true)} className="w-full sm:w-auto justify-center">Editar Perfil</AnimatedButton>
+                <AnimatedButton onClick={() => setIsMarketingOpen(true)} variant="secondary" className="w-full sm:w-auto justify-center">Marketing</AnimatedButton>
+              </div>
             </div>
           </motion.div>
         )}
@@ -671,6 +676,14 @@ export const AdminArtists = () => {
           isOpen={isManagerOpen}
           onClose={() => setIsManagerOpen(false)}
           artist={artists.find(a => a.id === selectedArtist) || null}
+        />
+      )}
+      {isMarketingOpen && (
+        <MarketingManager
+          isOpen={isMarketingOpen}
+          onClose={() => setIsMarketingOpen(false)}
+          artistId={selectedArtist}
+          artistName={artists.find(a => a.id === selectedArtist)?.nome || 'Artista'}
         />
       )}
       {isProfileOpen && (
@@ -788,7 +801,7 @@ export const AdminMusics = () => {
         <div className="flex flex-wrap gap-2 pb-2">
           <button
             onClick={() => setStatusFilter('aprovado')}
-            className={`flex-1 md:flex-none justify-center md:justify-start flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
+            className={`flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
               statusFilter === 'aprovado' 
                 ? 'bg-beatwap-gold text-beatwap-black font-bold' 
                 : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
@@ -798,7 +811,7 @@ export const AdminMusics = () => {
           </button>
           <button
             onClick={() => setStatusFilter('pendente')}
-            className={`flex-1 md:flex-none justify-center md:justify-start flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
+            className={`flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
               statusFilter === 'pendente' 
                 ? 'bg-beatwap-gold text-beatwap-black font-bold' 
                 : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
@@ -808,7 +821,7 @@ export const AdminMusics = () => {
           </button>
           <button
             onClick={() => setStatusFilter('todos')}
-            className={`flex-1 md:flex-none justify-center md:justify-start flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
+            className={`flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
               statusFilter === 'todos' 
                 ? 'bg-beatwap-gold text-beatwap-black font-bold' 
                 : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
@@ -817,20 +830,20 @@ export const AdminMusics = () => {
             Todas
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-2">
-          <select className="col-span-2 md:col-span-1 w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+          <select className="w-full sm:col-span-2 md:col-span-1 bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="todos">Status: Todos</option>
             <option value="pendente">Pendente</option>
             <option value="aprovado">Aprovado</option>
             <option value="recusado">Recusado</option>
           </select>
-          <select className="col-span-2 md:col-span-1 w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={artistFilter} onChange={(e) => setArtistFilter(e.target.value)}>
+          <select className="w-full sm:col-span-2 md:col-span-1 bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={artistFilter} onChange={(e) => setArtistFilter(e.target.value)}>
             <option value="">Artista: Todos</option>
             {artists.map(a => <option key={a.id} value={a.id}>{a.nome || a.nome_completo_razao_social || 'Sem nome'}</option>)}
           </select>
-          <input type="date" className="col-span-1 w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          <input type="date" className="col-span-1 w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-          <div className="col-span-2 md:col-span-1">
+          <input type="date" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <input type="date" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <div className="w-full sm:col-span-2 md:col-span-1">
             <AnimatedButton onClick={load} className="w-full justify-center py-3 md:py-2">Filtrar</AnimatedButton>
           </div>
         </div>
@@ -1263,18 +1276,18 @@ export const AdminProfile = () => {
           )}
         </div>
 
-        <div className="grid grid-cols-2 md:flex md:flex-row gap-2 pb-2">
+        <div className="grid grid-cols-2 gap-2 pb-2 sm:flex sm:flex-wrap">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center justify-center md:justify-start gap-2 px-3 py-2 md:px-4 rounded-xl transition-all whitespace-nowrap text-sm md:text-base ${
+              className={`flex items-center justify-center sm:justify-start gap-2 px-2 py-3 md:px-4 md:py-2 rounded-xl transition-all text-xs md:text-base ${
                 activeTab === tab.id 
                   ? 'bg-beatwap-gold text-beatwap-black font-bold' 
                   : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
               }`}
             >
-              <tab.icon size={18} />
+              <tab.icon size={16} className="flex-shrink-0" />
               <span className="truncate">{tab.label}</span>
             </button>
           ))}
@@ -1423,14 +1436,16 @@ export const AdminProfile = () => {
         {activeTab === 'artista' && (
           <Card className="space-y-4">
             <div className="font-bold">Editar perfil de um artista</div>
-            <div className="flex items-center gap-3">
-              <AnimatedInput 
-                placeholder="Buscar artista pelo nome" 
-                value={artistSearchName} 
-                onChange={(e) => setArtistSearchName(e.target.value)} 
-              />
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+              <div className="w-full">
+                <AnimatedInput 
+                  placeholder="Buscar artista pelo nome" 
+                  value={artistSearchName} 
+                  onChange={(e) => setArtistSearchName(e.target.value)} 
+                />
+              </div>
               <select 
-                className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" 
+                className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-full md:w-auto flex-1" 
                 value={selectedArtistEdit} 
                 onChange={(e) => setSelectedArtistEdit(e.target.value)}
               >

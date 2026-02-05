@@ -263,12 +263,12 @@ export const DashboardArtistProfile = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-2">
+        <div className="flex flex-wrap gap-2 pb-2 justify-center sm:justify-start">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 rounded-xl transition-all whitespace-nowrap text-sm ${
                 activeTab === tab.id 
                   ? 'bg-beatwap-gold text-beatwap-black font-bold' 
                   : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
@@ -291,7 +291,7 @@ export const DashboardArtistProfile = () => {
             >
               {activeTab === 'detalhes' && (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-6">
+                  <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
                     <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-beatwap-gold/20 bg-gray-800">
                       {profile?.avatar_url ? (
                         <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />

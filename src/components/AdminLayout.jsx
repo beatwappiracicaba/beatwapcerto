@@ -59,8 +59,11 @@ export const AdminLayout = ({ children }) => {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 md:gap-4">
-            {currentUserId && <NotificationBell userId={currentUserId} />}
+          <div className="flex items-center gap-4 md:gap-6">
+            <div className="relative z-50">
+              {currentUserId && <NotificationBell userId={currentUserId} />}
+            </div>
+            <div className="h-6 w-px bg-white/10 hidden md:block"></div>
             <ProfileButton profile={profile} />
           </div>
         </div>

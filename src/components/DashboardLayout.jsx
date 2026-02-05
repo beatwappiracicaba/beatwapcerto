@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutGrid, Music, LogOut, Menu, X } from 'lucide-react';
+import { LayoutGrid, Music, LogOut, Menu, X, TrendingUp } from 'lucide-react';
 import { Card } from './ui/Card';
 import { AnimatedButton } from './ui/AnimatedButton';
 import { useAuth } from '../context/AuthContext';
@@ -32,6 +32,9 @@ export const DashboardLayout = ({ children }) => {
           </NavLink>
           <NavLink to="/dashboard/work" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
             <LayoutGrid size={18} /> Trabalho
+          </NavLink>
+          <NavLink to="/dashboard/marketing" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+            <TrendingUp size={18} /> Mentoria/Marketing
           </NavLink>
           {/* Chat removido do menu, manter apenas flutuante */}
         </nav>
