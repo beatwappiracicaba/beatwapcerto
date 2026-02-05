@@ -20,7 +20,7 @@ export const DashboardMarketing = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const isCompositor = ['Compositor', 'Produtor', 'compositor', 'produtor'].includes(user?.cargo);
+  const isCompositor = user?.cargo && ['compositor', 'produtor'].includes(user.cargo.toLowerCase().trim());
 
   useEffect(() => {
     const loadData = async () => {
@@ -126,7 +126,7 @@ export const DashboardMarketing = () => {
                 <Card className="p-6 border-l-4 border-l-beatwap-gold">
                   <div className="flex items-center gap-3 mb-4">
                     <BarChart3 className="text-beatwap-gold" size={24} />
-                    <h2 className="text-xl font-bold text-white">Seu Perfil de Compositor</h2>
+                    <h2 className="text-xl font-bold text-white">Diagnóstico do Compositor</h2>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div className="bg-white/5 p-4 rounded-xl border border-white/10">
@@ -188,7 +188,7 @@ export const DashboardMarketing = () => {
                 <Card className="h-full p-6">
                   <div className="flex items-center gap-3 mb-6">
                     <Target className="text-red-500" size={24} />
-                    <h2 className="text-xl font-bold text-white">Posicionamento</h2>
+                    <h2 className="text-xl font-bold text-white">Posicionamento no Mercado</h2>
                   </div>
                   <div className="space-y-4">
                     <div>
@@ -258,7 +258,7 @@ export const DashboardMarketing = () => {
                 <Card className="h-full p-6">
                   <div className="flex items-center gap-3 mb-6">
                     <Briefcase className="text-blue-400" size={24} />
-                    <h2 className="text-xl font-bold text-white">Oportunidades</h2>
+                    <h2 className="text-xl font-bold text-white">Oportunidades Específicas</h2>
                   </div>
                   <div className="space-y-3">
                     {(data?.composer_opportunities || []).map((opp, idx) => (
@@ -289,7 +289,7 @@ export const DashboardMarketing = () => {
                 <Card className="h-full p-6">
                   <div className="flex items-center gap-3 mb-6">
                     <Shield className="text-gray-300" size={24} />
-                    <h2 className="text-xl font-bold text-white">Direitos Autorais</h2>
+                    <h2 className="text-xl font-bold text-white">Direitos Autorais & Organização</h2>
                   </div>
                   <div className="space-y-4">
                     <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
