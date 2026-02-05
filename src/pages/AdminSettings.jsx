@@ -396,19 +396,21 @@ export const AdminSettings = () => {
 
                       <div className="flex flex-wrap gap-2 lg:justify-end flex-1">
                         {artist.cargo === 'Produtor' ? (
-                          // Admin Permissions
+                          // Producer Permissions
                           [
-                            { key: 'admin_artists', label: 'Artistas' },
-                            { key: 'admin_musics', label: 'Músicas' },
-                            { key: 'admin_compositions', label: 'Composições' },
+                            { key: 'admin_artists', label: 'Gerenciar Artistas' },
+                            { key: 'admin_musics', label: 'Gerenciar Músicas' },
                             { key: 'admin_sponsors', label: 'Patrocinadores' },
-                            { key: 'admin_settings', label: 'Configurações' }
+                            { key: 'admin_settings', label: 'Configurações' },
+                            { key: 'marketing', label: 'Marketing' },
+                            { key: 'chat', label: 'Chat' },
+                            { key: 'admin_compositions', label: 'Composições' }
                           ].map(perm => (
                             <button
                               key={perm.key}
                               onClick={() => handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key])}
                               className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                                artist.access_control[perm.key]
+                                artist.access_control[perm.key] !== false
                                   ? 'bg-beatwap-gold/20 border-beatwap-gold text-beatwap-gold'
                                   : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20'
                               }`}
@@ -416,10 +418,10 @@ export const AdminSettings = () => {
                               {perm.label}
                             </button>
                           ))
-                        ) : artist.cargo === 'Compositor' ? (
-                          // Composer Permissions
+                        ) : activeTab === 'Compositor' ? (
+                          // Compositor Permissions
                           [
-                            { key: 'compositions', label: 'Composições' },
+                            { key: 'compositions', label: 'Minhas Composições' },
                             { key: 'marketing', label: 'Marketing' },
                             { key: 'chat', label: 'Chat' }
                           ].map(perm => (
