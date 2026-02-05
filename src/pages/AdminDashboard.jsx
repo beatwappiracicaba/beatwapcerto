@@ -817,20 +817,20 @@ export const AdminMusics = () => {
             Todas
           </button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2">
-          <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <div className="flex flex-col gap-3 md:grid md:grid-cols-5 md:gap-2">
+          <select className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="todos">Status: Todos</option>
             <option value="pendente">Pendente</option>
             <option value="aprovado">Aprovado</option>
             <option value="recusado">Recusado</option>
           </select>
-          <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={artistFilter} onChange={(e) => setArtistFilter(e.target.value)}>
+          <select className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={artistFilter} onChange={(e) => setArtistFilter(e.target.value)}>
             <option value="">Artista: Todos</option>
             {artists.map(a => <option key={a.id} value={a.id}>{a.nome || a.nome_completo_razao_social || 'Sem nome'}</option>)}
           </select>
-          <input type="date" className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          <input type="date" className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-          <AnimatedButton onClick={load}>Filtrar</AnimatedButton>
+          <input type="date" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <input type="date" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <AnimatedButton onClick={load} className="w-full justify-center py-3 md:py-2">Filtrar</AnimatedButton>
         </div>
         <div className="grid grid-cols-1 gap-4">
           {musics.map(m => (

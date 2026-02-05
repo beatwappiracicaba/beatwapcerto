@@ -47,28 +47,21 @@ export const AdminLayout = ({ children }) => {
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />}
       <main className="flex-1 md:ml-0 ml-0">
         <div className="container max-w-7xl mx-auto px-4 md:px-6 py-4">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-3">
-          <div className="flex items-center justify-between w-full md:w-auto gap-3">
-            <div className="flex items-center gap-3">
-              <button className="md:hidden p-2 rounded-xl bg-white/5 border border-white/10" onClick={() => setSidebarOpen(true)}>
-                <Menu size={18} />
-              </button>
-              <div>
-                <div className="text-xs text-gray-400">Painel do Produtor</div>
-                <div className="flex items-center gap-3">
-                  <div className="text-2xl font-bold">
-                    {profile?.nome || 'Produtor'}
-                  </div>
-                  <ProfileButton profile={profile} />
-                </div>
+        <div className="flex items-center justify-between mb-6 gap-3">
+          <div className="flex items-center gap-3">
+            <button className="md:hidden p-2 rounded-xl bg-white/5 border border-white/10" onClick={() => setSidebarOpen(true)}>
+              <Menu size={18} />
+            </button>
+            <div>
+              <div className="text-xs text-gray-400">Painel do Produtor</div>
+              <div className="text-lg md:text-2xl font-bold truncate max-w-[200px] md:max-w-none">
+                {profile?.nome || 'Produtor'}
               </div>
             </div>
-            <div className="md:hidden">
-              {currentUserId && <NotificationBell userId={currentUserId} />}
-            </div>
           </div>
-          <div className="hidden md:flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             {currentUserId && <NotificationBell userId={currentUserId} />}
+            <ProfileButton profile={profile} />
           </div>
         </div>
           <div className="space-y-6">{children}</div>
