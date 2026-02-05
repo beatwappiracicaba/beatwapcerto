@@ -508,13 +508,15 @@ export const AdminArtists = () => {
     <AdminLayout>
       <Card className="space-y-4">
         <div className="font-bold">Enviar música pelo artista</div>
-        <div className="flex items-center gap-3">
-          <AnimatedInput 
-            placeholder="Buscar artista pelo nome" 
-            value={searchName} 
-            onChange={(e) => setSearchName(e.target.value)} 
-          />
-          <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={selectedArtist || ''} onChange={(e) => setSelectedArtist(e.target.value)}>
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+          <div className="w-full">
+            <AnimatedInput 
+              placeholder="Buscar artista pelo nome" 
+              value={searchName} 
+              onChange={(e) => setSearchName(e.target.value)} 
+            />
+          </div>
+          <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-full md:w-auto flex-1" value={selectedArtist || ''} onChange={(e) => setSelectedArtist(e.target.value)}>
             <option value="">Selecione o artista</option>
             {(artists || [])
               .filter(a => {
@@ -525,7 +527,7 @@ export const AdminArtists = () => {
               })
               .map(a => <option key={a.id} value={a.id}>{a.nome || a.nome_completo_razao_social || 'Sem nome'}</option>)}
           </select>
-          <AnimatedButton onClick={() => setIsManagerOpen(true)}>Enviar Música</AnimatedButton>
+          <AnimatedButton onClick={() => setIsManagerOpen(true)} className="w-full md:w-auto whitespace-nowrap">Enviar Música</AnimatedButton>
         </div>
       </Card>
       <Card className="space-y-4">
@@ -857,9 +859,9 @@ export const AdminMusics = () => {
                 </div>
               </div>
               <div className="flex-1">
-                <div className="flex items-center gap-3">
-                  <div className="text-lg font-extrabold text-white tracking-wide">{m.titulo}</div>
-                  <div className={`text-[11px] px-2 py-0.5 rounded-full border ${
+                <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                  <div className="text-lg font-extrabold text-white tracking-wide break-words max-w-full">{m.titulo}</div>
+                  <div className={`text-[11px] px-2 py-0.5 rounded-full border flex-shrink-0 ${
                     m.status === 'aprovado' 
                       ? 'bg-green-500/15 text-green-400 border-green-500/30' 
                       : m.status === 'recusado' 
