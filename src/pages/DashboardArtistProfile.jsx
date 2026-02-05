@@ -18,6 +18,7 @@ export const DashboardArtistProfile = () => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     // Detalhes
+    nome: '',
     nome_completo_razao_social: '',
     email: '',
     cpf_cnpj: '',
@@ -55,6 +56,7 @@ export const DashboardArtistProfile = () => {
     if (user && profile) {
       setFormData(prev => ({
         ...prev,
+        nome: profile.nome || '',
         nome_completo_razao_social: profile.nome_completo_razao_social || '',
         email: user.email || '',
         cpf_cnpj: profile.cpf_cnpj || '',
@@ -141,6 +143,7 @@ export const DashboardArtistProfile = () => {
       const { error } = await supabase
         .from('profiles')
         .update({
+          nome: formData.nome,
           nome_completo_razao_social: formData.nome_completo_razao_social,
           cpf_cnpj: formData.cpf_cnpj,
           celular: formData.celular,
@@ -307,6 +310,12 @@ export const DashboardArtistProfile = () => {
                   </div>
                   <h3 className="text-lg font-bold text-white mb-4">Dados Pessoais</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <AnimatedInput 
+                      label="Nome Artístico / Apelido" 
+                      value={formData.nome} 
+                      onChange={(e) => setFormData({...formData, nome: e.target.value})} 
+                      placeholder="Como você quer ser conhecido na plataforma"
+                    />
                     <AnimatedInput 
                       label="Nome Completo / Razão Social" 
                       value={formData.nome_completo_razao_social} 

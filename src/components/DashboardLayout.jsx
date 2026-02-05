@@ -70,7 +70,7 @@ export const DashboardLayout = ({ children }) => {
           
           {permissions.marketing !== false && (
             <NavLink to="/dashboard/marketing" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-              <TrendingUp size={18} /> Mentoria/Marketing
+              <TrendingUp size={18} /> {isCompositor ? 'Carreira & Negócios' : 'Mentoria/Marketing'}
             </NavLink>
           )}
           

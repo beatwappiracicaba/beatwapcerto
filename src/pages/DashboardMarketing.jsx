@@ -4,7 +4,7 @@ import {
   TrendingUp, Instagram, Youtube, Music, Smartphone, 
   Target, Zap, BookOpen, MessageCircle, Send, FileText,
   AlertCircle, CheckCircle, Clock, BarChart3, Lock,
-  Play, Download, ExternalLink
+  Play, Download, ExternalLink, DollarSign, Shield, Mic2
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -16,6 +16,8 @@ export const DashboardMarketing = () => {
   const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const isCompositor = user?.cargo === 'Compositor';
 
   useEffect(() => {
     const loadData = async () => {
@@ -58,14 +60,18 @@ export const DashboardMarketing = () => {
         {/* Header Section */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-beatwap-gold/20 via-beatwap-gold/5 to-transparent border border-beatwap-gold/20 p-6">
           <div className="relative z-10">
-            <h1 className="text-3xl font-bold text-white mb-2">Mentoria & Marketing</h1>
+            <h1 className="text-3xl font-bold text-white mb-2">
+              {isCompositor ? 'Carreira & Negócios' : 'Mentoria & Marketing'}
+            </h1>
             <div className="flex items-center gap-2 text-yellow-500 bg-yellow-500/10 w-fit px-3 py-1 rounded-full text-sm font-medium border border-yellow-500/20">
               <Clock size={16} />
-              <span>Métricas automáticas em desenvolvimento</span>
+              <span>{isCompositor ? 'Dicas estratégicas' : 'Métricas automáticas em desenvolvimento'}</span>
             </div>
             <p className="text-gray-400 mt-2 max-w-2xl text-sm">
-              No momento, as informações abaixo são analisadas pela equipe BeatWap com base nos dados públicos e enviados por você.
-              Isso garante uma análise humana e estratégica para sua carreira.
+              {isCompositor 
+                ? 'Acesse materiais exclusivos para impulsionar suas vendas, proteger suas obras e conectar com grandes artistas.'
+                : 'No momento, as informações abaixo são analisadas pela equipe BeatWap com base nos dados públicos e enviados por você. Isso garante uma análise humana e estratégica para sua carreira.'
+              }
             </p>
           </div>
           <div className="absolute top-0 right-0 w-64 h-64 bg-beatwap-gold/10 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2" />
@@ -77,128 +83,187 @@ export const DashboardMarketing = () => {
           animate="show"
           className="space-y-6"
         >
-          {/* 1. Métricas das Redes Sociais */}
+          {/* 1. Métricas / Guia do Compositor */}
           <motion.div variants={item}>
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <Smartphone className="text-beatwap-gold" />
-              Métricas das Redes Sociais
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Instagram */}
-              <Card className="space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Instagram className="text-pink-500" />
-                  <span className="font-bold">Instagram</span>
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Seguidores</span>
-                    <span className="font-mono">{data?.instagram_metrics?.followers || '-'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Frequência</span>
-                    <span className="font-mono">{data?.instagram_metrics?.frequency || '-'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Engajamento</span>
-                    <span className="font-mono">{data?.instagram_metrics?.engagement || '-'}</span>
-                  </div>
-                </div>
-                {data?.instagram_metrics?.interpretation && (
-                  <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-sm">
-                    <div className="text-xs text-beatwap-gold font-bold mb-1">🧠 Interpretação</div>
-                    <div className="text-gray-300 italic">"{data.instagram_metrics.interpretation}"</div>
-                  </div>
-                )}
-              </Card>
+            {isCompositor ? (
+              <>
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <BookOpen className="text-beatwap-gold" />
+                  Guia do Compositor de Sucesso
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Registro de Obras */}
+                  <Card className="space-y-4 hover:border-beatwap-gold/50 transition-colors cursor-pointer group">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400 group-hover:scale-110 transition-transform">
+                        <Shield size={24} />
+                      </div>
+                      <span className="font-bold text-lg">Direitos Autorais</span>
+                    </div>
+                    <div className="space-y-2 text-sm text-gray-400">
+                      <p>Garanta seus royalties registrando suas obras em associações (UBC, ABRAMUS, ECAD).</p>
+                      <ul className="list-disc list-inside space-y-1 text-gray-500 mt-2">
+                        <li>ISRC é o RG da sua música</li>
+                        <li>Registre antes de lançar</li>
+                        <li>Mantenha o cadastro atualizado</li>
+                      </ul>
+                    </div>
+                  </Card>
 
-              {/* TikTok */}
-              <Card className="space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Music className="text-cyan-400" />
-                  <span className="font-bold">TikTok</span>
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Seguidores</span>
-                    <span className="font-mono">{data?.tiktok_metrics?.followers || '-'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Visualizações (méd.)</span>
-                    <span className="font-mono">{data?.tiktok_metrics?.views_avg || '-'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Melhor conteúdo</span>
-                    <span className="font-mono truncate max-w-[120px]">{data?.tiktok_metrics?.best_content || '-'}</span>
-                  </div>
-                </div>
-                {data?.tiktok_metrics?.interpretation && (
-                  <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-sm">
-                    <div className="text-xs text-beatwap-gold font-bold mb-1">🧠 Interpretação</div>
-                    <div className="text-gray-300 italic">"{data.tiktok_metrics.interpretation}"</div>
-                  </div>
-                )}
-              </Card>
+                  {/* Venda de Composições */}
+                  <Card className="space-y-4 hover:border-beatwap-gold/50 transition-colors cursor-pointer group">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2 bg-green-500/10 rounded-lg text-green-400 group-hover:scale-110 transition-transform">
+                        <DollarSign size={24} />
+                      </div>
+                      <span className="font-bold text-lg">Venda & Negociação</span>
+                    </div>
+                    <div className="space-y-2 text-sm text-gray-400">
+                      <p>Entenda a diferença entre liberação exclusiva e não-exclusiva.</p>
+                      <ul className="list-disc list-inside space-y-1 text-gray-500 mt-2">
+                        <li>Defina o valor base da obra</li>
+                        <li>Contratos de cessão de direitos</li>
+                        <li>Split sheets (divisão de % com parceiros)</li>
+                      </ul>
+                    </div>
+                  </Card>
 
-              {/* YouTube */}
-              <Card className="space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Youtube className="text-red-500" />
-                  <span className="font-bold">YouTube</span>
+                  {/* Pitching */}
+                  <Card className="space-y-4 hover:border-beatwap-gold/50 transition-colors cursor-pointer group">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400 group-hover:scale-110 transition-transform">
+                        <Mic2 size={24} />
+                      </div>
+                      <span className="font-bold text-lg">Pitching para Artistas</span>
+                    </div>
+                    <div className="space-y-2 text-sm text-gray-400">
+                      <p>Como apresentar suas músicas para grandes artistas e produtores.</p>
+                      <ul className="list-disc list-inside space-y-1 text-gray-500 mt-2">
+                        <li>Guias de alta qualidade (Voz/Violão)</li>
+                        <li>Seja breve e profissional</li>
+                        <li>Pesquise o estilo do artista antes</li>
+                      </ul>
+                    </div>
+                  </Card>
                 </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Inscritos</span>
-                    <span className="font-mono">{data?.youtube_metrics?.subscribers || '-'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Vídeo destaque</span>
-                    <span className="font-mono truncate max-w-[120px]">{data?.youtube_metrics?.best_video || '-'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Frequência ideal</span>
-                    <span className="font-mono">{data?.youtube_metrics?.frequency_ideal || '-'}</span>
-                  </div>
-                </div>
-                {data?.youtube_metrics?.interpretation && (
-                  <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-sm">
-                    <div className="text-xs text-beatwap-gold font-bold mb-1">🧠 Interpretação</div>
-                    <div className="text-gray-300 italic">"{data.youtube_metrics.interpretation}"</div>
-                  </div>
-                )}
-              </Card>
-            </div>
-          </motion.div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <Smartphone className="text-beatwap-gold" />
+                  Métricas das Redes Sociais
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Instagram */}
+                  <Card className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Instagram className="text-pink-500" />
+                      <span className="font-bold">Instagram</span>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Seguidores</span>
+                        <span className="font-mono">{data?.instagram_metrics?.followers || '-'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Frequência</span>
+                        <span className="font-mono">{data?.instagram_metrics?.frequency || '-'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Engajamento</span>
+                        <span className="font-mono">{data?.instagram_metrics?.engagement || '-'}</span>
+                      </div>
+                    </div>
+                    {data?.instagram_metrics?.interpretation && (
+                      <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-sm">
+                        <div className="text-xs text-beatwap-gold font-bold mb-1">🧠 Interpretação</div>
+                        <div className="text-gray-300 italic">"{data.instagram_metrics.interpretation}"</div>
+                      </div>
+                    )}
+                  </Card>
 
-          {/* 2. Diagnóstico Geral */}
-          <motion.div variants={item}>
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <Target className="text-beatwap-gold" />
-              Diagnóstico Geral
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="flex flex-col items-center justify-center p-6 text-center">
-                <div className="text-gray-400 text-sm mb-1">Alcance</div>
-                <div className="text-2xl font-bold text-white">{data?.diagnosis?.reach || '-'}</div>
-              </Card>
-              <Card className="flex flex-col items-center justify-center p-6 text-center">
-                <div className="text-gray-400 text-sm mb-1">Presença Digital</div>
-                <div className="text-2xl font-bold text-white">{data?.diagnosis?.digital_presence || '-'}</div>
-              </Card>
-              <Card className="flex flex-col items-center justify-center p-6 text-center">
-                <div className="text-gray-400 text-sm mb-1">Estratégia</div>
-                <div className="text-2xl font-bold text-white">{data?.diagnosis?.strategy || '-'}</div>
-              </Card>
-              <Card className="flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
-                <div className="text-gray-400 text-sm mb-1">Pronto para Shows?</div>
-                <div className={`text-2xl font-bold ${data?.diagnosis?.show_readiness?.includes('Sim') ? 'text-green-400' : 'text-red-400'}`}>
-                  {data?.diagnosis?.show_readiness || 'Ainda não'}
+                  {/* TikTok */}
+                  <Card className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Music className="text-cyan-400" />
+                      <span className="font-bold">TikTok</span>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Seguidores</span>
+                        <span className="font-mono">{data?.tiktok_metrics?.followers || '-'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Visualizações (méd.)</span>
+                        <span className="font-mono">{data?.tiktok_metrics?.views_avg || '-'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Melhor conteúdo</span>
+                        <span className="font-mono truncate max-w-[120px]">{data?.tiktok_metrics?.best_content || '-'}</span>
+                      </div>
+                    </div>
+                    {data?.tiktok_metrics?.interpretation && (
+                      <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-sm">
+                        <div className="text-xs text-beatwap-gold font-bold mb-1">🧠 Interpretação</div>
+                        <div className="text-gray-300 italic">"{data.tiktok_metrics.interpretation}"</div>
+                      </div>
+                    )}
+                  </Card>
+
+                  {/* YouTube */}
+                  <Card className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Youtube className="text-red-500" />
+                      <span className="font-bold">YouTube</span>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Inscritos</span>
+                        <span className="font-mono">{data?.youtube_metrics?.subscribers || '-'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Vídeo destaque</span>
+                        <span className="font-mono truncate max-w-[120px]">{data?.youtube_metrics?.best_video || '-'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Visualizações</span>
+                        <span className="font-mono">{data?.youtube_metrics?.views || '-'}</span>
+                      </div>
+                    </div>
+                    {data?.youtube_metrics?.interpretation && (
+                      <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-sm">
+                        <div className="text-xs text-beatwap-gold font-bold mb-1">🧠 Interpretação</div>
+                        <div className="text-gray-300 italic">"{data.youtube_metrics.interpretation}"</div>
+                      </div>
+                    )}
+                  </Card>
                 </div>
-                {data?.diagnosis?.show_readiness?.includes('não') && (
-                  <div className="text-xs text-beatwap-gold mt-1">Ouro para mentoria</div>
-                )}
-              </Card>
-            </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+                  <Card className="flex flex-col items-center justify-center p-6 text-center">
+                    <div className="text-gray-400 text-sm mb-1">Alcance Total</div>
+                    <div className="text-2xl font-bold text-white">{data?.diagnosis?.reach || '-'}</div>
+                  </Card>
+                  <Card className="flex flex-col items-center justify-center p-6 text-center">
+                    <div className="text-gray-400 text-sm mb-1">Presença Digital</div>
+                    <div className="text-2xl font-bold text-white">{data?.diagnosis?.digital_presence || '-'}</div>
+                  </Card>
+                  <Card className="flex flex-col items-center justify-center p-6 text-center">
+                    <div className="text-gray-400 text-sm mb-1">Estratégia</div>
+                    <div className="text-2xl font-bold text-white">{data?.diagnosis?.strategy || '-'}</div>
+                  </Card>
+                  <Card className="flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
+                    <div className="text-gray-400 text-sm mb-1">Pronto para Shows?</div>
+                    <div className={`text-2xl font-bold ${data?.diagnosis?.show_readiness?.includes('Sim') ? 'text-green-400' : 'text-red-400'}`}>
+                      {data?.diagnosis?.show_readiness || 'Ainda não'}
+                    </div>
+                    {data?.diagnosis?.show_readiness?.includes('não') && (
+                      <div className="text-xs text-beatwap-gold mt-1">Ouro para mentoria</div>
+                    )}
+                  </Card>
+                </div>
+              </>
+            )}
           </motion.div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

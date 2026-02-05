@@ -26,6 +26,7 @@ import { AdminCompositions } from '../pages/AdminCompositions';
 import { AdminSponsors } from '../pages/AdminDashboard';
 import { AdminSettings } from '../pages/AdminSettings';
 import { DashboardCompositions } from '../pages/DashboardCompositions';
+import PublicProfile from '../pages/PublicProfile';
 
 // Admin temporariamente desativado
 
@@ -46,6 +47,7 @@ export const AppRoutes = () => {
       <Routes location={location}>
         {/* Public Route - Landing Page */}
         <Route path="/" element={loading ? <SplashScreen onComplete={() => {}} /> : (isProdutor ? <Navigate to="/admin" replace /> : ((isArtista || isCompositor) ? <Navigate to="/dashboard" replace /> : <Home />))} />
+        <Route path="/profile/:id" element={<PublicProfile />} />
         
         {/* Auth Routes */}
         <Route element={<AuthLayout />}>

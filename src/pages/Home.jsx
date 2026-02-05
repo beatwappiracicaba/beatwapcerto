@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Header from '../components/landing/Header';
 import Hero from '../components/landing/Hero';
 import FeaturedUsers from '../components/landing/FeaturedUsers';
@@ -10,13 +11,14 @@ import SpecialOffer from '../components/landing/SpecialOffer';
 import Contact from '../components/landing/Contact';
 import Footer from '../components/landing/Footer';
 import { supabase } from '../services/supabaseClient';
-import { Play, Pause, BadgeCheck, Music } from 'lucide-react';
+import { Play, Pause, BadgeCheck, Music, MessageCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Instagram, Globe } from 'lucide-react';
  
 
 const Home = () => {
+  const navigate = useNavigate();
   const [latestReleases, setLatestReleases] = useState([]);
   const [latestCompositions, setLatestCompositions] = useState([]);
   const [latestProjects, setLatestProjects] = useState([]);
@@ -92,7 +94,7 @@ const Home = () => {
     try {
       const { data, error } = await supabase
         .from('compositions')
-        .select('id, title, genre, cover_url, audio_url, created_at, composer_id, status, profiles:composer_id(nome, nome_completo_razao_social)')
+        .select('id, title, genre, cover_url, audio_url, created_at, composer_id, status, profiles:composer_id(nome, nome_completo_razao_social, celular)')
         .eq('status', 'approved')
         .order('created_at', { ascending: false })
         .limit(8);
@@ -101,7 +103,8 @@ const Home = () => {
       
       const mapped = (data || []).map(c => ({
         ...c,
-        composer_name: c.profiles?.nome || c.profiles?.nome_completo_razao_social || 'Compositor'
+        composer_name: c.profiles?.nome || c.profiles?.nome_completo_razao_social || 'Compositor',
+        composer_phone: c.profiles?.celular
       }));
       setLatestCompositions(mapped);
     } catch (error) {
@@ -359,6 +362,19 @@ const Home = () => {
                     <h3 className="font-bold text-lg truncate">{comp.title}</h3>
                     <p className="text-sm text-gray-400 truncate">{comp.composer_name}</p>
                     <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider">{comp.genre || 'Gênero'}</p>
+                    {comp.composer_phone && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const num = comp.composer_phone.replace(/\D/g, '');
+                          window.open(`https://wa.me/55${num}?text=Olá, vi sua composição "${comp.title}" na BeatWap e gostaria de saber mais.`, '_blank');
+                        }}
+                        className="mt-3 flex items-center gap-2 text-xs font-bold text-green-400 bg-green-400/10 px-3 py-2 rounded-lg hover:bg-green-400/20 transition-colors w-full justify-center"
+                      >
+                        <MessageCircle size={14} />
+                        WhatsApp do Compositor
+                      </button>
+                    )}
                   </motion.div>
                 ))}
               </div>
@@ -419,9 +435,10 @@ const Home = () => {
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="group p-4 rounded-2xl bg-white/5 border border-white/10"
+                    className="group p-4 rounded-2xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 hover:border-beatwap-gold/50 transition-all"
+                    onClick={() => navigate(`/profile/${composer.id}`)}
                   >
-                    <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-4 bg-gray-700 border-2 border-black">
+                    <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-4 bg-gray-700 border-2 border-black group-hover:scale-110 transition-transform">
                       {composer.avatar_url ? (
                         <img src={composer.avatar_url} alt={composer.name} className="w-full h-full object-cover" />
                       ) : (
