@@ -251,8 +251,14 @@ export const AdminSettings = () => {
                   <div key={artist.id} className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all">
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                       <div className="flex items-center gap-3 min-w-[200px]">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-beatwap-gold to-yellow-600 flex items-center justify-center text-black font-bold">
-                          {artist.nome?.charAt(0) || 'A'}
+                        <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center shrink-0">
+                          {artist.avatar_url ? (
+                            <img src={artist.avatar_url} alt={artist.nome} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-beatwap-gold to-yellow-600 flex items-center justify-center text-black font-bold">
+                              {artist.nome?.charAt(0) || 'A'}
+                            </div>
+                          )}
                         </div>
                         <div>
                           <div className="font-bold text-white">{artist.nome}</div>
