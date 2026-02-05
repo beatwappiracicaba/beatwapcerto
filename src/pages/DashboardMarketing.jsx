@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 import { 
   TrendingUp, Instagram, Youtube, Music, Smartphone, 
   Target, Zap, BookOpen, MessageCircle, Send, FileText,
-  AlertCircle, CheckCircle, Clock, BarChart3, Lock
+  AlertCircle, CheckCircle, Clock, BarChart3, Lock,
+  Play, Download, ExternalLink
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -289,22 +290,38 @@ export const DashboardMarketing = () => {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {(data?.mentorship_content || []).length > 0 ? (
-                data.mentorship_content.map((content, i) => (
-                  <Card key={i} className="group cursor-pointer hover:border-beatwap-gold/50 transition-all">
-                    <div className="aspect-video bg-black/40 rounded-lg mb-3 flex items-center justify-center group-hover:bg-black/60 transition-colors">
-                      <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <Lock size={18} className="text-gray-400" />
+                data.mentorship_content.map((content, i) => {
+                  const hasLink = !!content.url;
+                  const getIcon = () => {
+                    if (!hasLink) return Lock;
+                    if (content.type === 'Vídeo Aula') return Play;
+                    if (content.type === 'Documento') return Download;
+                    if (content.type === 'Audio') return Music;
+                    return FileText;
+                  };
+                  const Icon = getIcon();
+
+                  return (
+                    <Card 
+                      key={i} 
+                      className={`group transition-all ${hasLink ? 'cursor-pointer hover:border-beatwap-gold/50' : 'cursor-not-allowed opacity-70'}`}
+                      onClick={() => hasLink && window.open(content.url, '_blank')}
+                    >
+                      <div className="aspect-video bg-black/40 rounded-lg mb-3 flex items-center justify-center group-hover:bg-black/60 transition-colors relative">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform ${hasLink ? 'bg-beatwap-gold text-black' : 'bg-white/10 text-gray-400'}`}>
+                          <Icon size={20} className={hasLink && content.type === 'Vídeo Aula' ? 'ml-1' : ''} />
+                        </div>
                       </div>
-                    </div>
-                    <h3 className="font-bold text-sm leading-tight group-hover:text-beatwap-gold transition-colors">
-                      {content.title}
-                    </h3>
-                    <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
-                      <span className="bg-white/5 px-2 py-0.5 rounded">{content.type || 'Vídeo Aula'}</span>
-                      <span>{content.duration || '5 min'}</span>
-                    </div>
-                  </Card>
-                ))
+                      <h3 className={`font-bold text-sm leading-tight transition-colors ${hasLink ? 'group-hover:text-beatwap-gold' : 'text-gray-400'}`}>
+                        {content.title}
+                      </h3>
+                      <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                        <span className="bg-white/5 px-2 py-0.5 rounded">{content.type || 'Vídeo Aula'}</span>
+                        <span>{content.duration || '5 min'}</span>
+                      </div>
+                    </Card>
+                  );
+                })
               ) : (
                 <div className="col-span-full text-center py-8 text-gray-500 border border-dashed border-white/10 rounded-xl">
                   Em breve novos conteúdos de mentoria para você.
