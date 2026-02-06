@@ -7,6 +7,7 @@ const ChatContext = createContext();
 export const ChatProvider = ({ children }) => {
   const { user, profile } = useAuth();
   const [chats, setChats] = useState([]);
+  const [supportQueue, setSupportQueue] = useState([]);
   const [admins, setAdmins] = useState([]); // Store admin profiles
   const [isOpen, setIsOpen] = useState(false);
   const [activeChatId, setActiveChatId] = useState(null);
@@ -15,6 +16,7 @@ export const ChatProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       fetchChats();
+      fetchQueue();
       fetchAdmins(); // Fetch admins for header display
       
       // Subscribe to real-time changes
@@ -27,13 +29,17 @@ export const ChatProvider = ({ children }) => {
             assignedTo: updated.assigned_to ?? c.assignedTo 
           } : c));
         })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'support_queue' }, () => {
+          fetchQueue();
+        })
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
           const m = payload.new;
           const roleStr = String(m.sender_role || m.sender_cargo || '').toLowerCase();
-          const sender =
-            roleStr.includes('artist') || roleStr.includes('artista')
-              ? 'artist'
-              : 'admin';
+          // Simplified sender logic - improves handling for multi-role chats
+          const sender = m.sender_id === user.id ? 'me' : (
+            roleStr.includes('artist') || roleStr.includes('artista') ? 'artist' : 'admin'
+          );
+          
           const text = m.content ?? m.message ?? '';
           const timestamp = m.created_at;
           setChats(prev => {
@@ -61,8 +67,95 @@ export const ChatProvider = ({ children }) => {
       };
     } else {
       setChats([]);
+      setSupportQueue([]);
     }
   }, [user, profile]);
+
+  const fetchQueue = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('support_queue')
+        .select(`
+          *,
+          requester:requester_id (
+            id, nome, nome_completo_razao_social, avatar_url, genero_musical, cidade, estado
+          )
+        `)
+        .eq('active', true);
+        
+      if (!error) {
+        setSupportQueue(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching queue:', error);
+    }
+  };
+
+  const requestSupport = async (roleNeeded, metadata = {}) => {
+    try {
+      const { error } = await supabase
+        .from('support_queue')
+        .insert({
+          requester_id: user.id,
+          role_needed: roleNeeded,
+          metadata
+        });
+      
+      if (error) throw error;
+      await fetchQueue();
+      return true;
+    } catch (error) {
+      console.error('Error requesting support:', error);
+      return false;
+    }
+  };
+
+  const pickSupportRequest = async (request) => {
+    try {
+      // Create a new chat for this request
+      const participant_ids = [user.id, request.requester_id];
+      
+      // Check if chat already exists for these participants (optional, but requested behavior is "separate chat")
+      // "vários vendedores pode pegar... abrindo uma chat separado para cada um" implies unique per pair.
+      // So if I already have a chat with this person, should I open it or create new?
+      // "abrindo uma chat separado" usually means a NEW chat. But usually 1:1 chat is unique per pair.
+      // I will check if a chat exists between these two to avoid spamming 100 chats for same pair.
+      
+      // First, find if we already have a chat with this user
+      const existing = chats.find(c => {
+         const otherId = c.participantIds?.find(id => id !== user.id) || c.artistId;
+         return otherId === request.requester_id;
+      });
+      
+      if (existing) {
+        setActiveChatId(existing.id);
+        setIsOpen(true);
+        return existing.id;
+      }
+
+      const { data, error } = await supabase
+        .from('chats')
+        .insert({
+          participant_ids,
+          owner_id: request.requester_id, // The one who asked for help
+          type: 'support',
+          metadata: { original_request_id: request.id, ...request.metadata }
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      await fetchChats();
+      setActiveChatId(data.id);
+      setIsOpen(true);
+      return data.id;
+    } catch (error) {
+      console.error('Error picking request:', error);
+      return null;
+    }
+  };
+
 
   const fetchAdmins = async () => {
     try {
@@ -121,16 +214,26 @@ export const ChatProvider = ({ children }) => {
       if (error) throw error;
 
       // Fetch artist names and avatars in batch
-      const artistIds = Array.from(new Set((data || []).map(c => c.artista_id ?? c.artist_id).filter(Boolean)));
+      const artistIds = new Set();
+      (data || []).forEach(c => {
+        if (c.artista_id) artistIds.add(c.artista_id);
+        if (c.participant_ids) {
+           c.participant_ids.forEach(pid => {
+             if (pid !== user.id) artistIds.add(pid);
+           });
+        }
+      });
+      const uniqueArtistIds = Array.from(artistIds);
+
       let artistNameMap = {};
       let artistAvatarMap = {};
-      if (artistIds.length) {
+      if (uniqueArtistIds.length) {
         const { data: profilesData } = await supabase
           .from('profiles')
           .select('id, nome, nome_completo_razao_social, avatar_url')
-          .in('id', artistIds);
+          .in('id', uniqueArtistIds);
         (profilesData || []).forEach(p => {
-          artistNameMap[p.id] = p.nome || p.nome_completo_razao_social || 'Artista';
+          artistNameMap[p.id] = p.nome || p.nome_completo_razao_social || 'Usuário';
           artistAvatarMap[p.id] = p.avatar_url || null;
         });
       }
@@ -162,10 +265,11 @@ export const ChatProvider = ({ children }) => {
         
         const messagesWithSender = sortedMessages.map(m => {
           const roleStr = String(m.sender_role || m.sender_cargo || '').toLowerCase();
-          const sender =
-            roleStr.includes('artist') || roleStr.includes('artista')
-              ? 'artist'
-              : 'admin';
+          // Simplified sender logic - improves handling for multi-role chats
+          const sender = m.sender_id === user.id ? 'me' : (
+            roleStr.includes('artist') || roleStr.includes('artista') ? 'artist' : 'admin'
+          );
+
           return {
             ...m,
             sender,
@@ -175,19 +279,25 @@ export const ChatProvider = ({ children }) => {
         });
 
         const unreadCount = messagesWithSender.filter(m => 
-          !m.read && 
-          ((isAdmin && m.sender === 'artist') || 
-           (!isAdmin && m.sender === 'admin'))
+          !m.read && m.sender !== 'me' // Simply count messages not from me that are unread
         ).length;
 
         const assignedTo = chat.assigned_to ?? null;
-        const artistId = chat.artista_id ?? chat.artist_id;
-        const artistName = artistNameMap[artistId] || `Artista #${String(artistId || '').slice(0,4)}...`;
-        const artistAvatarUrl = artistAvatarMap[artistId] || null;
+        
+        // Determine the "Other" participant
+        const participantIds = chat.participant_ids || [];
+        let otherId = chat.artista_id;
+        if (participantIds.length > 0) {
+          otherId = participantIds.find(id => id !== user.id) || chat.owner_id || participantIds[0];
+        }
+
+        const artistName = artistNameMap[otherId] || `Usuário #${String(otherId || '').slice(0,4)}...`;
+        const artistAvatarUrl = artistAvatarMap[otherId] || null;
 
         return {
           id: chat.id,
-          artistId,
+          participantIds,
+          artistId: otherId, // Keep compatible prop name
           artistName,
           artistAvatarUrl,
           adminId: assignedTo,
@@ -320,24 +430,67 @@ export const ChatProvider = ({ children }) => {
 
   const deleteChat = async (chatId) => {
     try {
-      // Delete messages first
-      const { error: msgError } = await supabase
-        .from('messages')
-        .delete()
-        .eq('chat_id', chatId);
-      if (msgError) throw msgError;
-      // Delete chat
-      const { error: chatError } = await supabase
-        .from('chats')
-        .delete()
-        .eq('id', chatId);
-      if (chatError) throw chatError;
+      // Try RPC first for atomic deletion
+      const { error: rpcError } = await supabase.rpc('clear_chat_history', { p_chat_id: chatId });
+      
+      if (rpcError) {
+        console.warn('RPC clear_chat_history failed, falling back to manual deletion', rpcError);
+        // Fallback: Delete messages then chat
+        const { error: msgError } = await supabase
+          .from('messages')
+          .delete()
+          .eq('chat_id', chatId);
+        if (msgError) throw msgError;
+        
+        const { error: chatError } = await supabase
+          .from('chats')
+          .delete()
+          .eq('id', chatId);
+        if (chatError) throw chatError;
+      }
+
       // Update local state
       setChats(prev => prev.filter(c => c.id !== chatId));
       if (activeChatId === chatId) {
         setActiveChatId(null);
+        setIsOpen(false);
       }
     } catch (error) {
+      console.error('Error deleting chat:', error);
+    }
+  };
+
+  const sendNotification = async (recipientId, title, message, link = null) => {
+    try {
+      const { error } = await supabase.rpc('send_notification', {
+        p_recipient_id: recipientId,
+        p_title: title,
+        p_message: message,
+        p_link: link
+      });
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error sending notification:', error);
+      return false;
+    }
+  };
+
+  const sendBroadcast = async (title, message, targetRole = null, link = null) => {
+    try {
+      const { error } = await supabase.rpc('send_broadcast_notification', {
+        p_title: title,
+        p_message: message,
+        p_target_role: targetRole === 'all' ? null : targetRole,
+        p_link: link
+      });
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error sending broadcast:', error);
+      return false;
+    }
+  };
       console.error('Error deleting chat:', error);
       throw error;
     }
@@ -385,7 +538,12 @@ export const ChatProvider = ({ children }) => {
       admins,
       assignChat,
       deleteChat,
-      markChatRead
+      markChatRead,
+      supportQueue,
+      requestSupport,
+      pickSupportRequest,
+      sendNotification,
+      sendBroadcast
     }}>
       {children}
     </ChatContext.Provider>
