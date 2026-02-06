@@ -161,6 +161,46 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
     }
   };
 
+  const handleSendNotification = async () => {
+    if (!notificationForm.title || !notificationForm.message) {
+      alert('Preencha título e mensagem.');
+      return;
+    }
+
+    try {
+      if (notificationForm.type === 'broadcast') {
+        const success = await sendBroadcast(
+          notificationForm.title, 
+          notificationForm.message, 
+          notificationForm.targetRole,
+          null
+        );
+        if (success) {
+          alert('Notificação em massa enviada com sucesso!');
+          setMode('list');
+        }
+      } else {
+        if (!notificationForm.targetId) {
+          alert('Informe o ID do usuário.');
+          return;
+        }
+        const success = await sendNotification(
+          notificationForm.targetId,
+          notificationForm.title,
+          notificationForm.message,
+          null
+        );
+        if (success) {
+          alert('Notificação enviada com sucesso!');
+          setMode('list');
+        }
+      }
+    } catch (error) {
+      console.error('Error sending notification:', error);
+      alert('Erro ao enviar notificação.');
+    }
+  };
+
   // Filter chats for list
   const filteredChats = chats
     .filter(c => 
