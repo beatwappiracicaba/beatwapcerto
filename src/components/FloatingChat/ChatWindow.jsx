@@ -77,6 +77,31 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
     }
   }, [activeChatId]);
 
+  const handleSendNotification = async () => {
+    if (!notificationForm.title || !notificationForm.message) return;
+    
+    let success = false;
+    if (notificationForm.type === 'broadcast') {
+      success = await sendBroadcast(notificationForm.title, notificationForm.message, notificationForm.targetRole);
+    } else {
+      if (!notificationForm.targetId) return;
+      success = await sendNotification(notificationForm.targetId, notificationForm.title, notificationForm.message);
+    }
+
+    if (success) {
+      setNotificationForm({
+        type: 'broadcast',
+        targetRole: 'all',
+        targetId: '',
+        title: '',
+        message: ''
+      });
+      alert('Notificação enviada com sucesso!');
+    } else {
+      alert('Erro ao enviar notificação.');
+    }
+  };
+
   useEffect(() => {
     const id = activeChatId;
     if (isOpen && id) {

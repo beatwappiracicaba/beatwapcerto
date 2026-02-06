@@ -206,7 +206,7 @@ export const ChatProvider = ({ children }) => {
       
       // Vendedores e Produtores veem todos os chats (ou atribuídos)
       if (!isAdmin && !isCompositor && !isVendedor) {
-        query = query.eq('artista_id', user.id);
+        query = query.contains('participant_ids', [user.id]);
       }
 
       const { data, error } = await query;
@@ -216,7 +216,6 @@ export const ChatProvider = ({ children }) => {
       // Fetch artist names and avatars in batch
       const artistIds = new Set();
       (data || []).forEach(c => {
-        if (c.artista_id) artistIds.add(c.artista_id);
         if (c.participant_ids) {
            c.participant_ids.forEach(pid => {
              if (pid !== user.id) artistIds.add(pid);
@@ -286,7 +285,7 @@ export const ChatProvider = ({ children }) => {
         
         // Determine the "Other" participant
         const participantIds = chat.participant_ids || [];
-        let otherId = chat.artista_id;
+        let otherId = null;
         if (participantIds.length > 0) {
           otherId = participantIds.find(id => id !== user.id) || chat.owner_id || participantIds[0];
         }
@@ -348,8 +347,9 @@ export const ChatProvider = ({ children }) => {
         .from('messages')
         .insert({
           chat_id: chatId,
-          sender_cargo: profile?.cargo || null,
-          message: text
+          sender_id: user.id,
+          content: text,
+          metadata: { sender_cargo: profile?.cargo || null }
         });
 
       if (error) throw error;
@@ -381,16 +381,22 @@ export const ChatProvider = ({ children }) => {
       const { data: existingDb } = await supabase
         .from('chats')
         .select('id')
-        .eq('artista_id', artistId)
+        .contains('participant_ids', [artistId])
         .maybeSingle();
 
       if (existingDb) return existingDb.id;
 
       // Create new chat
+      // If creator is admin, participants = [me, artist]
+      // If creator is artist, participants = [me] (and admin joins later or sees it via role)
+      // But typically we want explicit participants.
+      const participants = Array.from(new Set([artistId, user.id]));
+
       const { data, error } = await supabase
         .from('chats')
         .insert({
-          artista_id: artistId
+          participant_ids: participants,
+          owner_id: user.id
         })
         .select()
         .single();
@@ -401,7 +407,7 @@ export const ChatProvider = ({ children }) => {
            const { data: retryData } = await supabase
              .from('chats')
              .select('id')
-              .eq('artista_id', artistId)
+              .contains('participant_ids', [artistId])
              .maybeSingle();
            return retryData?.id;
         }

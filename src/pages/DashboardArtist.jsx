@@ -317,12 +317,15 @@ export const DashboardArtistChat = () => {
       const { data: existing } = await supabase
         .from('chats')
         .select('id')
-        .eq('artista_id', user.id)
+        .contains('participant_ids', [user.id])
         .limit(1)
         .maybeSingle();
       let cid = existing?.id;
       if (!cid) {
-        const { data, error } = await supabase.from('chats').insert({ artista_id: user.id }).select('id').maybeSingle();
+        const { data, error } = await supabase.from('chats').insert({ 
+          participant_ids: [user.id],
+          owner_id: user.id 
+        }).select('id').maybeSingle();
         if (!error) cid = data?.id;
       }
       setChatId(cid || null);
@@ -377,7 +380,12 @@ export const DashboardArtistChat = () => {
   }, []);
   const send = async () => {
     if (!chatId || !input.trim()) return;
-    await supabase.from('messages').insert({ chat_id: chatId, sender_cargo: 'Artista', message: input.trim() });
+    await supabase.from('messages').insert({ 
+      chat_id: chatId, 
+      sender_id: user.id, 
+      content: input.trim(),
+      metadata: { sender_cargo: 'Artista' }
+    });
     setInput('');
   };
   return (
