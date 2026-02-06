@@ -211,8 +211,8 @@ const SellerLeads = () => {
       <div className="h-[calc(100vh-140px)] flex flex-col">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-white">Oportunidades (Leads)</h1>
-            <p className="text-gray-400">Gerencie seu funil de vendas</p>
+            <h1 className="text-3xl font-bold text-white"><span>Oportunidades (Leads)</span></h1>
+            <p className="text-gray-400"><span>Gerencie seu funil de vendas</span></p>
           </div>
           <AnimatedButton onClick={() => handleOpenModal()} icon={Plus}>Novo Lead</AnimatedButton>
         </div>
@@ -223,7 +223,7 @@ const SellerLeads = () => {
               <div key={col.id} className="flex-1 bg-white/5 rounded-2xl border border-white/10 flex flex-col">
                 <div className={`p-4 border-b border-white/10 flex items-center gap-2`}>
                   <div className={`w-3 h-3 rounded-full ${col.color}`} />
-                  <h3 className="font-bold text-white uppercase text-sm tracking-wider">{col.label}</h3>
+                  <h3 className="font-bold text-white uppercase text-sm tracking-wider"><span>{col.label}</span></h3>
                   <span className="ml-auto text-xs bg-white/10 px-2 py-0.5 rounded-full text-gray-400">
                     {leads.filter(l => l.status === col.id).length}
                   </span>
@@ -237,7 +237,7 @@ const SellerLeads = () => {
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div>
-                          <h4 className="font-bold text-white truncate">{lead.contractor_name}</h4>
+                          <h4 className="font-bold text-white truncate"><span>{lead.contractor_name}</span></h4>
                           <span className="text-xs text-beatwap-gold font-medium">
                             {lead.artist?.nome || lead.artist?.nome_completo_razao_social || 'Artista não definido'}
                           </span>
