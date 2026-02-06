@@ -74,7 +74,7 @@ const SellerArtists = () => {
                     )}
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-lg">{artist.nome || 'Artista sem nome'}</h3>
+                    <h3 className="font-bold text-white text-lg">{artist.nome || artist.nome_completo_razao_social || 'Artista sem nome'}</h3>
                     <div className="flex items-center gap-1 text-xs text-beatwap-gold">
                       <Music size={12} />
                       <span>{artist.genero_musical || 'Gênero n/d'}</span>
@@ -86,7 +86,13 @@ const SellerArtists = () => {
               <div className="space-y-3 mb-6">
                 <div className="flex items-center gap-2 text-sm text-gray-300">
                   <MapPin size={16} className="text-gray-500" />
-                  <span>{artist.cidade || 'Localização n/d'}</span>
+                  <span>
+                    {artist.cidade ? (
+                      `${artist.cidade}${artist.estado ? ` - ${artist.estado}` : ''}`
+                    ) : (
+                      'Localização não informada'
+                    )}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-300">
                   <DollarSign size={16} className="text-green-500" />
