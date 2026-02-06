@@ -237,15 +237,15 @@ export const AdminSettings = () => {
 
   return (
     <AdminLayout>
-      <div className="space-y-8">
+      <div className="space-y-6">
         <Card className="space-y-6">
-          <div className="flex items-center gap-2 text-xl font-bold">
+          <div className="flex items-center gap-2 text-lg md:text-xl font-bold">
             <Settings size={20} className="text-beatwap-gold" />
             Configurações e Convites
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
             <Card className="space-y-4 bg-white/5 border-white/10">
-              <div className="text-lg font-bold flex items-center gap-2">
+              <div className="text-base md:text-lg font-bold flex items-center gap-2">
                 <User size={18} /> Criar novo convite
               </div>
               <AnimatedInput

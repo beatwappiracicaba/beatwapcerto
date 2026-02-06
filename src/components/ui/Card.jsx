@@ -8,7 +8,7 @@ export const Card = ({ children, className, delay = 0 }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.4 }}
-      className={twMerge("bg-beatwap-graphite rounded-2xl border border-white/5 p-6 shadow-xl", className)}
+      className={twMerge("bg-beatwap-graphite rounded-2xl border border-white/5 p-4 md:p-6 shadow-xl", className)}
     >
       {children}
     </motion.div>
