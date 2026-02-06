@@ -11,9 +11,10 @@ import { ProfileButton } from './ProfileButton';
 
 export const DashboardLayout = ({ children }) => {
   const { signOut, user, profile } = useAuth();
-  const isAdmin = profile?.cargo?.toLowerCase() === 'produtor';
-  const isCompositor = profile?.cargo?.toLowerCase() === 'compositor';
+  const isProdutor = profile?.cargo?.toLowerCase() === 'produtor';
   const isVendedor = profile?.cargo?.toLowerCase() === 'vendedor';
+  const isAdmin = isProdutor || isVendedor; // Treat Vendor as Admin for Chat purposes
+  const isCompositor = profile?.cargo?.toLowerCase() === 'compositor';
   const currentUserId = user?.id;
   const [sidebarOpen, setSidebarOpen] = useState(false);
 

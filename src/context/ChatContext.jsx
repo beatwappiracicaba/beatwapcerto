@@ -108,8 +108,11 @@ export const ChatProvider = ({ children }) => {
 
       const cargo = profile?.cargo;
       const isAdmin = cargo === 'Produtor';
+      const isVendedor = cargo === 'Vendedor';
       const isCompositor = cargo === 'Compositor';
-      if (!isAdmin && !isCompositor) {
+      
+      // Vendedores e Produtores veem todos os chats (ou atribuídos)
+      if (!isAdmin && !isCompositor && !isVendedor) {
         query = query.eq('artista_id', user.id);
       }
 
@@ -358,7 +361,7 @@ export const ChatProvider = ({ children }) => {
          const updatedMessages = (c.messages || []).map(m => ({ ...m, read: true }));
          const unreadCount = updatedMessages.filter(m => {
            const roleStr = String(profile?.cargo || '').toLowerCase();
-           const isAdmin = roleStr === 'produtor' || roleStr === 'compositor';
+           const isAdmin = roleStr === 'produtor' || roleStr === 'vendedor' || roleStr === 'compositor';
            return !m.read && ((isAdmin && m.sender === 'artist') || (!isAdmin && m.sender === 'admin'));
          }).length;
          return { ...c, messages: updatedMessages, unreadCount };
