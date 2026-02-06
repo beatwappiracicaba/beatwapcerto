@@ -9,9 +9,12 @@ import { MusicUploadModal } from '../components/artist/MusicUploadModal';
 import { Plus } from 'lucide-react';
 
 export const DashboardArtistHome = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const isCompositor = profile?.cargo && profile.cargo.toLowerCase().trim() === 'compositor';
+
   useEffect(() => {
     const fetchMetrics = async () => {
       // Legacy metrics
@@ -61,20 +64,22 @@ export const DashboardArtistHome = () => {
   }, [user]);
   return (
     <DashboardLayout>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <Card>
-          <div className="text-sm text-gray-400">Total de Plays</div>
-          <div className="text-3xl font-bold">{loading ? '...' : metrics?.total_plays ?? 0}</div>
-        </Card>
-        <Card>
-          <div className="text-sm text-gray-400">Ouvintes</div>
-          <div className="text-3xl font-bold">{loading ? '...' : metrics?.ouvintes_mensais ?? 0}</div>
-        </Card>
-        <Card>
-          <div className="text-sm text-gray-400">Receita Estimada</div>
-          <div className="text-3xl font-bold">{loading ? '...' : metrics?.receita_estimada ?? 0}</div>
-        </Card>
-      </div>
+      {!isCompositor && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <Card>
+            <div className="text-sm text-gray-400">Total de Plays</div>
+            <div className="text-3xl font-bold">{loading ? '...' : metrics?.total_plays ?? 0}</div>
+          </Card>
+          <Card>
+            <div className="text-sm text-gray-400">Ouvintes</div>
+            <div className="text-3xl font-bold">{loading ? '...' : metrics?.ouvintes_mensais ?? 0}</div>
+          </Card>
+          <Card>
+            <div className="text-sm text-gray-400">Receita Estimada</div>
+            <div className="text-3xl font-bold">{loading ? '...' : metrics?.receita_estimada ?? 0}</div>
+          </Card>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <div className="text-sm text-gray-400">Tempo Ouvido</div>
