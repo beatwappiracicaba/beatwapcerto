@@ -10,6 +10,7 @@ import { Plus, Phone, MessageCircle, MoreHorizontal, Calendar, DollarSign, MapPi
 const SellerLeads = () => {
   const { user } = useAuth();
   const [leads, setLeads] = useState([]);
+  const [artists, setArtists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentLead, setCurrentLead] = useState(null); // For editing/viewing
@@ -23,18 +24,35 @@ const SellerLeads = () => {
     city: '',
     event_date: '',
     budget: '',
-    status: 'novo'
+    status: 'novo',
+    artist_id: ''
   });
 
   useEffect(() => {
     fetchLeads();
+    fetchArtists();
   }, []);
+
+  const fetchArtists = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, nome, nome_completo_razao_social')
+        .eq('cargo', 'Artista')
+        .order('nome', { ascending: true });
+      
+      if (error) throw error;
+      setArtists(data || []);
+    } catch (error) {
+      console.error('Error fetching artists:', error);
+    }
+  };
 
   const fetchLeads = async () => {
     try {
       const { data, error } = await supabase
         .from('leads')
-        .select('*')
+        .select('*, artist:artist_id(nome, nome_completo_razao_social)')
         .eq('seller_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -78,6 +96,11 @@ const SellerLeads = () => {
 
   const handleSaveLead = async () => {
     try {
+      if (!formData.artist_id) {
+        alert('Por favor, selecione um artista.');
+        return;
+      }
+
       const payload = {
         ...formData,
         seller_id: user.id,
@@ -164,7 +187,12 @@ const SellerLeads = () => {
                       className="bg-[#181818] p-4 rounded-xl border border-white/5 hover:border-beatwap-gold/50 cursor-pointer transition-all group shadow-lg"
                     >
                       <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-bold text-white truncate">{lead.contractor_name}</h4>
+                        <div>
+                          <h4 className="font-bold text-white truncate">{lead.contractor_name}</h4>
+                          <span className="text-xs text-beatwap-gold font-medium">
+                            {lead.artist?.nome || lead.artist?.nome_completo_razao_social || 'Artista não definido'}
+                          </span>
+                        </div>
                         {lead.event_date && (
                           <span className="text-[10px] text-gray-500 bg-white/5 px-1.5 py-0.5 rounded flex items-center gap-1">
                             <Calendar size={10} />
