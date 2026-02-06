@@ -49,39 +49,39 @@ export const DashboardLayout = ({ children }) => {
         </button>
         <nav className="space-y-2">
           <NavLink to="/dashboard" end className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-            <LayoutGrid size={18} /> Visão Geral
+            <LayoutGrid size={18} /> <span>Visão Geral</span>
           </NavLink>
           
           {isVendedor && (
             <>
               {permissions.seller_artists !== false && (
                 <NavLink to="/seller/artists" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-                  <Users size={18} /> Artistas
+                  <Users size={18} /> <span>Artistas</span>
                 </NavLink>
               )}
               {permissions.seller_calendar !== false && (
                 <NavLink to="/seller/calendar" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-                  <Calendar size={18} /> Agenda
+                  <Calendar size={18} /> <span>Agenda</span>
                 </NavLink>
               )}
               {permissions.seller_leads !== false && (
                 <NavLink to="/seller/leads" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-                  <Target size={18} /> Oportunidades
+                  <Target size={18} /> <span>Oportunidades</span>
                 </NavLink>
               )}
               {permissions.seller_finance !== false && (
                 <NavLink to="/seller/finance" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-                  <DollarSign size={18} /> Comissões
+                  <DollarSign size={18} /> <span>Comissões</span>
                 </NavLink>
               )}
               {permissions.seller_proposals !== false && (
                 <NavLink to="/seller/proposals" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-                  <FileText size={18} /> Propostas
+                  <FileText size={18} /> <span>Propostas</span>
                 </NavLink>
               )}
               {permissions.seller_communications !== false && (
                 <NavLink to="/seller/communications" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-                  <MessageCircle size={18} /> Comunicação
+                  <MessageCircle size={18} /> <span>Comunicação</span>
                 </NavLink>
               )}
             </>
@@ -89,19 +89,19 @@ export const DashboardLayout = ({ children }) => {
           
           {!isVendedor && permissions.musics !== false && !isCompositor && (
             <NavLink to="/dashboard/musics" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-              <Music size={18} /> Minhas Músicas
+              <Music size={18} /> <span>Minhas Músicas</span>
             </NavLink>
           )}
 
           {!isVendedor && permissions.compositions !== false && isCompositor && (
             <NavLink to="/dashboard/compositions" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-              <Music size={18} /> Minhas Composições
+              <Music size={18} /> <span>Minhas Composições</span>
             </NavLink>
           )}
           
           {!isVendedor && permissions.work !== false && !isCompositor && (
             <NavLink to="/dashboard/work" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-              <LayoutGrid size={18} /> Trabalho
+              <LayoutGrid size={18} /> <span>Trabalho</span>
             </NavLink>
           )}
           
@@ -114,7 +114,7 @@ export const DashboardLayout = ({ children }) => {
           {/* Chat removido do menu, manter apenas flutuante */}
         </nav>
         <Card className="mt-8 bg-white/[0.03] border-white/10">
-          <AnimatedButton onClick={signOut} icon={LogOut}>Sair</AnimatedButton>
+          <AnimatedButton onClick={signOut} icon={LogOut}><span>Sair</span></AnimatedButton>
         </Card>
       </aside>
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />}
@@ -140,9 +140,9 @@ export const DashboardLayout = ({ children }) => {
               <div className="p-4 rounded-full bg-red-500/10 text-red-500">
                 <Lock size={48} />
               </div>
-              <h2 className="text-2xl font-bold">Acesso Restrito</h2>
+              <h2 className="text-2xl font-bold"><span>Acesso Restrito</span></h2>
               <p className="text-gray-400 max-w-md">
-                Você não tem permissão para acessar esta seção. Entre em contato com seu produtor para solicitar acesso.
+                <span>Você não tem permissão para acessar esta seção. Entre em contato com seu produtor para solicitar acesso.</span>
               </p>
             </div>
           )}

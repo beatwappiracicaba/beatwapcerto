@@ -67,16 +67,16 @@ export const DashboardArtistHome = () => {
       {!isCompositor && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <Card>
-            <div className="text-sm text-gray-400">Total de Plays</div>
-            <div className="text-3xl font-bold">{loading ? '...' : metrics?.total_plays ?? 0}</div>
+            <div className="text-sm text-gray-400"><span>Total de Plays</span></div>
+            <div className="text-3xl font-bold"><span>{loading ? '...' : metrics?.total_plays ?? 0}</span></div>
           </Card>
           <Card>
-            <div className="text-sm text-gray-400">Ouvintes</div>
-            <div className="text-3xl font-bold">{loading ? '...' : metrics?.ouvintes_mensais ?? 0}</div>
+            <div className="text-sm text-gray-400"><span>Ouvintes</span></div>
+            <div className="text-3xl font-bold"><span>{loading ? '...' : metrics?.ouvintes_mensais ?? 0}</span></div>
           </Card>
           <Card>
-            <div className="text-sm text-gray-400">Receita Estimada</div>
-            <div className="text-3xl font-bold">{loading ? '...' : metrics?.receita_estimada ?? 0}</div>
+            <div className="text-sm text-gray-400"><span>Receita Estimada</span></div>
+            <div className="text-3xl font-bold"><span>{loading ? '...' : metrics?.receita_estimada ?? 0}</span></div>
           </Card>
         </div>
       )}
@@ -207,7 +207,7 @@ export const DashboardArtistMusics = () => {
     <DashboardLayout>
       <Card>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-3">
-          <div className="text-xl font-semibold text-white">Minhas Músicas</div>
+          <div className="text-xl font-semibold text-white"><span>Minhas Músicas</span></div>
           <AnimatedButton 
             onClick={() => {
               if (!isUnlimited && remainingUploads !== null && remainingUploads <= 0) {
@@ -219,19 +219,19 @@ export const DashboardArtistMusics = () => {
             }}
             icon={Plus}
           >
-            Nova Música
+            <span>Nova Música</span>
           </AnimatedButton>
         </div>
         <div className="mb-3 text-sm text-gray-300">
-          Envios restantes: {isUnlimited ? 'Ilimitado' : (remainingUploads === null ? '...' : remainingUploads)}
+          <span>Envios restantes: {isUnlimited ? 'Ilimitado' : (remainingUploads === null ? '...' : remainingUploads)}</span>
         </div>
 
         <div className="space-y-3">
-          {loading && <div className="text-gray-400">Carregando...</div>}
+          {loading && <div className="text-gray-400"><span>Carregando...</span></div>}
           {!loading && musics.length === 0 && (
             <div className="text-center py-10 text-gray-400 border border-dashed border-white/10 rounded-xl">
-              <p>Nenhuma música encontrada.</p>
-              <p className="text-sm mt-2">Clique em &quot;Nova Música&quot; para começar.</p>
+              <p><span>Nenhuma música encontrada.</span></p>
+              <p className="text-sm mt-2"><span>Clique em &quot;Nova Música&quot; para começar.</span></p>
             </div>
           )}
           {!loading && musics.map((m) => (
@@ -240,14 +240,15 @@ export const DashboardArtistMusics = () => {
                 {m.cover_url ? (
                   <img src={m.cover_url} alt={m.titulo} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">Capa</div>
+                  <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs"><span>Capa</span></div>
                 )}
               </div>
               <div className="flex-1">
-                <div className="font-bold text-white">{m.titulo}</div>
-                <div className="text-xs text-gray-400">{m.nome_artista} • {new Date(m.created_at).toLocaleDateString()}</div>
+                <div className="font-bold text-white"><span>{m.titulo}</span></div>
+                <div className="text-xs text-gray-400"><span>{m.nome_artista} • {new Date(m.created_at).toLocaleDateString()}</span></div>
                 {m.status === 'aprovado' && (
                   <div className="mt-1 text-xs text-gray-300">
+                    <span>
                     {(() => {
                       const mm = musicMetrics[m.id] || { plays: 0, totalSeconds: 0, presaves: 0 };
                       const hh = Math.floor(mm.totalSeconds / 3600);
@@ -256,6 +257,7 @@ export const DashboardArtistMusics = () => {
                       const totalFmt = `${hh}h ${mmn}m ${ss}s`;
                       return `Plays: ${mm.plays} • Tempo total: ${totalFmt} • Pré-saves: ${mm.presaves}`;
                     })()}
+                    </span>
                   </div>
                 )}
               </div>
@@ -265,27 +267,27 @@ export const DashboardArtistMusics = () => {
                   m.status === 'recusado' ? 'bg-red-500/20 text-red-500' :
                   'bg-yellow-500/20 text-yellow-500'
                 }`}>
-                  {m.status}
+                  <span>{m.status}</span>
                 </div>
                 {m.status === 'aprovado' && (
                   <>
                     {m.upc && (
                       <div className="text-xs px-2 py-1 rounded-full bg-white/10 text-white">
-                        UPC: {m.upc}
+                        <span>UPC: {m.upc}</span>
                       </div>
                     )}
                     {m.presave_link && (
                       <AnimatedButton 
                         onClick={() => navigator.clipboard.writeText(m.presave_link)}
                       >
-                        Copiar Pré-save
+                        <span>Copiar Pré-save</span>
                       </AnimatedButton>
                     )}
                   </>
                 )}
                 {m.motivo_recusa && (
                   <div className="text-xs text-red-400 max-w-[150px] truncate" title={m.motivo_recusa}>
-                    {m.motivo_recusa}
+                    <span>{m.motivo_recusa}</span>
                   </div>
                 )}
               </div>
@@ -381,7 +383,7 @@ export const DashboardArtistChat = () => {
   return (
     <DashboardLayout>
       <Card className="space-y-4">
-        <div className="text-sm text-beatwap-gold font-bold">Chat com Compositor</div>
+        <div className="text-sm text-beatwap-gold font-bold"><span>Chat com Compositor</span></div>
         <div className="flex -space-x-2">
           {composers.slice(0, 6).map(s => {
             const st = presence.find(p => p.profile_id === s.id);
@@ -392,7 +394,7 @@ export const DashboardArtistChat = () => {
                   <img src={s.avatar_url} alt={s.nome || 'Compositor'} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-[10px] text-white font-bold">
-                    {(s.nome || 'C').charAt(0)}
+                    <span>{(s.nome || 'C').charAt(0)}</span>
                   </div>
                 )}
                 {(st?.online && fresh) && <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-[#121212]" />}
@@ -400,20 +402,20 @@ export const DashboardArtistChat = () => {
             );
           })}
         </div>
-        {!chatId && <div className="text-gray-400">Criando chat...</div>}
+        {!chatId && <div className="text-gray-400"><span>Criando chat...</span></div>}
         {chatId && (
           <>
             <div className="space-y-2 max-h-[50vh] overflow-auto">
               {messages.map((m) => (
                 <div key={m.id} className="p-2 rounded-md border border-gray-800">
-                  <div className="text-xs text-gray-500">{m.sender_cargo}</div>
-                  <div>{m.message}</div>
+                  <div className="text-xs text-gray-500"><span>{m.sender_cargo}</span></div>
+                  <div><span>{m.message}</span></div>
                 </div>
               ))}
             </div>
             <div className="flex gap-2">
               <AnimatedInput placeholder="Escreva uma mensagem..." value={input} onChange={(e) => setInput(e.target.value)} />
-              <AnimatedButton onClick={send}>Enviar</AnimatedButton>
+              <AnimatedButton onClick={send}><span>Enviar</span></AnimatedButton>
             </div>
           </>
         )}

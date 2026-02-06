@@ -217,8 +217,8 @@ const Home = () => {
           <section className="py-20 px-6 bg-black/30">
             <div className="max-w-7xl mx-auto">
               <div className="text-center mb-12">
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">Lançamentos Recentes</h2>
-                <p className="text-gray-400">Ouça o que os nossos artistas estão produzindo</p>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Lançamentos Recentes</span></h2>
+                <p className="text-gray-400"><span>Ouça o que os nossos artistas estão produzindo</span></p>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -250,7 +250,7 @@ const Home = () => {
                         const isReleased = rDate <= today;
                         return (
                           <div className={`absolute top-2 left-2 text-black text-xs font-bold px-2 py-1 rounded ${isReleased ? 'bg-white' : 'bg-beatwap-gold'}`}>
-                            {isReleased ? 'Lançado em' : 'Lança em'} {rDate.toLocaleDateString('pt-BR')}
+                            <span>{isReleased ? 'Lançado em' : 'Lança em'} {rDate.toLocaleDateString('pt-BR')}</span>
                           </div>
                         );
                       })()}
@@ -274,9 +274,9 @@ const Home = () => {
                         </button>
                       </div>
                     </div>
-                    <h3 className="font-bold text-lg truncate">{release.titulo || 'Lançamento'}</h3>
-                    <p className="text-sm text-gray-400 truncate">{release.nome_artista || 'Artista'}</p>
-                    <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider">{release.estilo || ''}</p>
+                    <h3 className="font-bold text-lg truncate"><span>{release.titulo || 'Lançamento'}</span></h3>
+                    <p className="text-sm text-gray-400 truncate"><span>{release.nome_artista || 'Artista'}</span></p>
+                    <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{release.estilo || ''}</span></p>
                     <p className="text-[10px] text-gray-500 mt-1 flex items-center gap-1">
                       {release.is_beatwap_produced ? (
                         <>
@@ -286,11 +286,11 @@ const Home = () => {
                           </span>
                         </>
                       ) : (
-                        'Produção Independente'
+                        <span>Produção Independente</span>
                       )}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      Lançamento: {release.release_date ? new Date(release.release_date).toLocaleDateString('pt-BR') : 'Em breve'}
+                      <span>Lançamento: {release.release_date ? new Date(release.release_date).toLocaleDateString('pt-BR') : 'Em breve'}</span>
                     </p>
                     {release.presave_link && (
                       <div className="mt-2">
@@ -298,6 +298,7 @@ const Home = () => {
                           recordEvent({ type: 'music_click_presave', music_id: release.id, artist_id: release.artista_id });
                           window.open(release.presave_link, '_blank');
                         }}>
+                          <span>
                           {(() => {
                              const [y, m, d] = (release.release_date || '').split('-');
                              const rDate = release.release_date ? new Date(y, m - 1, d) : new Date(8640000000000000);
@@ -305,6 +306,7 @@ const Home = () => {
                              today.setHours(0, 0, 0, 0);
                              return rDate <= today ? 'SmartLink' : 'Pré-save';
                           })()}
+                          </span>
                         </AnimatedButton>
                       </div>
                     )}
@@ -320,8 +322,8 @@ const Home = () => {
           <section className="py-20 px-6 bg-black/20">
             <div className="max-w-7xl mx-auto">
               <div className="text-center mb-12">
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">Últimas Composições Lançadas</h2>
-                <p className="text-gray-400">Obras exclusivas de nossos compositores parceiros</p>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Últimas Composições Lançadas</span></h2>
+                <p className="text-gray-400"><span>Obras exclusivas de nossos compositores parceiros</span></p>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -362,9 +364,9 @@ const Home = () => {
                         </button>
                       </div>
                     </div>
-                    <h3 className="font-bold text-lg truncate">{comp.title}</h3>
-                    <p className="text-sm text-gray-400 truncate">{comp.composer_name}</p>
-                    <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider">{comp.genre || 'Gênero'}</p>
+                    <h3 className="font-bold text-lg truncate"><span>{comp.title}</span></h3>
+                    <p className="text-sm text-gray-400 truncate"><span>{comp.composer_name}</span></p>
+                    <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{comp.genre || 'Gênero'}</span></p>
                     {comp.composer_phone && (
                       <button 
                         onClick={(e) => {
@@ -375,7 +377,7 @@ const Home = () => {
                         className="mt-3 flex items-center gap-2 text-xs font-bold text-green-400 bg-green-400/10 px-3 py-2 rounded-lg hover:bg-green-400/20 transition-colors w-full justify-center"
                       >
                         <MessageCircle size={14} />
-                        WhatsApp do Compositor
+                        <span>WhatsApp do Compositor</span>
                       </button>
                     )}
                   </motion.div>
@@ -390,8 +392,8 @@ const Home = () => {
           <section className="py-20 px-6 bg-black/25">
             <div className="max-w-7xl mx-auto">
               <div className="text-center mb-12">
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">Últimos Projetos de Vídeos Feitos</h2>
-                <p className="text-gray-400">Conteúdos recentes publicados pela produtora</p>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Últimos Projetos de Vídeos Feitos</span></h2>
+                <p className="text-gray-400"><span>Conteúdos recentes publicados pela produtora</span></p>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                 {latestProjects.map((p, index) => (
@@ -403,18 +405,18 @@ const Home = () => {
                     className="group relative bg-white/5 border border-white/10 rounded-2xl overflow-hidden"
                   >
                     <div className="aspect-video bg-gray-800 relative">
-                      <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">YouTube</div>
+                      <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm"><span>YouTube</span></div>
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <button 
                           className="px-4 py-2 bg-beatwap-gold rounded-full text-black font-bold hover:bg-white"
                           onClick={() => window.open(p.url, '_blank')}
                         >
-                          Abrir
+                          <span>Abrir</span>
                         </button>
                       </div>
                     </div>
                     <div className="p-4">
-                      <h3 className="font-bold text-lg truncate">{p.title}</h3>
+                      <h3 className="font-bold text-lg truncate"><span>{p.title}</span></h3>
                     </div>
                   </motion.div>
                 ))}
@@ -428,8 +430,8 @@ const Home = () => {
           <section className="py-20 px-6 bg-black/20">
             <div className="max-w-7xl mx-auto">
               <div className="text-center mb-12">
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">Compositores Parceiros</h2>
-                <p className="text-gray-400">Profissionais disponíveis para suas produções</p>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Compositores Parceiros</span></h2>
+                <p className="text-gray-400"><span>Profissionais disponíveis para suas produções</span></p>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 {composers.map((composer, index) => (
