@@ -135,42 +135,50 @@ export const AdminSettings = () => {
     }
   };
 
-  const generateLink = () => {
-    if (!form.name.trim() || !validEmail) {
-      addToast('Preencha nome e um email válido.', 'error');
+  // Auto-update link when form changes
+  useEffect(() => {
+    if (form.name.trim() && validEmail) {
+      const params = new URLSearchParams();
+      params.set('name', form.name.trim());
+      params.set('email', form.email.trim());
+      params.set('role', form.role);
+      params.set('p_chat', form.p_chat ? '1' : '0');
+      
+      if (form.role === 'Produtor') {
+        params.set('p_admin_artists', form.p_admin_artists ? '1' : '0');
+        params.set('p_admin_musics', form.p_admin_musics ? '1' : '0');
+        params.set('p_admin_compositions', form.p_admin_compositions ? '1' : '0');
+        params.set('p_admin_sponsors', form.p_admin_sponsors ? '1' : '0');
+        params.set('p_admin_settings', form.p_admin_settings ? '1' : '0');
+      } else if (form.role === 'Vendedor') {
+        params.set('p_seller_artists', form.p_seller_artists ? '1' : '0');
+        params.set('p_seller_calendar', form.p_seller_calendar ? '1' : '0');
+        params.set('p_seller_leads', form.p_seller_leads ? '1' : '0');
+        params.set('p_seller_finance', form.p_seller_finance ? '1' : '0');
+        params.set('p_seller_proposals', form.p_seller_proposals ? '1' : '0');
+        params.set('p_seller_communications', form.p_seller_communications ? '1' : '0');
+      } else if (form.role === 'Compositor') {
+        params.set('p_compositions', form.p_compositions ? '1' : '0');
+        params.set('p_marketing', form.p_marketing ? '1' : '0');
+      } else {
+        params.set('p_musics', form.p_musics ? '1' : '0');
+        params.set('p_work', form.p_work ? '1' : '0');
+        params.set('p_marketing', form.p_marketing ? '1' : '0');
+      }
+      
+      const url = `${window.location.origin}/register?${params.toString()}`;
+      setInviteLink(url);
+    } else {
+      setInviteLink('');
+    }
+  }, [form, validEmail]);
+
+  const copyLink = () => {
+    if (!inviteLink) {
+      addToast('Preencha nome e email para gerar o link.', 'error');
       return;
     }
-    const params = new URLSearchParams();
-    params.set('name', form.name.trim());
-    params.set('email', form.email.trim());
-    params.set('role', form.role);
-    params.set('p_chat', form.p_chat ? '1' : '0');
-    
-    if (form.role === 'Produtor') {
-      params.set('p_admin_artists', form.p_admin_artists ? '1' : '0');
-      params.set('p_admin_musics', form.p_admin_musics ? '1' : '0');
-      params.set('p_admin_compositions', form.p_admin_compositions ? '1' : '0');
-      params.set('p_admin_sponsors', form.p_admin_sponsors ? '1' : '0');
-      params.set('p_admin_settings', form.p_admin_settings ? '1' : '0');
-    } else if (form.role === 'Vendedor') {
-      params.set('p_seller_artists', form.p_seller_artists ? '1' : '0');
-      params.set('p_seller_calendar', form.p_seller_calendar ? '1' : '0');
-      params.set('p_seller_leads', form.p_seller_leads ? '1' : '0');
-      params.set('p_seller_finance', form.p_seller_finance ? '1' : '0');
-      params.set('p_seller_proposals', form.p_seller_proposals ? '1' : '0');
-      params.set('p_seller_communications', form.p_seller_communications ? '1' : '0');
-    } else if (form.role === 'Compositor') {
-      params.set('p_compositions', form.p_compositions ? '1' : '0');
-      params.set('p_marketing', form.p_marketing ? '1' : '0');
-    } else {
-      params.set('p_musics', form.p_musics ? '1' : '0');
-      params.set('p_work', form.p_work ? '1' : '0');
-      params.set('p_marketing', form.p_marketing ? '1' : '0');
-    }
-    
-    const url = `${window.location.origin}/register?${params.toString()}`;
-    setInviteLink(url);
-    navigator.clipboard.writeText(url).then(() => {
+    navigator.clipboard.writeText(inviteLink).then(() => {
       addToast('Link de convite copiado.', 'success');
     }).catch(() => {
       addToast('Não foi possível copiar o link.', 'error');
@@ -346,8 +354,12 @@ export const AdminSettings = () => {
               </div>
 
               <div className="flex items-center gap-3 pt-2">
-                <AnimatedButton onClick={generateLink} className="flex-1">Gerar Link</AnimatedButton>
-                <AnimatedButton onClick={sendEmail} variant="outline" className="flex-1">Enviar Email</AnimatedButton>
+                <AnimatedButton onClick={copyLink} className="flex-1" disabled={!inviteLink}>
+                  {inviteLink ? 'Copiar Link' : 'Preencha os dados'}
+                </AnimatedButton>
+                <AnimatedButton onClick={sendEmail} variant="outline" className="flex-1" disabled={!inviteLink}>
+                  Enviar Email
+                </AnimatedButton>
               </div>
               
               {inviteLink && (

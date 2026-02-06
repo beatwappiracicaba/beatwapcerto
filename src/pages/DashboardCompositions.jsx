@@ -91,39 +91,41 @@ export const DashboardCompositions = () => {
       {/* Summary Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <Card>
-          <div className="text-sm text-gray-400">Total de Plays</div>
-          <div className="text-3xl font-bold">{loading ? '...' : summaryMetrics.plays}</div>
+          <div className="text-sm text-gray-400"><span>Total de Plays</span></div>
+          <div className="text-3xl font-bold"><span>{loading ? '...' : summaryMetrics.plays}</span></div>
         </Card>
         <Card>
-          <div className="text-sm text-gray-400">Ouvintes</div>
-          <div className="text-3xl font-bold">{loading ? '...' : summaryMetrics.listeners}</div>
+          <div className="text-sm text-gray-400"><span>Ouvintes</span></div>
+          <div className="text-3xl font-bold"><span>{loading ? '...' : summaryMetrics.listeners}</span></div>
         </Card>
         <Card>
-          <div className="text-sm text-gray-400">Tempo Ouvido</div>
+          <div className="text-sm text-gray-400"><span>Tempo Ouvido</span></div>
           <div className="text-3xl font-bold">
+            <span>
             {loading ? '...' : (() => {
                const s = summaryMetrics.time || 0;
                const h = Math.floor(s / 3600);
                const m = Math.floor((s % 3600) / 60);
                return `${h}h ${m}m`;
             })()}
+            </span>
           </div>
         </Card>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <Card>
-          <div className="text-sm text-gray-400">Visitas no Perfil</div>
-          <div className="text-3xl font-bold">{loading ? '...' : summaryMetrics.profile_views}</div>
+          <div className="text-sm text-gray-400"><span>Visitas no Perfil</span></div>
+          <div className="text-3xl font-bold"><span>{loading ? '...' : summaryMetrics.profile_views}</span></div>
         </Card>
         <Card>
-          <div className="text-sm text-gray-400">Cliques Sociais</div>
-          <div className="text-3xl font-bold">{loading ? '...' : summaryMetrics.social_clicks}</div>
+          <div className="text-sm text-gray-400"><span>Cliques Sociais</span></div>
+          <div className="text-3xl font-bold"><span>{loading ? '...' : summaryMetrics.social_clicks}</span></div>
         </Card>
       </div>
 
       <Card>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-3">
-          <div className="text-xl font-semibold text-white">Minhas Composições</div>
+          <div className="text-xl font-semibold text-white"><span>Minhas Composições</span></div>
           <AnimatedButton 
             onClick={() => setIsUploadModalOpen(true)}
             icon={Plus}
@@ -133,11 +135,11 @@ export const DashboardCompositions = () => {
         </div>
 
         <div className="space-y-3">
-          {loading && <div className="text-gray-400">Carregando...</div>}
+          {loading && <div className="text-gray-400"><span>Carregando...</span></div>}
           {!loading && compositions.length === 0 && (
             <div className="text-center py-10 text-gray-400 border border-dashed border-white/10 rounded-xl">
-              <p>Nenhuma composição encontrada.</p>
-              <p className="text-sm mt-2">Clique em &quot;Nova Composição&quot; para enviar.</p>
+              <p><span>Nenhuma composição encontrada.</span></p>
+              <p className="text-sm mt-2"><span>Clique em &quot;Nova Composição&quot; para enviar.</span></p>
             </div>
           )}
           {!loading && compositions.map((comp) => (
@@ -152,10 +154,11 @@ export const DashboardCompositions = () => {
                 )}
               </div>
               <div className="flex-1">
-                <div className="font-bold text-white">{comp.title}</div>
-                <div className="text-xs text-gray-400">{comp.genre} • {new Date(comp.created_at).toLocaleDateString()}</div>
+                <div className="font-bold text-white"><span>{comp.title}</span></div>
+                <div className="text-xs text-gray-400"><span>{comp.genre} • {new Date(comp.created_at).toLocaleDateString()}</span></div>
                 {comp.status === 'approved' && (
                   <div className="mt-1 text-xs text-gray-300">
+                    <span>
                     {(() => {
                       const mm = compMetrics[comp.id] || { plays: 0, totalSeconds: 0 };
                       const hh = Math.floor(mm.totalSeconds / 3600);
@@ -164,10 +167,11 @@ export const DashboardCompositions = () => {
                       const totalFmt = `${hh}h ${mmn}m ${ss}s`;
                       return `Plays: ${mm.plays} • Tempo total: ${totalFmt}`;
                     })()}
+                    </span>
                   </div>
                 )}
                 {comp.price && (
-                    <div className="text-xs text-beatwap-gold mt-1 font-bold">R$ {comp.price}</div>
+                    <div className="text-xs text-beatwap-gold mt-1 font-bold"><span>R$ {comp.price}</span></div>
                 )}
               </div>
               <div className="flex items-center gap-4">
@@ -176,11 +180,11 @@ export const DashboardCompositions = () => {
                   comp.status === 'rejected' ? 'bg-red-500/20 text-red-500' :
                   'bg-yellow-500/20 text-yellow-500'
                 }`}>
-                  {comp.status === 'approved' ? 'Aprovado' : comp.status === 'rejected' ? 'Recusado' : 'Pendente'}
+                  <span>{comp.status === 'approved' ? 'Aprovado' : comp.status === 'rejected' ? 'Recusado' : 'Pendente'}</span>
                 </div>
                 {comp.admin_feedback && (
                   <div className="text-xs text-red-400 max-w-[150px] truncate" title={comp.admin_feedback}>
-                    {comp.admin_feedback}
+                    <span>{comp.admin_feedback}</span>
                   </div>
                 )}
               </div>

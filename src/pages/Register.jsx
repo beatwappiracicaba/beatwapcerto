@@ -46,13 +46,49 @@ const Register = () => {
       // 1. Sign Up with Metadata
       const capitalizedName = formData.name.replace(/\w\S*/g, (w) => (w.replace(/^\w/, (c) => c.toUpperCase())));
       
+      let optionsData = {
+        name: capitalizedName,
+      };
+
+      let access_control = {};
+      let normalizedRole = 'Artista';
+
+      if (roleParam) {
+        // Normalize role param (capitalize first letter)
+        normalizedRole = roleParam.charAt(0).toUpperCase() + roleParam.slice(1).toLowerCase();
+        
+        // Get permissions from URL
+        const params = new URLSearchParams(location.search);
+        access_control = {
+          chat: params.get('p_chat') === '1',
+          musics: params.get('p_musics') === '1',
+          compositions: params.get('p_compositions') === '1',
+          work: params.get('p_work') !== '0', // Default true if not specified
+          marketing: params.get('p_marketing') !== '0', // Default true if not specified
+          // Admin permissions (default true if not specified)
+          admin_artists: params.get('p_admin_artists') !== '0',
+          admin_musics: params.get('p_admin_musics') !== '0',
+          admin_compositions: params.get('p_admin_compositions') !== '0',
+          admin_sponsors: params.get('p_admin_sponsors') !== '0',
+          admin_settings: params.get('p_admin_settings') !== '0',
+          // Seller permissions
+          seller_artists: params.get('p_seller_artists') !== '0',
+          seller_calendar: params.get('p_seller_calendar') !== '0',
+          seller_leads: params.get('p_seller_leads') !== '0',
+          seller_finance: params.get('p_seller_finance') !== '0',
+          seller_proposals: params.get('p_seller_proposals') !== '0',
+          seller_communications: params.get('p_seller_communications') !== '0'
+        };
+
+        optionsData.role = ['Artista', 'Produtor', 'Compositor', 'Vendedor'].includes(normalizedRole) ? normalizedRole : 'Artista';
+        optionsData.access_control = access_control;
+      }
+      
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
-          data: {
-            name: capitalizedName,
-          },
+          data: optionsData,
           emailRedirectTo: `${window.location.origin}/`,
         }
       });
@@ -63,36 +99,10 @@ const Register = () => {
         // Logged in immediately (Email confirmation disabled)
         try {
           if (roleParam) {
-            // Normalize role param (capitalize first letter)
-            const normalizedRole = roleParam.charAt(0).toUpperCase() + roleParam.slice(1).toLowerCase();
-            
-            // Get permissions from URL
-            const params = new URLSearchParams(location.search);
-            const access_control = {
-              chat: params.get('p_chat') === '1',
-              musics: params.get('p_musics') === '1',
-              compositions: params.get('p_compositions') === '1',
-              work: params.get('p_work') !== '0', // Default true if not specified
-              marketing: params.get('p_marketing') !== '0', // Default true if not specified
-              // Admin permissions (default true if not specified)
-              admin_artists: params.get('p_admin_artists') !== '0',
-              admin_musics: params.get('p_admin_musics') !== '0',
-              admin_compositions: params.get('p_admin_compositions') !== '0',
-              admin_sponsors: params.get('p_admin_sponsors') !== '0',
-              admin_settings: params.get('p_admin_settings') !== '0',
-              // Seller permissions
-              seller_artists: params.get('p_seller_artists') !== '0',
-              seller_calendar: params.get('p_seller_calendar') !== '0',
-              seller_leads: params.get('p_seller_leads') !== '0',
-              seller_finance: params.get('p_seller_finance') !== '0',
-              seller_proposals: params.get('p_seller_proposals') !== '0',
-              seller_communications: params.get('p_seller_communications') !== '0'
-            };
-
             await supabase
               .from('profiles')
               .update({ 
-                cargo: ['Artista', 'Produtor', 'Compositor', 'Vendedor'].includes(normalizedRole) ? normalizedRole : 'Artista', 
+                cargo: optionsData.role, 
                 nome: capitalizedName,
                 access_control
               })

@@ -82,23 +82,25 @@ export const DashboardArtistHome = () => {
       )}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
-          <div className="text-sm text-gray-400">Tempo Ouvido</div>
+          <div className="text-sm text-gray-400"><span>Tempo Ouvido</span></div>
           <div className="text-3xl font-bold">
+            <span>
             {loading ? '...' : (() => {
                const s = metrics?.tempo_ouvido || 0;
                const h = Math.floor(s / 3600);
                const m = Math.floor((s % 3600) / 60);
                return `${h}h ${m}m`;
             })()}
+            </span>
           </div>
         </Card>
         <Card>
-          <div className="text-sm text-gray-400">Visitas no Perfil</div>
-          <div className="text-3xl font-bold">{loading ? '...' : metrics?.visitas_perfil ?? 0}</div>
+          <div className="text-sm text-gray-400"><span>Visitas no Perfil</span></div>
+          <div className="text-3xl font-bold"><span>{loading ? '...' : metrics?.visitas_perfil ?? 0}</span></div>
         </Card>
         <Card>
-          <div className="text-sm text-gray-400">Cliques Sociais</div>
-          <div className="text-3xl font-bold">{loading ? '...' : metrics?.cliques_sociais ?? 0}</div>
+          <div className="text-sm text-gray-400"><span>Cliques Sociais</span></div>
+          <div className="text-3xl font-bold"><span>{loading ? '...' : metrics?.cliques_sociais ?? 0}</span></div>
         </Card>
       </div>
     </DashboardLayout>
