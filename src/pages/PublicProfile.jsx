@@ -353,8 +353,8 @@ const PublicProfile = () => {
                       </div>
                     </div>
                     <div className="p-4">
-                      <h3 className="font-bold text-lg truncate mb-1">{item.title}</h3>
-                      <p className="text-sm text-beatwap-gold uppercase font-bold tracking-wider mb-3">{item.genre || item.style || 'Gênero'}</p>
+                      <h3 className="font-bold text-lg truncate mb-1">{item.title || item.titulo}</h3>
+                      <p className="text-sm text-beatwap-gold uppercase font-bold tracking-wider mb-3">{item.genre || item.estilo || item.style || 'Gênero'}</p>
                       
                       {/* Show WhatsApp Button only for Compositors or specific cases */}
                       {profile.cargo === 'Compositor' && profile.celular && (
