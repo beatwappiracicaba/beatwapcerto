@@ -213,7 +213,7 @@ const Home = () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('id, nome, nome_completo_razao_social, avatar_url, bio, cargo')
-        .or('cargo.eq.Vendedor,cargo.eq.vendedor,cargo.eq.VENDEDOR')
+        .ilike('cargo', '%vendedor%')
         .order('created_at', { ascending: false })
         .limit(8);
       if (error) throw error;
