@@ -1612,6 +1612,10 @@ export const AdminProfile = () => {
                   Editar Perfil Completo
                </AnimatedButton>
             </div>
+            
+            <div className="pt-6 border-t border-white/10">
+              <GalleryManager userId={profile?.id} />
+            </div>
           </Card>
         )}
         <ProfileEditModal

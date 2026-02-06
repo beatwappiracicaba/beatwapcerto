@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { supabase } from '../services/supabaseClient';
 import Header from '../components/landing/Header';
 import Footer from '../components/landing/Footer';
-import { User, Music, Instagram, Globe, MessageCircle, Play, Pause, ArrowLeft, Youtube, Target, DollarSign } from 'lucide-react';
+import { User, Music, Instagram, Globe, MessageCircle, Play, Pause, ArrowLeft, Youtube, Target, DollarSign, Image, Link as LinkIcon, Video } from 'lucide-react';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 
 const PublicProfile = () => {
@@ -18,6 +18,29 @@ const PublicProfile = () => {
   const [ipHash, setIpHash] = useState(null);
   const [playStartTS, setPlayStartTS] = useState(null);
   const [sellerStats, setSellerStats] = useState(null);
+  const [galleryPosts, setGalleryPosts] = useState([]);
+
+  useEffect(() => {
+    if (id) {
+      fetchGalleryPosts();
+    }
+  }, [id]);
+
+  const fetchGalleryPosts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profile_posts')
+        .select('*')
+        .eq('user_id', id)
+        .order('created_at', { ascending: false });
+      
+      if (!error) {
+        setGalleryPosts(data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching gallery:', err);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -361,6 +384,45 @@ const PublicProfile = () => {
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                 ></iframe>
+              </div>
+            </div>
+          )}
+
+          {/* Gallery / Moments Section */}
+          {galleryPosts.length > 0 && (
+            <div className="mb-12">
+              <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                <Image className="text-blue-400" />
+                Galeria & Momentos
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {galleryPosts.map(post => (
+                  <div key={post.id} className="bg-white/5 border border-white/10 rounded-xl overflow-hidden group">
+                    <div className="aspect-square relative bg-black">
+                      {post.media_type === 'video' ? (
+                        <video src={post.media_url} controls className="w-full h-full object-contain" />
+                      ) : (
+                        <img src={post.media_url} alt={post.caption} className="w-full h-full object-cover" />
+                      )}
+                    </div>
+                    {(post.caption || post.link_url) && (
+                      <div className="p-4">
+                        {post.caption && <p className="text-gray-300 text-sm mb-2">{post.caption}</p>}
+                        {post.link_url && (
+                          <a 
+                            href={post.link_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-beatwap-gold text-xs font-bold flex items-center gap-1 hover:underline"
+                          >
+                            <LinkIcon size={12} />
+                            Acessar Link
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           )}

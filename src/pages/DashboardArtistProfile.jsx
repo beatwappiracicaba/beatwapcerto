@@ -9,6 +9,7 @@ import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { ProfileEditModal } from '../components/ui/ProfileEditModal';
+import { GalleryManager } from '../components/profile/GalleryManager';
 import { buildDistributionContractHTML } from '../utils/contractTemplate';
 
 export const DashboardArtistProfile = () => {
@@ -591,6 +592,10 @@ export const DashboardArtistProfile = () => {
                     <AnimatedButton onClick={() => setIsProfileEditOpen(true)} icon={User}>
                         Editar Perfil Completo
                     </AnimatedButton>
+                    </div>
+                    
+                    <div className="pt-6 border-t border-white/10">
+                      <GalleryManager userId={profile?.id} />
                     </div>
                 </Card>
               )}
