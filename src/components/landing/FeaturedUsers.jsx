@@ -1,11 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Star, Music, Shield, Info, Instagram as IgIcon, Globe, X } from 'lucide-react';
+import { User, Star, Music, Shield, Info, Instagram as IgIcon, Globe, X, Briefcase } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 import { useToast } from '../../context/ToastContext';
 
 const UserCard = ({ user, type, onSelect }) => {
+  const getRoleLabel = () => {
+    if (type === 'producer') return 'Produtor';
+    if (type === 'seller') return 'Vendedor';
+    return 'Artista';
+  };
+
+  const roleLabel = getRoleLabel();
+
   return (
     <motion.div
       whileHover={{ y: -5 }}
@@ -16,7 +24,7 @@ const UserCard = ({ user, type, onSelect }) => {
         {user.avatar_url ? (
           <img 
             src={user.avatar_url} 
-            alt={user.name || (type === 'producer' ? 'Produtor' : 'Artista')} 
+            alt={user.name || roleLabel} 
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
@@ -31,9 +39,9 @@ const UserCard = ({ user, type, onSelect }) => {
         </div>
       </div>
       <div className="p-4">
-        <h3 className="font-bold text-lg text-white truncate">{user.name || (type === 'producer' ? 'Produtor' : 'Artista')}</h3>
+        <h3 className="font-bold text-lg text-white truncate">{user.name || roleLabel}</h3>
         <p className="text-sm text-gray-400 truncate">
-          {(type === 'producer' ? 'Produtor' : 'Artista')}{user.genero_musical ? ` • ${user.genero_musical}` : ''}
+          {roleLabel}{user.genero_musical ? ` • ${user.genero_musical}` : ''}
         </p>
       </div>
     </motion.div>
@@ -44,6 +52,7 @@ const FeaturedUsers = () => {
   const navigate = useNavigate();
   const [artists, setArtists] = useState([]);
   const [producers, setProducers] = useState([]);
+  const [sellers, setSellers] = useState([]);
   const [recentUsers, setRecentUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
@@ -63,11 +72,13 @@ const FeaturedUsers = () => {
         if (data) {
           const normalized = data.map(u => ({ ...u, name: u.nome || u.nome_completo_razao_social || u.name || '' }));
           const admins = normalized.filter(u => u.cargo === 'Produtor');
+          const vendors = normalized.filter(u => (u.cargo || '').toLowerCase().includes('vendedor'));
           const regular = normalized.filter(u => {
             const cargo = (u.cargo || '').toLowerCase();
-            return cargo !== 'produtor' && cargo !== 'compositor' && cargo !== 'vendedor';
+            return cargo !== 'produtor' && cargo !== 'compositor' && !cargo.includes('vendedor');
           });
           setProducers(admins);
+          setSellers(vendors);
           setArtists(regular);
           setRecentUsers(normalized.slice(0, 5));
         }
@@ -124,6 +135,33 @@ const FeaturedUsers = () => {
                   key={user.id} 
                   user={user} 
                   type="producer" 
+                  onSelect={handleUserClick} 
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Sellers Section */}
+        {sellers.length > 0 && (
+          <div className="mb-20">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              className="flex items-center justify-between mb-8"
+            >
+              <h2 className="text-3xl font-bold text-white flex items-center gap-3">
+                <Briefcase className="text-beatwap-gold" />
+                Vendedores Parceiros
+              </h2>
+            </motion.div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+              {sellers.map((user) => (
+                <UserCard 
+                  key={user.id} 
+                  user={user} 
+                  type="seller" 
                   onSelect={handleUserClick} 
                 />
               ))}

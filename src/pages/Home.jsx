@@ -24,7 +24,6 @@ const Home = () => {
   const [latestCompositions, setLatestCompositions] = useState([]);
   const [latestProjects, setLatestProjects] = useState([]);
   const [composers, setComposers] = useState([]);
-  const [sellers, setSellers] = useState([]);
   const [sponsors, setSponsors] = useState([]);
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
@@ -41,7 +40,6 @@ const Home = () => {
     fetchLatestCompositions();
     fetchLatestProjects();
     fetchComposers();
-    fetchSellers();
     fetchSponsors();
     (async () => {
       try {
@@ -205,28 +203,6 @@ const Home = () => {
       setComposers(mapped);
     } catch (error) {
       console.error('Error fetching composers:', error);
-    }
-  };
-
-  const fetchSellers = async () => {
-    try {
-      // Fetch all profiles and filter in memory to guarantee finding sellers regardless of casing
-      // This matches the logic in FeaturedUsers.jsx which is confirmed to work
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, nome, nome_completo_razao_social, avatar_url, bio, cargo')
-        .order('created_at', { ascending: false });
-        
-      if (error) throw error;
-      
-      const filtered = (data || []).filter(u => 
-        (u.cargo || '').toLowerCase().includes('vendedor')
-      ).slice(0, 8);
-      
-      const mapped = filtered.map(s => ({ ...s, name: s.nome || s.nome_completo_razao_social || '' }));
-      setSellers(mapped);
-    } catch (error) {
-      console.error('Error fetching sellers:', error);
     }
   };
 
@@ -485,8 +461,8 @@ const Home = () => {
 
         {/* Duplicate removed */}
 
-        {/* Sellers Section */}
-        {sellers.length > 0 && (
+        {/* Sellers Section moved to FeaturedUsers */}
+        {false && (
           <section className="py-20 px-6 bg-black/25">
             <div className="max-w-7xl mx-auto">
               <div className="text-center mb-12">
