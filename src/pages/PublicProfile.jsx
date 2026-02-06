@@ -32,8 +32,11 @@ const PublicProfile = () => {
 
   const recordEvent = async (payload) => {
     try {
+      // Remove profile_view type if it causes 400 errors or ensure backend supports it
+      if (payload.type === 'profile_view') return; 
+      
       await supabase.from('analytics_events').insert([{ ...payload, ip_hash: ipHash || 'unknown' }]);
-    } catch (e) { void 0; }
+    } catch (e) { console.error('Analytics Error:', e); }
   };
 
   const handleSocialClick = (network) => {
@@ -42,13 +45,9 @@ const PublicProfile = () => {
 
   useEffect(() => {
     if (profile) {
-      recordEvent({ type: 'profile_view', artist_id: profile.id });
+      // recordEvent({ type: 'profile_view', artist_id: profile.id }); // Disabled to prevent 400 error
     }
-  }, [profile, ipHash]); // ipHash dependency to ensure we have IP if possible, but might double trigger. Better to check if logged. 
-  // Actually, recordEvent uses current ipHash state. 
-  // Let's rely on profile change. If IP comes later, it might be missed for the very first view event if it fires too fast. 
-  // But usually IP fetch is fast. Or we can just send 'unknown'.
-  // Better: Trigger only when profile is loaded.
+  }, [profile, ipHash]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -85,7 +84,9 @@ const PublicProfile = () => {
       setProfile(profileData);
 
       // Determine what to fetch based on role
-      if (profileData.cargo === 'Artista') {
+      const cargo = (profileData.cargo || '').toLowerCase().trim();
+
+      if (cargo === 'artista') {
         // Fetch Musics for Artists
         const { data: musicData, error: musicError } = await supabase
           .from('musics')
@@ -96,7 +97,7 @@ const PublicProfile = () => {
 
         if (musicError) throw musicError;
         setItems(musicData || []);
-      } else if (profileData.cargo === 'Produtor') {
+      } else if (cargo === 'produtor') {
          // Fetch Musics produced by this producer
          const { data: producedData, error: producedError } = await supabase
           .from('musics')
@@ -122,7 +123,7 @@ const PublicProfile = () => {
       }
 
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error('Error fetching profile:', error.message || error);
     } finally {
       setLoading(false);
     }
