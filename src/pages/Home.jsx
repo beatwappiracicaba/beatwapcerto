@@ -7,6 +7,7 @@ import HowItWorks from '../components/landing/HowItWorks';
 import Benefits from '../components/landing/Benefits';
 import Transparency from '../components/landing/Transparency';
 import Pricing from '../components/landing/Pricing';
+import MentorshipPlans from '../components/landing/MentorshipPlans';
 import SpecialOffer from '../components/landing/SpecialOffer';
 import Contact from '../components/landing/Contact';
 import Footer from '../components/landing/Footer';
@@ -527,6 +528,7 @@ const Home = () => {
         <HowItWorks />
         <Benefits />
         <Transparency />
+        <MentorshipPlans />
         <Pricing />
         <SpecialOffer />
         <Contact />
