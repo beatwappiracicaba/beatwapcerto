@@ -9,13 +9,27 @@ import { useToast } from '../../context/ToastContext';
 export const MusicEditModal = ({ isOpen, onClose, music, onSuccess }) => {
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [producers, setProducers] = useState([]);
   const [formData, setFormData] = useState({
     upc: '',
     presave_link: '',
     release_date: '',
     is_beatwap_produced: false,
-    show_on_home: false
+    show_on_home: false,
+    produced_by: ''
   });
+
+  useEffect(() => {
+    const fetchProducers = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, nome, nome_completo_razao_social')
+        .eq('cargo', 'Produtor')
+        .order('nome', { ascending: true });
+      setProducers(data || []);
+    };
+    fetchProducers();
+  }, []);
 
   useEffect(() => {
     if (music) {
@@ -24,7 +38,8 @@ export const MusicEditModal = ({ isOpen, onClose, music, onSuccess }) => {
         presave_link: music.presave_link || '',
         release_date: music.release_date || '',
         is_beatwap_produced: music.is_beatwap_produced || false,
-        show_on_home: music.show_on_home || false
+        show_on_home: music.show_on_home || false,
+        produced_by: music.produced_by || ''
       });
     }
   }, [music]);
@@ -44,7 +59,8 @@ export const MusicEditModal = ({ isOpen, onClose, music, onSuccess }) => {
           presave_link: formData.presave_link || null,
           release_date: formData.release_date || null,
           is_beatwap_produced: formData.is_beatwap_produced,
-          show_on_home: formData.show_on_home
+          show_on_home: formData.show_on_home,
+          produced_by: formData.produced_by || null
         })
         .eq('id', music.id);
 
@@ -119,6 +135,22 @@ export const MusicEditModal = ({ isOpen, onClose, music, onSuccess }) => {
                   className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-white focus:outline-none focus:border-beatwap-gold/50"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">Produtor Responsável</label>
+              <select
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-4 text-white focus:outline-none focus:border-beatwap-gold/50 appearance-none"
+                value={formData.produced_by}
+                onChange={(e) => setFormData(prev => ({ ...prev, produced_by: e.target.value }))}
+              >
+                <option value="" className="bg-black">Selecione o Produtor</option>
+                {producers.map(p => (
+                  <option key={p.id} value={p.id} className="bg-black">
+                    {p.nome || p.nome_completo_razao_social || 'Produtor'}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="grid grid-cols-2 gap-3 pt-2">

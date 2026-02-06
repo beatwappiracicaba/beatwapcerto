@@ -98,11 +98,11 @@ const PublicProfile = () => {
         if (musicError) throw musicError;
         setItems(musicData || []);
       } else if (cargo === 'produtor') {
-         // Fetch Musics produced by this producer
-         const { data: producedData, error: producedError } = await supabase
+        // Fetch Musics produced by this producer
+        const { data: producedData, error: producedError } = await supabase
           .from('musics')
           .select('*')
-          .eq('artista_id', profileData.id)
+          .eq('produced_by', profileData.id)
           .eq('status', 'aprovado')
           .order('created_at', { ascending: false });
           
