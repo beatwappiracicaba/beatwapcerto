@@ -24,6 +24,7 @@ const Home = () => {
   const [latestCompositions, setLatestCompositions] = useState([]);
   const [latestProjects, setLatestProjects] = useState([]);
   const [composers, setComposers] = useState([]);
+  const [sellers, setSellers] = useState([]);
   const [sponsors, setSponsors] = useState([]);
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
@@ -40,6 +41,7 @@ const Home = () => {
     fetchLatestCompositions();
     fetchLatestProjects();
     fetchComposers();
+    fetchSellers();
     fetchSponsors();
     (async () => {
       try {
@@ -203,6 +205,22 @@ const Home = () => {
       setComposers(mapped);
     } catch (error) {
       console.error('Error fetching composers:', error);
+    }
+  };
+
+  const fetchSellers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, nome, nome_completo_razao_social, avatar_url, bio')
+        .eq('cargo', 'Vendedor')
+        .order('created_at', { ascending: false })
+        .limit(8);
+      if (error) throw error;
+      const mapped = (data || []).map(s => ({ ...s, name: s.nome || s.nome_completo_razao_social || '' }));
+      setSellers(mapped);
+    } catch (error) {
+      console.error('Error fetching sellers:', error);
     }
   };
 
@@ -452,6 +470,78 @@ const Home = () => {
                     </div>
                     <h3 className="font-bold text-lg text-center">{composer.name || 'Compositor'}</h3>
                     <p className="text-sm text-gray-400 text-center line-clamp-2 mt-1">{composer.bio || 'Compositor parceiro'}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Sellers Section */}
+        {sellers.length > 0 && (
+          <section className="py-20 px-6 bg-black/25">
+            <div className="max-w-7xl mx-auto">
+              <div className="text-center mb-12">
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">Vendedores Parceiros</h2>
+                <p className="text-gray-400">Especialistas prontos para impulsionar sua carreira</p>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {sellers.map((seller, index) => (
+                  <motion.div
+                    key={seller.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="group p-4 rounded-2xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 hover:border-beatwap-gold/50 transition-all"
+                    onClick={() => navigate(`/profile/${seller.id}`)}
+                  >
+                    <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-4 bg-gray-700 border-2 border-black group-hover:scale-110 transition-transform">
+                      {seller.avatar_url ? (
+                        <img src={seller.avatar_url} alt={seller.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xl text-white font-bold">
+                          {seller.name?.charAt(0) || 'V'}
+                        </div>
+                      )}
+                    </div>
+                    <h3 className="font-bold text-lg text-center">{seller.name || 'Vendedor'}</h3>
+                    <p className="text-sm text-gray-400 text-center line-clamp-2 mt-1">{seller.bio || 'Vendedor parceiro'}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Sellers Section */}
+        {sellers.length > 0 && (
+          <section className="py-20 px-6 bg-black/25">
+            <div className="max-w-7xl mx-auto">
+              <div className="text-center mb-12">
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">Vendedores Parceiros</h2>
+                <p className="text-gray-400">Especialistas prontos para impulsionar sua carreira</p>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {sellers.map((seller, index) => (
+                  <motion.div
+                    key={seller.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="group p-4 rounded-2xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 hover:border-beatwap-gold/50 transition-all"
+                    onClick={() => navigate(`/profile/${seller.id}`)}
+                  >
+                    <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-4 bg-gray-700 border-2 border-black group-hover:scale-110 transition-transform">
+                      {seller.avatar_url ? (
+                        <img src={seller.avatar_url} alt={seller.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xl text-white font-bold">
+                          {seller.name?.charAt(0) || 'V'}
+                        </div>
+                      )}
+                    </div>
+                    <h3 className="font-bold text-lg text-center">{seller.name || 'Vendedor'}</h3>
+                    <p className="text-sm text-gray-400 text-center line-clamp-2 mt-1">{seller.bio || 'Vendedor parceiro'}</p>
                   </motion.div>
                 ))}
               </div>
