@@ -12,6 +12,7 @@ import { supabase } from '../services/supabaseClient';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../utils/cropImage';
 import { ArtistContentManager } from '../components/admin/ArtistContentManager';
+import { GalleryManager } from '../components/profile/GalleryManager';
 import { ProfileEditModal } from '../components/ui/ProfileEditModal';
 import { MusicEditModal } from '../components/admin/MusicEditModal';
 import { MarketingManager } from '../components/admin/MarketingManager';
@@ -1481,18 +1482,6 @@ export const AdminProfile = () => {
                       label="Celular" 
                       value={formData.celular} 
                       onChange={(e) => setFormData({...formData, celular: e.target.value})} 
-                    />
-                    <AnimatedInput 
-                      label="Instagram (URL)" 
-                      value={formData.instagram_url} 
-                      onChange={(e) => setFormData({...formData, instagram_url: e.target.value})} 
-                      placeholder="https://instagram.com/seu_perfil"
-                    />
-                    <AnimatedInput 
-                      label="Site (URL)" 
-                      value={formData.site_url} 
-                      onChange={(e) => setFormData({...formData, site_url: e.target.value})} 
-                      placeholder="https://seusite.com"
                     />
                     <AnimatedInput 
                       label="Gênero Musical" 

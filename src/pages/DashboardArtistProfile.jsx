@@ -375,45 +375,9 @@ export const DashboardArtistProfile = () => {
                       onChange={(e) => setFormData({...formData, cpf_cnpj: e.target.value})} 
                     />
                     <AnimatedInput 
-                      label="Celular" 
-                      value={formData.celular} 
-                      onChange={(e) => setFormData({...formData, celular: e.target.value})} 
-                    />
-                  <AnimatedInput 
-                    label="Instagram (URL)" 
-                    value={formData.instagram_url} 
-                    onChange={(e) => setFormData({...formData, instagram_url: e.target.value})} 
-                    placeholder="https://instagram.com/seu_perfil"
-                  />
-                  <AnimatedInput 
-                    label="Site (URL)" 
-                    value={formData.site_url} 
-                    onChange={(e) => setFormData({...formData, site_url: e.target.value})} 
-                    placeholder="https://seusite.com"
-                  />
-                  <AnimatedInput 
-                    label="YouTube (URL)" 
-                    value={formData.youtube_url} 
-                    onChange={(e) => setFormData({...formData, youtube_url: e.target.value})} 
-                    placeholder="https://youtube.com/@seu_canal"
-                  />
-                  <AnimatedInput 
-                    label="Spotify (URL)" 
-                    value={formData.spotify_url} 
-                    onChange={(e) => setFormData({...formData, spotify_url: e.target.value})} 
-                    placeholder="https://open.spotify.com/artist/..."
-                  />
-                  <AnimatedInput 
-                    label="Deezer (URL)" 
-                    value={formData.deezer_url} 
-                    onChange={(e) => setFormData({...formData, deezer_url: e.target.value})} 
-                    placeholder="https://deezer.com/br/artist/..."
-                  />
-                  <AnimatedInput 
-                    label="TikTok (URL)" 
-                    value={formData.tiktok_url} 
-                    onChange={(e) => setFormData({...formData, tiktok_url: e.target.value})} 
-                    placeholder="https://tiktok.com/@seu_usuario"
+                    label="Celular" 
+                    value={formData.celular} 
+                    onChange={(e) => setFormData({...formData, celular: e.target.value})} 
                   />
                   <AnimatedInput 
                     label="Gênero Musical" 
