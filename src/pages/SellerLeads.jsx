@@ -11,6 +11,7 @@ const SellerLeads = () => {
   const { user } = useAuth();
   const [leads, setLeads] = useState([]);
   const [artists, setArtists] = useState([]);
+  const [contractors, setContractors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentLead, setCurrentLead] = useState(null); // For editing/viewing
@@ -25,19 +26,60 @@ const SellerLeads = () => {
     event_date: '',
     budget: '',
     status: 'novo',
-    artist_id: ''
+    artist_id: '',
+    whatsapp: '',
+    contractor_id: ''
   });
+
+  // Auto-fill WhatsApp when artist is selected
+  useEffect(() => {
+    if (formData.artist_id && artists.length > 0) {
+      const selectedArtist = artists.find(a => a.id === formData.artist_id);
+      if (selectedArtist && selectedArtist.celular && !formData.whatsapp) {
+        setFormData(prev => ({ ...prev, whatsapp: selectedArtist.celular }));
+      }
+    }
+  }, [formData.artist_id, artists]);
+
+  // Auto-fill WhatsApp and Name when contractor is selected
+  useEffect(() => {
+    if (formData.contractor_id && contractors.length > 0) {
+      const selectedContractor = contractors.find(c => c.id === formData.contractor_id);
+      if (selectedContractor) {
+        setFormData(prev => ({ 
+          ...prev, 
+          contractor_name: selectedContractor.nome || selectedContractor.nome_completo_razao_social || '',
+          whatsapp: selectedContractor.celular || prev.whatsapp 
+        }));
+      }
+    }
+  }, [formData.contractor_id, contractors]);
 
   useEffect(() => {
     fetchLeads();
     fetchArtists();
+    fetchContractors();
   }, []);
+
+  const fetchContractors = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, nome, nome_completo_razao_social, celular')
+        .order('nome', { ascending: true });
+      
+      if (error) throw error;
+      setContractors(data || []);
+    } catch (error) {
+      console.error('Error fetching contractors:', error);
+    }
+  };
 
   const fetchArtists = async () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, nome, nome_completo_razao_social')
+        .select('id, nome, nome_completo_razao_social, celular')
         .eq('cargo', 'Artista')
         .order('nome', { ascending: true });
       
@@ -77,7 +119,11 @@ const SellerLeads = () => {
   const handleOpenModal = (lead = null) => {
     if (lead) {
       setCurrentLead(lead);
-      setFormData(lead);
+      setFormData({
+        ...lead,
+        artist_id: lead.artist_id || '',
+        contractor_id: lead.contractor_id || ''
+      });
       fetchHistory(lead.id);
     } else {
       setCurrentLead(null);
@@ -87,7 +133,10 @@ const SellerLeads = () => {
         city: '',
         event_date: '',
         budget: '',
-        status: 'novo'
+        status: 'novo',
+        artist_id: '',
+        whatsapp: '',
+        contractor_id: ''
       });
       setHistory([]);
     }
@@ -243,11 +292,35 @@ const SellerLeads = () => {
               </div>
               
               <div className="space-y-4">
-                <AnimatedInput 
-                  label="Nome do Contratante" 
-                  value={formData.contractor_name} 
-                  onChange={(e) => setFormData({...formData, contractor_name: e.target.value})} 
-                />
+                <div className="space-y-1">
+                  <label className="text-xs text-gray-400 ml-1">Artista *</label>
+                  <select 
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors appearance-none"
+                    value={formData.artist_id}
+                    onChange={(e) => setFormData({...formData, artist_id: e.target.value})}
+                  >
+                    <option value="" className="bg-black">Selecione um artista...</option>
+                    {artists.map(artist => (
+                      <option key={artist.id} value={artist.id} className="bg-black">
+                        {artist.nome || artist.nome_completo_razao_social || 'Artista sem nome'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <AnimatedInput 
+                    label="Nome do Contratante" 
+                    value={formData.contractor_name} 
+                    onChange={(e) => setFormData({...formData, contractor_name: e.target.value})} 
+                  />
+                  <AnimatedInput 
+                    label="WhatsApp (Contato)" 
+                    value={formData.whatsapp} 
+                    onChange={(e) => setFormData({...formData, whatsapp: e.target.value})}
+                    placeholder="5511999999999" 
+                  />
+                </div>
                 <AnimatedInput 
                   label="Nome do Evento" 
                   value={formData.event_name} 
