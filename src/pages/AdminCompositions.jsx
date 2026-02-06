@@ -16,6 +16,27 @@ export const AdminCompositions = () => {
   const [audio, setAudio] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
+  
+  // Filters state
+  const [activeTab, setActiveTab] = useState('pending');
+  const [filterStatus, setFilterStatus] = useState('todos');
+  const [filterArtist, setFilterArtist] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [composers, setComposers] = useState([]);
+
+  // Fetch composers for dropdown
+  useEffect(() => {
+    const fetchComposers = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, nome, nome_completo_razao_social')
+        .eq('cargo', 'Compositor')
+        .order('nome');
+      if (data) setComposers(data);
+    };
+    fetchComposers();
+  }, []);
 
   const fetchCompositions = useCallback(async () => {
     setLoading(true);
@@ -77,19 +98,101 @@ export const AdminCompositions = () => {
     }
   };
 
+  const filteredCompositions = compositions.filter(comp => {
+    if (activeTab === 'approved' && comp.status !== 'approved') return false;
+    if (activeTab === 'pending' && comp.status !== 'pending') return false;
+    if (filterStatus !== 'todos' && comp.status !== filterStatus) return false;
+    if (filterArtist && comp.composer_id !== filterArtist) return false;
+    if (startDate && new Date(comp.created_at) < new Date(startDate)) return false;
+    if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        if (new Date(comp.created_at) > end) return false;
+    }
+    return true;
+  });
+
   return (
     <AdminLayout>
-      <Card>
-        <div className="text-xl font-semibold text-white mb-6">Gerenciar Composições</div>
+      <div className="space-y-6">
+        <div className="bg-beatwap-graphite rounded-2xl border border-white/5 shadow-xl space-y-4 p-4 md:p-6">
+          <div className="font-bold text-white text-xl">Aprovar / Reprovar</div>
+          
+          <div className="flex flex-wrap gap-2 pb-2">
+            <button 
+                onClick={() => setActiveTab('approved')}
+                className={`flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap font-bold ${activeTab === 'approved' ? 'bg-beatwap-gold text-beatwap-black' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}
+            >
+                Músicas Aprovadas
+            </button>
+            <button 
+                onClick={() => setActiveTab('pending')}
+                className={`flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap font-bold ${activeTab === 'pending' ? 'bg-beatwap-gold text-beatwap-black' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}
+            >
+                Pendentes
+            </button>
+            <button 
+                onClick={() => setActiveTab('all')}
+                className={`flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap font-bold ${activeTab === 'all' ? 'bg-beatwap-gold text-beatwap-black' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}
+            >
+                Todas
+            </button>
+          </div>
 
-        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+            <select 
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full sm:col-span-2 md:col-span-1 bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white focus:outline-none focus:border-beatwap-gold/50"
+            >
+                <option value="todos" className="bg-beatwap-graphite">Status: Todos</option>
+                <option value="pending" className="bg-beatwap-graphite">Pendente</option>
+                <option value="approved" className="bg-beatwap-graphite">Aprovado</option>
+                <option value="rejected" className="bg-beatwap-graphite">Recusado</option>
+            </select>
+            <select 
+                value={filterArtist}
+                onChange={(e) => setFilterArtist(e.target.value)}
+                className="w-full sm:col-span-2 md:col-span-1 bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white focus:outline-none focus:border-beatwap-gold/50"
+            >
+                <option value="" className="bg-beatwap-graphite">Artista: Todos</option>
+                {composers.map(c => (
+                    <option key={c.id} value={c.id} className="bg-beatwap-graphite">{c.nome || c.nome_completo_razao_social || 'Sem nome'}</option>
+                ))}
+            </select>
+            <input 
+                type="date" 
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white focus:outline-none focus:border-beatwap-gold/50"
+            />
+            <input 
+                type="date" 
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white focus:outline-none focus:border-beatwap-gold/50"
+            />
+            <div className="w-full sm:col-span-2 md:col-span-1">
+                <button 
+                    type="button" 
+                    onClick={fetchCompositions}
+                    className="relative px-6 rounded-xl font-bold text-sm transition-all duration-300 flex items-center gap-2 overflow-hidden bg-beatwap-gold text-beatwap-black hover:shadow-[0_0_20px_rgba(245,197,66,0.4)] w-full justify-center py-3 md:py-2"
+                >
+                    Filtrar
+                    <div className="absolute inset-0 bg-white/20 translate-x-[-100%]"></div>
+                </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4">
           {loading && <div className="text-gray-400">Carregando...</div>}
-          {!loading && compositions.length === 0 && (
+          {!loading && filteredCompositions.length === 0 && (
             <div className="text-center py-10 text-gray-400 border border-dashed border-white/10 rounded-xl">
               <p>Nenhuma composição encontrada.</p>
             </div>
           )}
-          {!loading && compositions.map((comp) => (
+          {!loading && filteredCompositions.map((comp) => (
             <div key={comp.id} className="p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
               <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
                 <div 
@@ -195,7 +298,7 @@ export const AdminCompositions = () => {
             </div>
           ))}
         </div>
-      </Card>
+      </div>
     </AdminLayout>
   );
 };
