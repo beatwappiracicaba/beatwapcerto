@@ -63,7 +63,7 @@ const FeaturedUsers = () => {
         if (data) {
           const normalized = data.map(u => ({ ...u, name: u.nome || u.nome_completo_razao_social || u.name || '' }));
           const admins = normalized.filter(u => u.cargo === 'Produtor');
-          const regular = normalized.filter(u => u.cargo !== 'Produtor' && u.cargo !== 'Compositor');
+          const regular = normalized.filter(u => u.cargo !== 'Produtor' && u.cargo !== 'Compositor' && u.cargo !== 'Vendedor');
           setProducers(admins);
           setArtists(regular);
           setRecentUsers(normalized.slice(0, 5));
