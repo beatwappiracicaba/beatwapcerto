@@ -67,7 +67,7 @@ export const AppRoutes = () => {
         <Route path="/dashboard" element={isVendedor ? <SellerDashboard /> : (isArtista || isCompositor) ? <DashboardArtistHome /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/musics" element={isArtista ? <DashboardArtistMusics /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/compositions" element={isCompositor ? <DashboardCompositions /> : <Navigate to="/" replace />} />
-        <Route path="/dashboard/profile" element={(isArtista || isCompositor) ? <DashboardArtistProfile /> : <Navigate to="/" replace />} />
+        <Route path="/dashboard/profile" element={(isArtista || isCompositor || isVendedor) ? <DashboardArtistProfile /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/chat" element={(isArtista || isCompositor) ? <DashboardArtistChat /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/work" element={isArtista ? <DashboardWork /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/marketing" element={(isArtista || isCompositor) ? <DashboardMarketing /> : <Navigate to="/" replace />} />
