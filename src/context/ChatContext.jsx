@@ -491,12 +491,8 @@ export const ChatProvider = ({ children }) => {
       return false;
     }
   };
-      console.error('Error deleting chat:', error);
-      throw error;
-    }
-  };
- 
-   const markChatRead = async (chatId) => {
+
+  const markChatRead = async (chatId) => {
      try {
        const { error } = await supabase
          .from('messages')

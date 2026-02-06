@@ -244,25 +244,31 @@ export const AdminSettings = () => {
             Configurações e Convites
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-            <Card className="space-y-4 bg-white/5 border-white/10">
+            <div className="rounded-2xl border p-4 sm:p-6 shadow-xl space-y-4 bg-white/5 border-white/10 w-full overflow-hidden">
               <div className="text-base md:text-lg font-bold flex items-center gap-2">
                 <User size={18} /> Criar novo convite
               </div>
-              <AnimatedInput
-                label="Nome"
-                icon={User}
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Ex: MC Future"
-              />
-              <AnimatedInput
-                label="Email"
-                type="email"
-                icon={Mail}
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="seu@email.com"
-              />
+              <div className="w-full">
+                <AnimatedInput
+                  label="Nome"
+                  icon={User}
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Ex: MC Future"
+                  className="w-full"
+                />
+              </div>
+              <div className="w-full">
+                <AnimatedInput
+                  label="Email"
+                  type="email"
+                  icon={Mail}
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  placeholder="seu@email.com"
+                  className="w-full"
+                />
+              </div>
               <div className="space-y-2">
                 <div className="text-sm text-gray-300">Cargo</div>
                 <select
@@ -280,7 +286,7 @@ export const AdminSettings = () => {
               <div className="space-y-3 pt-2">
                 <div className="text-sm text-gray-300 font-bold">Permissões Iniciais</div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="flex items-center gap-2 p-2 rounded-lg bg-black/20 border border-white/10 cursor-pointer hover:border-white/30 transition-colors">
+                  <label className="flex items-center gap-2 p-2 rounded-lg bg-black/20 border border-white/10 cursor-pointer hover:border-white/30 transition-colors w-full">
                     <input
                       type="checkbox"
                       checked={form.p_chat}
@@ -354,30 +360,33 @@ export const AdminSettings = () => {
               </div>
 
               <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
-                <AnimatedButton onClick={copyLink} className="w-full sm:flex-1" disabled={!inviteLink}>
+                <AnimatedButton 
+                  onClick={copyLink}
+                  className="w-full sm:flex-1 bg-beatwap-gold text-beatwap-black hover:shadow-[0_0_20px_rgba(245,197,66,0.4)]"
+                >
                   {inviteLink ? 'Copiar Link' : 'Preencha os dados'}
                 </AnimatedButton>
-                <AnimatedButton onClick={sendEmail} variant="outline" className="w-full sm:flex-1" disabled={!inviteLink}>
+                
+                <AnimatedButton 
+                  onClick={sendEmail}
+                  className="w-full sm:flex-1"
+                >
                   Enviar Email
                 </AnimatedButton>
               </div>
-              
-              {inviteLink && (
-                <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                  <div className="text-xs text-green-400 break-all font-mono">{inviteLink}</div>
-                </div>
-              )}
-            </Card>
-
-            <Card className="space-y-4 bg-white/5 border-white/10">
-              <div className="text-lg font-bold">Instruções</div>
+            </div>
+            
+            <div className="rounded-2xl border p-4 sm:p-6 shadow-xl space-y-4 bg-white/5 border-white/10 w-full overflow-hidden">
+              <div className="text-base md:text-lg font-bold flex items-center gap-2">
+                <Shield size={18} /> Migração de Cargos
+              </div>
               <ul className="space-y-3 text-sm text-gray-400 list-disc list-inside">
                 <li>Use este formulário para convidar novos artistas ou produtores.</li>
                 <li>Defina as permissões iniciais que o usuário terá ao se cadastrar.</li>
                 <li>O link gerado contém todas as configurações e expira apenas se o email mudar.</li>
                 <li>Para usuários existentes, use a seção "Gerenciar Permissões" abaixo.</li>
               </ul>
-            </Card>
+            </div>
           </div>
         </Card>
 
