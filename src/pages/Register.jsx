@@ -79,13 +79,20 @@ const Register = () => {
               admin_musics: params.get('p_admin_musics') !== '0',
               admin_compositions: params.get('p_admin_compositions') !== '0',
               admin_sponsors: params.get('p_admin_sponsors') !== '0',
-              admin_settings: params.get('p_admin_settings') !== '0'
+              admin_settings: params.get('p_admin_settings') !== '0',
+              // Seller permissions
+              seller_artists: params.get('p_seller_artists') !== '0',
+              seller_calendar: params.get('p_seller_calendar') !== '0',
+              seller_leads: params.get('p_seller_leads') !== '0',
+              seller_finance: params.get('p_seller_finance') !== '0',
+              seller_proposals: params.get('p_seller_proposals') !== '0',
+              seller_communications: params.get('p_seller_communications') !== '0'
             };
 
             await supabase
               .from('profiles')
               .update({ 
-                cargo: ['Artista', 'Produtor', 'Compositor'].includes(normalizedRole) ? normalizedRole : 'Artista', 
+                cargo: ['Artista', 'Produtor', 'Compositor', 'Vendedor'].includes(normalizedRole) ? normalizedRole : 'Artista', 
                 nome: capitalizedName,
                 access_control
               })

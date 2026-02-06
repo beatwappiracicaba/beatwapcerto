@@ -54,24 +54,36 @@ export const DashboardLayout = ({ children }) => {
           
           {isVendedor && (
             <>
-              <NavLink to="/seller/artists" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-                <Users size={18} /> Artistas
-              </NavLink>
-              <NavLink to="/seller/calendar" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-                <Calendar size={18} /> Agenda
-              </NavLink>
-              <NavLink to="/seller/leads" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-                <Target size={18} /> Oportunidades
-              </NavLink>
-              <NavLink to="/seller/finance" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-                <DollarSign size={18} /> Comissões
-              </NavLink>
-              <NavLink to="/seller/proposals" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-                <FileText size={18} /> Propostas
-              </NavLink>
-              <NavLink to="/seller/communications" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-                <MessageCircle size={18} /> Comunicação
-              </NavLink>
+              {permissions.seller_artists !== false && (
+                <NavLink to="/seller/artists" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+                  <Users size={18} /> Artistas
+                </NavLink>
+              )}
+              {permissions.seller_calendar !== false && (
+                <NavLink to="/seller/calendar" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+                  <Calendar size={18} /> Agenda
+                </NavLink>
+              )}
+              {permissions.seller_leads !== false && (
+                <NavLink to="/seller/leads" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+                  <Target size={18} /> Oportunidades
+                </NavLink>
+              )}
+              {permissions.seller_finance !== false && (
+                <NavLink to="/seller/finance" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+                  <DollarSign size={18} /> Comissões
+                </NavLink>
+              )}
+              {permissions.seller_proposals !== false && (
+                <NavLink to="/seller/proposals" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+                  <FileText size={18} /> Propostas
+                </NavLink>
+              )}
+              {permissions.seller_communications !== false && (
+                <NavLink to="/seller/communications" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+                  <MessageCircle size={18} /> Comunicação
+                </NavLink>
+              )}
             </>
           )}
           

@@ -25,7 +25,14 @@ export const AdminSettings = () => {
     p_admin_musics: true,
     p_admin_compositions: true,
     p_admin_sponsors: true,
-    p_admin_settings: true
+    p_admin_settings: true,
+    // Seller permissions
+    p_seller_artists: true,
+    p_seller_calendar: true,
+    p_seller_leads: true,
+    p_seller_finance: true,
+    p_seller_proposals: true,
+    p_seller_communications: true
   });
   const [inviteLink, setInviteLink] = useState('');
   
@@ -65,7 +72,13 @@ export const AdminSettings = () => {
           admin_musics: true,
           admin_compositions: true,
           admin_sponsors: true,
-          admin_settings: true
+          admin_settings: true,
+          seller_artists: true,
+          seller_calendar: true,
+          seller_leads: true,
+          seller_finance: true,
+          seller_proposals: true,
+          seller_communications: true
         }
       }));
       
@@ -139,6 +152,13 @@ export const AdminSettings = () => {
       params.set('p_admin_compositions', form.p_admin_compositions ? '1' : '0');
       params.set('p_admin_sponsors', form.p_admin_sponsors ? '1' : '0');
       params.set('p_admin_settings', form.p_admin_settings ? '1' : '0');
+    } else if (form.role === 'Vendedor') {
+      params.set('p_seller_artists', form.p_seller_artists ? '1' : '0');
+      params.set('p_seller_calendar', form.p_seller_calendar ? '1' : '0');
+      params.set('p_seller_leads', form.p_seller_leads ? '1' : '0');
+      params.set('p_seller_finance', form.p_seller_finance ? '1' : '0');
+      params.set('p_seller_proposals', form.p_seller_proposals ? '1' : '0');
+      params.set('p_seller_communications', form.p_seller_communications ? '1' : '0');
     } else if (form.role === 'Compositor') {
       params.set('p_compositions', form.p_compositions ? '1' : '0');
       params.set('p_marketing', form.p_marketing ? '1' : '0');
@@ -201,7 +221,7 @@ export const AdminSettings = () => {
   };
 
   const filteredArtists = artists.filter(a => 
-    (a.cargo === activeTab || (activeTab === 'Compositor' && a.cargo === 'Vendedor')) &&
+    a.cargo === activeTab &&
     ((a.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
      (a.nome_completo_razao_social || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
      (a.email || '').toLowerCase().includes(searchTerm.toLowerCase()))
@@ -244,6 +264,7 @@ export const AdminSettings = () => {
                 >
                   <option value="Artista" className="bg-[#121212]">Artista</option>
                   <option value="Compositor" className="bg-[#121212]">Compositor</option>
+                  <option value="Vendedor" className="bg-[#121212]">Vendedor</option>
                   <option value="Produtor" className="bg-[#121212]">Produtor</option>
                 </select>
               </div>
@@ -269,6 +290,26 @@ export const AdminSettings = () => {
                       { key: 'p_admin_compositions', label: 'Composições' },
                       { key: 'p_admin_sponsors', label: 'Patrocinadores' },
                       { key: 'p_admin_settings', label: 'Configurações' }
+                    ].map((perm) => (
+                      <label key={perm.key} className="flex items-center gap-2 p-2 rounded-lg bg-black/20 border border-white/10 cursor-pointer hover:border-white/30 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={form[perm.key]}
+                          onChange={(e) => setForm({ ...form, [perm.key]: e.target.checked })}
+                          className="rounded border-gray-600 text-beatwap-gold focus:ring-beatwap-gold bg-transparent"
+                        />
+                        <span className="text-sm">{perm.label}</span>
+                      </label>
+                    ))
+                  ) : form.role === 'Vendedor' ? (
+                    // Seller Permissions
+                    [
+                      { key: 'p_seller_artists', label: 'Artistas' },
+                      { key: 'p_seller_calendar', label: 'Agenda' },
+                      { key: 'p_seller_leads', label: 'Oportunidades' },
+                      { key: 'p_seller_finance', label: 'Comissões' },
+                      { key: 'p_seller_proposals', label: 'Propostas' },
+                      { key: 'p_seller_communications', label: 'Comunicação' }
                     ].map((perm) => (
                       <label key={perm.key} className="flex items-center gap-2 p-2 rounded-lg bg-black/20 border border-white/10 cursor-pointer hover:border-white/30 transition-colors">
                         <input
@@ -353,7 +394,7 @@ export const AdminSettings = () => {
 
           <div className="space-y-4">
             <div className="flex gap-2 border-b border-white/10 pb-4 overflow-x-auto">
-              {['Artista', 'Compositor', 'Produtor'].map(tab => (
+              {['Artista', 'Compositor', 'Produtor', 'Vendedor'].map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -363,7 +404,7 @@ export const AdminSettings = () => {
                       : 'bg-white/5 text-gray-400 hover:bg-white/10'
                   }`}
                 >
-                  {tab === 'Artista' ? 'Artistas' : tab === 'Compositor' ? 'Compositores' : 'Produtores'}
+                  {tab === 'Artista' ? 'Artistas' : tab === 'Compositor' ? 'Compositores' : tab === 'Produtor' ? 'Produtores' : 'Vendedores'}
                 </button>
               ))}
             </div>
@@ -405,6 +446,29 @@ export const AdminSettings = () => {
                             { key: 'marketing', label: 'Marketing' },
                             { key: 'chat', label: 'Chat' },
                             { key: 'admin_compositions', label: 'Composições' }
+                          ].map(perm => (
+                            <button
+                              key={perm.key}
+                              onClick={() => handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key])}
+                              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                                artist.access_control[perm.key] !== false
+                                  ? 'bg-beatwap-gold/20 border-beatwap-gold text-beatwap-gold'
+                                  : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20'
+                              }`}
+                            >
+                              {perm.label}
+                            </button>
+                          ))
+                        ) : artist.cargo === 'Vendedor' ? (
+                          // Seller Permissions
+                          [
+                            { key: 'seller_artists', label: 'Artistas' },
+                            { key: 'seller_calendar', label: 'Agenda' },
+                            { key: 'seller_leads', label: 'Oportunidades' },
+                            { key: 'seller_finance', label: 'Comissões' },
+                            { key: 'seller_proposals', label: 'Propostas' },
+                            { key: 'seller_communications', label: 'Comunicação' },
+                            { key: 'chat', label: 'Chat' }
                           ].map(perm => (
                             <button
                               key={perm.key}
