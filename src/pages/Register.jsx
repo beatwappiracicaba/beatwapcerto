@@ -81,6 +81,7 @@ const Register = () => {
         };
 
         optionsData.role = ['Artista', 'Produtor', 'Compositor', 'Vendedor'].includes(normalizedRole) ? normalizedRole : 'Artista';
+        optionsData.cargo = optionsData.role; // Redundância para garantir compatibilidade com triggers
         optionsData.access_control = access_control;
       }
       
