@@ -91,7 +91,7 @@ const PublicProfile = () => {
         const { data: musicData, error: musicError } = await supabase
           .from('musics')
           .select('*')
-          .eq('artist_id', profileData.id)
+          .eq('artista_id', profileData.id)
           .eq('status', 'aprovado')
           .order('created_at', { ascending: false });
 
@@ -102,7 +102,7 @@ const PublicProfile = () => {
          const { data: producedData, error: producedError } = await supabase
           .from('musics')
           .select('*')
-          .eq('produced_by', profileData.id)
+          .eq('artista_id', profileData.id)
           .eq('status', 'aprovado')
           .order('created_at', { ascending: false });
           
