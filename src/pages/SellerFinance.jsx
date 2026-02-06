@@ -1,0 +1,159 @@
+import React, { useState, useEffect } from 'react';
+import { DashboardLayout } from '../components/DashboardLayout';
+import { Card } from '../components/ui/Card';
+import { supabase } from '../services/supabaseClient';
+import { useAuth } from '../context/AuthContext';
+import { DollarSign, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
+
+const SellerFinance = () => {
+  const { user } = useAuth();
+  const [commissions, setCommissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalSold: 0,
+    totalCommissions: 0,
+    pendingCommissions: 0,
+    paidCommissions: 0
+  });
+
+  useEffect(() => {
+    fetchFinanceData();
+  }, []);
+
+  const fetchFinanceData = async () => {
+    try {
+      // Fetch Leads for Total Sold
+      const { data: leadsData } = await supabase
+        .from('leads')
+        .select('budget')
+        .eq('seller_id', user.id)
+        .eq('status', 'fechado');
+      
+      const totalSold = leadsData?.reduce((acc, curr) => acc + (curr.budget || 0), 0) || 0;
+
+      // Fetch Commissions
+      const { data: commData, error } = await supabase
+        .from('commissions')
+        .select('*')
+        .eq('seller_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      const comms = commData || [];
+      const totalCommissions = comms.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+      const pendingCommissions = comms.filter(c => c.status === 'pendente').reduce((acc, curr) => acc + (curr.amount || 0), 0);
+      const paidCommissions = comms.filter(c => c.status === 'pago').reduce((acc, curr) => acc + (curr.amount || 0), 0);
+
+      setCommissions(comms);
+      setStats({
+        totalSold,
+        totalCommissions,
+        pendingCommissions,
+        paidCommissions
+      });
+
+    } catch (error) {
+      console.error('Error fetching finance:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold text-white">Comissões & Resultados</h1>
+          <p className="text-gray-400">Acompanhe seu desempenho financeiro</p>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="p-6 border-l-4 border-l-blue-500">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500"><TrendingUp size={20} /></div>
+              <span className="text-sm text-gray-400">Vendas Totais</span>
+            </div>
+            <div className="text-2xl font-bold text-white">{formatCurrency(stats.totalSold)}</div>
+          </Card>
+
+          <Card className="p-6 border-l-4 border-l-purple-500">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-purple-500/10 rounded-lg text-purple-500"><DollarSign size={20} /></div>
+              <span className="text-sm text-gray-400">Comissões Totais</span>
+            </div>
+            <div className="text-2xl font-bold text-white">{formatCurrency(stats.totalCommissions)}</div>
+          </Card>
+
+          <Card className="p-6 border-l-4 border-l-yellow-500">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-yellow-500/10 rounded-lg text-yellow-500"><AlertCircle size={20} /></div>
+              <span className="text-sm text-gray-400">Pendente</span>
+            </div>
+            <div className="text-2xl font-bold text-white">{formatCurrency(stats.pendingCommissions)}</div>
+          </Card>
+
+          <Card className="p-6 border-l-4 border-l-green-500">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-green-500/10 rounded-lg text-green-500"><CheckCircle size={20} /></div>
+              <span className="text-sm text-gray-400">Pago</span>
+            </div>
+            <div className="text-2xl font-bold text-white">{formatCurrency(stats.paidCommissions)}</div>
+          </Card>
+        </div>
+
+        {/* List */}
+        <div className="space-y-4">
+          <h3 className="text-xl font-bold text-white">Extrato de Comissões</h3>
+          {commissions.length === 0 ? (
+            <div className="text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/10 text-gray-400">
+              Nenhuma comissão registrada ainda.
+            </div>
+          ) : (
+            <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-white/5 text-gray-400 text-xs uppercase">
+                  <tr>
+                    <th className="p-4 font-medium">Data</th>
+                    <th className="p-4 font-medium">Origem</th>
+                    <th className="p-4 font-medium">Valor</th>
+                    <th className="p-4 font-medium text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {commissions.map((comm) => (
+                    <tr key={comm.id} className="hover:bg-white/5 transition-colors">
+                      <td className="p-4 text-sm text-gray-300">
+                        {new Date(comm.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="p-4 text-sm text-white font-medium">
+                        Show/Lead ID: {comm.lead_id?.slice(0, 8)}...
+                      </td>
+                      <td className="p-4 text-sm text-white font-bold">
+                        {formatCurrency(comm.amount)}
+                      </td>
+                      <td className="p-4 text-right">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          comm.status === 'pago' 
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
+                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
+                        }`}>
+                          {comm.status === 'pago' ? 'Pago' : 'Pendente'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+};
+
+export default SellerFinance;

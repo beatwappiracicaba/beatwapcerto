@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutGrid, Music, LogOut, Menu, X, TrendingUp, Lock } from 'lucide-react';
+import { LayoutGrid, Music, LogOut, Menu, X, TrendingUp, Lock, Users, Calendar, Target, DollarSign, FileText, MessageCircle } from 'lucide-react';
 import { Card } from './ui/Card';
 import { AnimatedButton } from './ui/AnimatedButton';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +13,7 @@ export const DashboardLayout = ({ children }) => {
   const { signOut, user, profile } = useAuth();
   const isAdmin = profile?.cargo?.toLowerCase() === 'produtor';
   const isCompositor = profile?.cargo?.toLowerCase() === 'compositor';
+  const isVendedor = profile?.cargo?.toLowerCase() === 'vendedor';
   const currentUserId = user?.id;
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -28,6 +29,7 @@ export const DashboardLayout = ({ children }) => {
   const location = useLocation();
 
   const hasAccess = () => {
+    if (isVendedor) return true; // Vendedor has access to their specific routes (handled by router)
     const path = location.pathname;
     if (path.includes('/dashboard/musics') && permissions.musics === false) return false;
     if (path.includes('/dashboard/compositions') && permissions.compositions === false) return false;
@@ -50,25 +52,48 @@ export const DashboardLayout = ({ children }) => {
             <LayoutGrid size={18} /> Visão Geral
           </NavLink>
           
-          {permissions.musics !== false && !isCompositor && (
+          {isVendedor && (
+            <>
+              <NavLink to="/seller/artists" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+                <Users size={18} /> Artistas
+              </NavLink>
+              <NavLink to="/seller/calendar" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+                <Calendar size={18} /> Agenda
+              </NavLink>
+              <NavLink to="/seller/leads" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+                <Target size={18} /> Oportunidades
+              </NavLink>
+              <NavLink to="/seller/finance" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+                <DollarSign size={18} /> Comissões
+              </NavLink>
+              <NavLink to="/seller/proposals" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+                <FileText size={18} /> Propostas
+              </NavLink>
+              <NavLink to="/seller/communications" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+                <MessageCircle size={18} /> Comunicação
+              </NavLink>
+            </>
+          )}
+          
+          {!isVendedor && permissions.musics !== false && !isCompositor && (
             <NavLink to="/dashboard/musics" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
               <Music size={18} /> Minhas Músicas
             </NavLink>
           )}
 
-          {permissions.compositions !== false && isCompositor && (
+          {!isVendedor && permissions.compositions !== false && isCompositor && (
             <NavLink to="/dashboard/compositions" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
               <Music size={18} /> Minhas Composições
             </NavLink>
           )}
           
-          {permissions.work !== false && !isCompositor && (
+          {!isVendedor && permissions.work !== false && !isCompositor && (
             <NavLink to="/dashboard/work" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
               <LayoutGrid size={18} /> Trabalho
             </NavLink>
           )}
           
-          {permissions.marketing !== false && (
+          {!isVendedor && permissions.marketing !== false && (
             <NavLink to="/dashboard/marketing" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
               <TrendingUp size={18} /> {isCompositor ? 'Carreira & Negócios' : 'Mentoria/Marketing'}
             </NavLink>
