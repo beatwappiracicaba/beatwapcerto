@@ -39,9 +39,12 @@ const UserCard = ({ user, type, onSelect }) => {
         </div>
       </div>
       <div className="p-4">
-        <h3 className="font-bold text-lg text-white truncate">{user.name || roleLabel}</h3>
+        <h3 className="font-bold text-lg text-white truncate">
+          <span>{user.name || roleLabel}</span>
+        </h3>
         <p className="text-sm text-gray-400 truncate">
-          {roleLabel}{user.genero_musical ? ` • ${user.genero_musical}` : ''}
+          <span>{roleLabel}</span>
+          {user.genero_musical && <span> • {user.genero_musical}</span>}
         </p>
       </div>
     </motion.div>
