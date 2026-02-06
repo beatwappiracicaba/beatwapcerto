@@ -102,38 +102,7 @@ export const AdminSettings = () => {
     checkSchema();
   }, []);
 
-  const migrateRoles = async () => {
-    if (!confirm('Isso irá renomear todos os perfis "Vendedor" para "Compositor". Continuar?')) return;
-    
-    try {
-      const { data: profiles, error: fetchError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('cargo', 'Vendedor');
-        
-      if (fetchError) throw fetchError;
-      
-      if (!profiles || profiles.length === 0) {
-        addToast('Nenhum perfil "Vendedor" encontrado.', 'info');
-        return;
-      }
 
-      // Update strictly via ID to avoid RLS issues if possible, but standard update should work
-      // Note: updating in a loop or batch.
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ cargo: 'Compositor' })
-        .eq('cargo', 'Vendedor');
-
-      if (updateError) throw updateError;
-      
-      addToast(`Perfis migrados com sucesso!`, 'success');
-      fetchArtists();
-    } catch (error) {
-      console.error('Migration error:', error);
-      addToast('Erro ao migrar: ' + error.message, 'error');
-    }
-  };
 
   // Auto-update link when form changes
   useEffect(() => {
@@ -397,9 +366,7 @@ export const AdminSettings = () => {
               Gerenciar Permissões
             </div>
             <div className="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto">
-              <AnimatedButton onClick={migrateRoles} variant="outline" className="text-xs w-full md:w-auto">
-                 Migrar Vendedores
-              </AnimatedButton>
+
               <div className="relative w-full md:w-64">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input

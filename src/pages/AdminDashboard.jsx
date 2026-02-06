@@ -1222,17 +1222,7 @@ export const AdminProfile = () => {
     }
   }, [user, profile]);
 
-  useEffect(() => {
-    const fetchArtists = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, nome, avatar_url, bio')
-        .eq('cargo', 'Artista')
-        .order('nome', { ascending: true });
-      setArtists(data || []);
-    };
-    fetchArtists();
-  }, []);
+
 
   const handleSave = async () => {
     setLoading(true);
@@ -1266,31 +1256,7 @@ export const AdminProfile = () => {
     }
   };
 
-  const handleSaveArtistProfile = async ({ name, bio, blob }) => {
-    try {
-      if (!selectedArtistEdit) return;
-      let avatar_url = null;
-      if (blob) {
-        const fileName = `${selectedArtistEdit}-${Date.now()}.jpg`;
-        const { data: uploadRes, error: uploadErr } = await supabase.storage.from('avatars').upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
-        if (uploadErr) throw uploadErr;
-        const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(uploadRes.path);
-        avatar_url = publicUrl.publicUrl;
-      }
-      const updateData = {};
-      if (name) updateData.nome = name;
-      if (bio) updateData.bio = bio;
-      if (avatar_url) updateData.avatar_url = avatar_url;
-      if (Object.keys(updateData).length) {
-        const { error } = await supabase.from('profiles').update(updateData).eq('id', selectedArtistEdit);
-        if (error) throw error;
-      }
-      addToast('Perfil do artista atualizado', 'success');
-      setIsArtistProfileOpen(false);
-    } catch {
-      addToast('Falha ao atualizar perfil do artista', 'error');
-    }
-  };
+
   const handleSavePublicProfile = async ({ name, bio, genre, socials, blob }) => {
     try {
       let avatar_url = null;
