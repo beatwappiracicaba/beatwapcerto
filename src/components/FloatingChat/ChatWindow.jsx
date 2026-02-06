@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, ArrowLeft, Search, User, UserCheck, Lock, Trash2, Plus, Users, Music, Briefcase } from 'lucide-react';
+import { MessageCircle, X, Send, ArrowLeft, Search, User, UserCheck, Lock, Trash2, Plus, Users, Music, Briefcase, Bell } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
 import { MessageBubble } from './MessageBubble';
