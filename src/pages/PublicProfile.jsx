@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { supabase } from '../services/supabaseClient';
 import Header from '../components/landing/Header';
 import Footer from '../components/landing/Footer';
-import { User, Music, Instagram, Globe, MessageCircle, Play, Pause, ArrowLeft, Youtube } from 'lucide-react';
+import { User, Music, Instagram, Globe, MessageCircle, Play, Pause, ArrowLeft, Youtube, Target, DollarSign } from 'lucide-react';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 
 const PublicProfile = () => {
@@ -17,6 +17,7 @@ const PublicProfile = () => {
   const [audioElement, setAudioElement] = useState(null);
   const [ipHash, setIpHash] = useState(null);
   const [playStartTS, setPlayStartTS] = useState(null);
+  const [sellerStats, setSellerStats] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -86,7 +87,18 @@ const PublicProfile = () => {
       // Determine what to fetch based on role
       const cargo = (profileData.cargo || '').toLowerCase().trim();
 
-      if (cargo === 'artista') {
+      if (cargo === 'vendedor') {
+        try {
+          const { data: stats, error: statsError } = await supabase
+            .rpc('get_seller_stats', { target_seller_id: id });
+            
+          if (!statsError && stats) {
+            setSellerStats(stats);
+          }
+        } catch (err) {
+          console.error('Error fetching seller stats:', err);
+        }
+      } else if (cargo === 'artista') {
         // Fetch Musics for Artists
         const { data: musicData, error: musicError } = await supabase
           .from('musics')
@@ -319,6 +331,31 @@ const PublicProfile = () => {
 
           {/* Compositions Grid */}
           <div className="space-y-8">
+            {profile.cargo?.toLowerCase() === 'vendedor' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex items-center gap-4">
+                  <div className="p-4 rounded-full bg-green-500/20 text-green-500">
+                    <Target size={32} />
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-sm">Vendas Realizadas</p>
+                    <p className="text-3xl font-bold text-white">{sellerStats?.sales_count || 0}</p>
+                  </div>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex items-center gap-4">
+                  <div className="p-4 rounded-full bg-beatwap-gold/20 text-beatwap-gold">
+                    <DollarSign size={32} />
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-sm">Volume de Vendas</p>
+                    <p className="text-3xl font-bold text-white">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(sellerStats?.total_revenue || 0)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
             <h2 className="text-2xl font-bold flex items-center gap-3">
               <Music className="text-beatwap-gold" />
               {profile.cargo === 'Artista' ? 'Músicas Lançadas' : (profile.cargo === 'Produtor' ? 'Produções' : 'Composições')} ({items.length})
@@ -374,6 +411,8 @@ const PublicProfile = () => {
                   </motion.div>
                 ))}
               </div>
+            )}
+              </>
             )}
           </div>
         </div>
