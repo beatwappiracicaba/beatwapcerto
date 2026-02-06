@@ -250,7 +250,48 @@ export const DashboardArtistProfile = () => {
     { id: 'plano', label: 'Plano', icon: CreditCard },
     { id: 'contrato', label: 'Contrato', icon: FileText },
     { id: 'senha', label: 'Minha Senha', icon: Lock },
+    { id: 'artista', label: 'Meu Perfil Público', icon: User },
   ];
+
+  const handleSavePublicProfile = async ({ name, bio, genre, socials, blob }) => {
+    try {
+      let avatar_url = null;
+      if (blob) {
+        const fileName = `${user.id}/${Date.now()}_avatar.png`;
+        const { data: uploadRes, error: uploadErr } = await supabase.storage.from('avatars').upload(fileName, blob, { contentType: 'image/png', upsert: true });
+        if (uploadErr) throw uploadErr;
+        const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(uploadRes.path);
+        avatar_url = publicUrl.publicUrl;
+      }
+      
+      const updateData = {
+        nome: name,
+        bio: bio,
+        genero_musical: genre,
+        youtube_url: socials?.youtube || null,
+        spotify_url: socials?.spotify || null,
+        deezer_url: socials?.deezer || null,
+        tiktok_url: socials?.tiktok || null,
+        instagram_url: socials?.instagram || null,
+        site_url: socials?.site || null,
+      };
+
+      if (avatar_url) updateData.avatar_url = avatar_url;
+
+      const { error } = await supabase.from('profiles').update(updateData).eq('id', user.id);
+      if (error) throw error;
+      
+      await refreshProfile();
+      addToast('Perfil público atualizado', 'success');
+      setAvatarModalOpen(false); // Reuse this state or add new one? I'll use a new state 'isProfileEditOpen'
+      setIsProfileEditOpen(false);
+    } catch (e) {
+      console.error(e);
+      addToast('Falha ao atualizar perfil', 'error');
+    }
+  };
+
+  const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
 
   return (
     <DashboardLayout>
@@ -304,7 +345,7 @@ export const DashboardArtistProfile = () => {
                         </div>
                       )}
                     </div>
-                    <AnimatedButton onClick={() => setAvatarModalOpen(true)} variant="secondary">
+                    <AnimatedButton onClick={() => setIsProfileEditOpen(true)} variant="secondary">
                       Modificar Foto
                     </AnimatedButton>
                   </div>
@@ -504,37 +545,76 @@ export const DashboardArtistProfile = () => {
                 <div className="space-y-4">
                   <h3 className="text-lg font-bold text-white mb-4">Alterar Senha</h3>
                   <div className="max-w-md space-y-4">
-                    <AnimatedInput 
-                      label="Nova Senha" 
-                      type="password"
-                      value={formData.nova_senha} 
-                      onChange={(e) => setFormData({...formData, nova_senha: e.target.value})} 
-                    />
-                    <AnimatedInput 
-                      label="Confirmar Nova Senha" 
-                      type="password"
-                      value={formData.confirmar_senha} 
-                      onChange={(e) => setFormData({...formData, confirmar_senha: e.target.value})} 
-                    />
-                    <div className="pt-4">
-                      <AnimatedButton onClick={handlePasswordChange} isLoading={loading} icon={Lock}>
-                        Atualizar Senha
-                      </AnimatedButton>
+                    <AnimatedInput label="Nova Senha" type="password" value={formData.nova_senha} onChange={(e) => setFormData({...formData, nova_senha: e.target.value})} />
+                    <AnimatedInput label="Confirmar Nova Senha" type="password" value={formData.confirmar_senha} onChange={(e) => setFormData({...formData, confirmar_senha: e.target.value})} />
+                    <div className="pt-4 flex flex-col sm:flex-row justify-end">
+                      <AnimatedButton onClick={handlePasswordChange} isLoading={loading} icon={Lock} className="w-full sm:w-auto justify-center">Atualizar Senha</AnimatedButton>
                     </div>
                   </div>
                 </div>
               )}
+
+              {activeTab === 'artista' && (
+                <Card className="space-y-6">
+                    <div>
+                    <div className="font-bold text-xl text-white">Meu Perfil Público</div>
+                    <p className="text-gray-400 text-sm mt-1">
+                        Gerencie as informações que aparecem na sua página de perfil público e na Home.
+                        Adicione fotos, links e biografia para atrair mais visibilidade.
+                    </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-white/5 border border-white/10 rounded-xl">
+                    <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-beatwap-gold/20 bg-gray-800 flex-shrink-0">
+                        {profile?.avatar_url ? (
+                            <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-500">
+                            <User size={48} />
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex-1 text-center sm:text-left space-y-2">
+                        <div>
+                            <div className="font-bold text-white text-xl">{profile?.nome || profile?.nome_completo_razao_social || 'Sem nome artístico'}</div>
+                            <div className="text-beatwap-gold text-sm font-medium">{profile?.genero_musical || 'Gênero não definido'}</div>
+                        </div>
+                        <p className="text-gray-400 text-sm line-clamp-2 max-w-lg">
+                            {profile?.bio || 'Sem biografia definida. Clique em editar para adicionar.'}
+                        </p>
+                        <div className="flex flex-wrap gap-2 justify-center sm:justify-start pt-2">
+                            {profile?.youtube_url && <div className="px-2 py-1 bg-red-500/10 text-red-500 text-xs rounded border border-red-500/20">YouTube</div>}
+                            {profile?.spotify_url && <div className="px-2 py-1 bg-green-500/10 text-green-500 text-xs rounded border border-green-500/20">Spotify</div>}
+                            {profile?.instagram_url && <div className="px-2 py-1 bg-purple-500/10 text-purple-500 text-xs rounded border border-purple-500/20">Instagram</div>}
+                        </div>
+                    </div>
+                    <AnimatedButton onClick={() => setIsProfileEditOpen(true)} icon={User}>
+                        Editar Perfil Completo
+                    </AnimatedButton>
+                    </div>
+                </Card>
+              )}
             </motion.div>
           </AnimatePresence>
         </Card>
+
         <ProfileEditModal
-          isOpen={avatarModalOpen}
-          onClose={() => setAvatarModalOpen(false)}
+          isOpen={isProfileEditOpen}
+          onClose={() => setIsProfileEditOpen(false)}
           currentAvatar={profile?.avatar_url}
           currentName={profile?.nome || profile?.nome_completo_razao_social}
-          currentBio={''}
-          onSave={handleAvatarSave}
-          uploading={uploadingAvatar}
+          currentBio={profile?.bio}
+          currentGenre={profile?.genero_musical}
+          currentSocials={{
+            youtube: profile?.youtube_url,
+            spotify: profile?.spotify_url,
+            deezer: profile?.deezer_url,
+            tiktok: profile?.tiktok_url,
+            instagram: profile?.instagram_url,
+            site: profile?.site_url
+          }}
+          onSave={handleSavePublicProfile}
+          uploading={false}
         />
       </div>
     </DashboardLayout>

@@ -6,9 +6,29 @@ import { X, Save, Check, Camera, User } from 'lucide-react';
 import { AnimatedButton } from './AnimatedButton';
 import { getCroppedImg } from '../../utils/cropImage';
 
-export const ProfileEditModal = ({ isOpen, onClose, currentAvatar, currentName, currentBio, onSave, uploading }) => {
+export const ProfileEditModal = ({ 
+  isOpen, 
+  onClose, 
+  currentAvatar, 
+  currentName, 
+  currentBio, 
+  currentGenre,
+  currentSocials = {},
+  onSave, 
+  uploading 
+}) => {
   const [name, setName] = useState(currentName || '');
   const [bio, setBio] = useState(currentBio || '');
+  const [genre, setGenre] = useState(currentGenre || '');
+  const [socials, setSocials] = useState({
+    youtube: '',
+    spotify: '',
+    deezer: '',
+    tiktok: '',
+    instagram: '',
+    site: '',
+    ...currentSocials
+  });
   
   const [imageSrc, setImageSrc] = useState(null); // Raw image for cropping
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -24,11 +44,20 @@ export const ProfileEditModal = ({ isOpen, onClose, currentAvatar, currentName, 
     if (isOpen) {
       setName(currentName || '');
       setBio(currentBio || '');
+      setGenre(currentGenre || '');
+      setSocials({
+        youtube: currentSocials?.youtube || '',
+        spotify: currentSocials?.spotify || '',
+        deezer: currentSocials?.deezer || '',
+        tiktok: currentSocials?.tiktok || '',
+        instagram: currentSocials?.instagram || '',
+        site: currentSocials?.site || ''
+      });
       setPreviewUrl(null);
       setBlobToUpload(null);
       setImageSrc(null);
     }
-  }, [isOpen, currentName, currentBio]);
+  }, [isOpen, currentName, currentBio, currentGenre, currentSocials]);
 
   const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
     setCroppedAreaPixels(croppedAreaPixels);
@@ -63,7 +92,17 @@ export const ProfileEditModal = ({ isOpen, onClose, currentAvatar, currentName, 
   };
 
   const handleSave = () => {
-    onSave({ name, bio, blob: blobToUpload });
+    onSave({ 
+      name, 
+      bio, 
+      genre,
+      socials,
+      blob: blobToUpload 
+    });
+  };
+
+  const handleSocialChange = (key, value) => {
+    setSocials(prev => ({ ...prev, [key]: value }));
   };
 
   if (!isOpen) return null;
@@ -182,6 +221,65 @@ export const ProfileEditModal = ({ isOpen, onClose, currentAvatar, currentName, 
                             className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors resize-none h-24"
                             placeholder="Conte um pouco sobre você..."
                         />
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">Gênero Musical</label>
+                        <input
+                            type="text"
+                            value={genre}
+                            onChange={(e) => setGenre(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors"
+                            placeholder="Ex: Funk, Trap, Rap..."
+                        />
+                    </div>
+
+                    <div className="space-y-3">
+                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Redes Sociais & Links</label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <input
+                                type="url"
+                                value={socials.youtube}
+                                onChange={(e) => handleSocialChange('youtube', e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors"
+                                placeholder="YouTube (Canal ou Vídeo Destaque)"
+                            />
+                            <input
+                                type="url"
+                                value={socials.spotify}
+                                onChange={(e) => handleSocialChange('spotify', e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors"
+                                placeholder="Spotify URL"
+                            />
+                            <input
+                                type="url"
+                                value={socials.deezer}
+                                onChange={(e) => handleSocialChange('deezer', e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors"
+                                placeholder="Deezer URL"
+                            />
+                            <input
+                                type="url"
+                                value={socials.tiktok}
+                                onChange={(e) => handleSocialChange('tiktok', e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors"
+                                placeholder="TikTok URL"
+                            />
+                            <input
+                                type="url"
+                                value={socials.instagram}
+                                onChange={(e) => handleSocialChange('instagram', e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors"
+                                placeholder="Instagram URL"
+                            />
+                            <input
+                                type="url"
+                                value={socials.site}
+                                onChange={(e) => handleSocialChange('site', e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors"
+                                placeholder="Site Oficial ou Link de Uploads"
+                            />
+                        </div>
                     </div>
                 </div>
 

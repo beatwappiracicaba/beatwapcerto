@@ -198,6 +198,15 @@ const PublicProfile = () => {
 
   const displayName = profile.nome || profile.nome_completo_razao_social || 'Compositor';
 
+  const getYoutubeVideoId = (url) => {
+    if (!url) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
+  const videoId = profile ? getYoutubeVideoId(profile.youtube_url) : null;
+
   return (
     <div className="min-h-screen bg-beatwap-dark text-white font-sans selection:bg-beatwap-gold selection:text-black">
       <Header />
@@ -210,7 +219,7 @@ const PublicProfile = () => {
 
           {/* Profile Header */}
           <div className="bg-white/5 border border-white/10 rounded-3xl p-8 mb-12">
-            <div className="flex flex-col md:flex-row items-center gap-8">
+            <div className="flex flex-col md:flex-row items-start gap-8">
               <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-beatwap-gold/20 bg-gray-800 shrink-0">
                 {profile.avatar_url ? (
                   <img src={profile.avatar_url} alt={displayName} className="w-full h-full object-cover" />
@@ -221,7 +230,7 @@ const PublicProfile = () => {
                 )}
               </div>
               
-              <div className="flex-1 text-center md:text-left space-y-4">
+              <div className="flex-1 w-full text-center md:text-left space-y-4">
                 <div>
                   <h1 className="text-4xl font-bold text-white mb-2">{displayName}</h1>
                   <p className="text-xl text-beatwap-gold font-medium">{profile.cargo || 'Compositor'}</p>
@@ -233,7 +242,13 @@ const PublicProfile = () => {
                   </div>
                 )}
 
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-2">
+                {profile.bio && (
+                  <div className="text-gray-300 leading-relaxed max-w-2xl mx-auto md:mx-0 whitespace-pre-line">
+                    {profile.bio}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-4">
                   {profile.instagram_url && (
                     <a 
                       href={profile.instagram_url} 
@@ -328,6 +343,27 @@ const PublicProfile = () => {
               </div>
             </div>
           </div>
+
+          {/* Featured Video Section */}
+          {videoId && (
+            <div className="mb-12">
+              <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                <Youtube className="text-red-600" />
+                Vídeo Destaque
+              </h3>
+              <div className="w-full max-w-4xl mx-auto bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl aspect-video">
+                <iframe
+                  width="100%"
+                  height="100%"
+                  src={`https://www.youtube.com/embed/${videoId}`}
+                  title="YouTube video player"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              </div>
+            </div>
+          )}
 
           {/* Compositions Grid */}
           <div className="space-y-8">

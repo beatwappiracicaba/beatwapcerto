@@ -1290,6 +1290,43 @@ export const AdminProfile = () => {
       addToast('Falha ao atualizar perfil do artista', 'error');
     }
   };
+  const handleSavePublicProfile = async ({ name, bio, genre, socials, blob }) => {
+    try {
+      let avatar_url = null;
+      if (blob) {
+        const fileName = `${user.id}/${Date.now()}_avatar.png`;
+        const { data: uploadRes, error: uploadErr } = await supabase.storage.from('avatars').upload(fileName, blob, { contentType: 'image/png', upsert: true });
+        if (uploadErr) throw uploadErr;
+        const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(uploadRes.path);
+        avatar_url = publicUrl.publicUrl;
+      }
+      
+      const updateData = {
+        nome: name,
+        bio: bio,
+        genero_musical: genre,
+        youtube_url: socials?.youtube || null,
+        spotify_url: socials?.spotify || null,
+        deezer_url: socials?.deezer || null,
+        tiktok_url: socials?.tiktok || null,
+        instagram_url: socials?.instagram || null,
+        site_url: socials?.site || null,
+      };
+
+      if (avatar_url) updateData.avatar_url = avatar_url;
+
+      const { error } = await supabase.from('profiles').update(updateData).eq('id', user.id);
+      if (error) throw error;
+      
+      await refreshProfile();
+      addToast('Perfil público atualizado', 'success');
+      setIsArtistProfileOpen(false);
+    } catch (e) {
+      console.error(e);
+      addToast('Falha ao atualizar perfil', 'error');
+    }
+  };
+
   const handleAvatarSave = async ({ blob }) => {
     if (!blob || !user) return;
     try {
@@ -1364,7 +1401,7 @@ export const AdminProfile = () => {
     { id: 'endereco', label: 'Endereço', icon: MapPin },
     { id: 'contrato', label: 'Contrato', icon: FileText },
     { id: 'senha', label: 'Minha Senha', icon: Lock },
-    { id: 'artista', label: 'Perfil de Artista', icon: User },
+    { id: 'artista', label: 'Meu Perfil Público', icon: User },
   ];
 
   return (
@@ -1418,7 +1455,7 @@ export const AdminProfile = () => {
                         </div>
                       )}
                     </div>
-                    <AnimatedButton onClick={() => setAvatarModalOpen(true)} variant="secondary" className="w-full sm:w-auto justify-center">
+                    <AnimatedButton onClick={() => setIsArtistProfileOpen(true)} variant="secondary" className="w-full sm:w-auto justify-center">
                       Modificar Foto
                     </AnimatedButton>
                   </div>
@@ -1538,51 +1575,61 @@ export const AdminProfile = () => {
           </AnimatePresence>
         </Card>
         {activeTab === 'artista' && (
-          <Card className="space-y-4">
-            <div className="font-bold">Editar perfil de um artista</div>
-            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
-              <div className="w-full">
-                <AnimatedInput 
-                  placeholder="Buscar artista pelo nome" 
-                  value={artistSearchName} 
-                  onChange={(e) => setArtistSearchName(e.target.value)} 
-                />
-              </div>
-              <select 
-                className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-full md:w-auto flex-1" 
-                value={selectedArtistEdit} 
-                onChange={(e) => setSelectedArtistEdit(e.target.value)}
-              >
-                <option value="">Selecione o artista</option>
-                {(artists || [])
-                  .filter(a => {
-                    const term = artistSearchName.toLowerCase();
-                    const n1 = (a.nome || '').toLowerCase();
-                    const n2 = (a.nome_completo_razao_social || '').toLowerCase();
-                    return n1.includes(term) || n2.includes(term);
-                  })
-                  .map(a => <option key={a.id} value={a.id}>{a.nome || a.nome_completo_razao_social || 'Sem nome'}</option>)}
-              </select>
-              <AnimatedButton onClick={() => setIsArtistProfileOpen(true)}>Editar Perfil</AnimatedButton>
+          <Card className="space-y-6">
+            <div>
+              <div className="font-bold text-xl text-white">Meu Perfil Público</div>
+              <p className="text-gray-400 text-sm mt-1">
+                Gerencie as informações que aparecem na sua página de perfil público e na Home.
+                Adicione fotos, links e biografia para atrair mais visibilidade.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-white/5 border border-white/10 rounded-xl">
+               <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-beatwap-gold/20 bg-gray-800 flex-shrink-0">
+                  {profile?.avatar_url ? (
+                    <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-500">
+                      <User size={48} />
+                    </div>
+                  )}
+               </div>
+               <div className="flex-1 text-center sm:text-left space-y-2">
+                  <div>
+                    <div className="font-bold text-white text-xl">{profile?.nome || profile?.nome_completo_razao_social || 'Sem nome artístico'}</div>
+                    <div className="text-beatwap-gold text-sm font-medium">{profile?.genero_musical || 'Gênero não definido'}</div>
+                  </div>
+                  <p className="text-gray-400 text-sm line-clamp-2 max-w-lg">
+                    {profile?.bio || 'Sem biografia definida. Clique em editar para adicionar.'}
+                  </p>
+                  <div className="flex flex-wrap gap-2 justify-center sm:justify-start pt-2">
+                     {profile?.youtube_url && <div className="px-2 py-1 bg-red-500/10 text-red-500 text-xs rounded border border-red-500/20">YouTube</div>}
+                     {profile?.spotify_url && <div className="px-2 py-1 bg-green-500/10 text-green-500 text-xs rounded border border-green-500/20">Spotify</div>}
+                     {profile?.instagram_url && <div className="px-2 py-1 bg-purple-500/10 text-purple-500 text-xs rounded border border-purple-500/20">Instagram</div>}
+                  </div>
+               </div>
+               <AnimatedButton onClick={() => setIsArtistProfileOpen(true)} icon={User}>
+                  Editar Perfil Completo
+               </AnimatedButton>
             </div>
           </Card>
         )}
         <ProfileEditModal
-          isOpen={avatarModalOpen}
-          onClose={() => setAvatarModalOpen(false)}
-          currentAvatar={profile?.avatar_url}
-          currentName={profile?.nome || profile?.nome_completo_razao_social}
-          currentBio={''}
-          onSave={handleAvatarSave}
-          uploading={uploadingAvatar}
-        />
-        <ProfileEditModal
           isOpen={isArtistProfileOpen}
           onClose={() => setIsArtistProfileOpen(false)}
-          currentAvatar={(artists.find(a => a.id === selectedArtistEdit)?.avatar_url) || null}
-          currentName={(artists.find(a => a.id === selectedArtistEdit)?.nome) || ''}
-          currentBio={(artists.find(a => a.id === selectedArtistEdit)?.bio) || ''}
-          onSave={handleSaveArtistProfile}
+          currentAvatar={profile?.avatar_url}
+          currentName={profile?.nome || profile?.nome_completo_razao_social}
+          currentBio={profile?.bio}
+          currentGenre={profile?.genero_musical}
+          currentSocials={{
+            youtube: profile?.youtube_url,
+            spotify: profile?.spotify_url,
+            deezer: profile?.deezer_url,
+            tiktok: profile?.tiktok_url,
+            instagram: profile?.instagram_url,
+            site: profile?.site_url
+          }}
+          onSave={handleSavePublicProfile}
           uploading={false}
         />
       </div>
