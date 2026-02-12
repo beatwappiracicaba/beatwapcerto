@@ -35,6 +35,7 @@ import SellerLeads from '../pages/SellerLeads';
 import SellerFinance from '../pages/SellerFinance';
 import SellerProposals from '../pages/SellerProposals';
 import SellerCommunications from '../pages/SellerCommunications';
+import NotificationDetails from '../pages/NotificationDetails';
 
 // Admin temporariamente desativado
 
@@ -92,6 +93,8 @@ export const AppRoutes = () => {
         <Route path="/legal/termos" element={<Terms />} />
         <Route path="/legal/privacidade" element={<Privacy />} />
         <Route path="/legal/direitos" element={<Copyright />} />
+        
+        <Route path="/notifications/:id" element={profile ? <NotificationDetails /> : <Navigate to="/" replace />} />
 
         {/* Fallback - Redirect to Home */}
         <Route path="*" element={<Navigate to="/" replace />} />

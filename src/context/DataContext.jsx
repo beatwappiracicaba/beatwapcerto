@@ -177,7 +177,9 @@ export const DataProvider = ({ children }) => {
         composer: newMusicData.composer || null,
         producer: newMusicData.producer || null,
         has_feat: newMusicData.hasFeaturing || false,
-        feat_name: newMusicData.featuringArtist || null
+        feat_name: newMusicData.featuringArtist || null,
+        album_id: newMusicData.albumId || null,
+        album_title: newMusicData.albumTitle || null
       };
 
       const { data, error } = await supabase
@@ -207,7 +209,9 @@ export const DataProvider = ({ children }) => {
         composer: data.composer,
         producer: data.producer,
         hasFeaturing: data.has_feat,
-        featuringArtist: data.feat_name
+        featuringArtist: data.feat_name,
+        albumId: data.album_id,
+        albumTitle: data.album_title
       };
 
       setMusic(prev => [newMusic, ...prev]);

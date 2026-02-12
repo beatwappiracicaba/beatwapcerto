@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause, Check } from 'lucide-react';
+import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause, Check, FolderDown, CheckCircle2 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -18,6 +18,8 @@ import { MusicEditModal } from '../components/admin/MusicEditModal';
 import { MarketingManager } from '../components/admin/MarketingManager';
 import { useData } from '../context/DataContext';
 import { buildDistributionContractHTML } from '../utils/contractTemplate';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 export const AdminHome = () => {
   const [counts, setCounts] = useState({ artists: 0, musics: 0, pending: 0 });
@@ -787,6 +789,37 @@ export const AdminMusics = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [musicToEdit, setMusicToEdit] = useState(null);
 
+  // Group musics by album
+  const groupedMusics = useMemo(() => {
+    const groups = [];
+    const albumMap = new Map();
+    const singles = [];
+
+    musics.forEach(m => {
+      if (m.album_id) {
+        if (!albumMap.has(m.album_id)) {
+          const group = {
+            type: 'album',
+            id: m.album_id,
+            title: m.album_title || 'Álbum Desconhecido',
+            artist_id: m.artista_id,
+            cover_url: m.cover_url,
+            tracks: [],
+            created_at: m.created_at,
+            status: m.status
+          };
+          albumMap.set(m.album_id, group);
+          groups.push(group);
+        }
+        albumMap.get(m.album_id).tracks.push(m);
+      } else {
+        singles.push({ type: 'single', ...m });
+      }
+    });
+
+    return [...groups, ...singles].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }, [musics]);
+
   const togglePlay = (trackId, url) => {
     if (!url) return;
     if (playingTrack === trackId && audioElement) {
@@ -802,10 +835,11 @@ export const AdminMusics = () => {
     setPlayingTrack(trackId);
     setIsPaused(false);
   };
+
   const load = useCallback(async () => {
     let q = supabase
       .from('musics')
-      .select('id,titulo,status,motivo_recusa,artista_id,upc,presave_link,release_date,created_at,cover_url,audio_url,authorization_url,is_beatwap_produced,show_on_home')
+      .select('id,titulo,status,motivo_recusa,artista_id,upc,presave_link,release_date,created_at,cover_url,audio_url,authorization_url,is_beatwap_produced,show_on_home,album_id,album_title,isrc')
       .order('created_at', { ascending: false });
     if (statusFilter !== 'todos') q = q.eq('status', statusFilter);
     if (artistFilter) q = q.eq('artista_id', artistFilter);
@@ -814,6 +848,7 @@ export const AdminMusics = () => {
     const { data } = await q;
     setMusics(data || []);
   }, [statusFilter, artistFilter, startDate, endDate]);
+
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     const fetchArtists = async () => {
@@ -841,9 +876,16 @@ export const AdminMusics = () => {
 
   const approve = async (m) => {
     const inputs = localInputs[m.id] || {};
-    const upcVal = (inputs.upc || '').trim();
-    const presaveVal = (inputs.presave || '').trim();
-    const releaseVal = (inputs.release_date || '').trim();
+    // If part of album, might fallback to album inputs if provided? No, specific overrides.
+    // Actually, if it's an album track approved individually, we need UPC.
+    // But usually UPC is album wide. I will check if album inputs exist if track input missing?
+    // For simplicity, I'll require UPC in track input if single, or album input if bulk.
+    // If approving single track of album, user should fill UPC.
+    
+    const upcVal = (inputs.upc || m.upc || localInputs[m.album_id]?.upc || '').trim();
+    const presaveVal = (inputs.presave || m.presave_link || localInputs[m.album_id]?.presave || '').trim();
+    const releaseVal = (inputs.release_date || m.release_date || localInputs[m.album_id]?.release_date || '').trim();
+    const isrcVal = (inputs.isrc || m.isrc || '').trim();
     const isProduced = inputs.is_beatwap_produced || false;
     const producedBy = inputs.produced_by || null;
     const showHome = inputs.show_on_home || false;
@@ -860,7 +902,8 @@ export const AdminMusics = () => {
         release_date: releaseVal || null,
         is_beatwap_produced: isProduced,
         produced_by: isProduced ? producedBy : null,
-        show_on_home: showHome
+        show_on_home: showHome,
+        isrc: isrcVal || null
       })
       .eq('id', m.id);
     await addNotification({
@@ -870,9 +913,10 @@ export const AdminMusics = () => {
       type: 'success',
       link: presaveVal || null
     });
-    setLocalInputs((prev) => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), upc: '', presave: '', release_date: '' } }));
+    setLocalInputs((prev) => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), upc: '', presave: '', release_date: '', isrc: '' } }));
     load();
   };
+
   const reject = async (m) => {
     const reason = (localInputs[m.id]?.reject || '').trim();
     if (!reason) { addToast('Informe o motivo da reprovação', 'error'); return; }
@@ -881,41 +925,241 @@ export const AdminMusics = () => {
     setLocalInputs((prev) => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), reject: '' } }));
     load();
   };
+
+  const downloadAlbum = async (group) => {
+    const zip = new JSZip();
+    const folder = zip.folder(group.title.replace(/[^a-z0-9]/gi, '_'));
+    addToast('Preparando download...', 'info');
+    
+    const promises = group.tracks.map(async (track) => {
+      if (track.audio_url) {
+        try {
+          const response = await fetch(track.audio_url);
+          const blob = await response.blob();
+          const ext = track.audio_url.split('.').pop().split('?')[0] || 'mp3';
+          folder.file(`${track.titulo}.${ext}`, blob);
+        } catch (e) {
+          console.error(`Erro ao baixar ${track.titulo}`, e);
+        }
+      }
+    });
+
+    await Promise.all(promises);
+    const content = await zip.generateAsync({ type: 'blob' });
+    saveAs(content, `${group.title}.zip`);
+    addToast('Download iniciado!', 'success');
+  };
+
+  const approveAll = async (group) => {
+    const inputs = localInputs[group.id] || {};
+    const upcVal = (inputs.upc || '').trim();
+    const releaseVal = (inputs.release_date || '').trim();
+    const presaveVal = (inputs.presave || '').trim();
+    
+    if (!upcVal) { addToast('Informe o UPC do álbum para aprovar todas', 'error'); return; }
+
+    let approvedCount = 0;
+    for (const m of group.tracks) {
+        if (m.status !== 'pendente') continue;
+        
+        const trackInputs = localInputs[m.id] || {};
+        const isrcVal = trackInputs.isrc || m.isrc || null;
+        
+        await supabase.from('musics').update({
+            status: 'aprovado',
+            upc: upcVal,
+            presave_link: presaveVal || null,
+            release_date: releaseVal || null,
+            isrc: isrcVal || null
+        }).eq('id', m.id);
+        approvedCount++;
+    }
+    
+    if (approvedCount > 0) {
+        addToast(`${approvedCount} músicas aprovadas!`, 'success');
+        load();
+    } else {
+        addToast('Nenhuma música pendente para aprovar.', 'info');
+    }
+  };
+
+  const renderTrackCard = (m, isAlbumTrack = false) => (
+    <motion.div
+      key={m.id}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ scale: 1.01 }}
+      transition={{ duration: 0.2 }}
+      className={`p-4 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-black/20 flex flex-col md:flex-row items-center gap-4 hover:border-beatwap-gold/40 hover:shadow-[0_0_30px_rgba(245,197,66,0.18)] ${isAlbumTrack ? 'ml-4 md:ml-8 border-l-4 border-l-beatwap-gold/20' : ''}`}
+    >
+      <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gray-800 border border-white/10 ring-1 ring-black/50 flex items-center justify-center relative cursor-pointer flex-shrink-0"
+           onClick={() => togglePlay(m.id, m.preview_url || m.audio_url)}>
+        {m.cover_url ? (
+          <img src={m.cover_url} alt={m.titulo} className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-xs text-gray-400">Sem capa</span>
+        )}
+        <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+          <button 
+            className="w-8 h-8 bg-beatwap-gold rounded-full flex items-center justify-center text-black hover:bg-white"
+            onClick={(e) => { e.stopPropagation(); togglePlay(m.id, m.preview_url || m.audio_url); }}
+          >
+            {playingTrack === m.id && !isPaused ? <Pause size={16} /> : <Play size={16} />}
+          </button>
+        </div>
+      </div>
+      <div className="flex-1 w-full">
+        <div className="flex flex-wrap items-center gap-2 md:gap-3">
+          <div className="text-lg font-extrabold text-white tracking-wide break-words max-w-full">{m.titulo}</div>
+          <div className={`text-[11px] px-2 py-0.5 rounded-full border flex-shrink-0 ${
+            m.status === 'aprovado' 
+              ? 'bg-green-500/15 text-green-400 border-green-500/30' 
+              : m.status === 'recusado' 
+                ? 'bg-red-500/15 text-red-400 border-red-500/30' 
+                : 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30'
+          }`}>
+            {m.status}
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {m.audio_url && (
+            <AnimatedButton onClick={() => window.open(m.audio_url, '_blank')}>
+              <Download size={16} />
+              Baixar Áudio
+            </AnimatedButton>
+          )}
+          {m.authorization_url && (
+            <AnimatedButton onClick={() => window.open(m.authorization_url, '_blank')}>
+              <Download size={16} />
+              Baixar Documento
+            </AnimatedButton>
+          )}
+          {m.cover_url && (
+            <AnimatedButton onClick={() => window.open(m.cover_url, '_blank')}>
+              <Download size={16} />
+              Baixar Capa
+            </AnimatedButton>
+          )}
+          {m.status === 'aprovado' && (
+            <div className="flex flex-wrap items-center gap-2">
+              <AnimatedButton 
+                onClick={() => { setMusicToEdit(m); setEditModalOpen(true); }}
+                className="!py-1 !px-2 text-[10px]"
+                variant="secondary"
+              >
+                Editar Info
+              </AnimatedButton>
+              {m.upc && <div className="text-[11px] px-2 py-1 rounded-full bg-white/10 text-white border border-white/10">UPC: {m.upc}</div>}
+              {m.isrc && <div className="text-[11px] px-2 py-1 rounded-full bg-white/10 text-white border border-white/10">ISRC: {m.isrc}</div>}
+              {m.presave_link && <div className="text-[11px] px-2 py-1 rounded-full bg-white/10 text-white border border-white/10">Pré-save disponível</div>}
+              {m.release_date && <div className="text-[11px] px-2 py-1 rounded-full bg-white/10 text-white border border-white/10">Lançamento: {m.release_date}</div>}
+            </div>
+          )}
+        </div>
+      </div>
+      {m.status === 'pendente' && (
+        <div className="flex flex-col w-full md:w-auto gap-3 mt-2 md:mt-0">
+           <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                 <AnimatedInput
+                    placeholder="ISRC"
+                    value={localInputs[m.id]?.isrc || m.isrc || ''}
+                    onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), isrc: e.target.value } }))}
+                    className="w-full md:w-32"
+                  />
+                  {!isAlbumTrack && (
+                    <AnimatedInput
+                      placeholder="UPC"
+                      value={localInputs[m.id]?.upc || ''}
+                      onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), upc: e.target.value } }))}
+                      className="w-full md:w-32"
+                    />
+                  )}
+              </div>
+              {!isAlbumTrack && (
+                <div className="flex gap-2">
+                  <AnimatedInput
+                    placeholder="Link de Pre-save"
+                    value={localInputs[m.id]?.presave || ''}
+                    onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), presave: e.target.value } }))}
+                    className="w-full md:w-48"
+                  />
+                  <input
+                    type="date"
+                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-full md:w-40"
+                    value={localInputs[m.id]?.release_date || ''}
+                    onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), release_date: e.target.value } }))}
+                  />
+                </div>
+              )}
+           </div>
+
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
+            <div className="flex flex-col gap-1 px-2">
+              <div className="flex items-center gap-2 cursor-pointer" onClick={() => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), is_beatwap_produced: !localInputs[m.id]?.is_beatwap_produced } }))}>
+                <div className={`w-4 h-4 rounded border flex items-center justify-center ${localInputs[m.id]?.is_beatwap_produced ? 'bg-beatwap-gold border-beatwap-gold text-black' : 'border-white/20 bg-white/5'}`}>
+                  {localInputs[m.id]?.is_beatwap_produced && <Check size={12} strokeWidth={4} />}
+                </div>
+                <span className="text-[10px] text-gray-300 select-none">Prod. BeatWap</span>
+              </div>
+              
+              {localInputs[m.id]?.is_beatwap_produced && (
+                <select
+                  className="w-full bg-black/20 border border-white/10 rounded px-2 py-1 text-[10px] text-white focus:border-beatwap-gold outline-none"
+                  value={localInputs[m.id]?.produced_by || ''}
+                  onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), produced_by: e.target.value } }))}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <option value="">Selecione o Produtor</option>
+                  {producers.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.nome || p.nome_completo_razao_social || 'Produtor'}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <div className="flex items-center gap-2 cursor-pointer" onClick={() => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), show_on_home: !localInputs[m.id]?.show_on_home } }))}>
+                <div className={`w-4 h-4 rounded border flex items-center justify-center ${localInputs[m.id]?.show_on_home ? 'bg-beatwap-gold border-beatwap-gold text-black' : 'border-white/20 bg-white/5'}`}>
+                  {localInputs[m.id]?.show_on_home && <Check size={12} strokeWidth={4} />}
+                </div>
+                <span className="text-[10px] text-gray-300 select-none">Mostrar Home</span>
+              </div>
+            </div>
+            <AnimatedButton onClick={() => approve(m)} icon={Save}>Aprovar</AnimatedButton>
+          </div>
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
+            <AnimatedInput
+              placeholder="Motivo da reprovação"
+              value={localInputs[m.id]?.reject || ''}
+              onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), reject: e.target.value } }))}
+              className="w-full md:w-48"
+            />
+            <AnimatedButton onClick={() => reject(m)} icon={AlertTriangle}>Reprovar</AnimatedButton>
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+
   return (
     <AdminLayout>
       <Card className="space-y-4 p-4 md:p-6">
         <div className="font-bold">Aprovar / Reprovar</div>
         <div className="flex flex-wrap gap-2 pb-2">
-          <button
-            onClick={() => setStatusFilter('aprovado')}
-            className={`flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
-              statusFilter === 'aprovado' 
-                ? 'bg-beatwap-gold text-beatwap-black font-bold' 
-                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            Músicas Aprovadas
-          </button>
-          <button
-            onClick={() => setStatusFilter('pendente')}
-            className={`flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
-              statusFilter === 'pendente' 
-                ? 'bg-beatwap-gold text-beatwap-black font-bold' 
-                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            Pendentes
-          </button>
-          <button
-            onClick={() => setStatusFilter('todos')}
-            className={`flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
-              statusFilter === 'todos' 
-                ? 'bg-beatwap-gold text-beatwap-black font-bold' 
-                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            Todas
-          </button>
+          {['aprovado', 'pendente', 'todos'].map(st => (
+             <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                className={`flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
+                  statusFilter === st 
+                    ? 'bg-beatwap-gold text-beatwap-black font-bold' 
+                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                {st === 'todos' ? 'Todas' : st.charAt(0).toUpperCase() + st.slice(1)}
+              </button>
+          ))}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
           <select className="w-full sm:col-span-2 md:col-span-1 bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
@@ -934,162 +1178,69 @@ export const AdminMusics = () => {
             <AnimatedButton onClick={load} className="w-full justify-center py-3 md:py-2">Filtrar</AnimatedButton>
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-4">
-          {musics.map(m => (
-            <motion.div
-              key={m.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              whileHover={{ scale: 1.01 }}
-              transition={{ duration: 0.2 }}
-              className="p-4 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-black/20 flex flex-col md:flex-row items-center gap-4 hover:border-beatwap-gold/40 hover:shadow-[0_0_30px_rgba(245,197,66,0.18)]"
-            >
-              <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gray-800 border border-white/10 ring-1 ring-black/50 flex items-center justify-center relative cursor-pointer flex-shrink-0"
-                   onClick={() => togglePlay(m.id, m.preview_url || m.audio_url)}>
-                {m.cover_url ? (
-                  <img src={m.cover_url} alt={m.titulo} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-xs text-gray-400">Sem capa</span>
-                )}
-                <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <button 
-                    className="w-8 h-8 bg-beatwap-gold rounded-full flex items-center justify-center text-black hover:bg-white"
-                    onClick={(e) => { e.stopPropagation(); togglePlay(m.id, m.preview_url || m.audio_url); }}
-                  >
-                    {playingTrack === m.id && !isPaused ? <Pause size={16} /> : <Play size={16} />}
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1">
-                <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                  <div className="text-lg font-extrabold text-white tracking-wide break-words max-w-full">{m.titulo}</div>
-                  <div className={`text-[11px] px-2 py-0.5 rounded-full border flex-shrink-0 ${
-                    m.status === 'aprovado' 
-                      ? 'bg-green-500/15 text-green-400 border-green-500/30' 
-                      : m.status === 'recusado' 
-                        ? 'bg-red-500/15 text-red-400 border-red-500/30' 
-                        : 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30'
-                  }`}>
-                    {m.status}
+        
+        <div className="grid grid-cols-1 gap-6">
+          {groupedMusics.map(item => {
+            if (item.type === 'album') {
+              return (
+                <div key={item.id} className="border border-white/10 rounded-2xl bg-white/5 p-4 space-y-4">
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                     <div className="flex items-center gap-4">
+                        <div className="w-24 h-24 rounded-xl overflow-hidden bg-black/50 border border-white/10">
+                           {item.cover_url ? <img src={item.cover_url} alt={item.title} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center"><FolderDown className="text-gray-500"/></div>}
+                        </div>
+                        <div>
+                           <div className="text-xl font-bold text-white">{item.title}</div>
+                           <div className="text-sm text-gray-400">Álbum • {item.tracks.length} faixas</div>
+                           <div className="text-xs text-gray-500 mt-1">{new Date(item.created_at).toLocaleDateString()}</div>
+                        </div>
+                     </div>
+                     <div className="flex flex-wrap gap-2">
+                        <AnimatedButton onClick={() => downloadAlbum(item)} variant="secondary" icon={Download}>
+                           Baixar Álbum (ZIP)
+                        </AnimatedButton>
+                        {item.tracks.some(t => t.status === 'pendente') && (
+                           <div className="flex flex-col gap-2 p-3 bg-white/5 rounded-xl border border-white/10">
+                              <div className="text-xs font-bold text-gray-300 mb-1">Aprovar Tudo</div>
+                              <div className="flex gap-2">
+                                <AnimatedInput
+                                  placeholder="UPC do Álbum"
+                                  value={localInputs[item.id]?.upc || ''}
+                                  onChange={(e) => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), upc: e.target.value } }))}
+                                  className="w-32"
+                                />
+                                <AnimatedInput
+                                  placeholder="Pre-save"
+                                  value={localInputs[item.id]?.presave || ''}
+                                  onChange={(e) => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), presave: e.target.value } }))}
+                                  className="w-32"
+                                />
+                                <input
+                                  type="date"
+                                  className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs w-32"
+                                  value={localInputs[item.id]?.release_date || ''}
+                                  onChange={(e) => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), release_date: e.target.value } }))}
+                                />
+                              </div>
+                              <AnimatedButton onClick={() => approveAll(item)} icon={CheckCircle2} className="w-full justify-center">
+                                 Aprovar Todas as Faixas
+                              </AnimatedButton>
+                           </div>
+                        )}
+                     </div>
+                  </div>
+                  <div className="space-y-3 pl-0 md:pl-4 border-l border-white/10">
+                    {item.tracks.map(track => renderTrackCard(track, true))}
                   </div>
                 </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {m.audio_url && (
-                    <AnimatedButton onClick={() => window.open(m.audio_url, '_blank')}>
-                      <Download size={16} />
-                      Baixar Áudio
-                    </AnimatedButton>
-                  )}
-                  {m.authorization_url && (
-                    <AnimatedButton onClick={() => window.open(m.authorization_url, '_blank')}>
-                      <Download size={16} />
-                      Baixar Documento
-                    </AnimatedButton>
-                  )}
-                  {m.cover_url && (
-                    <AnimatedButton onClick={() => window.open(m.cover_url, '_blank')}>
-                      <Download size={16} />
-                      Baixar Capa
-                    </AnimatedButton>
-                  )}
-                  {m.status === 'aprovado' && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <AnimatedButton 
-                        onClick={() => { setMusicToEdit(m); setEditModalOpen(true); }}
-                        className="!py-1 !px-2 text-[10px]"
-                        variant="secondary"
-                      >
-                        Editar Info
-                      </AnimatedButton>
-                      {m.upc && (
-                        <div className="text-[11px] px-2 py-1 rounded-full bg-white/10 text-white border border-white/10">
-                          UPC: {m.upc}
-                        </div>
-                      )}
-                      {m.presave_link && (
-                        <div className="text-[11px] px-2 py-1 rounded-full bg-white/10 text-white border border-white/10">
-                          Pré-save disponível
-                        </div>
-                      )}
-                      {m.release_date && (
-                        <div className="text-[11px] px-2 py-1 rounded-full bg-white/10 text-white border border-white/10">
-                          Lançamento: {m.release_date}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-              {m.status === 'pendente' && (
-                <div className="flex flex-col w-full gap-3 mt-2 md:mt-0">
-                  <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
-                    <AnimatedInput
-                      placeholder="UPC"
-                      value={localInputs[m.id]?.upc || ''}
-                      onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), upc: e.target.value } }))}
-                      className="w-full md:w-32"
-                    />
-                    <AnimatedInput
-                      placeholder="Link de Pre-save"
-                      value={localInputs[m.id]?.presave || ''}
-                      onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), presave: e.target.value } }))}
-                      className="w-full md:w-48"
-                    />
-                    <input
-                      type="date"
-                      className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-full md:w-40"
-                      value={localInputs[m.id]?.release_date || ''}
-                      onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), release_date: e.target.value } }))}
-                      placeholder="Data de lançamento"
-                    />
-                    <div className="flex flex-col gap-1 px-2">
-                      <div className="flex items-center gap-2 cursor-pointer" onClick={() => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), is_beatwap_produced: !localInputs[m.id]?.is_beatwap_produced } }))}>
-                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${localInputs[m.id]?.is_beatwap_produced ? 'bg-beatwap-gold border-beatwap-gold text-black' : 'border-white/20 bg-white/5'}`}>
-                          {localInputs[m.id]?.is_beatwap_produced && <Check size={12} strokeWidth={4} />}
-                        </div>
-                        <span className="text-[10px] text-gray-300 select-none">Prod. BeatWap</span>
-                      </div>
-                      
-                      {/* Producer Selection Dropdown */}
-                      {localInputs[m.id]?.is_beatwap_produced && (
-                        <select
-                          className="w-full bg-black/20 border border-white/10 rounded px-2 py-1 text-[10px] text-white focus:border-beatwap-gold outline-none"
-                          value={localInputs[m.id]?.produced_by || ''}
-                          onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), produced_by: e.target.value } }))}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <option value="">Selecione o Produtor</option>
-                          {producers.map(p => (
-                            <option key={p.id} value={p.id}>
-                              {p.nome || p.nome_completo_razao_social || 'Produtor'}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-
-                      <div className="flex items-center gap-2 cursor-pointer" onClick={() => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), show_on_home: !localInputs[m.id]?.show_on_home } }))}>
-                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${localInputs[m.id]?.show_on_home ? 'bg-beatwap-gold border-beatwap-gold text-black' : 'border-white/20 bg-white/5'}`}>
-                          {localInputs[m.id]?.show_on_home && <Check size={12} strokeWidth={4} />}
-                        </div>
-                        <span className="text-[10px] text-gray-300 select-none">Mostrar Home</span>
-                      </div>
-                    </div>
-                    <AnimatedButton onClick={() => approve(m)} icon={Save}>Aprovar</AnimatedButton>
-                  </div>
-                  <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
-                    <AnimatedInput
-                      placeholder="Motivo da reprovação"
-                      value={localInputs[m.id]?.reject || ''}
-                      onChange={(e) => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), reject: e.target.value } }))}
-                      className="w-full md:w-48"
-                    />
-                    <AnimatedButton onClick={() => reject(m)} icon={AlertTriangle}>Reprovar</AnimatedButton>
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          ))}
+              );
+            } else {
+              return renderTrackCard(item, false);
+            }
+          })}
+          {groupedMusics.length === 0 && <div className="text-gray-400 text-center py-8">Nenhuma música encontrada.</div>}
         </div>
+        
         <MusicEditModal 
           isOpen={editModalOpen} 
           onClose={() => setEditModalOpen(false)} 

@@ -34,10 +34,10 @@ export const NotificationBell = ({ userId }) => {
     }
   };
 
-  const openInNewTab = async (notif) => {
+  const handleNotificationClick = async (notif) => {
     await markAsRead(notif.id);
-    const target = notif.link || '/';
-    window.open(target, '_blank');
+    setOpen(false);
+    navigate(`/notifications/${notif.id}`);
   };
 
   return (
@@ -121,23 +121,23 @@ export const NotificationBell = ({ userId }) => {
                   <div
                     key={notif.id}
                     className={`p-4 hover:bg-white/5 cursor-pointer transition-colors ${!notif.read ? 'bg-white/[0.02]' : ''}`}
-                    onClick={() => openInNewTab(notif)}
+                    onClick={() => handleNotificationClick(notif)}
                   >
                     <div className="flex items-start gap-3">
                       <div className="shrink-0 p-1.5 bg-white/5 rounded-lg">
                         {iconFor(notif.type)}
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start">
-                          <div className={clsx("font-bold", !notif.read ? "text-white" : "text-gray-300")}>
+                          <div className={clsx("font-bold truncate pr-2", !notif.read ? "text-white" : "text-gray-300")}>
                             {notif.title}
                           </div>
-                          <div className="text-[10px] text-gray-500 flex items-center gap-1">
+                          <div className="text-[10px] text-gray-500 flex items-center gap-1 shrink-0">
                             <Clock size={10} />
                             {new Date(notif.created_at || notif.date).toLocaleDateString()} • {new Date(notif.created_at || notif.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </div>
                         </div>
-                        <div className="text-xs text-gray-400 mt-1">{notif.message}</div>
+                        <div className="text-xs text-gray-400 mt-1 break-words whitespace-normal">{notif.message}</div>
                       </div>
                     </div>
                   </div>

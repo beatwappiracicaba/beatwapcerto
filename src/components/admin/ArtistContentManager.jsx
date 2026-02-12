@@ -9,6 +9,8 @@ import { useNotification } from '../../context/NotificationContext';
 import { useToast } from '../../context/ToastContext';
 import { supabase } from '../../services/supabaseClient';
 
+import { MusicUploadModal } from '../artist/MusicUploadModal';
+
 export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
   const { music, addMusic, editMusic, deleteMusic } = useData();
   const { addNotification } = useNotification();
@@ -16,6 +18,7 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
   
   const [view, setView] = useState('list'); // 'list', 'add', 'edit'
   const [selectedMusic, setSelectedMusic] = useState(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   
   // Form State
   const [formData, setFormData] = useState({
@@ -66,8 +69,7 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
   };
 
   const handleAddClick = () => {
-    resetForm();
-    setView('add');
+    setShowUploadModal(true);
   };
 
   const handleEditClick = (musicItem) => {
@@ -170,6 +172,7 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
       }
       if (view === 'add') {
         if (formData.isAlbum && formData.tracks.length) {
+          const albumId = crypto.randomUUID();
           for (let i = 0; i < formData.tracks.length; i++) {
             const track = formData.tracks[i];
             const trackAudioUrl = await uploadFile(track.audioFile, 'music_files');
@@ -194,6 +197,8 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
               status: 'pendente',
               addedBy: 'admin',
               composer: track.composer || formData.songwriter,
+              albumId: albumId,
+              albumTitle: formData.title
             });
           }
           addNotification({
@@ -290,6 +295,15 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
         exit={{ opacity: 0 }}
         className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       >
+        <MusicUploadModal 
+          isOpen={showUploadModal} 
+          onClose={() => setShowUploadModal(false)} 
+          targetArtist={artist}
+          onSuccess={() => {
+            addToast('Música(s) enviada(s) com sucesso!', 'success');
+            // Optional: trigger refresh if needed
+          }}
+        />
         <motion.div 
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
