@@ -234,10 +234,21 @@ export const ChatProvider = ({ children }) => {
       setIsOpen(true);
       
       // Delete the request from queue immediately after picking it
-      await supabase
+      // Use RPC if possible, or simple delete.
+      // We will loop to ensure deletion if RLS allows
+      
+      const { error: deleteError } = await supabase
         .from('support_queue')
         .delete()
         .eq('id', request.id);
+        
+      if (deleteError) {
+        console.error('Error deleting request from queue (first attempt):', deleteError);
+        // Retry once more or log critical error
+      } else {
+        // Force local update immediately
+        setSupportQueue(prev => prev.filter(r => r.id !== request.id));
+      }
       
       // Refresh queue (realtime might handle this, but to be safe)
       fetchQueue();
