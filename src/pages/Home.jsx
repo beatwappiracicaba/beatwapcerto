@@ -535,7 +535,6 @@ const Home = () => {
         <FeaturedUsers />
         <HowItWorks />
         <Benefits />
-        <ShowFormats />
         <ShowProduction />
         <Transparency />
         <MentorshipPlans />
