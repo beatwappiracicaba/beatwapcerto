@@ -268,9 +268,10 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
     userRole === 'Compositor' ? 'compositor' : 
     'none'; // Artist shouldn't see queue usually
     
-  const filteredQueue = supportQueue.filter(req => 
-    queueFilter ? req.role_needed === queueFilter || (userRole === 'Produtor') : false
-  );
+  const filteredQueue = supportQueue.filter(req => {
+    if (userRole === 'Produtor') return true;
+    return queueFilter ? req.role_needed === queueFilter : false;
+  });
 
   return (
     <motion.div

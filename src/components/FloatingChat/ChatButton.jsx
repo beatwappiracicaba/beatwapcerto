@@ -9,19 +9,7 @@ export const ChatButton = ({ isAdmin = false, currentUserId = 1 }) => {
   const audioRef = useRef(null);
 
   // Calculate unread count
-  const unreadCount = chats.reduce((acc, chat) => {
-    // If Admin, count all unread messages from artists
-    if (isAdmin) {
-      const unreadInChat = chat.messages.filter(m => !m.read && m.sender === 'artist').length;
-      return acc + unreadInChat;
-    }
-    // If Artist, count unread messages from admin in their chat
-    if (chat.artistId === currentUserId) {
-      const unreadInChat = chat.messages.filter(m => !m.read && m.sender === 'admin').length;
-      return acc + unreadInChat;
-    }
-    return acc;
-  }, 0);
+  const unreadCount = chats.reduce((acc, chat) => acc + (chat.unreadCount || 0), 0);
 
   useEffect(() => {
     if (!isOpen && unreadCount > prevUnreadRef.current) {

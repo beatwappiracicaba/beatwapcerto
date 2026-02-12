@@ -93,7 +93,7 @@ export const NotificationBell = ({ userId }) => {
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
-            className="absolute right-0 mt-2 bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 w-[92vw] sm:w-[360px] max-w-[92vw]"
+            className="absolute right-0 mt-2 bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 w-[85vw] sm:w-[360px] max-w-[85vw]"
           >
             <div className="flex items-center justify-between p-3 border-b border-white/10">
               <div className="flex items-center gap-2">
@@ -129,7 +129,7 @@ export const NotificationBell = ({ userId }) => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start">
-                          <div className={clsx("font-bold truncate pr-2", !notif.read ? "text-white" : "text-gray-300")}>
+                          <div className={clsx("font-bold pr-2 break-words", !notif.read ? "text-white" : "text-gray-300")}>
                             {notif.title}
                           </div>
                           <div className="text-[10px] text-gray-500 flex items-center gap-1 shrink-0">
