@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, Music, Image as ImageIcon, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Upload, Music, Image as ImageIcon, FileText, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
@@ -96,6 +96,12 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
     setFormData(prev => ({ 
       ...prev, 
       tracks: [...prev.tracks, { titulo: '', estilo: '', audio_file: null, authorization_file: null }] 
+    }));
+  };
+  const removeTrack = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      tracks: prev.tracks.filter((_, i) => i !== index)
     }));
   };
   const updateTrackField = (index, field, value) => {
@@ -251,7 +257,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+          className={`bg-[#121212] border border-white/10 rounded-2xl w-full ${formData.is_album ? 'max-w-5xl' : 'max-w-2xl'} overflow-hidden flex flex-col max-h-[90vh] transition-all duration-300`}
         >
           <div className="p-4 border-b border-white/10 flex justify-between items-center bg-beatwap-black">
             <h3 className="text-xl font-bold text-white">Nova Música</h3>
@@ -354,6 +360,16 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
                     </div>
                     {formData.tracks.map((t, idx) => (
                       <div key={idx} className="p-3 bg-white/5 border border-white/10 rounded-xl space-y-2">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs font-bold text-gray-500">Faixa #{idx + 1}</span>
+                          <button 
+                            onClick={() => removeTrack(idx)}
+                            className="p-1.5 hover:bg-red-500/10 text-gray-500 hover:text-red-500 rounded-lg transition-colors"
+                            title="Remover faixa"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           <AnimatedInput 
                             label="Título da faixa" 
@@ -403,21 +419,23 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-400">Autorização (Opcional)</label>
-                <div className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-xl">
-                  <div className="p-2 bg-blue-500/20 rounded-lg text-blue-500">
-                    <FileText size={20} />
+              {!formData.is_album && (
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-400">Autorização (Opcional)</label>
+                  <div className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-xl">
+                    <div className="p-2 bg-blue-500/20 rounded-lg text-blue-500">
+                      <FileText size={20} />
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <p className="text-sm text-white truncate">{formData.authorization_file ? formData.authorization_file.name : 'Nenhum arquivo'}</p>
+                    </div>
+                    <label className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs cursor-pointer transition-colors">
+                      Upload
+                      <input type="file" accept=".pdf,.doc,.docx,.jpg,.png" className="hidden" onChange={(e) => handleFileChange(e, 'authorization_file')} />
+                    </label>
                   </div>
-                  <div className="flex-1 overflow-hidden">
-                    <p className="text-sm text-white truncate">{formData.authorization_file ? formData.authorization_file.name : 'Nenhum arquivo'}</p>
-                  </div>
-                  <label className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs cursor-pointer transition-colors">
-                    Upload
-                    <input type="file" accept=".pdf,.doc,.docx,.jpg,.png" className="hidden" onChange={(e) => handleFileChange(e, 'authorization_file')} />
-                  </label>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Additional Info */}
