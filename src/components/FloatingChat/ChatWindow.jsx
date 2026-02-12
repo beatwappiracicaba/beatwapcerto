@@ -25,15 +25,19 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
     requestSupport,
     pickSupportRequest,
     sendNotification,
-    sendBroadcast
+    sendBroadcast,
+    fetchArtistsForSeller,
+    updateChatStatus
   } = useChat();
   
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const userRole = profile?.cargo || 'Artista';
 
   const [inputText, setInputText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [mode, setMode] = useState('list'); // 'list', 'chat', 'new', 'queue', 'notifications'
+  const [mode, setMode] = useState('list'); // 'list', 'chat', 'new', 'queue', 'notifications', 'artists_list'
+  const [availableArtists, setAvailableArtists] = useState([]);
+  const [artistSearchTerm, setArtistSearchTerm] = useState('');
   const [notificationForm, setNotificationForm] = useState({
     type: 'broadcast', // 'broadcast', 'specific'
     targetRole: 'all', // 'all', 'Artista', 'Vendedor', 'Compositor'
@@ -161,6 +165,42 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
     if (chatId) {
       setMode('chat');
     }
+  };
+
+  const handleArtistSelect = async (artistId) => {
+    const chatId = await createChat(artistId);
+    if (chatId) {
+      setActiveChatId(chatId);
+      setMode('chat');
+    }
+  };
+
+  const handleLoadArtists = async () => {
+    setMode('artists_list');
+    const artists = await fetchArtistsForSeller();
+    setAvailableArtists(artists);
+  };
+
+  const filteredArtists = availableArtists.filter(a => 
+    (a.nome || '').toLowerCase().includes(artistSearchTerm.toLowerCase()) ||
+    (a.nome_completo_razao_social || '').toLowerCase().includes(artistSearchTerm.toLowerCase())
+  );
+
+  const handleAcceptChat = async () => {
+      if (!activeChatId) return;
+      const success = await updateChatStatus(activeChatId, 'active');
+      if (success) {
+          // Force refresh or just UI update handled by optimistic
+      }
+  };
+
+  const handleDeclineChat = async () => {
+      if (!activeChatId) return;
+      if (window.confirm('Tem certeza que deseja recusar esta conversa?')) {
+          await deleteChat(activeChatId);
+          setActiveChatId(null);
+          setMode('list');
+      }
   };
 
   const handleSendNotification = async () => {
@@ -431,6 +471,13 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                     <p className="text-xs text-gray-400">Ver solicitações de artistas</p>
                   </div>
                 </button>
+                <button onClick={handleLoadArtists} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left">
+                  <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400"><Users size={20} /></div>
+                  <div>
+                    <h4 className="font-bold text-white">Todos os Artistas</h4>
+                    <p className="text-xs text-gray-400">Iniciar conversa com qualquer artista</p>
+                  </div>
+                </button>
               </>
             )}
 
@@ -468,6 +515,59 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
               </>
             )}
           </div>
+        )}
+
+        {/* ARTISTS LIST MODE */}
+        {mode === 'artists_list' && (
+            <div className="p-2 space-y-2">
+                <div className="px-2 pb-2 space-y-2">
+                    <button onClick={() => setMode('new')} className="text-gray-400 hover:text-white flex items-center gap-1 text-xs">
+                        <ChevronLeft size={14} /> Voltar
+                    </button>
+                    <AnimatedInput 
+                        placeholder="Buscar artista..." 
+                        icon={Search} 
+                        value={artistSearchTerm}
+                        onChange={(e) => setArtistSearchTerm(e.target.value)}
+                        className="bg-black/40 border-white/5"
+                    />
+                </div>
+                {filteredArtists.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                        <p className="text-sm">Nenhum artista encontrado.</p>
+                    </div>
+                ) : (
+                    filteredArtists.map(artist => (
+                        <div 
+                            key={artist.id}
+                            onClick={() => handleArtistSelect(artist.id)}
+                            className="p-3 hover:bg-white/5 rounded-xl cursor-pointer transition-colors flex gap-3 items-center"
+                        >
+                            <div className="w-10 h-10 rounded-full bg-white/10 overflow-hidden relative flex items-center justify-center">
+                                {artist.avatar_url ? (
+                                    <img src={artist.avatar_url} alt={artist.nome} className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-beatwap-gold">
+                                        <User size={20} />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex-1 overflow-hidden">
+                                <h4 className="font-bold text-sm text-white truncate">
+                                    {artist.nome || artist.nome_completo_razao_social || 'Artista'}
+                                </h4>
+                                <div className="flex gap-2 text-[10px] text-gray-500">
+                                    {artist.cidade && <span>📍 {artist.cidade}</span>}
+                                    {artist.genero_musical && <span>🎵 {artist.genero_musical}</span>}
+                                </div>
+                            </div>
+                            <div className="text-beatwap-gold">
+                                <MessageCircle size={18} />
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
         )}
 
         {/* NOTIFICATIONS MODE */}
@@ -605,7 +705,38 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
 
         {/* CHAT MODE */}
         {mode === 'chat' && (
-          <div className="p-4">
+          <div className="p-4 relative min-h-full">
+            {/* PENDING ACCEPTANCE OVERLAY */}
+            {activeChat?.status === 'pending' && activeChat?.initiatedBy !== user.id && (
+                <div className="absolute inset-0 z-10 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+                    <div className="w-16 h-16 rounded-full bg-white/10 mb-4 overflow-hidden">
+                        {activeChat.artistAvatarUrl ? (
+                            <img src={activeChat.artistAvatarUrl} className="w-full h-full object-cover" />
+                        ) : (
+                            <User size={32} className="m-auto mt-4 text-gray-400" />
+                        )}
+                    </div>
+                    <h3 className="text-lg font-bold text-white mb-2">Solicitação de Conversa</h3>
+                    <p className="text-sm text-gray-400 mb-6">
+                        {activeChat.artistName} deseja iniciar uma conversa com você.
+                    </p>
+                    <div className="flex gap-3 w-full">
+                        <button 
+                            onClick={handleDeclineChat}
+                            className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-red-400 font-bold rounded-xl transition-colors"
+                        >
+                            Recusar
+                        </button>
+                        <button 
+                            onClick={handleAcceptChat}
+                            className="flex-1 py-3 bg-beatwap-gold hover:bg-yellow-500 text-black font-bold rounded-xl transition-colors"
+                        >
+                            Aceitar
+                        </button>
+                    </div>
+                </div>
+            )}
+
              {!activeChat?.messages?.length ? (
                <div className="flex flex-col items-center justify-center h-full text-gray-500 mt-20 text-center">
                  <MessageCircle size={40} className="mb-2 opacity-20" />

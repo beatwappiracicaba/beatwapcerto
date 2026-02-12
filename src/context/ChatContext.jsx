@@ -315,6 +315,8 @@ export const ChatProvider = ({ children }) => {
           artistAvatarUrl,
           adminId: assignedTo,
           assignedTo,
+          status: chat.status,
+          initiatedBy: chat.metadata?.initiated_by,
           messages: messagesWithSender,
           lastMessage: (lastMsg?.content ?? lastMsg?.message) || '',
           lastMessageTime: lastMsg?.created_at || chat.created_at,
@@ -327,6 +329,41 @@ export const ChatProvider = ({ children }) => {
       console.error('Error fetching chats:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchArtistsForSeller = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, nome, nome_completo_razao_social, avatar_url, cidade, estado, genero_musical')
+        .or('cargo.eq.Artista,cargo.eq.Artist');
+        
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching artists for seller:', error);
+      return [];
+    }
+  };
+
+  const updateChatStatus = async (chatId, status) => {
+    try {
+      // Optimistic update
+      setChats(prev => prev.map(c => c.id === chatId ? { ...c, status } : c));
+      
+      const { error } = await supabase
+        .from('chats')
+        .update({ status })
+        .eq('id', chatId);
+        
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error updating chat status:', error);
+      // Rollback
+      fetchChats();
+      return false;
     }
   };
 
@@ -454,11 +491,18 @@ export const ChatProvider = ({ children }) => {
       // But typically we want explicit participants.
       const participants = Array.from(new Set([artistId, user.id]));
 
+      // Determine status based on who creates it
+      // If Vendedor creates it for an artist, it starts as 'pending'
+      const creatorRole = String(profile?.cargo || '').toLowerCase();
+      const initialStatus = (creatorRole === 'vendedor' && artistId !== user.id) ? 'pending' : 'active';
+
       const { data, error } = await supabase
         .from('chats')
         .insert({
           participant_ids: participants,
-          owner_id: user.id
+          owner_id: user.id,
+          status: initialStatus,
+          metadata: { initiated_by: user.id, creator_role: creatorRole }
         })
         .select()
         .single();
@@ -607,7 +651,9 @@ export const ChatProvider = ({ children }) => {
       requestSupport,
       pickSupportRequest,
       sendNotification,
-      sendBroadcast
+      sendBroadcast,
+      fetchArtistsForSeller,
+      updateChatStatus
     }}>
       {children}
     </ChatContext.Provider>
