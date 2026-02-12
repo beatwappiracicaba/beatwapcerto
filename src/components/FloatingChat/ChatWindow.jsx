@@ -45,6 +45,8 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
     title: '',
     message: ''
   });
+  const [requestSummary, setRequestSummary] = useState('');
+  const [pendingRequestRole, setPendingRequestRole] = useState(null);
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const [showNewMessageToast, setShowNewMessageToast] = useState(false);
@@ -152,11 +154,23 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
     }
   };
   
-  const handleRequestSupport = async (role) => {
-    const success = await requestSupport(role);
+  const handleInitiateSupport = (role) => {
+    setPendingRequestRole(role);
+    setRequestSummary('');
+    setMode('request_summary');
+  };
+
+  const handleSubmitSupportRequest = async () => {
+    if (!requestSummary.trim()) {
+      alert('Por favor, descreva brevemente o motivo do contato.');
+      return;
+    }
+    const success = await requestSupport(pendingRequestRole, { summary: requestSummary });
     if (success) {
       alert('Solicitação enviada! Aguarde um atendimento.');
       setMode('list');
+      setPendingRequestRole(null);
+      setRequestSummary('');
     }
   };
 
@@ -269,7 +283,8 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
     'none'; // Artist shouldn't see queue usually
     
   const filteredQueue = supportQueue.filter(req => {
-    if (userRole === 'Produtor') return true;
+    // Ensure producers see everything
+    if (['Produtor', 'produtor', 'admin'].includes(userRole)) return true;
     return queueFilter ? req.role_needed === queueFilter : false;
   });
 
@@ -297,6 +312,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                 ? (activeChat?.artistName || 'Conversa') 
                 : mode === 'new' ? 'Nova Conversa'
                 : mode === 'queue' ? 'Solicitações'
+                : mode === 'request_summary' ? 'Motivo do Contato'
                 : mode === 'notifications' ? 'Enviar Notificação'
                 : 'Mensagens'}
             </h3>
@@ -431,14 +447,14 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
             {/* Options for Artist */}
             {(userRole === 'Artista' || userRole === 'Artist') && (
               <>
-                <button onClick={() => handleRequestSupport('produtor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left">
+                <button onClick={() => handleInitiateSupport('produtor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left">
                   <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400"><Users size={20} /></div>
                   <div>
                     <h4 className="font-bold text-white">Falar com Produtor</h4>
                     <p className="text-xs text-gray-400">Tirar dúvidas e suporte</p>
                   </div>
                 </button>
-                <button onClick={() => handleRequestSupport('vendedor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left">
+                <button onClick={() => handleInitiateSupport('vendedor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left">
                   <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-green-400"><Briefcase size={20} /></div>
                   <div>
                     <h4 className="font-bold text-white">Falar com Vendedor</h4>
@@ -465,12 +481,17 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                     <p className="text-xs text-gray-400">Suporte administrativo</p>
                   </div>
                 </button>
-                <button onClick={() => setMode('queue')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left">
+                <button onClick={() => setMode('queue')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left relative">
                   <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-400"><UserCheck size={20} /></div>
                   <div>
                     <h4 className="font-bold text-white">Atender Artistas</h4>
                     <p className="text-xs text-gray-400">Ver solicitações de artistas</p>
                   </div>
+                  {filteredQueue.length > 0 && (
+                    <span className="absolute top-4 right-4 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                      {filteredQueue.length}
+                    </span>
+                  )}
                 </button>
                 <button onClick={handleLoadArtists} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left">
                   <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400"><Users size={20} /></div>
@@ -492,12 +513,17 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                     <p className="text-xs text-gray-400">Suporte administrativo</p>
                   </div>
                 </button>
-                <button onClick={() => setMode('queue')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left">
+                <button onClick={() => setMode('queue')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left relative">
                   <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-400"><UserCheck size={20} /></div>
                   <div>
                     <h4 className="font-bold text-white">Atender Artistas</h4>
                     <p className="text-xs text-gray-400">Ver solicitações de artistas</p>
                   </div>
+                  {filteredQueue.length > 0 && (
+                    <span className="absolute top-4 right-4 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                      {filteredQueue.length}
+                    </span>
+                  )}
                 </button>
               </>
             )}
@@ -505,12 +531,17 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
             {/* Options for Producer */}
             {(userRole === 'Produtor') && (
               <>
-                <button onClick={() => setMode('queue')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left">
+                <button onClick={() => setMode('queue')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left relative">
                   <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-400"><UserCheck size={20} /></div>
                   <div>
                     <h4 className="font-bold text-white">Ver Solicitações</h4>
                     <p className="text-xs text-gray-400">Atender usuários precisando de ajuda</p>
                   </div>
+                  {filteredQueue.length > 0 && (
+                    <span className="absolute top-4 right-4 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                      {filteredQueue.length}
+                    </span>
+                  )}
                 </button>
                 {/* Future: Direct message search */}
               </>
@@ -651,6 +682,37 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
           </div>
         )}
 
+        {/* REQUEST SUMMARY MODE */}
+        {mode === 'request_summary' && (
+          <div className="p-4 space-y-4">
+             <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+               <h4 className="text-white font-bold mb-2">Descreva o que precisa</h4>
+               <p className="text-sm text-gray-400 mb-4">
+                 Isso ajuda o {pendingRequestRole} a entender sua solicitação antes de iniciar a conversa.
+               </p>
+               <textarea
+                 value={requestSummary}
+                 onChange={(e) => setRequestSummary(e.target.value)}
+                 placeholder="Ex: Gostaria de saber mais sobre a produção da minha música..."
+                 rows={4}
+                 className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white text-sm focus:border-beatwap-gold outline-none resize-none"
+               />
+             </div>
+             <button 
+               onClick={handleSubmitSupportRequest}
+               className="w-full py-3 bg-beatwap-gold hover:bg-yellow-500 text-black font-bold rounded-xl transition-colors"
+             >
+               Enviar Solicitação
+             </button>
+             <button 
+               onClick={() => { setMode('new'); setPendingRequestRole(null); }}
+               className="w-full py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors"
+             >
+               Cancelar
+             </button>
+          </div>
+        )}
+
         {/* QUEUE MODE */}
         {mode === 'queue' && (
           <div className="p-2 space-y-2">
@@ -689,6 +751,11 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                             {req.role_needed === 'produtor' ? 'Ajuda Produtor' : req.role_needed === 'vendedor' ? 'Interesse Venda' : 'Interesse Composição'}
                           </span>
                        </div>
+                       {req.metadata?.summary && (
+                         <div className="mt-2 text-xs text-gray-300 bg-white/5 p-2 rounded italic">
+                           "{req.metadata.summary}"
+                         </div>
+                       )}
                      </div>
                    </div>
                    <button 

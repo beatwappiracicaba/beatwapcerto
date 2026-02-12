@@ -24,11 +24,44 @@ export const ChatProvider = ({ children }) => {
         .channel('public:chat-realtime')
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chats' }, (payload) => {
           const updated = payload.new;
-          setChats(prev => prev.map(c => c.id === updated.id ? { 
-            ...c, 
-            assignedTo: updated.assigned_to ?? c.assignedTo,
-            status: updated.status ?? c.status
-          } : c));
+          setChats(prev => {
+            const exists = prev.find(c => c.id === updated.id);
+            if (exists) {
+              return prev.map(c => c.id === updated.id ? { 
+                ...c, 
+                assignedTo: updated.assigned_to ?? c.assignedTo,
+                status: updated.status ?? c.status
+              } : c);
+            } else {
+              // New chat updated (maybe we missed insert), refetch to be safe
+              fetchChats();
+              return prev;
+            }
+          });
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chats' }, (payload) => {
+           // New chat created. Check if relevant to me.
+           const newChat = payload.new;
+           const myId = user.id;
+           const participants = newChat.participant_ids || [];
+           const amIParticipant = participants.includes(myId);
+           const myRole = profile?.cargo || '';
+           
+           // If I am participant, OR I am provider (Produtor/Vendedor) and should see it
+           // Produtores see all support chats? Or just assigned?
+           // The fetchChats logic says: "Vendedores e Produtores veem todos os chats (ou atribuídos)"
+           // Actually fetchChats logic:
+           // if (!isAdmin && !isCompositor && !isVendedor) { query = query.contains('participant_ids', [user.id]); }
+           // So Admins/Sellers see ALL chats?
+           // If so, we should refetch or add it.
+           
+           const isAdmin = myRole === 'Produtor';
+           const isVendedor = myRole === 'Vendedor';
+           const isCompositor = myRole === 'Compositor';
+           
+           if (amIParticipant || isAdmin || isVendedor || isCompositor) {
+             fetchChats(); // Simplest way to get full data (artist names etc)
+           }
         })
         .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chats' }, (payload) => {
           const deletedId = payload.old.id;
@@ -38,8 +71,25 @@ export const ChatProvider = ({ children }) => {
             setIsOpen(false);
           }
         })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'support_queue' }, () => {
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'support_queue' }, (payload) => {
           fetchQueue();
+          if (payload.eventType === 'INSERT') {
+             // Check if I am a provider who should see this
+             const myRole = profile?.cargo || '';
+             const needed = payload.new.role_needed; // 'produtor', 'vendedor', etc.
+             // Simple check: if I am a Produtor, I see everything.
+             // If I am Vendedor, I see 'vendedor' requests.
+             let shouldNotify = false;
+             if (myRole === 'Produtor') shouldNotify = true;
+             else if (myRole === 'Vendedor' && needed === 'vendedor') shouldNotify = true;
+             else if (myRole === 'Compositor' && needed === 'compositor') shouldNotify = true;
+
+             if (shouldNotify && payload.new.requester_id !== user.id) {
+               // Play sound or show toast?
+               // For now, we rely on the UI updating, but we can log it or set a flag
+               console.log('New support request!', payload.new);
+             }
+          }
         })
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
           const m = payload.new;
@@ -662,7 +712,10 @@ export const ChatProvider = ({ children }) => {
       sendNotification,
       sendBroadcast,
       fetchArtistsForSeller,
-      updateChatStatus
+      updateChatStatus,
+      fetchChats,
+      fetchQueue,
+      userRole: profile?.cargo
     }}>
       {children}
     </ChatContext.Provider>
