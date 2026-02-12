@@ -219,6 +219,16 @@ export const ChatProvider = ({ children }) => {
 
       if (error) throw error;
       
+      // Insert initial message from summary if exists so the context is preserved
+      if (request.metadata?.summary) {
+        await supabase.from('messages').insert({
+          chat_id: data.id,
+          sender_id: request.requester_id, // The requester sent this message
+          content: request.metadata.summary,
+          metadata: { type: 'initial_request', ...request.metadata }
+        });
+      }
+
       await fetchChats();
       setActiveChatId(data.id);
       setIsOpen(true);

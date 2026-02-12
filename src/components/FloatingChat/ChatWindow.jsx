@@ -414,12 +414,12 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                       <div className="flex flex-col mb-2 pb-2 border-b border-white/5">
                          <div className="flex justify-between items-start">
                            <h4 className="font-bold text-base text-white flex items-center gap-2">
-                             <span className="w-2 h-2 rounded-full bg-beatwap-gold inline-block animate-pulse"/>
-                             {req.requester?.nome || 'Usuário'}
-                           </h4>
-                           <span className="text-[10px] text-beatwap-gold font-mono bg-black/40 px-1.5 py-0.5 rounded whitespace-nowrap ml-2">
-                             {new Date(req.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                           </span>
+                              <span className="w-2 h-2 rounded-full bg-beatwap-gold inline-block animate-pulse"/>
+                              {req.requester?.nome || req.requester?.nome_completo_razao_social || 'Usuário'}
+                            </h4>
+                            <span className="text-[10px] text-beatwap-gold font-mono bg-black/40 px-1.5 py-0.5 rounded whitespace-nowrap ml-2">
+                              {new Date(req.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                            </span>
                          </div>
                          <span className="text-[10px] text-gray-500 mt-0.5">
                            {req.requester?.cidade ? `${req.requester.cidade}` : ''}
@@ -430,7 +430,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
 
                       <div className="flex items-start gap-3">
                         <div className="w-8 h-8 rounded-full bg-beatwap-gold/20 flex-shrink-0 flex items-center justify-center text-beatwap-gold font-bold text-xs">
-                             {(req.requester?.nome || 'U').substring(0,1).toUpperCase()}
+                             {(req.requester?.nome || req.requester?.nome_completo_razao_social || 'U').substring(0,1).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
                              {req.metadata?.summary ? (
