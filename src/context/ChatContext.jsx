@@ -635,8 +635,18 @@ export const ChatProvider = ({ children }) => {
   const deleteChat = async (chatId) => {
     try {
       // Find chat to get request ID
-      const chat = chats.find(c => c.id === chatId);
-      const requestId = chat?.metadata?.original_request_id;
+      let chat = chats.find(c => c.id === chatId);
+      let requestId = chat?.metadata?.original_request_id;
+
+      // If not found in state or metadata missing, try fetching from DB
+      if (!requestId) {
+        const { data: dbChat } = await supabase
+          .from('chats')
+          .select('metadata')
+          .eq('id', chatId)
+          .maybeSingle();
+        requestId = dbChat?.metadata?.original_request_id;
+      }
       
       // Direct deletion - Messages first, then Chat
       // This avoids reliance on RPCs that might not exist or have permission issues

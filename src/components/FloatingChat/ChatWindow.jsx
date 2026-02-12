@@ -410,26 +410,38 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                       onClick={() => handlePickRequest(req)}
                       className="p-3 bg-beatwap-gold/5 border border-beatwap-gold/20 hover:bg-beatwap-gold/10 rounded-xl cursor-pointer transition-all group"
                     >
-                      <div className="flex justify-between items-start mb-1">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-beatwap-gold/20 flex items-center justify-center text-beatwap-gold font-bold text-xs">
-                             {(req.requester?.nome || 'U').substring(0,1).toUpperCase()}
-                          </div>
-                          <div>
-                             <h4 className="font-bold text-sm text-white">{req.requester?.nome || 'Usuário'}</h4>
-                             <p className="text-[10px] text-gray-400">{req.requester?.cidade} - {req.requester?.genero_musical}</p>
-                          </div>
-                        </div>
-                        <span className="text-[10px] text-beatwap-gold font-mono bg-black/40 px-1.5 py-0.5 rounded">
-                          {new Date(req.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                        </span>
+                      {/* Header with Name and Time */}
+                      <div className="flex flex-col mb-2 pb-2 border-b border-white/5">
+                         <div className="flex justify-between items-start">
+                           <h4 className="font-bold text-base text-white flex items-center gap-2">
+                             <span className="w-2 h-2 rounded-full bg-beatwap-gold inline-block animate-pulse"/>
+                             {req.requester?.nome || 'Usuário'}
+                           </h4>
+                           <span className="text-[10px] text-beatwap-gold font-mono bg-black/40 px-1.5 py-0.5 rounded whitespace-nowrap ml-2">
+                             {new Date(req.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                           </span>
+                         </div>
+                         <span className="text-[10px] text-gray-500 mt-0.5">
+                           {req.requester?.cidade ? `${req.requester.cidade}` : ''}
+                           {req.requester?.cidade && req.requester?.genero_musical ? ' • ' : ''}
+                           {req.requester?.genero_musical || ''}
+                         </span>
                       </div>
-                      
-                      {req.metadata?.summary && (
-                        <div className="mt-2 p-2 bg-black/20 rounded-lg border border-white/5">
-                          <p className="text-xs text-gray-300 italic">"{req.metadata.summary}"</p>
+
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-full bg-beatwap-gold/20 flex-shrink-0 flex items-center justify-center text-beatwap-gold font-bold text-xs">
+                             {(req.requester?.nome || 'U').substring(0,1).toUpperCase()}
                         </div>
-                      )}
+                        <div className="flex-1 min-w-0">
+                             {req.metadata?.summary ? (
+                               <div className="p-2 bg-black/20 rounded-lg border border-white/5">
+                                 <p className="text-xs text-gray-300 italic break-words">"{req.metadata.summary}"</p>
+                               </div>
+                             ) : (
+                               <p className="text-xs text-gray-500 italic">Sem descrição...</p>
+                             )}
+                        </div>
+                      </div>
                       
                       <div className="mt-2 flex justify-end">
                         <button className="text-[10px] bg-beatwap-gold text-black px-3 py-1 rounded-full font-bold opacity-0 group-hover:opacity-100 transition-opacity">
