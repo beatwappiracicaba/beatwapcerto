@@ -254,7 +254,7 @@ export const AdminSettings = () => {
               
               <div className="space-y-3 pt-2">
                 <div className="text-sm text-gray-300 font-bold">Permissões Iniciais</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <label className="flex items-center gap-2 p-2 rounded-lg bg-black/20 border border-white/10 cursor-pointer hover:border-white/30 transition-colors w-full">
                     <input
                       type="checkbox"

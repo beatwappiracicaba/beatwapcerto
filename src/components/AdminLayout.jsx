@@ -84,17 +84,17 @@ export const AdminLayout = ({ children }) => {
         <div className="container max-w-7xl mx-auto px-4 md:px-6 py-4">
         <div className="flex items-center justify-between mb-6 gap-3">
           <div className="flex items-center gap-3">
-            <button className="md:hidden p-2 rounded-xl bg-white/5 border border-white/10" onClick={() => setSidebarOpen(true)}>
+            <button className="md:hidden p-2 rounded-xl bg-white/5 border border-white/10 shrink-0" onClick={() => setSidebarOpen(true)}>
               <Menu size={18} />
             </button>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="text-xs text-gray-400">Painel do Produtor</div>
-              <div className="text-lg md:text-2xl font-bold truncate max-w-[200px] md:max-w-none">
+              <div className="text-lg md:text-2xl font-bold truncate">
                 {profile?.nome || 'Produtor'}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-4 md:gap-6">
+          <div className="flex items-center gap-3 md:gap-6 shrink-0">
             <div className="relative z-50">
               {currentUserId && <NotificationBell userId={currentUserId} />}
             </div>
