@@ -453,6 +453,9 @@ export const ChatProvider = ({ children }) => {
     // sender is 'artist' or 'admin' string from UI.
     // We need to insert with sender_id = user.id
     
+    const chat = chats.find(c => c.id === chatId);
+    const receiverId = chat ? chat.participantIds.find(id => id !== user.id) : null;
+
     // Generate ID for optimistic update to prevent duplication with realtime
     const tempId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `temp-${Date.now()}-${Math.random()}`;
     
@@ -461,6 +464,7 @@ export const ChatProvider = ({ children }) => {
         id: tempId,
         chat_id: chatId,
         sender_id: user.id,
+        receiver_id: receiverId, // Add receiver_id for completeness
         content: text,
         created_at: new Date().toISOString(),
         sender: 'me',
@@ -491,6 +495,7 @@ export const ChatProvider = ({ children }) => {
           id: tempId, // Use generated ID
           chat_id: chatId,
           sender_id: user.id,
+          receiver_id: receiverId, // Required for new RLS policy
           content: text,
           metadata: { sender_cargo: profile?.cargo || null }
         });
@@ -601,6 +606,10 @@ export const ChatProvider = ({ children }) => {
 
   const deleteChat = async (chatId) => {
     try {
+      // Find chat to get request ID
+      const chat = chats.find(c => c.id === chatId);
+      const requestId = chat?.metadata?.original_request_id;
+      
       // Try RPC first for atomic deletion
       const { error: rpcError } = await supabase.rpc('clear_chat_history', { p_chat_id: chatId });
       
@@ -618,6 +627,14 @@ export const ChatProvider = ({ children }) => {
           .delete()
           .eq('id', chatId);
         if (chatError) throw chatError;
+      }
+      
+      // Delete associated support request if it exists
+      if (requestId) {
+          await supabase
+            .from('support_queue')
+            .delete()
+            .eq('id', requestId);
       }
 
       // Update local state
