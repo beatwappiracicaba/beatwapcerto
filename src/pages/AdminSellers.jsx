@@ -46,7 +46,7 @@ export const AdminSellers = () => {
     setLoading(true);
     try {
       // Fetch Goals
-      const { data: goalsData } = await supabase.from('seller_goals').select('*').eq('seller_id', sellerId).order('month_year', { ascending: false });
+      const { data: goalsData } = await supabase.from('seller_goals').select('*').eq('seller_id', sellerId).order('year', { ascending: false }).order('month', { ascending: false });
       setGoals(goalsData || []);
 
       // Fetch Commissions
@@ -66,13 +66,17 @@ export const AdminSellers = () => {
 
   const handleSaveGoal = async () => {
     if (!selectedSeller || !goalForm.month_year) return;
+    
+    const [year, month] = goalForm.month_year.split('-').map(Number);
+
     try {
       const { error } = await supabase.from('seller_goals').upsert({
         seller_id: selectedSeller.id,
-        month_year: goalForm.month_year,
+        month,
+        year,
         shows_target: parseInt(goalForm.shows_target),
         revenue_target: parseFloat(goalForm.revenue_target)
-      }, { onConflict: 'seller_id,month_year' });
+      }, { onConflict: 'seller_id,month,year' });
       
       if (error) throw error;
       fetchSellerData(selectedSeller.id);
@@ -154,7 +158,7 @@ export const AdminSellers = () => {
               <div className="mt-4 space-y-2 max-h-60 overflow-y-auto">
                 {goals.map(g => (
                   <div key={g.id} className="flex justify-between items-center p-3 bg-white/5 rounded-lg text-sm">
-                    <span className="text-white font-bold">{g.month_year}</span>
+                    <span className="text-white font-bold">{g.month}/{g.year}</span>
                     <div className="text-right">
                       <div className="text-beatwap-gold">{g.shows_target} shows</div>
                       <div className="text-gray-400">R$ {g.revenue_target}</div>
