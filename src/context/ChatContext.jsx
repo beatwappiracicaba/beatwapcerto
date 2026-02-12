@@ -34,7 +34,10 @@ export const ChatProvider = ({ children }) => {
         })
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
           const m = payload.new;
-          const roleStr = String(m.sender_role || m.sender_cargo || '').toLowerCase();
+          // Fix: Extract role from metadata if available (since DB column is metadata, not sender_role)
+          const metaRole = m.metadata?.sender_cargo || '';
+          const roleStr = String(m.sender_role || m.sender_cargo || metaRole || '').toLowerCase();
+          
           // Simplified sender logic - improves handling for multi-role chats
           const sender = m.sender_id === user.id ? 'me' : (
             roleStr.includes('artist') || roleStr.includes('artista') ? 'artist' : 'admin'
@@ -42,6 +45,7 @@ export const ChatProvider = ({ children }) => {
           
           const text = m.content ?? m.message ?? '';
           const timestamp = m.created_at;
+          
           setChats(prev => {
             const idx = prev.findIndex(c => c.id === m.chat_id);
             if (idx === -1) {
@@ -49,18 +53,28 @@ export const ChatProvider = ({ children }) => {
               fetchChats();
               return prev;
             }
+            
+            // Check if message already exists (deduplication for optimistic updates)
+            const msgExists = prev[idx].messages.some(msg => msg.id === m.id);
+            if (msgExists) return prev;
+
             const updatedChat = {
               ...prev[idx],
               messages: [...prev[idx].messages, { ...m, sender, text, timestamp }],
               lastMessage: text,
-              lastMessageTime: timestamp
+              lastMessageTime: timestamp,
+              unreadCount: (sender !== 'me' && !m.read) ? (prev[idx].unreadCount || 0) + 1 : (prev[idx].unreadCount || 0)
             };
             const next = [...prev];
             next[idx] = updatedChat;
             return next;
           });
         })
-        .subscribe();
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('Chat realtime subscribed');
+          }
+        });
 
       return () => {
         supabase.removeChannel(channel);
@@ -342,19 +356,67 @@ export const ChatProvider = ({ children }) => {
   const sendMessage = async (chatId, text, sender, context = null) => {
     // sender is 'artist' or 'admin' string from UI.
     // We need to insert with sender_id = user.id
+    
+    // Generate ID for optimistic update to prevent duplication with realtime
+    const tempId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `temp-${Date.now()}-${Math.random()}`;
+    
+    // Optimistic Update
+    const optimisticMsg = {
+        id: tempId,
+        chat_id: chatId,
+        sender_id: user.id,
+        content: text,
+        created_at: new Date().toISOString(),
+        sender: 'me',
+        text: text,
+        read: false,
+        metadata: { sender_cargo: profile?.cargo || null }
+    };
+
+    setChats(prev => {
+        const idx = prev.findIndex(c => c.id === chatId);
+        if (idx === -1) return prev;
+        
+        const updatedChat = {
+          ...prev[idx],
+          messages: [...prev[idx].messages, optimisticMsg],
+          lastMessage: text,
+          lastMessageTime: optimisticMsg.created_at
+        };
+        const next = [...prev];
+        next[idx] = updatedChat;
+        return next;
+    });
+
     try {
       const { error } = await supabase
         .from('messages')
         .insert({
+          id: tempId, // Use generated ID
           chat_id: chatId,
           sender_id: user.id,
           content: text,
           metadata: { sender_cargo: profile?.cargo || null }
         });
 
-      if (error) throw error;
+      if (error) {
+        // Rollback on error
+        setChats(prev => {
+            const idx = prev.findIndex(c => c.id === chatId);
+            if (idx === -1) return prev;
+            
+            const updatedChat = {
+              ...prev[idx],
+              messages: prev[idx].messages.filter(m => m.id !== tempId)
+            };
+            const next = [...prev];
+            next[idx] = updatedChat;
+            return next;
+        });
+        throw error;
+      }
 
-      // fetchChats will be triggered by subscription
+      // Subscription will handle the rest (ignoring duplicate ID)
     } catch (error) {
       console.error('Error sending message:', error);
     }
