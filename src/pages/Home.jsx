@@ -7,7 +7,6 @@ import HowItWorks from '../components/landing/HowItWorks';
 import Benefits from '../components/landing/Benefits';
 import Transparency from '../components/landing/Transparency';
 import Pricing from '../components/landing/Pricing';
-import ShowFormats from '../components/landing/ShowFormats';
 import ShowProduction from '../components/landing/ShowProduction';
 import MentorshipPlans from '../components/landing/MentorshipPlans';
 import SpecialOffer from '../components/landing/SpecialOffer';
