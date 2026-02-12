@@ -235,33 +235,36 @@ export const DashboardArtistMusics = () => {
             </div>
           )}
           {!loading && musics.map((m) => (
-            <div key={m.id} className="flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
-              <div className="w-12 h-12 rounded-lg bg-gray-800 overflow-hidden shrink-0">
-                {m.cover_url ? (
-                  <img src={m.cover_url} alt={m.titulo} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs"><span>Capa</span></div>
-                )}
+            <div key={m.id} className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
+              <div className="flex items-center gap-4 w-full sm:flex-1 min-w-0">
+                <div className="w-12 h-12 rounded-lg bg-gray-800 overflow-hidden shrink-0">
+                  {m.cover_url ? (
+                    <img src={m.cover_url} alt={m.titulo} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs"><span>Capa</span></div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-white truncate"><span>{m.titulo}</span></div>
+                  <div className="text-xs text-gray-400 truncate"><span>{m.nome_artista} • {new Date(m.created_at).toLocaleDateString()}</span></div>
+                  {m.status === 'aprovado' && (
+                    <div className="mt-1 text-xs text-gray-300">
+                      <span>
+                      {(() => {
+                        const mm = musicMetrics[m.id] || { plays: 0, totalSeconds: 0, presaves: 0 };
+                        const hh = Math.floor(mm.totalSeconds / 3600);
+                        const mmn = Math.floor((mm.totalSeconds % 3600) / 60);
+                        const ss = mm.totalSeconds % 60;
+                        const totalFmt = `${hh}h ${mmn}m ${ss}s`;
+                        return `Plays: ${mm.plays} • Tempo total: ${totalFmt} • Pré-saves: ${mm.presaves}`;
+                      })()}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="flex-1">
-                <div className="font-bold text-white"><span>{m.titulo}</span></div>
-                <div className="text-xs text-gray-400"><span>{m.nome_artista} • {new Date(m.created_at).toLocaleDateString()}</span></div>
-                {m.status === 'aprovado' && (
-                  <div className="mt-1 text-xs text-gray-300">
-                    <span>
-                    {(() => {
-                      const mm = musicMetrics[m.id] || { plays: 0, totalSeconds: 0, presaves: 0 };
-                      const hh = Math.floor(mm.totalSeconds / 3600);
-                      const mmn = Math.floor((mm.totalSeconds % 3600) / 60);
-                      const ss = mm.totalSeconds % 60;
-                      const totalFmt = `${hh}h ${mmn}m ${ss}s`;
-                      return `Plays: ${mm.plays} • Tempo total: ${totalFmt} • Pré-saves: ${mm.presaves}`;
-                    })()}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center gap-4">
+
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:justify-end">
                 <div className={`text-xs px-3 py-1 rounded-full font-bold uppercase ${
                   m.status === 'aprovado' ? 'bg-green-500/20 text-green-500' :
                   m.status === 'recusado' ? 'bg-red-500/20 text-red-500' :
@@ -272,13 +275,14 @@ export const DashboardArtistMusics = () => {
                 {m.status === 'aprovado' && (
                   <>
                     {m.upc && (
-                      <div className="text-xs px-2 py-1 rounded-full bg-white/10 text-white">
+                      <div className="text-xs px-2 py-1 rounded-full bg-white/10 text-white whitespace-nowrap">
                         <span>UPC: {m.upc}</span>
                       </div>
                     )}
                     {m.presave_link && (
                       <AnimatedButton 
                         onClick={() => navigator.clipboard.writeText(m.presave_link)}
+                        className="w-full sm:w-auto justify-center"
                       >
                         <span>Copiar Pré-save</span>
                       </AnimatedButton>
@@ -286,7 +290,7 @@ export const DashboardArtistMusics = () => {
                   </>
                 )}
                 {m.motivo_recusa && (
-                  <div className="text-xs text-red-400 max-w-[150px] truncate" title={m.motivo_recusa}>
+                  <div className="text-xs text-red-400 max-w-full sm:max-w-[150px] truncate" title={m.motivo_recusa}>
                     <span>{m.motivo_recusa}</span>
                   </div>
                 )}

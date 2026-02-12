@@ -120,18 +120,23 @@ export const DashboardLayout = ({ children }) => {
       </aside>
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />}
       <main className="flex-1 w-full px-4 sm:px-6 py-6 md:ml-0 ml-0">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-3">
+        <div className="flex items-center justify-between mb-6 gap-3">
           <div className="flex items-center gap-3">
-            <button className="md:hidden p-2 rounded-xl bg-white/5 border border-white/10" onClick={() => setSidebarOpen(true)}>
+            <button className="md:hidden p-2 rounded-xl bg-white/5 border border-white/10 shrink-0" onClick={() => setSidebarOpen(true)}>
               <Menu size={18} />
             </button>
-            <div className="text-xs text-gray-400"><span>Bem-vindo</span></div>
-            <div className="text-2xl font-bold">
-              <span>{profile?.nome || profile?.cargo || 'Usuário'}</span>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs text-gray-400">Bem-vindo</div>
+              <div className="text-lg md:text-2xl font-bold truncate">
+                {profile?.nome || profile?.cargo || 'Usuário'}
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            {currentUserId && <NotificationBell userId={currentUserId} />}
+          <div className="flex items-center gap-3 md:gap-6 shrink-0">
+            <div className="relative z-50">
+              {currentUserId && <NotificationBell userId={currentUserId} />}
+            </div>
+            <div className="h-6 w-px bg-white/10 hidden md:block"></div>
             <ProfileButton profile={profile} />
           </div>
         </div>
