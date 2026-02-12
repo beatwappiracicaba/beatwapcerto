@@ -26,8 +26,17 @@ export const ChatProvider = ({ children }) => {
           const updated = payload.new;
           setChats(prev => prev.map(c => c.id === updated.id ? { 
             ...c, 
-            assignedTo: updated.assigned_to ?? c.assignedTo 
+            assignedTo: updated.assigned_to ?? c.assignedTo,
+            status: updated.status ?? c.status
           } : c));
+        })
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chats' }, (payload) => {
+          const deletedId = payload.old.id;
+          setChats(prev => prev.filter(c => c.id !== deletedId));
+          if (activeChatId === deletedId) {
+            setActiveChatId(null);
+            setIsOpen(false);
+          }
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'support_queue' }, () => {
           fetchQueue();

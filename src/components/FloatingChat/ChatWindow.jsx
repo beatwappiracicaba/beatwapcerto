@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, ArrowLeft, Search, User, UserCheck, Lock, Trash2, Plus, Users, Music, Briefcase, Bell } from 'lucide-react';
+import { MessageCircle, X, Send, ArrowLeft, Search, User, UserCheck, Lock, Trash2, Plus, Users, Music, Briefcase, Bell, ChevronLeft } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
 import { MessageBubble } from './MessageBubble';
@@ -135,11 +135,11 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
     if (!inputText.trim()) return;
 
     if (!activeChatId) return;
-    // For generalized chat, sender role logic is handled in Context/Backend usually,
-    // but here we pass 'me' or 'admin' just for context if needed, mostly context handles it.
-    // We just pass the text.
-    await sendMessage(activeChatId, inputText, 'me'); // 'me' is a placeholder, Context uses profile
-    setInputText('');
+    
+    const textToSend = inputText;
+    setInputText(''); // Clear immediately (optimistic)
+
+    await sendMessage(activeChatId, textToSend, 'me'); 
   };
 
   const handleAssign = async () => {
