@@ -95,7 +95,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
   const addTrack = () => {
     setFormData(prev => ({ 
       ...prev, 
-      tracks: [...prev.tracks, { titulo: '', estilo: '', audio_file: null, authorization_file: null }] 
+      tracks: [...prev.tracks, { titulo: '', estilo: '', isrc: '', has_feat: false, feat_name: '', composer: '', producer: '', audio_file: null, authorization_file: null }] 
     }));
   };
   const removeTrack = (index) => {
@@ -122,14 +122,26 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
       setErrors(prev => ({ ...prev, submit: 'Preencha todos os campos obrigatórios.' }));
       return;
     }
+    // Single track validations
+    if (!formData.is_album) {
+      if (formData.has_feat && !formData.feat_name) {
+        setErrors(prev => ({ ...prev, submit: 'Informe o nome do Feat.' }));
+        return;
+      }
+      if (!formData.composer || !formData.producer) {
+         setErrors(prev => ({ ...prev, submit: 'Informe o Compositor e Produtor.' }));
+         return;
+      }
+    }
+
     if (formData.is_album) {
       if (!formData.tracks.length) {
         setErrors(prev => ({ ...prev, submit: 'Adicione pelo menos uma faixa.' }));
         return;
       }
-      const missing = formData.tracks.find(t => !t.titulo || !t.estilo || !t.audio_file);
+      const missing = formData.tracks.find(t => !t.titulo || !t.estilo || !t.audio_file || !t.composer || !t.producer || (t.has_feat && !t.feat_name));
       if (missing) {
-        setErrors(prev => ({ ...prev, submit: 'Informe título, estilo e arquivo de áudio para cada faixa.' }));
+        setErrors(prev => ({ ...prev, submit: 'Preencha título, estilo, áudio, compositor, produtor e feat (se houver) para cada faixa.' }));
         return;
       }
     }
@@ -211,7 +223,12 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
           audio_url: tu.audioUrl,
           authorization_url: tu.authUrl ?? authUrl,
           plataformas: formData.plataformas.includes('Todas') ? ['Todas'] : formData.plataformas_selecionadas,
-          status: 'pendente'
+          status: 'pendente',
+          isrc: (tu.isrc || '').trim() || null,
+          has_feat: tu.has_feat || false,
+          feat_name: tu.feat_name || null,
+          composer: tu.composer || null,
+          producer: tu.producer || null
         }));
         const { error: errBatch } = await supabase.from('musics').insert(rows);
         if (errBatch) throw errBatch;
@@ -226,7 +243,12 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
           audio_url: audioUrl,
           authorization_url: authUrl,
           plataformas: formData.plataformas.includes('Todas') ? ['Todas'] : formData.plataformas_selecionadas,
-          status: 'pendente'
+          status: 'pendente',
+          isrc: (formData.isrc || '').trim() || null,
+          has_feat: formData.has_feat || false,
+          feat_name: formData.feat_name || null,
+          composer: formData.composer || null,
+          producer: formData.producer || null
         });
         if (error) throw error;
       }
@@ -313,6 +335,51 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
                   onChange={(e) => setFormData({...formData, estilo: e.target.value})} 
                   placeholder="Ex: Trap, Funk, Pop"
                 />
+                
+                {!formData.is_album && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <AnimatedInput 
+                        label="Compositor" 
+                        value={formData.composer || ''} 
+                        onChange={(e) => setFormData({...formData, composer: e.target.value})} 
+                        placeholder="Nome do Compositor"
+                      />
+                      <AnimatedInput 
+                        label="Produtor" 
+                        value={formData.producer || ''} 
+                        onChange={(e) => setFormData({...formData, producer: e.target.value})} 
+                        placeholder="Nome do Produtor"
+                      />
+                    </div>
+                    <AnimatedInput 
+                      label="ISRC (Opcional)" 
+                      value={formData.isrc || ''} 
+                      onChange={(e) => setFormData({...formData, isrc: e.target.value})} 
+                      placeholder="Código ISRC"
+                    />
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-sm font-medium text-gray-400">Possui Feat?</label>
+                        <input 
+                          type="checkbox" 
+                          checked={formData.has_feat || false} 
+                          onChange={(e) => setFormData({...formData, has_feat: e.target.checked})}
+                          className="w-5 h-5 accent-beatwap-gold rounded cursor-pointer"
+                        />
+                      </div>
+                      {formData.has_feat && (
+                        <AnimatedInput 
+                          label="Nome do Feat" 
+                          value={formData.feat_name || ''} 
+                          onChange={(e) => setFormData({...formData, feat_name: e.target.value})} 
+                          placeholder="Ex: MC Convidado"
+                        />
+                      )}
+                    </div>
+                  </>
+                )}
+
                 <div className="flex items-center gap-2">
                   <input 
                     type="checkbox" 
@@ -383,6 +450,47 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess }) => {
                             onChange={(e) => updateTrackField(idx, 'estilo', e.target.value)} 
                             placeholder="Ex: Trap, Funk, Pop"
                           />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          <AnimatedInput 
+                            label="Compositor" 
+                            value={t.composer || ''} 
+                            onChange={(e) => updateTrackField(idx, 'composer', e.target.value)} 
+                            placeholder="Compositor"
+                          />
+                          <AnimatedInput 
+                            label="Produtor" 
+                            value={t.producer || ''} 
+                            onChange={(e) => updateTrackField(idx, 'producer', e.target.value)} 
+                            placeholder="Produtor"
+                          />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          <AnimatedInput 
+                            label="ISRC (Opcional)" 
+                            value={t.isrc || ''} 
+                            onChange={(e) => updateTrackField(idx, 'isrc', e.target.value)} 
+                            placeholder="ISRC"
+                          />
+                          <div className="bg-white/5 border border-white/10 rounded-xl p-2">
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="text-xs font-medium text-gray-400">Possui Feat?</label>
+                              <input 
+                                type="checkbox" 
+                                checked={t.has_feat || false} 
+                                onChange={(e) => updateTrackField(idx, 'has_feat', e.target.checked)}
+                                className="w-4 h-4 accent-beatwap-gold rounded cursor-pointer"
+                              />
+                            </div>
+                            {t.has_feat && (
+                              <AnimatedInput 
+                                label="Nome do Feat" 
+                                value={t.feat_name || ''} 
+                                onChange={(e) => updateTrackField(idx, 'feat_name', e.target.value)} 
+                                placeholder="Nome do Artista"
+                              />
+                            )}
+                          </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           <div className="flex items-center gap-3 p-3 bg-black/20 border border-white/10 rounded-xl">

@@ -173,7 +173,11 @@ export const DataProvider = ({ children }) => {
         audio_url: newMusicData.audioFile,
         cover_url: newMusicData.cover,
         authorization_url: newMusicData.authorizationUrl || null,
-        plataformas: newMusicData.plataformas || ['Todas']
+        plataformas: newMusicData.plataformas || ['Todas'],
+        composer: newMusicData.composer || null,
+        producer: newMusicData.producer || null,
+        has_feat: newMusicData.hasFeaturing || false,
+        feat_name: newMusicData.featuringArtist || null
       };
 
       const { data, error } = await supabase
@@ -199,7 +203,11 @@ export const DataProvider = ({ children }) => {
         releaseDate: new Date(data.created_at).toLocaleDateString('pt-BR'),
         isrc: data.isrc || 'Pendente',
         upc: data.upc || 'Pendente',
-        date: new Date(data.created_at).toLocaleDateString('pt-BR')
+        date: new Date(data.created_at).toLocaleDateString('pt-BR'),
+        composer: data.composer,
+        producer: data.producer,
+        hasFeaturing: data.has_feat,
+        featuringArtist: data.feat_name
       };
 
       setMusic(prev => [newMusic, ...prev]);

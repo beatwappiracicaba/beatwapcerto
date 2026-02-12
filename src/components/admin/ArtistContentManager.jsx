@@ -25,6 +25,8 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
     upc: '',
     internalNote: '',
     songwriter: '',
+    producer: '',
+    isrc: '',
     hasFeaturing: false,
     featuringArtist: '',
     distributeAll: false,
@@ -33,7 +35,8 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
     audioFile: null,
     coverFile: null,
     isAlbum: false,
-    audioFiles: []
+    audioFiles: [],
+    tracks: []
   });
 
   // Filter music for this artist
@@ -47,6 +50,8 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
       upc: '',
       internalNote: '',
       songwriter: '',
+      producer: '',
+      isrc: '',
       hasFeaturing: false,
       featuringArtist: '',
       distributeAll: false,
@@ -55,7 +60,8 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
       audioFile: null,
       coverFile: null,
       isAlbum: false,
-      audioFiles: []
+      audioFiles: [],
+      tracks: []
     });
   };
 
@@ -94,8 +100,33 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
   const handleFilesChange = (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
-    setFormData(prev => ({ ...prev, audioFiles: files, isAlbum: true, audioFile: null }));
+    
+    const newTracks = files.map(file => ({
+      title: file.name.replace(/\.[^/.]+$/, ""),
+      audioFile: file,
+      isrc: '',
+      composer: formData.songwriter || '',
+      producer: formData.producer || '',
+      hasFeaturing: false,
+      featuringArtist: ''
+    }));
+
+    setFormData(prev => ({ 
+      ...prev, 
+      audioFiles: files, 
+      isAlbum: true, 
+      audioFile: null,
+      tracks: newTracks 
+    }));
     addToast('Arquivos de áudio selecionados!', 'success');
+  };
+
+  const updateTrack = (index, field, value) => {
+    setFormData(prev => {
+      const newTracks = [...prev.tracks];
+      newTracks[index] = { ...newTracks[index], [field]: value };
+      return { ...prev, tracks: newTracks };
+    });
   };
 
   const uploadFile = async (file, bucket) => {
@@ -138,28 +169,31 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
         }
       }
       if (view === 'add') {
-        if (formData.isAlbum && formData.audioFiles.length) {
-          for (let i = 0; i < formData.audioFiles.length; i++) {
-            const f = formData.audioFiles[i];
-            const trackAudioUrl = await uploadFile(f, 'music_files');
-            const title = `${formData.title} - Faixa ${i + 1}`;
+        if (formData.isAlbum && formData.tracks.length) {
+          for (let i = 0; i < formData.tracks.length; i++) {
+            const track = formData.tracks[i];
+            const trackAudioUrl = await uploadFile(track.audioFile, 'music_files');
+            
             await addMusic({
               artistId: artist.id,
               artist: artist.name,
-              title,
+              title: track.title || `${formData.title} - Faixa ${i + 1}`,
               genre: formData.genre,
               upc: formData.upc,
               internalNote: formData.internalNote,
-              songwriter: formData.songwriter,
-              hasFeaturing: formData.hasFeaturing,
-              featuringArtist: formData.featuringArtist,
+              songwriter: track.composer || formData.songwriter,
+              producer: track.producer || formData.producer,
+              isrc: track.isrc,
+              hasFeaturing: track.hasFeaturing,
+              featuringArtist: track.featuringArtist,
               distributeAll: formData.distributeAll,
               isOriginal: formData.isOriginal,
               audioFile: trackAudioUrl,
               cover: coverUrl,
               authorizationUrl: authorizationUrl,
               status: 'pendente',
-              addedBy: 'admin'
+              addedBy: 'admin',
+              composer: track.composer || formData.songwriter,
             });
           }
           addNotification({
@@ -179,6 +213,8 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
             upc: formData.upc,
             internalNote: formData.internalNote,
             songwriter: formData.songwriter,
+            producer: formData.producer,
+            isrc: formData.isrc,
             hasFeaturing: formData.hasFeaturing,
             featuringArtist: formData.featuringArtist,
             distributeAll: formData.distributeAll,
@@ -187,7 +223,8 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
             cover: coverUrl,
             authorizationUrl: authorizationUrl,
             status: 'pendente',
-            addedBy: 'admin'
+            addedBy: 'admin',
+            composer: formData.songwriter
           });
           addNotification({
             recipientId: artist.id,
@@ -374,6 +411,12 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
                       value={formData.songwriter}
                       onChange={e => setFormData({...formData, songwriter: e.target.value})}
                     />
+                    <AnimatedInput 
+                      label="Produtor" 
+                      placeholder="Nome do Produtor" 
+                      value={formData.producer}
+                      onChange={e => setFormData({...formData, producer: e.target.value})}
+                    />
                     <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-4">
                       <div className="flex items-center justify-between">
                         <label className="text-sm font-medium text-gray-400">Possui participação especial (Feat)?</label>
@@ -434,12 +477,20 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
                         </div>
                       )}
                     </div>
-                    <AnimatedInput 
-                      label="ISRC (Opcional)" 
-                      placeholder="BR-XXX-24-00000" 
-                      value={formData.upc}
-                      onChange={e => setFormData({...formData, upc: e.target.value})}
-                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <AnimatedInput 
+                        label="UPC (Opcional)" 
+                        placeholder="Código UPC" 
+                        value={formData.upc}
+                        onChange={e => setFormData({...formData, upc: e.target.value})}
+                      />
+                      <AnimatedInput 
+                        label="ISRC (Opcional)" 
+                        placeholder="BR-XXX-24-00000" 
+                        value={formData.isrc}
+                        onChange={e => setFormData({...formData, isrc: e.target.value})}
+                      />
+                    </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-400 mb-2">Observação Interna (Admin)</label>
                       <textarea 
@@ -489,6 +540,76 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
                           </label>
                         </div>
                       )}
+                      
+                      {formData.isAlbum && formData.tracks.length > 0 && (
+                        <div className="mt-6 space-y-4 border-t border-white/10 pt-4">
+                          <h3 className="font-bold text-white flex items-center gap-2">
+                            <Music size={18} className="text-beatwap-gold" /> 
+                            Editar Faixas ({formData.tracks.length})
+                          </h3>
+                          <div className="space-y-4">
+                            {formData.tracks.map((track, idx) => (
+                              <div key={idx} className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-sm font-bold text-gray-400">Faixa {idx + 1}</span>
+                                  <span className="text-xs text-gray-500 truncate max-w-[200px]">{track.audioFile.name}</span>
+                                </div>
+                                
+                                <AnimatedInput 
+                                  label="Título" 
+                                  value={track.title} 
+                                  onChange={e => updateTrack(idx, 'title', e.target.value)} 
+                                  placeholder="Título da faixa"
+                                />
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                  <AnimatedInput 
+                                    label="Compositor" 
+                                    value={track.composer} 
+                                    onChange={e => updateTrack(idx, 'composer', e.target.value)} 
+                                    placeholder="Compositor"
+                                  />
+                                  <AnimatedInput 
+                                    label="Produtor" 
+                                    value={track.producer} 
+                                    onChange={e => updateTrack(idx, 'producer', e.target.value)} 
+                                    placeholder="Produtor"
+                                  />
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                  <AnimatedInput 
+                                    label="ISRC" 
+                                    value={track.isrc} 
+                                    onChange={e => updateTrack(idx, 'isrc', e.target.value)} 
+                                    placeholder="ISRC da faixa"
+                                  />
+                                  <div className="bg-black/20 border border-white/10 rounded-xl p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <label className="text-xs font-medium text-gray-400">Possui Feat?</label>
+                                      <input 
+                                        type="checkbox" 
+                                        checked={track.hasFeaturing} 
+                                        onChange={e => updateTrack(idx, 'hasFeaturing', e.target.checked)}
+                                        className="w-4 h-4 accent-beatwap-gold rounded cursor-pointer"
+                                      />
+                                    </div>
+                                    {track.hasFeaturing && (
+                                      <AnimatedInput 
+                                        label="Nome do Feat" 
+                                        value={track.featuringArtist} 
+                                        onChange={e => updateTrack(idx, 'featuringArtist', e.target.value)} 
+                                        placeholder="Nome do Artista"
+                                      />
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${formData.coverFile ? 'border-beatwap-gold bg-beatwap-gold/5' : 'border-gray-700 hover:border-gray-500'}`}>
                         <input type="file" id="cover-admin" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'coverFile')} />
                         <label htmlFor="cover-admin" className="cursor-pointer flex flex-col items-center gap-2">
