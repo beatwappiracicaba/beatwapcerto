@@ -14,6 +14,13 @@ export const MessageBubble = ({ message, isOwn }) => {
             : 'bg-white/10 text-white rounded-tl-none'
         }`}
       >
+        {/* Sender Name */}
+        {!isOwn && (
+          <div className="text-[10px] font-bold text-beatwap-gold/80 mb-1">
+            {message.senderName || (message.sender === 'admin' ? 'Produtor' : 'Usuário')}
+          </div>
+        )}
+
         {message.context && (
           <div className={`text-xs mb-2 p-2 rounded ${
             isOwn ? 'bg-black/10' : 'bg-black/20'

@@ -320,9 +320,11 @@ export const ChatProvider = ({ children }) => {
         });
       }
 
-      // Fetch messages in batch (avoid FK embedding to prevent 400)
+      // Fetch messages in batch
       const chatIds = (data || []).map(c => c.id);
       let messagesByChat = {};
+      const allSenderIds = new Set();
+      
       if (chatIds.length) {
         const { data: msgsData, error: msgsErr } = await supabase
           .from('messages')
@@ -332,12 +334,26 @@ export const ChatProvider = ({ children }) => {
           (msgsData || []).forEach(m => {
             messagesByChat[m.chat_id] = messagesByChat[m.chat_id] || [];
             messagesByChat[m.chat_id].push(m);
+            if (m.sender_id) allSenderIds.add(m.sender_id);
           });
           // sort messages per chat
           Object.keys(messagesByChat).forEach(cid => {
             messagesByChat[cid].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
           });
         }
+      }
+
+      // Fetch all sender profiles (admins, artists, etc.)
+      let senderNameMap = {};
+      const uniqueSenderIds = Array.from(allSenderIds);
+      if (uniqueSenderIds.length) {
+         const { data: senderProfiles } = await supabase
+           .from('profiles')
+           .select('id, nome, nome_completo_razao_social')
+           .in('id', uniqueSenderIds);
+         (senderProfiles || []).forEach(p => {
+            senderNameMap[p.id] = p.nome || p.nome_completo_razao_social || 'Usuário';
+         });
       }
 
       // Process data to match mockChats structure
@@ -355,6 +371,7 @@ export const ChatProvider = ({ children }) => {
           return {
             ...m,
             sender,
+            senderName: senderNameMap[m.sender_id] || 'Usuário',
             timestamp: m.created_at,
             text: m.content ?? m.message ?? ''
           };
@@ -474,10 +491,11 @@ export const ChatProvider = ({ children }) => {
         id: tempId,
         chat_id: chatId,
         sender_id: user.id,
-        receiver_id: receiverId, // Add receiver_id for completeness
+        receiver_id: receiverId, 
         content: text,
         created_at: new Date().toISOString(),
         sender: 'me',
+        senderName: profile?.nome || profile?.nome_completo_razao_social || 'Eu',
         text: text,
         read: false,
         metadata: { sender_cargo: profile?.cargo || null }
@@ -502,10 +520,10 @@ export const ChatProvider = ({ children }) => {
       const { error } = await supabase
         .from('messages')
         .insert({
-          id: tempId, // Use generated ID
+          id: tempId, 
           chat_id: chatId,
           sender_id: user.id,
-          receiver_id: receiverId, // Required for new RLS policy
+          receiver_id: receiverId,
           content: text,
           metadata: { sender_cargo: profile?.cargo || null }
         });
@@ -620,24 +638,24 @@ export const ChatProvider = ({ children }) => {
       const chat = chats.find(c => c.id === chatId);
       const requestId = chat?.metadata?.original_request_id;
       
-      // Try RPC first for atomic deletion
-      const { error: rpcError } = await supabase.rpc('clear_chat_history', { p_chat_id: chatId });
+      // Direct deletion - Messages first, then Chat
+      // This avoids reliance on RPCs that might not exist or have permission issues
+      const { error: msgError } = await supabase
+        .from('messages')
+        .delete()
+        .eq('chat_id', chatId);
       
-      if (rpcError) {
-        console.warn('RPC clear_chat_history failed, falling back to manual deletion', rpcError);
-        // Fallback: Delete messages then chat
-        const { error: msgError } = await supabase
-          .from('messages')
-          .delete()
-          .eq('chat_id', chatId);
-        if (msgError) throw msgError;
-        
-        const { error: chatError } = await supabase
-          .from('chats')
-          .delete()
-          .eq('id', chatId);
-        if (chatError) throw chatError;
+      if (msgError) {
+        console.error('Error deleting messages:', msgError);
+        // Continue trying to delete chat even if messages fail (cascade might handle it)
       }
+      
+      const { error: chatError } = await supabase
+        .from('chats')
+        .delete()
+        .eq('id', chatId);
+        
+      if (chatError) throw chatError;
       
       // Delete associated support request if it exists
       if (requestId) {
@@ -653,8 +671,10 @@ export const ChatProvider = ({ children }) => {
         setActiveChatId(null);
         setIsOpen(false);
       }
+      return true;
     } catch (error) {
       console.error('Error deleting chat:', error);
+      return false;
     }
   };
 
