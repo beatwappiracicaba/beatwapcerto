@@ -395,6 +395,54 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                   className="bg-black/40 border-white/5"
                />
             </div>
+
+            {/* Support Queue Section (Visible to Providers) */}
+            {filteredQueue.length > 0 && (
+              <div className="mb-4">
+                <h4 className="px-2 text-xs font-bold text-beatwap-gold uppercase tracking-wider mb-2 flex items-center justify-between">
+                  <span>Solicitações Pendentes</span>
+                  <span className="bg-beatwap-gold text-black text-[10px] px-1.5 rounded-full">{filteredQueue.length}</span>
+                </h4>
+                <div className="space-y-2">
+                  {filteredQueue.map(req => (
+                    <div 
+                      key={req.id}
+                      onClick={() => handlePickRequest(req)}
+                      className="p-3 bg-beatwap-gold/5 border border-beatwap-gold/20 hover:bg-beatwap-gold/10 rounded-xl cursor-pointer transition-all group"
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-beatwap-gold/20 flex items-center justify-center text-beatwap-gold font-bold text-xs">
+                             {(req.requester?.nome || 'U').substring(0,1).toUpperCase()}
+                          </div>
+                          <div>
+                             <h4 className="font-bold text-sm text-white">{req.requester?.nome || 'Usuário'}</h4>
+                             <p className="text-[10px] text-gray-400">{req.requester?.cidade} - {req.requester?.genero_musical}</p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-beatwap-gold font-mono bg-black/40 px-1.5 py-0.5 rounded">
+                          {new Date(req.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                        </span>
+                      </div>
+                      
+                      {req.metadata?.summary && (
+                        <div className="mt-2 p-2 bg-black/20 rounded-lg border border-white/5">
+                          <p className="text-xs text-gray-300 italic">"{req.metadata.summary}"</p>
+                        </div>
+                      )}
+                      
+                      <div className="mt-2 flex justify-end">
+                        <button className="text-[10px] bg-beatwap-gold text-black px-3 py-1 rounded-full font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                          Atender Agora
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="h-px bg-white/10 my-4 mx-2" />
+              </div>
+            )}
+
             {filteredChats.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <MessageCircle className="mx-auto mb-2 opacity-20" size={32} />

@@ -222,6 +222,16 @@ export const ChatProvider = ({ children }) => {
       await fetchChats();
       setActiveChatId(data.id);
       setIsOpen(true);
+      
+      // Delete the request from queue immediately after picking it
+      await supabase
+        .from('support_queue')
+        .delete()
+        .eq('id', request.id);
+      
+      // Refresh queue (realtime might handle this, but to be safe)
+      fetchQueue();
+
       return data.id;
     } catch (error) {
       console.error('Error picking request:', error);
