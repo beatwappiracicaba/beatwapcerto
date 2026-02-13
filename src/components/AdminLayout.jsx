@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutGrid, Users, Music, LogOut, Menu, X, Settings } from 'lucide-react';
+import { LayoutGrid, Users, Music, LogOut, Menu, X, Settings, DollarSign } from 'lucide-react';
 import { Card } from './ui/Card';
 import { AnimatedButton } from './ui/AnimatedButton';
 import { useAuth } from '../context/AuthContext';
@@ -49,6 +49,10 @@ export const AdminLayout = ({ children }) => {
               <Users size={18} /> Vendedores
             </NavLink>
           )}
+
+          <NavLink to="/admin/finance" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+            <DollarSign size={18} /> Financeiro
+          </NavLink>
 
           {permissions.admin_musics !== false && (
             <NavLink to="/admin/musics" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>

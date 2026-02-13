@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabaseClient';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { MusicUploadModal } from '../components/artist/MusicUploadModal';
-import { Plus } from 'lucide-react';
+import { Plus, DollarSign } from 'lucide-react';
 
 export const DashboardArtistHome = () => {
   const { user, profile } = useAuth();
@@ -29,6 +29,15 @@ export const DashboardArtistHome = () => {
         .from('analytics_events')
         .select('type, duration_seconds, ip_hash')
         .eq('artist_id', user.id);
+
+      // Show Revenue
+      const { data: shows } = await supabase
+        .from('artist_work_events')
+        .select('artist_share')
+        .eq('artista_id', user.id)
+        .eq('status', 'pago');
+
+      const showRevenue = shows?.reduce((acc, curr) => acc + (Number(curr.artist_share) || 0), 0) || 0;
 
       const agg = {
         plays: 0,
@@ -56,7 +65,8 @@ export const DashboardArtistHome = () => {
         receita_estimada: legacy?.receita_estimada || 0,
         tempo_ouvido: agg.time,
         visitas_perfil: agg.profile_views,
-        cliques_sociais: agg.social_clicks
+        cliques_sociais: agg.social_clicks,
+        faturamento_shows: showRevenue
       });
       setLoading(false);
     };
@@ -65,7 +75,7 @@ export const DashboardArtistHome = () => {
   return (
     <DashboardLayout>
       {!isCompositor && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
           <Card>
             <div className="text-sm text-gray-400"><span>Total de Plays</span></div>
             <div className="text-3xl font-bold"><span>{loading ? '...' : metrics?.total_plays ?? 0}</span></div>
@@ -75,11 +85,33 @@ export const DashboardArtistHome = () => {
             <div className="text-3xl font-bold"><span>{loading ? '...' : metrics?.ouvintes_mensais ?? 0}</span></div>
           </Card>
           <Card>
-            <div className="text-sm text-gray-400"><span>Receita Estimada</span></div>
+            <div className="text-sm text-gray-400"><span>Receita Estimada (Streaming)</span></div>
             <div className="text-3xl font-bold"><span>{loading ? '...' : metrics?.receita_estimada ?? 0}</span></div>
+          </Card>
+          <Card className="relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <DollarSign size={80} className="text-green-500" />
+            </div>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 bg-green-500/10 rounded-lg text-green-500"><DollarSign size={16} /></div>
+              <span className="text-sm text-gray-400">Faturamento Shows</span>
+            </div>
+            <div className="text-3xl font-bold text-white relative z-10">
+              <span>{loading ? '...' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metrics?.faturamento_shows || 0)}</span>
+            </div>
           </Card>
         </div>
       )}
+      
+      {!isCompositor && (
+        <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-center">
+          <p className="text-sm text-yellow-200">
+            ⚠️ O dinheiro das vendas cai direto na conta da produtora e a produtora faz os repasses conforme é para cada um ganhar. 
+            A produtora retém uma porcentagem para a manutenção do site.
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <div className="text-sm text-gray-400"><span>Tempo Ouvido</span></div>

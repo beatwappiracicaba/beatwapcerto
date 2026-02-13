@@ -23,7 +23,8 @@ const SellerDashboard = () => {
       const month = date.getMonth() + 1;
       const year = date.getFullYear();
 
-      const { data, error } = await supabase
+      // Fetch goals
+      const { data: goalsData, error: goalsError } = await supabase
         .from('seller_goals')
         .select('*')
         .eq('seller_id', user.id)
@@ -31,10 +32,26 @@ const SellerDashboard = () => {
         .eq('year', year)
         .single();
 
-      if (error && error.code !== 'PGRST116') throw error;
-      setGoals(data || { shows_target: 10, current_shows: 0, revenue_target: 50000, current_revenue: 0 }); // Default fallback
+      if (goalsError && goalsError.code !== 'PGRST116') throw goalsError;
+
+      // Fetch actual revenue from distributed events
+      const { data: events, error: eventsError } = await supabase
+        .from('artist_work_events')
+        .select('seller_commission')
+        .eq('seller_id', user.id)
+        .eq('status', 'pago');
+
+      if (eventsError) throw eventsError;
+
+      const realizedRevenue = events?.reduce((acc, curr) => acc + (Number(curr.seller_commission) || 0), 0) || 0;
+
+      setGoals({
+        ...(goalsData || { shows_target: 10, current_shows: 0, revenue_target: 50000 }),
+        current_revenue: realizedRevenue
+      });
+      
     } catch (error) {
-      console.error('Error fetching goals:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
@@ -60,6 +77,13 @@ const SellerDashboard = () => {
               Novas Oportunidades
             </AnimatedButton>
           </div>
+        </div>
+
+        <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-center">
+          <p className="text-sm text-yellow-200">
+            ⚠️ O dinheiro das vendas cai direto na conta da produtora e a produtora faz os repasses conforme é para cada um ganhar. 
+            A produtora retém uma porcentagem para a manutenção do site.
+          </p>
         </div>
 
         {/* Metas Section */}
