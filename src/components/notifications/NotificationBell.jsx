@@ -93,7 +93,7 @@ export const NotificationBell = ({ userId }) => {
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
-            className="absolute right-0 mt-2 bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 w-[85vw] sm:w-[360px] max-w-[85vw]"
+            className="fixed inset-x-4 top-20 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 w-auto sm:w-[360px]"
           >
             <div className="flex items-center justify-between p-3 border-b border-white/10">
               <div className="flex items-center gap-2">

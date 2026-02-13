@@ -53,6 +53,32 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
   const scrollContainerRef = useRef(null);
   const [showNewMessageToast, setShowNewMessageToast] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [selectedQuestion, setSelectedQuestion] = useState(null);
+
+  const AUTO_HELP_QUESTIONS = {
+    'Artista': [
+      { question: 'Como enviar minha música?', answer: 'Para enviar sua música, acesse o menu "Minha Conta", clique em "Músicas" e depois no botão "Nova Música". Preencha os dados e faça o upload.' },
+      { question: 'Como editar meu perfil?', answer: 'Vá em "Minha Conta" > "Perfil" para alterar sua foto, biografia e links de redes sociais.' },
+      { question: 'Como ver meus pagamentos?', answer: 'Acesse o menu "Financeiro" para visualizar seu saldo e histórico de saques.' },
+      { question: 'Minha música foi reprovada?', answer: 'Verifique o motivo no status da música. Corrija o arquivo ou as informações e envie novamente.' }
+    ],
+    'Vendedor': [
+      { question: 'Como ver meus leads?', answer: 'No menu lateral, clique em "Leads" para visualizar seus clientes potenciais.' },
+      { question: 'Como registrar vendas?', answer: 'Acesse "Vendas" ou "Financeiro" para registrar novas transações.' }
+    ],
+    'Compositor': [
+      { question: 'Como cadastrar obras?', answer: 'No menu "Minhas Obras", clique em "Nova Obra" para cadastrar suas composições.' },
+      { question: 'Como recebo royalties?', answer: 'Os royalties são calculados e repassados conforme seu contrato. Verifique no menu "Financeiro".' }
+    ],
+    'Produtor': [
+      { question: 'Como aprovar artistas?', answer: 'Acesse o Painel Admin > Artistas Pendentes para revisar cadastros.' },
+      { question: 'Como enviar notificações?', answer: 'Use o ícone de sino no topo da lista de conversas para enviar mensagens em massa ou individuais.' }
+    ]
+  };
+
+  const getHelpQuestions = () => {
+    return AUTO_HELP_QUESTIONS[userRole] || AUTO_HELP_QUESTIONS['Artista'];
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -205,10 +231,15 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
   useEffect(() => {
     if ((mode === 'new' || mode === 'notifications' || mode === 'users_list') && (userRole === 'Produtor' || userRole === 'admin')) {
       const fetchAll = async () => {
-         const { data } = await supabase
+         const { data, error } = await supabase
            .from('profiles')
-           .select('id, nome, nome_completo_razao_social, cargo, email, avatar_url, cidade, estado')
+           .select('id, nome, nome_completo_razao_social, cargo, email, avatar_url') // Removed cidade/estado to avoid 400 error
            .order('nome', { ascending: true });
+         
+         if (error) {
+           console.error('Error fetching profiles:', error);
+           return;
+         }
          if (data) setAllUsers(data);
       };
       fetchAll();
@@ -366,10 +397,11 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
               )}
               <button 
                 onClick={() => setMode('new')} 
-                className="text-beatwap-gold hover:bg-white/10 p-1 rounded-full"
+                className="text-beatwap-gold hover:bg-white/10 px-2 py-1 rounded-full flex items-center gap-1 transition-colors"
                 title="Nova Conversa"
               >
                 <Plus size={20} />
+                <span className="text-xs font-bold hidden sm:inline">Nova Conversa</span>
               </button>
             </>
           )}
@@ -477,10 +509,33 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
             )}
 
             {filteredChats.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <MessageCircle className="mx-auto mb-2 opacity-20" size={32} />
-                <p className="text-sm">Nenhuma conversa ativa.</p>
-                <button onClick={() => setMode('new')} className="text-beatwap-gold text-sm mt-2 hover:underline">Iniciar nova conversa</button>
+              <div className="p-4">
+                <div className="text-center py-4 text-gray-500 mb-4">
+                   <MessageCircle className="mx-auto mb-2 opacity-20" size={32} />
+                   <p className="text-sm font-bold text-gray-400">Como podemos ajudar?</p>
+                </div>
+                
+                <div className="space-y-2">
+                   {getHelpQuestions().map((q, i) => (
+                     <button 
+                       key={i} 
+                       onClick={() => {
+                         setMode('new');
+                         setSelectedQuestion(q);
+                       }} 
+                       className="w-full text-left p-3 bg-white/5 hover:bg-white/10 rounded-xl text-sm text-gray-200 transition-colors border border-white/5 flex justify-between items-center group"
+                     >
+                       <span>{q.question}</span>
+                       <span className="text-beatwap-gold opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+                     </button>
+                   ))}
+                </div>
+                
+                <div className="mt-6 pt-4 border-t border-white/10 text-center">
+                   <button onClick={() => setMode('new')} className="text-beatwap-gold text-sm font-bold hover:underline flex items-center justify-center gap-2 mx-auto">
+                      <Plus size={16} /> Iniciar nova conversa
+                   </button>
+                </div>
               </div>
             ) : (
               filteredChats.map(chat => (
@@ -522,116 +577,183 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
 
         {/* NEW CHAT MODE */}
         {mode === 'new' && (
-          <div className="p-4 space-y-3">
-            <p className="text-sm text-gray-400 mb-4">Com quem você deseja falar?</p>
-            
-            {/* Options for Artist */}
-            {(userRole === 'Artista' || userRole === 'Artist') && (
-              <>
-                <button onClick={() => handleInitiateSupport('produtor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left">
-                  <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400"><Users size={20} /></div>
-                  <div>
-                    <h4 className="font-bold text-white">Falar com Produtor</h4>
-                    <p className="text-xs text-gray-400">Tirar dúvidas e suporte</p>
-                  </div>
-                </button>
-                <button onClick={() => handleInitiateSupport('vendedor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left">
-                  <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-green-400"><Briefcase size={20} /></div>
-                  <div>
-                    <h4 className="font-bold text-white">Falar com Vendedor</h4>
-                    <p className="text-xs text-gray-400">Negócios e contratações</p>
-                  </div>
-                </button>
-                <button onClick={() => handleRequestSupport('compositor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left">
-                  <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400"><Music size={20} /></div>
-                  <div>
-                    <h4 className="font-bold text-white">Falar com Compositor</h4>
-                    <p className="text-xs text-gray-400">Comprar músicas inéditas</p>
-                  </div>
-                </button>
-              </>
-            )}
+          <div className="p-4 h-full flex flex-col">
+            {!selectedQuestion ? (
+              <div className="flex-1 overflow-y-auto space-y-4">
+                 <div>
+                    <p className="text-sm text-gray-400 mb-2 font-bold flex items-center gap-2">
+                       <span className="w-1 h-4 bg-beatwap-gold rounded-full"></span>
+                       Ajuda Rápida
+                    </p>
+                    <div className="space-y-2">
+                      {getHelpQuestions().map((q, i) => (
+                        <button 
+                          key={i} 
+                          onClick={() => setSelectedQuestion(q)} 
+                          className="w-full text-left p-3 bg-white/5 hover:bg-white/10 rounded-xl text-sm text-gray-200 transition-colors border border-white/5 flex justify-between items-center group"
+                        >
+                          <span>{q.question}</span>
+                          <span className="text-beatwap-gold opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+                        </button>
+                      ))}
+                    </div>
+                 </div>
 
-            {/* Options for Seller */}
-            {(userRole === 'Vendedor') && (
-              <>
-                <button onClick={() => handleRequestSupport('produtor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left">
-                  <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400"><Users size={20} /></div>
-                  <div>
-                    <h4 className="font-bold text-white">Falar com Produtor</h4>
-                    <p className="text-xs text-gray-400">Suporte administrativo</p>
-                  </div>
-                </button>
-                <button onClick={() => setMode('queue')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left relative">
-                  <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-400"><UserCheck size={20} /></div>
-                  <div>
-                    <h4 className="font-bold text-white">Atender Artistas</h4>
-                    <p className="text-xs text-gray-400">Ver solicitações de artistas</p>
-                  </div>
-                  {filteredQueue.length > 0 && (
-                    <span className="absolute top-4 right-4 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                      {filteredQueue.length}
-                    </span>
-                  )}
-                </button>
-                <button onClick={handleLoadArtists} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left">
-                  <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400"><Users size={20} /></div>
-                  <div>
-                    <h4 className="font-bold text-white">Todos os Artistas</h4>
-                    <p className="text-xs text-gray-400">Iniciar conversa com qualquer artista</p>
-                  </div>
-                </button>
-              </>
-            )}
+                 <div>
+                    <p className="text-sm text-gray-400 mb-2 font-bold flex items-center gap-2">
+                       <span className="w-1 h-4 bg-blue-500 rounded-full"></span>
+                       Falar com alguém
+                    </p>
+                    <div className="space-y-2">
+                        {/* Options for Artist */}
+                        {(userRole === 'Artista' || userRole === 'Artist') && (
+                          <>
+                            <button onClick={() => handleInitiateSupport('produtor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left border border-white/5">
+                              <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400"><Users size={20} /></div>
+                              <div>
+                                <h4 className="font-bold text-white">Falar com Produtor</h4>
+                                <p className="text-xs text-gray-400">Tirar dúvidas e suporte</p>
+                              </div>
+                            </button>
+                            <button onClick={() => handleInitiateSupport('vendedor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left border border-white/5">
+                              <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-green-400"><Briefcase size={20} /></div>
+                              <div>
+                                <h4 className="font-bold text-white">Falar com Vendedor</h4>
+                                <p className="text-xs text-gray-400">Negócios e contratações</p>
+                              </div>
+                            </button>
+                            <button onClick={() => handleRequestSupport('compositor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left border border-white/5">
+                              <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400"><Music size={20} /></div>
+                              <div>
+                                <h4 className="font-bold text-white">Falar com Compositor</h4>
+                                <p className="text-xs text-gray-400">Comprar músicas inéditas</p>
+                              </div>
+                            </button>
+                          </>
+                        )}
 
-            {/* Options for Composer */}
-            {(userRole === 'Compositor') && (
-              <>
-                <button onClick={() => handleRequestSupport('produtor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left">
-                  <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400"><Users size={20} /></div>
-                  <div>
-                    <h4 className="font-bold text-white">Falar com Produtor</h4>
-                    <p className="text-xs text-gray-400">Suporte administrativo</p>
-                  </div>
-                </button>
-                <button onClick={() => setMode('queue')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left relative">
-                  <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-400"><UserCheck size={20} /></div>
-                  <div>
-                    <h4 className="font-bold text-white">Atender Artistas</h4>
-                    <p className="text-xs text-gray-400">Ver solicitações de artistas</p>
-                  </div>
-                  {filteredQueue.length > 0 && (
-                    <span className="absolute top-4 right-4 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                      {filteredQueue.length}
-                    </span>
-                  )}
-                </button>
-              </>
-            )}
+                        {/* Options for Seller */}
+                        {(userRole === 'Vendedor') && (
+                          <>
+                            <button onClick={() => handleRequestSupport('produtor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left border border-white/5">
+                              <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400"><Users size={20} /></div>
+                              <div>
+                                <h4 className="font-bold text-white">Falar com Produtor</h4>
+                                <p className="text-xs text-gray-400">Suporte administrativo</p>
+                              </div>
+                            </button>
+                            <button onClick={() => setMode('queue')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left relative border border-white/5">
+                              <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-400"><UserCheck size={20} /></div>
+                              <div>
+                                <h4 className="font-bold text-white">Atender Artistas</h4>
+                                <p className="text-xs text-gray-400">Ver solicitações de artistas</p>
+                              </div>
+                              {filteredQueue.length > 0 && (
+                                <span className="absolute top-4 right-4 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                                  {filteredQueue.length}
+                                </span>
+                              )}
+                            </button>
+                            <button onClick={handleLoadArtists} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left border border-white/5">
+                              <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400"><Users size={20} /></div>
+                              <div>
+                                <h4 className="font-bold text-white">Todos os Artistas</h4>
+                                <p className="text-xs text-gray-400">Iniciar conversa com qualquer artista</p>
+                              </div>
+                            </button>
+                          </>
+                        )}
 
-            {/* Options for Producer */}
-            {(userRole === 'Produtor') && (
-              <>
-                <button onClick={() => setMode('queue')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left relative">
-                  <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-400"><UserCheck size={20} /></div>
-                  <div>
-                    <h4 className="font-bold text-white">Ver Solicitações</h4>
-                    <p className="text-xs text-gray-400">Atender usuários precisando de ajuda</p>
-                  </div>
-                  {filteredQueue.length > 0 && (
-                    <span className="absolute top-4 right-4 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                      {filteredQueue.length}
-                    </span>
-                  )}
-                </button>
-                <button onClick={() => setMode('users_list')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left relative">
-                  <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400"><Users size={20} /></div>
-                  <div>
-                    <h4 className="font-bold text-white">Todos os Usuários</h4>
-                    <p className="text-xs text-gray-400">Iniciar conversa com qualquer usuário</p>
-                  </div>
-                </button>
-              </>
+                        {/* Options for Composer */}
+                        {(userRole === 'Compositor') && (
+                          <>
+                            <button onClick={() => handleRequestSupport('produtor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left border border-white/5">
+                              <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400"><Users size={20} /></div>
+                              <div>
+                                <h4 className="font-bold text-white">Falar com Produtor</h4>
+                                <p className="text-xs text-gray-400">Suporte administrativo</p>
+                              </div>
+                            </button>
+                            <button onClick={() => setMode('queue')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left relative border border-white/5">
+                              <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-400"><UserCheck size={20} /></div>
+                              <div>
+                                <h4 className="font-bold text-white">Atender Artistas</h4>
+                                <p className="text-xs text-gray-400">Ver solicitações de artistas</p>
+                              </div>
+                              {filteredQueue.length > 0 && (
+                                <span className="absolute top-4 right-4 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                                  {filteredQueue.length}
+                                </span>
+                              )}
+                            </button>
+                          </>
+                        )}
+
+                        {/* Options for Producer */}
+                        {(userRole === 'Produtor') && (
+                          <>
+                            <button onClick={() => setMode('queue')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left relative border border-white/5">
+                              <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-400"><UserCheck size={20} /></div>
+                              <div>
+                                <h4 className="font-bold text-white">Ver Solicitações</h4>
+                                <p className="text-xs text-gray-400">Atender usuários precisando de ajuda</p>
+                              </div>
+                              {filteredQueue.length > 0 && (
+                                <span className="absolute top-4 right-4 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                                  {filteredQueue.length}
+                                </span>
+                              )}
+                            </button>
+                            <button onClick={() => setMode('users_list')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left relative border border-white/5">
+                              <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400"><Users size={20} /></div>
+                              <div>
+                                <h4 className="font-bold text-white">Todos os Usuários</h4>
+                                <p className="text-xs text-gray-400">Iniciar conversa com qualquer usuário</p>
+                              </div>
+                            </button>
+                          </>
+                        )}
+                    </div>
+                 </div>
+              </div>
+            ) : (
+              <div className="flex flex-col h-full animate-in fade-in duration-300">
+                 <button onClick={() => setSelectedQuestion(null)} className="text-gray-400 hover:text-white flex items-center gap-1 text-xs mb-4">
+                    <ChevronLeft size={14} /> Voltar
+                 </button>
+
+                 <div className="flex-1 overflow-y-auto mb-4 space-y-4 pr-2">
+                     <div className="flex justify-end">
+                         <div className="bg-beatwap-gold text-black p-3 rounded-2xl rounded-tr-none max-w-[85%] text-sm font-medium shadow-lg">
+                             {selectedQuestion.question}
+                         </div>
+                     </div>
+                     
+                     <div className="flex justify-start">
+                         <div className="bg-[#222] text-white border border-white/10 p-3 rounded-2xl rounded-tl-none max-w-[85%] text-sm shadow-lg">
+                             <p>{selectedQuestion.answer}</p>
+                         </div>
+                     </div>
+                 </div>
+                 
+                 <div className="space-y-2 mt-auto pt-4 border-t border-white/10">
+                     <button 
+                        onClick={() => {
+                            setSelectedQuestion(null);
+                            handleInitiateSupport('produtor');
+                        }}
+                        className="w-full py-3 bg-beatwap-gold hover:bg-yellow-500 text-black font-bold rounded-xl transition-colors shadow-lg shadow-beatwap-gold/10"
+                     >
+                        Ainda sim preciso falar com o produtor
+                     </button>
+                     <button 
+                        onClick={() => setSelectedQuestion(null)}
+                        className="w-full py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors"
+                     >
+                        Isso ajudou, obrigado
+                     </button>
+                 </div>
+              </div>
             )}
           </div>
         )}
@@ -786,7 +908,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                     className="w-full bg-black/40 border border-white/10 rounded p-2 text-white text-sm focus:border-beatwap-gold outline-none"
                  >
                    <option value="">Selecione...</option>
-                   {allUsers.map(u => (
+                   {filteredUsers.map(u => (
                      <option key={u.id} value={u.id}>
                        {u.nome || u.nome_completo_razao_social || u.email} ({u.cargo || 'Sem cargo'})
                      </option>

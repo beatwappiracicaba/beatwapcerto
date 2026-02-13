@@ -11,6 +11,7 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { ProfileEditModal } from '../components/ui/ProfileEditModal';
 import { GalleryManager } from '../components/profile/GalleryManager';
 import { buildDistributionContractHTML } from '../utils/contractTemplate';
+import { encryptFormFields, decryptData } from '../utils/security';
 
 export const DashboardArtistProfile = () => {
   const { user, profile, refreshProfile } = useAuth();
@@ -60,8 +61,8 @@ export const DashboardArtistProfile = () => {
         nome: profile.nome || '',
         nome_completo_razao_social: profile.nome_completo_razao_social || '',
         email: user.email || '',
-        cpf_cnpj: profile.cpf_cnpj || '',
-        celular: profile.celular || '',
+        cpf_cnpj: decryptData(profile.cpf_cnpj || ''),
+        celular: decryptData(profile.celular || ''),
         instagram_url: profile.instagram_url || '',
         site_url: profile.site_url || '',
         youtube_url: profile.youtube_url || '',
@@ -70,10 +71,10 @@ export const DashboardArtistProfile = () => {
         tiktok_url: profile.tiktok_url || '',
         genero_musical: profile.genero_musical || '',
         tema: profile.tema || 'dark',
-        cep: profile.cep || '',
-        logradouro: profile.logradouro || '',
-        complemento: profile.complemento || '',
-        bairro: profile.bairro || '',
+        cep: decryptData(profile.cep || ''),
+        logradouro: decryptData(profile.logradouro || ''),
+        complemento: decryptData(profile.complemento || ''),
+        bairro: decryptData(profile.bairro || ''),
         cidade: profile.cidade || '',
         estado: profile.estado || '',
         plano: profile.plano || 'Gratuito'
@@ -141,28 +142,40 @@ export const DashboardArtistProfile = () => {
   const handleSave = async () => {
     setLoading(true);
     try {
+      const dataToUpdate = {
+        nome: formData.nome,
+        nome_completo_razao_social: formData.nome_completo_razao_social,
+        cpf_cnpj: formData.cpf_cnpj,
+        celular: formData.celular,
+        instagram_url: formData.instagram_url,
+        site_url: formData.site_url,
+        youtube_url: formData.youtube_url,
+        spotify_url: formData.spotify_url,
+        deezer_url: formData.deezer_url,
+        tiktok_url: formData.tiktok_url,
+        genero_musical: formData.genero_musical,
+        tema: formData.tema,
+        cep: formData.cep,
+        logradouro: formData.logradouro,
+        complemento: formData.complemento,
+        bairro: formData.bairro,
+        cidade: formData.cidade,
+        estado: formData.estado
+      };
+
+      // Criptografar dados sensíveis
+      const encryptedData = encryptFormFields(dataToUpdate, [
+        'cpf_cnpj', 
+        'celular', 
+        'cep', 
+        'logradouro', 
+        'complemento', 
+        'bairro'
+      ]);
+
       const { error } = await supabase
         .from('profiles')
-        .update({
-          nome: formData.nome,
-          nome_completo_razao_social: formData.nome_completo_razao_social,
-          cpf_cnpj: formData.cpf_cnpj,
-          celular: formData.celular,
-          instagram_url: formData.instagram_url,
-          site_url: formData.site_url,
-          youtube_url: formData.youtube_url,
-          spotify_url: formData.spotify_url,
-          deezer_url: formData.deezer_url,
-          tiktok_url: formData.tiktok_url,
-          genero_musical: formData.genero_musical,
-          tema: formData.tema,
-          cep: formData.cep,
-          logradouro: formData.logradouro,
-          complemento: formData.complemento,
-          bairro: formData.bairro,
-          cidade: formData.cidade,
-          estado: formData.estado
-        })
+        .update(encryptedData)
         .eq('id', user.id);
 
       if (error) throw error;

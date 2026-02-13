@@ -14,6 +14,7 @@ import { SplashScreen } from '../components/ui/SplashScreen';
 import Home from '../pages/Home';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
+import AuthCallback from '../pages/AuthCallback';
 import Terms from '../pages/Terms';
 import Privacy from '../pages/Privacy';
 import Copyright from '../pages/Copyright';
@@ -64,6 +65,9 @@ export const AppRoutes = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
         </Route>
+        
+        {/* Rota de Callback para Confirmação de Email */}
+        <Route path="/auth/callback" element={<AuthCallback />} />
 
         <Route path="/dashboard" element={isVendedor ? <SellerDashboard /> : (isArtista || isCompositor) ? <DashboardArtistHome /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/musics" element={isArtista ? <DashboardArtistMusics /> : <Navigate to="/" replace />} />

@@ -21,6 +21,8 @@ import { buildDistributionContractHTML } from '../utils/contractTemplate';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
+import { encryptData, decryptData, downloadDecryptedFile } from '../utils/security';
+
 export const AdminHome = () => {
   const [counts, setCounts] = useState({ artists: 0, musics: 0, pending: 0 });
   const [myMetrics, setMyMetrics] = useState(null);
@@ -389,7 +391,15 @@ export const AdminArtists = () => {
       .from('profiles')
       .select('id, nome, nome_completo_razao_social, avatar_url, cargo')
       .in('cargo', ['Artista', 'Compositor']);
-    setArtists(data || []);
+      
+    const decryptedArtists = (data || []).map(artist => ({
+      ...artist,
+      nome_completo_razao_social: decryptData(artist.nome_completo_razao_social),
+      // Decrypt nome if it happens to be encrypted (though usually public)
+      nome: decryptData(artist.nome)
+    }));
+    
+    setArtists(decryptedArtists);
   }, []);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -402,6 +412,8 @@ export const AdminArtists = () => {
         revenue: String(m.revenue || ''),
         growth: String(m.growth || '')
       });
+      // Decrypt sensitive data if present in profile (though AdminArtists usually lists public profiles, 
+      // if we have sensitive columns here we should decrypt them)
     } else {
       setMetricsForm({ plays: '', listeners: '', revenue: '', growth: '' });
     }
@@ -983,6 +995,25 @@ export const AdminMusics = () => {
     }
   };
 
+  const handleDownloadDoc = async (url, title) => {
+    try {
+      addToast('Baixando documento seguro...', 'info');
+      const blob = await downloadDecryptedFile(url);
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      const ext = url.split('.').pop().split('?')[0] || 'dat';
+      link.download = `doc_${title.replace(/[^a-z0-9]/gi, '_')}.${ext}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error(error);
+      addToast('Erro ao baixar documento.', 'error');
+    }
+  };
+
   const renderTrackCard = (m, isAlbumTrack = false) => (
     <motion.div
       key={m.id}
@@ -1029,7 +1060,7 @@ export const AdminMusics = () => {
             </AnimatedButton>
           )}
           {m.authorization_url && (
-            <AnimatedButton onClick={() => window.open(m.authorization_url, '_blank')}>
+            <AnimatedButton onClick={() => handleDownloadDoc(m.authorization_url, m.titulo)}>
               <Download size={16} />
               Baixar Documento
             </AnimatedButton>
@@ -1354,16 +1385,16 @@ export const AdminProfile = () => {
         ...prev,
         nome_completo_razao_social: profile.nome_completo_razao_social || profile.nome || '',
         email: user.email || '',
-        cpf_cnpj: profile.cpf_cnpj || '',
-        celular: profile.celular || '',
+        cpf_cnpj: decryptData(profile.cpf_cnpj || ''),
+        celular: decryptData(profile.celular || ''),
         instagram_url: profile.instagram_url || '',
         site_url: profile.site_url || '',
         genero_musical: profile.genero_musical || '',
         tema: profile.tema || 'dark',
-        cep: profile.cep || '',
-        logradouro: profile.logradouro || '',
-        complemento: profile.complemento || '',
-        bairro: profile.bairro || '',
+        cep: decryptData(profile.cep || ''),
+        logradouro: decryptData(profile.logradouro || ''),
+        complemento: decryptData(profile.complemento || ''),
+        bairro: decryptData(profile.bairro || ''),
         cidade: profile.cidade || '',
         estado: profile.estado || '',
         plano: profile.plano || 'Gratuito'
@@ -1382,16 +1413,16 @@ export const AdminProfile = () => {
         .from('profiles')
         .update({
           nome_completo_razao_social: formData.nome_completo_razao_social,
-          cpf_cnpj: formData.cpf_cnpj,
-          celular: formData.celular,
+          cpf_cnpj: encryptData(formData.cpf_cnpj),
+          celular: encryptData(formData.celular),
           instagram_url: formData.instagram_url,
           site_url: formData.site_url,
           genero_musical: formData.genero_musical,
           tema: formData.tema,
-          cep: formData.cep,
-          logradouro: formData.logradouro,
-          complemento: formData.complemento,
-          bairro: formData.bairro,
+          cep: encryptData(formData.cep),
+          logradouro: encryptData(formData.logradouro),
+          complemento: encryptData(formData.complemento),
+          bairro: encryptData(formData.bairro),
           cidade: formData.cidade,
           estado: formData.estado
         })

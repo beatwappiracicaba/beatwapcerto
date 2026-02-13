@@ -8,6 +8,7 @@ import { useData } from '../../context/DataContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useToast } from '../../context/ToastContext';
 import { supabase } from '../../services/supabaseClient';
+import { encryptFile } from '../../utils/security';
 
 import { MusicUploadModal } from '../artist/MusicUploadModal';
 
@@ -165,9 +166,19 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
       }
       if (formData.authorizationFile) {
         try {
-          authorizationUrl = await uploadFile(formData.authorizationFile, 'music_docs');
-        } catch {
-          authorizationUrl = await uploadFile(formData.authorizationFile, 'music_covers');
+          // Criptografar documento antes do upload
+          const encryptedBlob = await encryptFile(formData.authorizationFile);
+          const encryptedFile = new File([encryptedBlob], formData.authorizationFile.name, { type: 'text/plain' });
+          
+          try {
+            authorizationUrl = await uploadFile(encryptedFile, 'music_docs');
+          } catch {
+            authorizationUrl = await uploadFile(encryptedFile, 'music_covers');
+          }
+        } catch (error) {
+          console.error('Erro ao criptografar documento:', error);
+          addToast('Erro ao proteger documento.', 'error');
+          return;
         }
       }
       if (view === 'add') {

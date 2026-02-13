@@ -6,6 +6,7 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Card } from '../components/ui/Card';
 import { supabase } from '../services/supabaseClient';
 import { useToast } from '../context/ToastContext';
+import { encryptData } from '../utils/security';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -90,7 +91,7 @@ const Register = () => {
         password: formData.password,
         options: {
           data: optionsData,
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         }
       });
       

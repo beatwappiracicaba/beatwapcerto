@@ -6,6 +6,7 @@ import { useToast } from '../../context/ToastContext';
 import { supabase } from '../../services/supabaseClient';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
+import { encryptData, decryptData } from '../../utils/security';
 
 const plans = {
   'avulso': {
@@ -52,19 +53,23 @@ const CheckoutModal = ({ isOpen, onClose, planType }) => {
   useEffect(() => {
     if (isOpen && user) {
       // Pre-fill with user data if available
+      // Attempt to get data from user_metadata first
+      const meta = user.user_metadata || {};
+      const addr = meta.address || {};
+
       setFormData({
-        fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
-        cpfCnpj: user.user_metadata?.cpf_cnpj || '',
-        phone: user.user_metadata?.phone || '',
+        fullName: meta.full_name || meta.name || '',
+        cpfCnpj: decryptData(meta.cpf_cnpj || ''),
+        phone: decryptData(meta.phone || ''),
         email: user.email || '',
         address: {
-          cep: user.user_metadata?.address?.cep || '',
-          street: user.user_metadata?.address?.street || '',
-          number: user.user_metadata?.address?.number || '',
-          complement: user.user_metadata?.address?.complement || '',
-          neighborhood: user.user_metadata?.address?.neighborhood || '',
-          city: user.user_metadata?.address?.city || '',
-          state: user.user_metadata?.address?.state || ''
+          cep: decryptData(addr.cep || ''),
+          street: decryptData(addr.street || ''),
+          number: decryptData(addr.number || ''),
+          complement: decryptData(addr.complement || ''),
+          neighborhood: decryptData(addr.neighborhood || ''),
+          city: addr.city || '',
+          state: addr.state || ''
         }
       });
     }
@@ -132,12 +137,23 @@ Data: ${new Date().toLocaleDateString()}
     try {
       // 1. Update User Profile in Supabase
       if (user) {
+        // Encrypt sensitive data
+        const encryptedAddress = {
+          ...formData.address,
+          cep: encryptData(formData.address.cep),
+          street: encryptData(formData.address.street),
+          number: encryptData(formData.address.number),
+          complement: encryptData(formData.address.complement),
+          neighborhood: encryptData(formData.address.neighborhood),
+          // city and state are kept unencrypted for search/filter purposes
+        };
+
         const { error } = await supabase.auth.updateUser({
           data: {
             full_name: formData.fullName,
-            cpf_cnpj: formData.cpfCnpj,
-            phone: formData.phone,
-            address: formData.address
+            cpf_cnpj: encryptData(formData.cpfCnpj),
+            phone: encryptData(formData.phone),
+            address: encryptedAddress
           }
         });
 
