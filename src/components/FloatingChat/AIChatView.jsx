@@ -160,7 +160,7 @@ export const AIChatView = ({ userName }) => {
         </form>
         <div className="text-[10px] text-center text-gray-600 mt-2 flex items-center justify-center gap-1">
           <Sparkles size={8} />
-          <span>IA da BeatWap (Powered by Gemini 2.0 Flash)</span>
+          <span>IA da BeatWap (Powered by ChatGPT)</span>
         </div>
       </div>
     </div>

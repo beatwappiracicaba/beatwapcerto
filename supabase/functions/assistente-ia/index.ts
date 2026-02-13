@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || 'AIzaSyCb4Ik5il5fH7cMqYmobw8f5Hi3Eb-dHok';
+// Using the provided OpenAI API Key
+const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+
+if (!OPENAI_API_KEY) {
+  throw new Error('Missing OPENAI_API_KEY environment variable');
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,60 +28,59 @@ serve(async (req) => {
       throw new Error('Invalid messages format')
     }
 
-    // System instruction for Gemini
-    const systemInstruction = {
-      role: "user", 
-      parts: [{
-        text: `Você é o Assistente Oficial da BeatWap.
-Especialista em: Marketing musical, Estratégia para artistas independentes, Distribuição digital, Direitos autorais, ISRC, Crescimento no Spotify, Estratégia de lançamento, Engajamento em redes sociais.
-Tom de voz: Profissional, estratégico, direto e motivador.
-IMPORTANTE: Se o usuário perguntar algo fora do contexto musical/carreira artística, responda educadamente que você só pode ajudar com assuntos relacionados à música e traga a conversa de volta ao universo artístico.
-Responda sempre em Português do Brasil.`
-      }]
+    // System instruction for OpenAI
+    const systemMessage = {
+      role: "system", 
+      content: `Você é o Assistente Oficial da plataforma BeatWap, focado EXCLUSIVAMENTE em música e estratégia de marketing musical.
+
+Sua função é ajudar usuários APENAS com dúvidas sobre:
+- Marketing musical e lançamento de músicas
+- Estratégias para crescer no Spotify, YouTube, redes sociais (para artistas)
+- Direitos autorais, distribuição digital, ISRC
+- Uso da plataforma BeatWap para artistas e produtores
+
+Regras obrigatórias:
+- Se o assunto NÃO for relacionado a música ou carreira artística, responda: "Desculpe, só posso responder sobre música e estratégias de marketing musical." e encerre o assunto.
+- Responder de forma clara e objetiva.
+- Máximo de 5 linhas por resposta.
+- Não repetir a pergunta.
+- Não usar emojis.
+- Focar sempre em solução prática.`
     };
 
-    // Format history for Gemini
-    // Gemini expects: { role: "user"|"model", parts: [{ text: "..." }] }
-    // User messages are "user", Assistant messages are "model"
-    const contents = messages.map(msg => ({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.content }]
-    }));
+    // Format history for OpenAI
+    const openAIMessages = [
+      systemMessage,
+      ...messages.map(msg => ({
+        role: msg.role === 'assistant' ? 'assistant' : 'user', // Ensure 'assistant' role is correct
+        content: msg.content
+      }))
+    ];
 
-    // Add system instruction as the first part of the request context or using systemInstruction field in v1beta
-    // For simplicity and compatibility with standard generateContent, we can prepend it to the first user message 
-    // or use the systemInstruction field if using the appropriate API version.
-    // Let's use the systemInstruction field with v1beta.
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
-    
-    const response = await fetch(url, {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        contents: contents,
-        systemInstruction: {
-          parts: [{ text: systemInstruction.parts[0].text }]
-        },
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 500,
-        }
+        model: "gpt-4o-mini", // Using gpt-4o-mini for speed/cost efficiency, or "gpt-3.5-turbo"
+        messages: openAIMessages,
+        temperature: 0.7,
+        max_tokens: 500
       })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`Gemini API Error: ${response.status} - ${errorText}`);
-      throw new Error(`Gemini API Error: ${response.status} ${response.statusText}`);
+      console.error(`OpenAI API Error: ${response.status} - ${errorText}`);
+      throw new Error(`OpenAI API Error: ${response.status} ${response.statusText}`);
     }
 
     const result = await response.json();
     
-    if (result.candidates && result.candidates.length > 0 && result.candidates[0].content) {
-      const reply = result.candidates[0].content.parts[0].text;
+    if (result.choices && result.choices.length > 0 && result.choices[0].message) {
+      const reply = result.choices[0].message.content;
       
       return new Response(
         JSON.stringify({ reply }),
@@ -86,7 +90,7 @@ Responda sempre em Português do Brasil.`
         }
       );
     } else {
-      throw new Error('Empty response from Gemini');
+      throw new Error('Empty response from OpenAI');
     }
 
   } catch (error) {
@@ -94,7 +98,7 @@ Responda sempre em Português do Brasil.`
     return new Response(
       JSON.stringify({ error: error.message || 'Internal Server Error' }),
       {
-        status: 200,
+        status: 200, // Return 200 to frontend to handle error display gracefully
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     )
