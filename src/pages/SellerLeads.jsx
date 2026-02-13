@@ -12,7 +12,7 @@ import { Plus, Phone, MessageCircle, MoreHorizontal, Calendar, DollarSign, MapPi
 const SellerLeads = () => {
   const { user } = useAuth();
   const { addToast } = useToast();
-  const { sendNotification } = useNotification();
+  const { addNotification } = useNotification();
   const [leads, setLeads] = useState([]);
   const [artists, setArtists] = useState([]);
   const [contractors, setContractors] = useState([]);
@@ -201,7 +201,12 @@ const SellerLeads = () => {
                 .eq('id', existingEvent.id);
               
               // Send notification for canceled show
-              await sendNotification(formData.artist_id, 'Show Cancelado', `O show ${formData.event_name} foi cancelado pois o lead foi perdido.`);
+              await addNotification({
+                recipientId: formData.artist_id,
+                title: 'Show Cancelado',
+                message: `O show ${formData.event_name} foi cancelado pois o lead foi perdido.`,
+                type: 'warning'
+              });
             }
           } else {
             // Map lead status to event status
@@ -213,7 +218,7 @@ const SellerLeads = () => {
             const eventPayload = {
               artista_id: formData.artist_id,
               title: formData.event_name || 'Show Confirmado',
-              date: formData.event_date || new Date().toISOString(),
+              date: formData.event_date ? new Date(formData.event_date).toISOString() : new Date().toISOString(),
               type: 'show',
               notes: `Lead ${formData.status} com ${formData.contractor_name}. Valor: R$ ${formData.budget}`,
               revenue: parseFloat(formData.budget) || 0,
@@ -239,7 +244,12 @@ const SellerLeads = () => {
 
             // Send notification for new lead if it's new
             if (!currentLead) {
-               await sendNotification(formData.artist_id, 'Novo Lead', `Um novo lead foi aberto para você: ${formData.event_name}`);
+               await addNotification({
+                 recipientId: formData.artist_id, 
+                 title: 'Novo Lead', 
+                 message: `Um novo lead foi aberto para você: ${formData.event_name}`,
+                 type: 'info'
+               });
             }
           }
           addToast('Lead salvo e agenda atualizada!', 'success');
