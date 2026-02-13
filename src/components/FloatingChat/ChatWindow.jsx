@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { supabase } from '../../services/supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, ArrowLeft, Search, User, UserCheck, Lock, Trash2, Plus, Users, Music, Briefcase, Bell, ChevronLeft } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
@@ -45,6 +46,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
     title: '',
     message: ''
   });
+  const [allUsers, setAllUsers] = useState([]);
   const [requestSummary, setRequestSummary] = useState('');
   const [pendingRequestRole, setPendingRequestRole] = useState(null);
   const messagesEndRef = useRef(null);
@@ -198,6 +200,25 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
   const filteredArtists = availableArtists.filter(a => 
     (a.nome || '').toLowerCase().includes(artistSearchTerm.toLowerCase()) ||
     (a.nome_completo_razao_social || '').toLowerCase().includes(artistSearchTerm.toLowerCase())
+  );
+
+  useEffect(() => {
+    if ((mode === 'new' || mode === 'notifications' || mode === 'users_list') && (userRole === 'Produtor' || userRole === 'admin')) {
+      const fetchAll = async () => {
+         const { data } = await supabase
+           .from('profiles')
+           .select('id, nome, nome_completo_razao_social, cargo, email, avatar_url, cidade, estado')
+           .order('nome', { ascending: true });
+         if (data) setAllUsers(data);
+      };
+      fetchAll();
+    }
+  }, [mode, userRole]);
+
+  const filteredUsers = allUsers.filter(u => 
+    (u.nome || '').toLowerCase().includes(artistSearchTerm.toLowerCase()) || 
+    (u.nome_completo_razao_social || '').toLowerCase().includes(artistSearchTerm.toLowerCase()) ||
+    (u.email || '').toLowerCase().includes(artistSearchTerm.toLowerCase())
   );
 
   const handleAcceptChat = async () => {
@@ -603,7 +624,13 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                     </span>
                   )}
                 </button>
-                {/* Future: Direct message search */}
+                <button onClick={() => setMode('users_list')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left relative">
+                  <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400"><Users size={20} /></div>
+                  <div>
+                    <h4 className="font-bold text-white">Todos os Usuários</h4>
+                    <p className="text-xs text-gray-400">Iniciar conversa com qualquer usuário</p>
+                  </div>
+                </button>
               </>
             )}
           </div>
@@ -662,6 +689,59 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
             </div>
         )}
 
+        {/* USERS LIST MODE */}
+        {mode === 'users_list' && (
+            <div className="p-2 space-y-2">
+                <div className="px-2 pb-2 space-y-2">
+                    <button onClick={() => setMode('new')} className="text-gray-400 hover:text-white flex items-center gap-1 text-xs">
+                        <ChevronLeft size={14} /> Voltar
+                    </button>
+                    <AnimatedInput 
+                        placeholder="Buscar usuário..." 
+                        icon={Search} 
+                        value={artistSearchTerm}
+                        onChange={(e) => setArtistSearchTerm(e.target.value)}
+                        className="bg-black/40 border-white/5"
+                    />
+                </div>
+                {filteredUsers.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                        <p className="text-sm">Nenhum usuário encontrado.</p>
+                    </div>
+                ) : (
+                    filteredUsers.map(u => (
+                        <div 
+                            key={u.id}
+                            onClick={() => handleArtistSelect(u.id)}
+                            className="p-3 hover:bg-white/5 rounded-xl cursor-pointer transition-colors flex gap-3 items-center"
+                        >
+                            <div className="w-10 h-10 rounded-full bg-white/10 overflow-hidden relative flex items-center justify-center">
+                                {u.avatar_url ? (
+                                    <img src={u.avatar_url} alt={u.nome} className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-beatwap-gold">
+                                        <User size={20} />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex-1 overflow-hidden">
+                                <h4 className="font-bold text-sm text-white truncate">
+                                    {u.nome || u.nome_completo_razao_social || 'Usuário'}
+                                </h4>
+                                <div className="flex gap-2 text-[10px] text-gray-500">
+                                    <span className="bg-white/10 px-1.5 rounded">{u.cargo || 'Artista'}</span>
+                                    {u.cidade && <span>📍 {u.cidade}</span>}
+                                </div>
+                            </div>
+                            <div className="text-beatwap-gold">
+                                <MessageCircle size={18} />
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        )}
+
         {/* NOTIFICATIONS MODE */}
         {mode === 'notifications' && (
           <div className="p-4 space-y-4">
@@ -699,14 +779,19 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                </div>
              ) : (
                <div className="space-y-2">
-                 <label className="text-xs text-gray-400">ID do Usuário</label>
-                 <input 
-                    type="text"
+                 <label className="text-xs text-gray-400">Selecionar Usuário</label>
+                 <select 
                     value={notificationForm.targetId}
                     onChange={(e) => setNotificationForm({...notificationForm, targetId: e.target.value})}
-                    placeholder="Cole o UUID do usuário..."
                     className="w-full bg-black/40 border border-white/10 rounded p-2 text-white text-sm focus:border-beatwap-gold outline-none"
-                 />
+                 >
+                   <option value="">Selecione...</option>
+                   {allUsers.map(u => (
+                     <option key={u.id} value={u.id}>
+                       {u.nome || u.nome_completo_razao_social || u.email} ({u.cargo || 'Sem cargo'})
+                     </option>
+                   ))}
+                 </select>
                </div>
              )}
 

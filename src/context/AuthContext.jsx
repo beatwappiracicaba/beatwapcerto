@@ -20,11 +20,21 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Get session on load
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          fetchProfile(session.user.id);
+        } else {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Session error:', error);
+        if (error.message?.includes('Refresh Token') || error.message?.includes('refresh_token')) {
+          await signOut();
+        }
         setLoading(false);
       }
     };
