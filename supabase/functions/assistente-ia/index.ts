@@ -97,10 +97,11 @@ Responda sempre em Português do Brasil.`
     )
 
   } catch (error) {
+    console.error('Edge Function Error:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
       {
-        status: 400,
+        status: 200, // Return 200 to prevent Supabase SDK from throwing generic error
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     )

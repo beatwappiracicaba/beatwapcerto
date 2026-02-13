@@ -20,6 +20,11 @@ export const aiService = {
         throw error;
       }
 
+      if (data && data.error) {
+        console.error('Backend Error:', data.error);
+        throw new Error(data.error);
+      }
+
       return data.reply;
     } catch (error) {
       console.error('AI Service Error:', error);
