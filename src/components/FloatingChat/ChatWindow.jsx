@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, ArrowLeft, Search, User, UserCheck, Lock, Trash2, Plus, Users, Music, Briefcase, Bell, ChevronLeft } from 'lucide-react';
+import { MessageCircle, X, Send, ArrowLeft, Search, User, UserCheck, Lock, Trash2, Plus, Users, Music, Briefcase, Bell, ChevronLeft, Bot, Sparkles } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
 import { MessageBubble } from './MessageBubble';
 import { AnimatedInput } from '../ui/AnimatedInput';
+import { AIAssistant } from './AIAssistant';
 
 export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
   const { 
@@ -34,6 +35,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
   const { profile, user } = useAuth();
   const userRole = profile?.cargo || 'Artista';
 
+  const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'ai'
   const [inputText, setInputText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [mode, setMode] = useState('list'); // 'list', 'chat', 'new', 'queue', 'notifications', 'artists_list'
@@ -54,6 +56,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
   const [showNewMessageToast, setShowNewMessageToast] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [selectedQuestion, setSelectedQuestion] = useState(null);
+  const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'ia'
 
   const AUTO_HELP_QUESTIONS = {
     'Artista': [
@@ -348,96 +351,144 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
       className="fixed bottom-20 right-2 sm:right-6 w-[94vw] sm:w-96 h-[70vh] sm:h-[500px] bg-[#121212] border border-white/10 rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden"
     >
       {/* Header */}
-      <div className="p-4 bg-beatwap-gold/10 border-b border-white/10 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          {(mode !== 'list') ? (
-             <button onClick={() => {
-               if (mode === 'chat') setActiveChatId(null);
-               setMode('list');
-             }} className="hover:bg-white/10 p-1 rounded-full">
-               <ArrowLeft size={18} />
-             </button>
-          ) : null}
-          <div>
-            <h3 className="font-bold text-white flex items-center gap-2">
-              {mode === 'chat' 
-                ? (activeChat?.artistName || 'Conversa') 
-                : mode === 'new' ? 'Nova Conversa'
-                : mode === 'queue' ? 'Solicitações'
-                : mode === 'request_summary' ? 'Motivo do Contato'
-                : mode === 'notifications' ? 'Enviar Notificação'
-                : 'Mensagens'}
-            </h3>
-            
-            {mode === 'chat' && (
-              !activeChat?.assignedTo ? (
-                 <p className={`text-xs flex items-center gap-1 ${isOnline ? 'text-green-500' : 'text-red-500'}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`}></span> {isOnline ? 'Online' : 'Offline'}
-                 </p>
-              ) : (
-                 <p className="text-xs text-beatwap-gold flex items-center gap-1">
-                   <UserCheck size={12} />
-                   {activeChat.assignedTo === currentUserId ? 'Você está atendendo' : `Atendido por ${getAssignedAdminName(activeChat.assignedTo)}`}
-                 </p>
-              )
+      <div className="bg-beatwap-gold/10 border-b border-white/10 flex flex-col">
+        {/* Top Bar */}
+        <div className="p-4 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            {(mode !== 'list' && activeTab === 'chat') ? (
+               <button onClick={() => {
+                 if (mode === 'chat') setActiveChatId(null);
+                 setMode('list');
+               }} className="hover:bg-white/10 p-1 rounded-full">
+                 <ArrowLeft size={18} />
+               </button>
+            ) : null}
+            <div>
+              <h3 className="font-bold text-white flex items-center gap-2">
+                {activeTab === 'ai' ? (
+                  <>
+                    <Bot size={18} className="text-beatwap-gold" />
+                    <span>Assistente IA</span>
+                  </>
+                ) : (
+                  mode === 'chat' 
+                    ? (activeChat?.artistName || 'Conversa') 
+                    : mode === 'new' ? 'Nova Conversa'
+                    : mode === 'queue' ? 'Solicitações'
+                    : mode === 'request_summary' ? 'Motivo do Contato'
+                    : mode === 'notifications' ? 'Enviar Notificação'
+                    : 'Mensagens'
+                )}
+              </h3>
+              
+              {activeTab === 'chat' && mode === 'chat' && (
+                !activeChat?.assignedTo ? (
+                   <p className={`text-xs flex items-center gap-1 ${isOnline ? 'text-green-500' : 'text-red-500'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`}></span> {isOnline ? 'Online' : 'Offline'}
+                   </p>
+                ) : (
+                   <p className="text-xs text-beatwap-gold flex items-center gap-1">
+                     <UserCheck size={12} />
+                     {activeChat.assignedTo === currentUserId ? 'Você está atendendo' : `Atendido por ${getAssignedAdminName(activeChat.assignedTo)}`}
+                   </p>
+                )
+              )}
+              {activeTab === 'ai' && (
+                <p className="text-xs text-beatwap-gold flex items-center gap-1">
+                  <Sparkles size={10} />
+                  <span>Online • Powered by BeatWap AI</span>
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {activeTab === 'chat' && mode === 'list' && (
+              <>
+                {userRole === 'Produtor' && (
+                  <button 
+                    onClick={() => setMode('notifications')} 
+                    className="text-beatwap-gold hover:bg-white/10 p-1 rounded-full mr-1"
+                    title="Enviar Notificações"
+                  >
+                    <Bell size={20} />
+                  </button>
+                )}
+                <button 
+                  onClick={() => setMode('new')} 
+                  className="text-beatwap-gold hover:bg-white/10 px-2 py-1 rounded-full flex items-center gap-1 transition-colors"
+                  title="Nova Conversa"
+                >
+                  <Plus size={20} />
+                  <span className="text-xs font-bold hidden sm:inline">Nova Conversa</span>
+                </button>
+              </>
             )}
+            
+            {activeTab === 'chat' && mode === 'chat' && (
+              <>
+                <button 
+                  onClick={async () => {
+                    if (window.confirm('Finalizar e apagar esta conversa para todos?')) {
+                      try {
+                        await deleteChat(activeChatId);
+                        setActiveChatId(null);
+                        setMode('list');
+                      } catch (e) {
+                        console.error('Falha ao apagar conversa', e);
+                      }
+                    }
+                  }} 
+                  className="text-red-400 hover:bg-red-500/10 p-1 rounded-full"
+                  title="Finalizar e Apagar"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </>
+            )}
+            <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white">
+              <X size={20} />
+            </button>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {mode === 'list' && (
-            <>
-              {userRole === 'Produtor' && (
-                <button 
-                  onClick={() => setMode('notifications')} 
-                  className="text-beatwap-gold hover:bg-white/10 p-1 rounded-full mr-1"
-                  title="Enviar Notificações"
-                >
-                  <Bell size={20} />
-                </button>
-              )}
-              <button 
-                onClick={() => setMode('new')} 
-                className="text-beatwap-gold hover:bg-white/10 px-2 py-1 rounded-full flex items-center gap-1 transition-colors"
-                title="Nova Conversa"
-              >
-                <Plus size={20} />
-                <span className="text-xs font-bold hidden sm:inline">Nova Conversa</span>
-              </button>
-            </>
-          )}
-          
-          {mode === 'chat' && (
-            <>
-              <button 
-                onClick={async () => {
-                  if (window.confirm('Finalizar e apagar esta conversa para todos?')) {
-                    try {
-                      await deleteChat(activeChatId);
-                      setActiveChatId(null);
-                      setMode('list');
-                    } catch (e) {
-                      console.error('Falha ao apagar conversa', e);
-                    }
-                  }
-                }} 
-                className="text-red-400 hover:bg-red-500/10 p-1 rounded-full"
-                title="Finalizar e Apagar"
-              >
-                <Trash2 size={18} />
-              </button>
-            </>
-          )}
-          <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white">
-            <X size={20} />
+
+        {/* Tabs Navigation */}
+        <div className="flex border-t border-white/5">
+          <button
+            onClick={() => setActiveTab('chat')}
+            className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors relative ${
+              activeTab === 'chat' ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            <MessageCircle size={16} />
+            Chat
+            {activeTab === 'chat' && (
+              <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-beatwap-gold" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('ai')}
+            className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors relative ${
+              activeTab === 'ai' ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            <Bot size={16} />
+            Assistente IA
+            {activeTab === 'ai' && (
+              <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-beatwap-gold" />
+            )}
           </button>
         </div>
       </div>
 
       {/* Content */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto bg-black/20 relative">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto bg-black/20 relative flex flex-col">
         
-        {/* LIST MODE */}
-        {mode === 'list' && (
+        {activeTab === 'ai' ? (
+          <AIAssistant />
+        ) : (
+          <>
+            {/* LIST MODE */}
+            {mode === 'list' && (
           <div className="p-2 space-y-2">
             <div className="px-2 pb-2">
                <AnimatedInput 
@@ -865,7 +916,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
         )}
 
         {/* NOTIFICATIONS MODE */}
-        {mode === 'notifications' && (
+        {activeTab === 'chat' && mode === 'notifications' && (
           <div className="p-4 space-y-4">
              <div className="space-y-2">
                <label className="text-xs text-gray-400">Tipo de Envio</label>
