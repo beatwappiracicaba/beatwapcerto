@@ -250,7 +250,8 @@ const SellerLeads = () => {
       fetchLeads();
     } catch (error) {
       console.error('Error saving lead:', error);
-      addToast('Erro ao salvar lead.', 'error');
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      addToast(`Erro ao salvar lead: ${error.message || 'Verifique o console'}`, 'error');
     }
   };
 
