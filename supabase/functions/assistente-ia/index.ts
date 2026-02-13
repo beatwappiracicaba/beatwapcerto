@@ -2,18 +2,23 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const HF_API_KEY = Deno.env.get('HF_API_KEY')
 
-// Lista de modelos resilientes (Qwen é open-weights e geralmente não requer gate approval complexo)
+// Lista de modelos resilientes e gratuitos (Free Tier)
+// Ordem de prioridade: Qwen (melhor performance) -> Gemma (Google, estável) -> Phi-3 (Microsoft, leve)
 const MODELS = [
   {
     id: 'Qwen/Qwen2.5-7B-Instruct',
     type: 'chatml'
   },
   {
-    id: 'Qwen/Qwen2.5-Coder-7B-Instruct', // Excelente para seguir instruções lógicas
-    type: 'chatml'
+    id: 'google/gemma-1.1-7b-it',
+    type: 'gemma'
   },
   {
-    id: 'Qwen/Qwen2.5-1.5B-Instruct', // Backup ultra-leve e rápido
+    id: 'microsoft/Phi-3-mini-4k-instruct',
+    type: 'phi'
+  },
+  {
+    id: 'Qwen/Qwen2.5-1.5B-Instruct', // Backup ultra-leve
     type: 'chatml'
   }
 ]
@@ -60,25 +65,40 @@ Responda sempre em Português do Brasil.`
         
         // Construct Prompt based on model type
         let prompt = ''
+        let stopSequences = []
         
         if (model.type === 'chatml') {
-          // Standard ChatML format (Used by Qwen, newer models)
-          // <|im_start|>system\n...\n<|im_end|>\n<|im_start|>user\n...\n<|im_end|>\n<|im_start|>assistant\n
-          
+          // Qwen / ChatML format
           prompt = `<|im_start|>system\n${systemPersona}\n<|im_end|>\n`
-          
           recentMessages.forEach(msg => {
             prompt += `<|im_start|>${msg.role}\n${msg.content}\n<|im_end|>\n`
           })
-          
           prompt += `<|im_start|>assistant\n`
-        } else {
-            // Fallback generic format
-            prompt = `System: ${systemPersona}\n\n`
-            recentMessages.forEach(msg => {
-                prompt += `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}\n`
-            })
-            prompt += `Assistant: `
+          stopSequences = ["<|im_end|>", "<|endoftext|>"]
+          
+        } else if (model.type === 'gemma') {
+          // Google Gemma format
+          prompt = `<start_of_turn>user\n${systemPersona}\n\n`
+          recentMessages.forEach(msg => {
+            prompt += `${msg.role === 'user' ? '' : 'Modelo: '}${msg.content}\n`
+          })
+          // Ensure structure ends correctly
+          const lastMsg = recentMessages[recentMessages.length - 1]
+          if (lastMsg.role === 'user') {
+             prompt += `<end_of_turn>\n<start_of_turn>model\n`
+          } else {
+             prompt += `\n<start_of_turn>model\n`
+          }
+          stopSequences = ["<end_of_turn>"]
+
+        } else if (model.type === 'phi') {
+          // Microsoft Phi-3 format
+          prompt = `<|system|>\n${systemPersona}<|end|>\n`
+          recentMessages.forEach(msg => {
+            prompt += `<|${msg.role}|>\n${msg.content}<|end|>\n`
+          })
+          prompt += `<|assistant|>\n`
+          stopSequences = ["<|end|>", "<|endoftext|>"]
         }
 
         const response = await fetch(
@@ -96,7 +116,7 @@ Responda sempre em Português do Brasil.`
                 temperature: 0.7,
                 top_p: 0.9,
                 return_full_text: false,
-                stop: ["<|im_end|>", "<|endoftext|>"]
+                stop: stopSequences
               },
             }),
           }
@@ -120,14 +140,16 @@ Responda sempre em Português do Brasil.`
         }
 
         // Clean up response
-        // For ChatML, we just need the text after the prompt (HF sometimes returns full text depending on params)
-        // Since we set return_full_text: false, it should be just the new tokens.
-        // But double check for safety.
         generatedText = generatedText.replace(prompt, '').trim()
         
-        // Remove any leaked tags
-        generatedText = generatedText.replace(/<\|im_end\|>/g, '').trim()
-        generatedText = generatedText.replace(/<\|im_start\|>/g, '').trim()
+        // Remove known tags based on model type
+        if (model.type === 'chatml') {
+          generatedText = generatedText.replace(/<\|im_end\|>/g, '').replace(/<\|im_start\|>/g, '').trim()
+        } else if (model.type === 'gemma') {
+          generatedText = generatedText.replace(/<end_of_turn>/g, '').replace(/<start_of_turn>/g, '').trim()
+        } else if (model.type === 'phi') {
+          generatedText = generatedText.replace(/<\|end\|>/g, '').replace(/<\|assistant\|>/g, '').trim()
+        }
 
         // Success! Return immediately
         return new Response(
