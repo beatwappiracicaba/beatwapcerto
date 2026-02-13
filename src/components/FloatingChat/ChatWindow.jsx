@@ -480,7 +480,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
       </div>
 
       {/* Content */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto bg-black/20 relative flex flex-col">
+      <div ref={scrollContainerRef} className={`flex-1 bg-black/20 relative flex flex-col ${activeTab === 'chat' ? 'overflow-y-auto' : 'overflow-hidden'}`}>
         
         {activeTab === 'ai' ? (
           <AIChatView userName={user?.user_metadata?.nome || 'Artista'} />
@@ -1145,11 +1145,12 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
              )}
           </div>
         )}
-
+          </>
+        )}
       </div>
 
       {/* Input Area */}
-      {mode === 'chat' && (
+      {activeTab === 'chat' && mode === 'chat' && (
         <div className="p-3 border-t border-white/10 bg-[#181818]">
             <form onSubmit={handleSend} className="flex gap-2">
               <input

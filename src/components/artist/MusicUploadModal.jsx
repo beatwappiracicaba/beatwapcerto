@@ -230,7 +230,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
               uploadFile(t.audio_file, 'music_files'),
               t.authorization_file ? uploadFile(t.authorization_file, 'music_docs') : Promise.resolve(null)
             ]);
-            return { audioUrl: audioU, authUrl: authU, titulo: t.titulo, estilo: t.estilo };
+            return { audioUrl: audioU, authUrl: authU, titulo: t.titulo, estilo: t.estilo, isrc: t.isrc, has_feat: t.has_feat, feat_name: t.feat_name, composer: t.composer, producer: t.producer };
           })
         );
         const rows = trackUploads.map((tu) => ({
@@ -238,7 +238,6 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
           titulo: tu.titulo,
           nome_artista: formData.nome_artista,
           estilo: tu.estilo,
-          isrc: (formData.isrc || '').trim() || null,
           cover_url: coverUrl,
           audio_url: tu.audioUrl,
           authorization_url: tu.authUrl ?? authUrl,
@@ -261,7 +260,6 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
           titulo: formData.titulo,
           nome_artista: formData.nome_artista,
           estilo: formData.estilo,
-          isrc: (formData.isrc || '').trim() || null,
           cover_url: coverUrl,
           audio_url: audioUrl,
           authorization_url: authUrl,
