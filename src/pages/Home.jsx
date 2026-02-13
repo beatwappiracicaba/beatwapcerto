@@ -483,17 +483,17 @@ const Home = () => {
                 <h2 className="text-3xl md:text-4xl font-bold mb-4">Patrocinadores/Parcerias</h2>
                 <p className="text-gray-400">Marcas que apoiam nossos artistas e projetos</p>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-6">
                 {sponsors.map((s, index) => (
                   <motion.div
                     key={s.id}
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="inline-block"
+                    className="flex justify-center"
                   >
                     <div
-                      className="group relative w-24 h-24 rounded-xl overflow-hidden mx-auto bg-gray-800 border-2 border-black flex items-center justify-center cursor-pointer"
+                      className="group relative w-full max-w-[100px] aspect-square rounded-xl overflow-hidden bg-gray-800 border-2 border-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105 shadow-lg"
                       onClick={() => setActiveSponsorMenu(activeSponsorMenu === s.id ? null : s.id)}
                     >
                       {s.logo_url ? (
