@@ -214,6 +214,7 @@ const SellerLeads = () => {
             if (formData.status === 'novo') eventStatus = 'proposta';
             else if (formData.status === 'negociacao') eventStatus = 'negociacao';
             else if (formData.status === 'fechado') eventStatus = 'fechado';
+            else if (formData.status === 'cancelado') eventStatus = 'cancelado';
 
             const eventPayload = {
               artista_id: formData.artist_id,
@@ -249,6 +250,14 @@ const SellerLeads = () => {
                  title: 'Novo Lead', 
                  message: `Um novo lead foi aberto para você: ${formData.event_name}`,
                  type: 'info'
+               });
+            } else if (formData.status === 'cancelado' && currentLead.status !== 'cancelado') {
+               // Send notification for cancellation
+               await addNotification({
+                 recipientId: formData.artist_id, 
+                 title: 'Show Cancelado', 
+                 message: `O show ${formData.event_name} foi cancelado.`,
+                 type: 'error'
                });
             }
           }
@@ -294,7 +303,8 @@ const SellerLeads = () => {
     { id: 'novo', label: 'Novo', color: 'bg-blue-500' },
     { id: 'negociacao', label: 'Em Negociação', color: 'bg-yellow-500' },
     { id: 'fechado', label: 'Fechado', color: 'bg-green-500' },
-    { id: 'perdido', label: 'Perdido', color: 'bg-red-500' }
+    { id: 'perdido', label: 'Perdido', color: 'bg-red-500' },
+    { id: 'cancelado', label: 'Cancelado', color: 'bg-gray-500' }
   ];
 
   return (
@@ -451,6 +461,7 @@ const SellerLeads = () => {
                       <option value="negociacao" className="bg-black">Em Negociação</option>
                       <option value="fechado" className="bg-black">Fechado</option>
                       <option value="perdido" className="bg-black">Perdido</option>
+                      <option value="cancelado" className="bg-black">Cancelado</option>
                     </select>
                   </div>
                 </div>
