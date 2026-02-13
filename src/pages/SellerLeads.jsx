@@ -7,7 +7,7 @@ import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useNotification } from '../context/NotificationContext';
-import { Plus, Phone, MessageCircle, MoreHorizontal, Calendar, DollarSign, MapPin, X, Save } from 'lucide-react';
+import { Plus, Phone, MessageCircle, MoreHorizontal, Calendar, DollarSign, MapPin, X, Save, Trash2 } from 'lucide-react';
 
 const SellerLeads = () => {
   const { user } = useAuth();
@@ -147,6 +147,48 @@ const SellerLeads = () => {
     setIsModalOpen(true);
   };
 
+
+  const handleDeleteLead = async () => {
+    if (!currentLead) return;
+    if (!window.confirm('Tem certeza que deseja excluir este lead? Esta ação não pode ser desfeita.')) return;
+
+    setLoading(true);
+    try {
+      // 1. Delete from agenda (if exists)
+      const { error: agendaError } = await supabase
+        .from('artist_work_events')
+        .delete()
+        .eq('lead_id', currentLead.id);
+      
+      if (agendaError) console.error('Error deleting agenda event:', agendaError);
+
+      // 2. Delete from negotiation_history
+      const { error: historyError } = await supabase
+        .from('negotiation_history')
+        .delete()
+        .eq('lead_id', currentLead.id);
+
+      if (historyError) console.error('Error deleting history:', historyError);
+
+      // 3. Delete lead
+      const { error } = await supabase
+        .from('leads')
+        .delete()
+        .eq('id', currentLead.id);
+
+      if (error) throw error;
+
+      addToast('Lead excluído com sucesso!', 'success');
+      setIsModalOpen(false);
+      fetchLeads();
+    } catch (error) {
+      console.error('Error deleting lead:', error);
+      addToast('Erro ao excluir lead.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSaveLead = async () => {
     try {
       if (!formData.artist_id) {
@@ -192,7 +234,7 @@ const SellerLeads = () => {
             .eq('lead_id', leadId)
             .maybeSingle();
 
-          if (formData.status === 'perdido') {
+          if (formData.status === 'perdido' || formData.status === 'cancelado') {
             // Delete event from calendar
             if (existingEvent) {
               await supabase
@@ -204,7 +246,7 @@ const SellerLeads = () => {
               await addNotification({
                 recipientId: formData.artist_id,
                 title: 'Show Cancelado',
-                message: `O show ${formData.event_name} foi cancelado pois o lead foi perdido.`,
+                message: `O show ${formData.event_name} foi cancelado${formData.status === 'perdido' ? ' pois o lead foi perdido' : ''}.`,
                 type: 'warning'
               });
             }
@@ -214,7 +256,6 @@ const SellerLeads = () => {
             if (formData.status === 'novo') eventStatus = 'proposta';
             else if (formData.status === 'negociacao') eventStatus = 'negociacao';
             else if (formData.status === 'fechado') eventStatus = 'fechado';
-            else if (formData.status === 'cancelado') eventStatus = 'cancelado';
 
             const eventPayload = {
               artista_id: formData.artist_id,
@@ -273,7 +314,14 @@ const SellerLeads = () => {
     } catch (error) {
       console.error('Error saving lead:', error);
       console.error('Error details:', JSON.stringify(error, null, 2));
-      addToast(`Erro ao salvar lead: ${error.message || 'Verifique o console'}`, 'error');
+      
+      if (error.code === '23514') {
+        addToast('Erro: Status não permitido. Atualize o banco de dados (ver README_FIX_DB.md).', 'error');
+      } else if (error.code === '42501') {
+        addToast('Erro de permissão. Atualize as políticas do banco de dados (ver README_FIX_DB.md).', 'error');
+      } else {
+        addToast(`Erro ao salvar lead: ${error.message || 'Verifique o console'}`, 'error');
+      }
     }
   };
 
@@ -468,6 +516,15 @@ const SellerLeads = () => {
                 
                 <div className="pt-4 flex gap-3">
                   <AnimatedButton onClick={handleSaveLead} className="flex-1" icon={Save}>Salvar</AnimatedButton>
+                  {currentLead && (
+                    <button 
+                      onClick={handleDeleteLead}
+                      className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl transition-colors flex items-center justify-center"
+                      title="Excluir Lead"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  )}
                   <AnimatedButton onClick={() => setIsModalOpen(false)} variant="outline" className="flex-1">Cancelar</AnimatedButton>
                 </div>
               </div>
