@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Bot, User, Sparkles, AlertCircle } from 'lucide-react';
 import { aiService } from '../../services/aiService';
 import { AnimatedInput } from '../ui/AnimatedInput';
-import ReactMarkdown from 'react-markdown'; // Assuming we might want markdown, but if not installed we'll just render text
 
 export const AIChatView = ({ userName }) => {
   const [messages, setMessages] = useState([

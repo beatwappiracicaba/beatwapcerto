@@ -6,7 +6,7 @@ import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
 import { MessageBubble } from './MessageBubble';
 import { AnimatedInput } from '../ui/AnimatedInput';
-import { AIAssistant } from './AIAssistant';
+import { AIChatView } from './AIChatView';
 
 export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
   const { 
@@ -35,7 +35,6 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
   const { profile, user } = useAuth();
   const userRole = profile?.cargo || 'Artista';
 
-  const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'ai'
   const [inputText, setInputText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [mode, setMode] = useState('list'); // 'list', 'chat', 'new', 'queue', 'notifications', 'artists_list'
@@ -484,7 +483,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto bg-black/20 relative flex flex-col">
         
         {activeTab === 'ai' ? (
-          <AIAssistant />
+          <AIChatView userName={user?.user_metadata?.nome || 'Artista'} />
         ) : (
           <>
             {/* LIST MODE */}
