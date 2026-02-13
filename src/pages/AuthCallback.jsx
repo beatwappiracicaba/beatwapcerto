@@ -21,7 +21,7 @@ const AuthCallback = () => {
 
         if (session) {
           setStatus('success');
-          setMessage('Email confirmado com sucesso! Você será redirecionado em instantes.');
+          setMessage('Email confirmado com sucesso! Você será redirecionado para o login.');
           
           // Aguarda um pouco para o usuário ver a mensagem de sucesso
           setTimeout(() => {
@@ -70,8 +70,8 @@ const AuthCallback = () => {
                 </div>
                 <h2 className="text-2xl font-bold text-green-500">Email Confirmado!</h2>
                 <p className="text-gray-300">{message}</p>
-                <AnimatedButton onClick={() => navigate('/dashboard')} fullWidth>
-                    Acessar Plataforma Agora
+                <AnimatedButton onClick={() => navigate('/login')} fullWidth>
+                    Ir para Login
                 </AnimatedButton>
             </>
         )}
