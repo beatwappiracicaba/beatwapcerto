@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const HF_API_KEY = Deno.env.get('HF_API_KEY')
-const MODEL_ID = 'mistralai/Mistral-7B-Instruct-v0.2'
+const MODEL_ID = 'HuggingFaceH4/zephyr-7b-beta'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,31 +26,25 @@ serve(async (req) => {
       throw new Error('Invalid messages format')
     }
 
-    // 3. Construct Prompt with System Persona
+    // 3. Construct Prompt with System Persona (Zephyr Format)
     const systemPersona = `Você é o Assistente Oficial da BeatWap.
 Especialista em: Marketing musical, Estratégia para artistas independentes, Distribuição digital, Direitos autorais, ISRC, Crescimento no Spotify, Estratégia de lançamento, Engajamento em redes sociais.
 Tom de voz: Profissional, estratégico, direto e motivador.
 IMPORTANTE: Se o usuário perguntar algo fora do contexto musical/carreira artística, responda educadamente que você só pode ajudar com assuntos relacionados à música e traga a conversa de volta ao universo artístico.
 Responda sempre em Português do Brasil.`
 
-    // Construct prompt for Mistral
-    let prompt = `<s>[INST] ${systemPersona}\n\n`
+    // Construct prompt for Zephyr
+    let prompt = `<|system|>\n${systemPersona}</s>\n`
     
     // Append conversation history (limit to last 10 messages)
     const recentMessages = messages.slice(-10)
     
     recentMessages.forEach(msg => {
-      if (msg.role === 'user') {
-        prompt += `${msg.content} [/INST] `
-      } else {
-        prompt += `${msg.content} </s><s>[INST] `
-      }
+      prompt += `<|${msg.role}|>\n${msg.content}</s>\n`
     })
     
-    if (prompt.endsWith('</s><s>[INST] ')) {
-       prompt = prompt.slice(0, -14)
-    }
-
+    prompt += `<|assistant|>\n`
+    
     // 4. Call Hugging Face API
     const response = await fetch(
       `https://api-inference.huggingface.co/models/${MODEL_ID}`,
