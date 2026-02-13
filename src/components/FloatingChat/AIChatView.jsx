@@ -31,6 +31,23 @@ export const AIChatView = ({ userName }) => {
     inputRef.current?.focus();
   }, []);
 
+  // Load history on mount
+  useEffect(() => {
+    const loadHistory = async () => {
+      const history = await aiService.getHistory();
+      if (history && history.length > 0) {
+        const formattedHistory = history.map(msg => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.created_at)
+        }));
+        setMessages(formattedHistory);
+      }
+    };
+    loadHistory();
+  }, []);
+
   const handleSend = async (e) => {
     e?.preventDefault();
     if (!inputText.trim() || isLoading) return;
@@ -45,6 +62,9 @@ export const AIChatView = ({ userName }) => {
     setMessages(prev => [...prev, userMessage]);
     setInputText('');
     setIsLoading(true);
+
+    // Save user message to DB
+    aiService.saveMessage('user', userMessage.content);
 
     try {
       // Prepare history for API (exclude IDs and timestamps)
@@ -63,6 +83,10 @@ export const AIChatView = ({ userName }) => {
       };
 
       setMessages(prev => [...prev, aiMessage]);
+      
+      // Save assistant message to DB
+      aiService.saveMessage('assistant', reply);
+
     } catch (error) {
       console.error(error);
       const errorMessage = {
