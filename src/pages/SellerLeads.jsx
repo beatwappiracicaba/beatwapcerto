@@ -5,10 +5,12 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { Plus, Phone, MessageCircle, MoreHorizontal, Calendar, DollarSign, MapPin, X, Save } from 'lucide-react';
 
 const SellerLeads = () => {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const [leads, setLeads] = useState([]);
   const [artists, setArtists] = useState([]);
   const [contractors, setContractors] = useState([]);
@@ -146,15 +148,19 @@ const SellerLeads = () => {
   const handleSaveLead = async () => {
     try {
       if (!formData.artist_id) {
-        alert('Por favor, selecione um artista.');
+        addToast('Por favor, selecione um artista.', 'error');
         return;
       }
 
       const payload = {
         ...formData,
         seller_id: user.id,
-        budget: parseFloat(formData.budget) || 0
+        budget: parseFloat(formData.budget) || 0,
+        // Convert empty string to null for optional UUIDs
+        contractor_id: formData.contractor_id || null
       };
+
+      let leadId = currentLead?.id;
 
       if (currentLead) {
         const { error } = await supabase
@@ -163,17 +169,65 @@ const SellerLeads = () => {
           .eq('id', currentLead.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('leads')
-          .insert([payload]);
+          .insert([payload])
+          .select()
+          .single();
         if (error) throw error;
+        leadId = data.id;
       }
       
+      // Se status for fechado, criar/atualizar evento na agenda
+      if (formData.status === 'fechado' && leadId) {
+        try {
+          // Verifica se já existe evento vinculado a este lead
+          const { data: existingEvent } = await supabase
+            .from('artist_work_events')
+            .select('id')
+            .eq('lead_id', leadId)
+            .maybeSingle();
+
+          const eventPayload = {
+            artista_id: formData.artist_id,
+            title: formData.event_name || 'Show Confirmado',
+            date: formData.event_date || new Date().toISOString(),
+            type: 'show',
+            notes: `Lead fechado com ${formData.contractor_name}. Valor: R$ ${formData.budget}`,
+            revenue: parseFloat(formData.budget) || 0,
+            seller_id: user.id,
+            status: 'pendente', // Status financeiro pendente
+            lead_id: leadId,
+            city: formData.city
+          };
+
+          if (existingEvent) {
+            await supabase
+              .from('artist_work_events')
+              .update(eventPayload)
+              .eq('id', existingEvent.id);
+          } else {
+            await supabase
+              .from('artist_work_events')
+              .insert({
+                ...eventPayload,
+                created_by: user.id
+              });
+          }
+          addToast('Lead salvo e agenda atualizada!', 'success');
+        } catch (eventError) {
+          console.error('Erro ao atualizar agenda:', eventError);
+          addToast('Lead salvo, mas houve erro ao atualizar agenda (verifique colunas).', 'warning');
+        }
+      } else {
+        addToast('Lead salvo com sucesso!', 'success');
+      }
+
       setIsModalOpen(false);
       fetchLeads();
     } catch (error) {
       console.error('Error saving lead:', error);
-      alert('Erro ao salvar lead.');
+      addToast('Erro ao salvar lead.', 'error');
     }
   };
 

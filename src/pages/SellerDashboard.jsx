@@ -30,9 +30,9 @@ const SellerDashboard = () => {
         .eq('seller_id', user.id)
         .eq('month', month)
         .eq('year', year)
-        .single();
+        .maybeSingle();
 
-      if (goalsError && goalsError.code !== 'PGRST116') throw goalsError;
+      if (goalsError) throw goalsError;
 
       // Fetch actual revenue from distributed events
       const { data: events, error: eventsError } = await supabase
