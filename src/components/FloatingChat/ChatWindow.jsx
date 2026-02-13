@@ -233,7 +233,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
       const fetchAll = async () => {
          const { data, error } = await supabase
            .from('profiles')
-           .select('id, nome, nome_completo_razao_social, cargo, email, avatar_url') // Removed cidade/estado to avoid 400 error
+           .select('id, nome, nome_completo_razao_social, cargo, avatar_url') // Removed email/cidade/estado to avoid 400 error
            .order('nome', { ascending: true });
          
          if (error) {
