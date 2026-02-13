@@ -41,7 +41,7 @@ export const DashboardLayout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-[#0b0b0b] to-[#161616] text-white flex">
-      <aside className={`fixed md:static top-0 left-0 h-full md:h-auto w-64 p-6 space-y-4 border-r border-white/10 bg-white/[0.02] backdrop-blur-md transition-transform md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} z-50`}>
+      <aside className={`fixed md:static top-0 left-0 h-full md:h-auto w-64 p-6 space-y-4 border-r border-white/10 bg-black/95 backdrop-blur-md transition-transform md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} z-[60]`}>
         <NavLink to="/dashboard" className="text-xl font-bold tracking-wide">
           <span className="text-beatwap-gold">Beat</span><span>Wap</span>
         </NavLink>
