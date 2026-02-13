@@ -2,19 +2,19 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const HF_API_KEY = Deno.env.get('HF_API_KEY')
 
-// Lista de modelos para tentar em ordem, caso um falhe (Erro 410, 503, etc)
+// Lista de modelos resilientes (Qwen é open-weights e geralmente não requer gate approval complexo)
 const MODELS = [
   {
-    id: 'google/gemma-1.1-7b-it',
-    type: 'gemma'
+    id: 'Qwen/Qwen2.5-7B-Instruct',
+    type: 'chatml'
   },
   {
-    id: 'microsoft/Phi-3-mini-4k-instruct',
-    type: 'phi'
+    id: 'Qwen/Qwen2.5-Coder-7B-Instruct', // Excelente para seguir instruções lógicas
+    type: 'chatml'
   },
   {
-    id: 'HuggingFaceH4/zephyr-7b-beta',
-    type: 'zephyr'
+    id: 'Qwen/Qwen2.5-1.5B-Instruct', // Backup ultra-leve e rápido
+    type: 'chatml'
   }
 ]
 
@@ -61,25 +61,24 @@ Responda sempre em Português do Brasil.`
         // Construct Prompt based on model type
         let prompt = ''
         
-        if (model.type === 'gemma') {
-          // Gemma Format: <start_of_turn>user\n...<end_of_turn>\n<start_of_turn>model\n
-          prompt = `<start_of_turn>user\n${systemPersona}\n\n`
+        if (model.type === 'chatml') {
+          // Standard ChatML format (Used by Qwen, newer models)
+          // <|im_start|>system\n...\n<|im_end|>\n<|im_start|>user\n...\n<|im_end|>\n<|im_start|>assistant\n
+          
+          prompt = `<|im_start|>system\n${systemPersona}\n<|im_end|>\n`
+          
           recentMessages.forEach(msg => {
-            prompt += `${msg.role === 'user' ? '' : 'Modelo: '}${msg.content}\n`
+            prompt += `<|im_start|>${msg.role}\n${msg.content}\n<|im_end|>\n`
           })
-          // Add the final turn structure
-          const lastMsg = recentMessages[recentMessages.length - 1]
-          if (lastMsg.role === 'user') {
-             // Ensure the last user message is properly formatted if not already
-             prompt += `<end_of_turn>\n<start_of_turn>model\n`
-          }
-        } else if (model.type === 'phi' || model.type === 'zephyr') {
-          // ChatML-like Format: <|user|>\n...<|end|>\n<|assistant|>\n
-          prompt = `<|system|>\n${systemPersona}<|end|>\n`
-          recentMessages.forEach(msg => {
-            prompt += `<|${msg.role}|>\n${msg.content}<|end|>\n`
-          })
-          prompt += `<|assistant|>\n`
+          
+          prompt += `<|im_start|>assistant\n`
+        } else {
+            // Fallback generic format
+            prompt = `System: ${systemPersona}\n\n`
+            recentMessages.forEach(msg => {
+                prompt += `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}\n`
+            })
+            prompt += `Assistant: `
         }
 
         const response = await fetch(
@@ -95,8 +94,9 @@ Responda sempre em Português do Brasil.`
               parameters: {
                 max_new_tokens: 500,
                 temperature: 0.7,
-                top_p: 0.95,
+                top_p: 0.9,
                 return_full_text: false,
+                stop: ["<|im_end|>", "<|endoftext|>"]
               },
             }),
           }
@@ -105,9 +105,6 @@ Responda sempre em Português do Brasil.`
         if (!response.ok) {
           const errorText = await response.text()
           console.warn(`Model ${model.id} failed with ${response.status}: ${errorText}`)
-          
-          // If it's a "Wait" error (503), sometimes it means loading. But we want speed, so failover.
-          // If it's 410 (Gone) or 404 (Not Found), definitely failover.
           throw new Error(`Model ${model.id} error: ${response.status} ${response.statusText}`)
         }
 
@@ -119,14 +116,19 @@ Responda sempre em Português do Brasil.`
         } else if (result.generated_text) {
           generatedText = result.generated_text
         } else {
-          // If success but empty, try next
           throw new Error('Empty response from model')
         }
 
-        // Clean up response if it includes prompt (sometimes happens despite return_full_text: false)
-        // Simple cleanup for common artifacts
+        // Clean up response
+        // For ChatML, we just need the text after the prompt (HF sometimes returns full text depending on params)
+        // Since we set return_full_text: false, it should be just the new tokens.
+        // But double check for safety.
         generatedText = generatedText.replace(prompt, '').trim()
         
+        // Remove any leaked tags
+        generatedText = generatedText.replace(/<\|im_end\|>/g, '').trim()
+        generatedText = generatedText.replace(/<\|im_start\|>/g, '').trim()
+
         // Success! Return immediately
         return new Response(
           JSON.stringify({ reply: generatedText, model: model.id }),
@@ -144,7 +146,7 @@ Responda sempre em Português do Brasil.`
     }
 
     // If loop finishes without success
-    throw lastError || new Error('All AI models failed to respond.')
+    throw lastError || new Error('All AI models failed to respond. Please check API Key permissions.')
 
   } catch (error) {
     console.error('Edge Function Error:', error)
