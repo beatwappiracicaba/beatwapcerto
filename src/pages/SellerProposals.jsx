@@ -5,24 +5,47 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { FileText, Plus, ExternalLink, Check, X as XIcon, Clock } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
+import { FileText, Plus, ExternalLink, Check, X as XIcon, Clock, Edit2, Upload, Trash2 } from 'lucide-react';
 
 const SellerProposals = () => {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const [proposals, setProposals] = useState([]);
+  const [artists, setArtists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [currentProposal, setCurrentProposal] = useState(null);
+
   const [formData, setFormData] = useState({
-    lead_id: '', // Optional linkage
+    lead_id: '',
+    client_name: '',
+    title: '',
+    artist_id: '',
     value: '',
     status: 'rascunho',
     file_url: '',
-    observations: ''
+    observations: '',
+    file: null // For file upload
   });
 
   useEffect(() => {
     fetchProposals();
+    fetchArtists();
   }, []);
+
+  const fetchArtists = async () => {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, nome, nome_completo_razao_social')
+        .eq('cargo', 'Artista');
+      setArtists(data || []);
+    } catch (error) {
+      console.error('Error fetching artists:', error);
+    }
+  };
 
   const fetchProposals = async () => {
     try {
@@ -30,7 +53,8 @@ const SellerProposals = () => {
         .from('proposals')
         .select(`
           *,
-          leads (contractor_name, event_name)
+          leads (contractor_name, event_name),
+          artist:artist_id (nome)
         `)
         .eq('seller_id', user.id)
         .order('created_at', { ascending: false });
@@ -39,28 +63,126 @@ const SellerProposals = () => {
       setProposals(data || []);
     } catch (error) {
       console.error('Error fetching proposals:', error);
+      addToast('Erro ao carregar propostas', 'error');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleOpenModal = (proposal = null) => {
+    if (proposal) {
+      setCurrentProposal(proposal);
+      setFormData({
+        lead_id: proposal.lead_id || '',
+        client_name: proposal.client_name || '',
+        title: proposal.title || '',
+        artist_id: proposal.artist_id || '',
+        value: proposal.value || '',
+        status: proposal.status || 'rascunho',
+        file_url: proposal.file_url || '',
+        observations: proposal.observations || '',
+        file: null
+      });
+    } else {
+      setCurrentProposal(null);
+      setFormData({
+        lead_id: '',
+        client_name: '',
+        title: '',
+        artist_id: '',
+        value: '',
+        status: 'rascunho',
+        file_url: '',
+        observations: '',
+        file: null
+      });
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleFileUpload = async (file) => {
+    if (!file) return null;
+    
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    const filePath = `proposals/${user.id}/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('proposal_docs') // Ensure this bucket exists or use 'music_docs'
+      .upload(filePath, file);
+
+    if (uploadError) {
+      console.error('Error uploading file:', uploadError);
+      throw uploadError;
+    }
+
+    const { data } = supabase.storage
+      .from('proposal_docs')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  };
+
   const handleSaveProposal = async () => {
+    setUploading(true);
+    try {
+      let fileUrl = formData.file_url;
+
+      if (formData.file) {
+        fileUrl = await handleFileUpload(formData.file);
+      }
+
+      const payload = {
+        seller_id: user.id,
+        lead_id: formData.lead_id || null,
+        client_name: formData.client_name,
+        title: formData.title,
+        artist_id: formData.artist_id || null,
+        value: parseFloat(formData.value) || 0,
+        status: formData.status,
+        file_url: fileUrl,
+        observations: formData.observations
+      };
+
+      if (currentProposal) {
+        const { error } = await supabase
+          .from('proposals')
+          .update(payload)
+          .eq('id', currentProposal.id);
+        if (error) throw error;
+        addToast('Proposta atualizada com sucesso!', 'success');
+      } else {
+        const { error } = await supabase
+          .from('proposals')
+          .insert([payload]);
+        if (error) throw error;
+        addToast('Proposta criada com sucesso!', 'success');
+      }
+
+      setIsModalOpen(false);
+      fetchProposals();
+    } catch (error) {
+      console.error('Error saving proposal:', error);
+      addToast('Erro ao salvar proposta', 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteProposal = async (id) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta proposta?')) return;
     try {
       const { error } = await supabase
         .from('proposals')
-        .insert([{
-          ...formData,
-          seller_id: user.id,
-          value: parseFloat(formData.value) || 0,
-          lead_id: formData.lead_id || null
-        }]);
-
+        .delete()
+        .eq('id', id);
+      
       if (error) throw error;
-      setIsModalOpen(false);
+      addToast('Proposta excluída!', 'success');
       fetchProposals();
-      setFormData({ lead_id: '', value: '', status: 'rascunho', file_url: '', observations: '' });
     } catch (error) {
-      console.error('Error saving proposal:', error);
+      console.error('Error deleting proposal:', error);
+      addToast('Erro ao excluir proposta', 'error');
     }
   };
 
@@ -81,7 +203,7 @@ const SellerProposals = () => {
             <h1 className="text-3xl font-bold text-white">Propostas & Contratos</h1>
             <p className="text-gray-400">Organize seus envios e fechamentos</p>
           </div>
-          <AnimatedButton onClick={() => setIsModalOpen(true)} icon={Plus}>Nova Proposta</AnimatedButton>
+          <AnimatedButton onClick={() => handleOpenModal()} icon={Plus}>Nova Proposta</AnimatedButton>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -91,91 +213,182 @@ const SellerProposals = () => {
                 <div className="p-3 bg-white/5 rounded-xl text-beatwap-gold">
                   <FileText size={24} />
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(prop.status)} uppercase`}>
-                  {prop.status}
-                </span>
-              </div>
-
-              <div className="space-y-2 mb-6">
-                <h3 className="text-lg font-bold text-white truncate">
-                  {prop.leads?.contractor_name || 'Cliente Avulso'}
-                </h3>
-                <p className="text-sm text-gray-400">{prop.leads?.event_name || 'Proposta Geral'}</p>
-                <div className="text-xl font-bold text-white">
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prop.value)}
+                <div className="flex gap-2">
+                   <button 
+                    onClick={() => handleOpenModal(prop)}
+                    className="p-1 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors"
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteProposal(prop.id)}
+                    className="p-1 hover:bg-red-500/10 rounded-full text-gray-400 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               </div>
 
-              <div className="flex gap-2 text-xs text-gray-500 mb-4">
-                <Clock size={14} />
-                {new Date(prop.created_at).toLocaleDateString()}
+              <div className="space-y-2 mb-6">
+                <div className="flex justify-between items-start">
+                   <h3 className="text-lg font-bold text-white truncate flex-1">
+                    {prop.title || prop.leads?.event_name || 'Sem título'}
+                  </h3>
+                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getStatusColor(prop.status)} uppercase ml-2`}>
+                    {prop.status}
+                  </span>
+                </div>
+               
+                <p className="text-sm text-gray-400">
+                  {prop.client_name || prop.leads?.contractor_name || 'Cliente não informado'}
+                </p>
+                {prop.artist && (
+                  <p className="text-xs text-beatwap-gold/80">
+                    Artista: {prop.artist.nome}
+                  </p>
+                )}
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex justify-between items-center pt-4 border-t border-white/5">
+                <div className="text-sm font-medium text-white">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prop.value || 0)}
+                </div>
                 {prop.file_url && (
-                  <a href={prop.file_url} target="_blank" rel="noreferrer" className="flex-1 text-center py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-white transition-colors">
+                  <a 
+                    href={prop.file_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-xs text-beatwap-gold hover:underline"
+                  >
+                    <ExternalLink size={12} />
                     Ver Arquivo
                   </a>
-                )}
-                {!prop.file_url && (
-                  <button disabled className="flex-1 py-2 bg-white/5 rounded-lg text-sm text-gray-600 cursor-not-allowed">
-                    Sem Arquivo
-                  </button>
                 )}
               </div>
             </Card>
           ))}
-
+          
           {proposals.length === 0 && !loading && (
-             <div className="col-span-full text-center py-20 text-gray-500">
-               Nenhuma proposta registrada.
+             <div className="col-span-full text-center py-10 text-gray-500">
+               Nenhuma proposta encontrada. Crie uma nova!
              </div>
           )}
         </div>
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#121212] w-full max-w-md rounded-3xl border border-white/10 p-6">
-            <h2 className="text-xl font-bold text-white mb-6">Registrar Proposta</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <Card className="w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-white">
+                {currentProposal ? 'Editar Proposta' : 'Nova Proposta'}
+              </h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white">
+                <XIcon size={24} />
+              </button>
+            </div>
+
             <div className="space-y-4">
               <AnimatedInput 
-                label="Valor (R$)" 
-                type="number" 
-                value={formData.value} 
-                onChange={(e) => setFormData({...formData, value: e.target.value})} 
+                label="Nome do Cliente" 
+                value={formData.client_name}
+                onChange={(e) => setFormData({...formData, client_name: e.target.value})}
+                placeholder="Ex: João Silva / Empresa X"
               />
+              
               <AnimatedInput 
-                label="Link do Arquivo/Proposta (Google Drive/PDF)" 
-                value={formData.file_url} 
-                onChange={(e) => setFormData({...formData, file_url: e.target.value})} 
+                label="Título da Proposta" 
+                value={formData.title}
+                onChange={(e) => setFormData({...formData, title: e.target.value})}
+                placeholder="Ex: Show Casamento - Setembro"
               />
-              <div className="space-y-1">
-                <label className="text-xs text-gray-400 ml-1">Status</label>
-                <select 
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors appearance-none"
-                  value={formData.status}
-                  onChange={(e) => setFormData({...formData, status: e.target.value})}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Artista</label>
+                <select
+                  value={formData.artist_id}
+                  onChange={(e) => setFormData({...formData, artist_id: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold"
                 >
-                  <option value="rascunho" className="bg-black">Rascunho</option>
-                  <option value="enviado" className="bg-black">Enviado</option>
-                  <option value="aceito" className="bg-black">Aceito</option>
-                  <option value="rejeitado" className="bg-black">Rejeitado</option>
+                  <option value="">Selecione um Artista</option>
+                  {artists.map(artist => (
+                    <option key={artist.id} value={artist.id}>{artist.nome}</option>
+                  ))}
                 </select>
               </div>
-              <textarea 
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-beatwap-gold/50 resize-none"
-                rows={3}
-                placeholder="Observações..."
+
+              <div className="grid grid-cols-2 gap-4">
+                <AnimatedInput 
+                  label="Valor (R$)" 
+                  type="number"
+                  value={formData.value}
+                  onChange={(e) => setFormData({...formData, value: e.target.value})}
+                />
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Status</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({...formData, status: e.target.value})}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold"
+                  >
+                    <option value="rascunho">Rascunho</option>
+                    <option value="enviado">Enviado</option>
+                    <option value="aceito">Aceito</option>
+                    <option value="rejeitado">Rejeitado</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Arquivo da Proposta (PDF/Imagem)</label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.jpg,.png"
+                    onChange={(e) => setFormData({...formData, file: e.target.files[0]})}
+                    className="hidden"
+                    id="proposal-file"
+                  />
+                  <label 
+                    htmlFor="proposal-file"
+                    className="flex items-center justify-center gap-2 w-full p-4 border border-dashed border-white/20 rounded-xl cursor-pointer hover:bg-white/5 transition-colors text-gray-400 hover:text-white"
+                  >
+                    <Upload size={20} />
+                    {formData.file ? formData.file.name : (formData.file_url ? 'Alterar Arquivo' : 'Escolher Arquivo')}
+                  </label>
+                </div>
+                {formData.file_url && !formData.file && (
+                   <p className="text-xs text-green-400 mt-1">Arquivo atual disponível</p>
+                )}
+              </div>
+
+              <AnimatedInput 
+                label="Observações" 
                 value={formData.observations}
                 onChange={(e) => setFormData({...formData, observations: e.target.value})}
+                multiline
+                rows={3}
               />
-              <div className="flex gap-3 pt-4">
-                <AnimatedButton onClick={handleSaveProposal} className="flex-1">Salvar</AnimatedButton>
-                <AnimatedButton onClick={() => setIsModalOpen(false)} variant="outline" className="flex-1">Cancelar</AnimatedButton>
+
+              <div className="pt-4 flex gap-3">
+                <AnimatedButton 
+                  onClick={() => setIsModalOpen(false)} 
+                  variant="outline" 
+                  className="flex-1"
+                >
+                  Cancelar
+                </AnimatedButton>
+                <AnimatedButton 
+                  onClick={handleSaveProposal} 
+                  disabled={uploading}
+                  className="flex-1"
+                >
+                  {uploading ? 'Salvando...' : 'Salvar Proposta'}
+                </AnimatedButton>
               </div>
             </div>
-          </div>
+          </Card>
         </div>
       )}
     </DashboardLayout>

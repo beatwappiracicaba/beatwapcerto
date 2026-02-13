@@ -6,11 +6,13 @@ import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useNotification } from '../context/NotificationContext';
 import { Plus, Phone, MessageCircle, MoreHorizontal, Calendar, DollarSign, MapPin, X, Save } from 'lucide-react';
 
 const SellerLeads = () => {
   const { user } = useAuth();
   const { addToast } = useToast();
+  const { sendNotification } = useNotification();
   const [leads, setLeads] = useState([]);
   const [artists, setArtists] = useState([]);
   const [contractors, setContractors] = useState([]);
@@ -178,49 +180,70 @@ const SellerLeads = () => {
         leadId = data.id;
       }
       
-      // Se status for fechado, criar/atualizar evento na agenda
-      if (formData.status === 'fechado' && leadId) {
+      // Update calendar based on lead status
+      if (leadId) {
         try {
-          // Verifica se já existe evento vinculado a este lead
           const { data: existingEvent } = await supabase
             .from('artist_work_events')
             .select('id')
             .eq('lead_id', leadId)
             .maybeSingle();
 
-          const eventPayload = {
-            artista_id: formData.artist_id,
-            title: formData.event_name || 'Show Confirmado',
-            date: formData.event_date || new Date().toISOString(),
-            type: 'show',
-            notes: `Lead fechado com ${formData.contractor_name}. Valor: R$ ${formData.budget}`,
-            revenue: parseFloat(formData.budget) || 0,
-            seller_id: user.id,
-            status: 'pendente', // Status financeiro pendente
-            lead_id: leadId,
-            city: formData.city
-          };
-
-          if (existingEvent) {
-            await supabase
-              .from('artist_work_events')
-              .update(eventPayload)
-              .eq('id', existingEvent.id);
+          if (formData.status === 'perdido') {
+            // Delete event from calendar
+            if (existingEvent) {
+              await supabase
+                .from('artist_work_events')
+                .delete()
+                .eq('id', existingEvent.id);
+              
+              // Send notification for canceled show
+              await sendNotification(formData.artist_id, 'Show Cancelado', `O show ${formData.event_name} foi cancelado pois o lead foi perdido.`);
+            }
           } else {
-            await supabase
-              .from('artist_work_events')
-              .insert({
-                ...eventPayload,
-                created_by: user.id
-              });
+            // Map lead status to event status
+            let eventStatus = 'pendente';
+            if (formData.status === 'novo') eventStatus = 'proposta';
+            else if (formData.status === 'negociacao') eventStatus = 'negociacao';
+            else if (formData.status === 'fechado') eventStatus = 'fechado';
+
+            const eventPayload = {
+              artista_id: formData.artist_id,
+              title: formData.event_name || 'Show Confirmado',
+              date: formData.event_date || new Date().toISOString(),
+              type: 'show',
+              notes: `Lead ${formData.status} com ${formData.contractor_name}. Valor: R$ ${formData.budget}`,
+              revenue: parseFloat(formData.budget) || 0,
+              seller_id: user.id,
+              status: eventStatus,
+              lead_id: leadId,
+              city: formData.city
+            };
+
+            if (existingEvent) {
+              await supabase
+                .from('artist_work_events')
+                .update(eventPayload)
+                .eq('id', existingEvent.id);
+            } else {
+              await supabase
+                .from('artist_work_events')
+                .insert({
+                  ...eventPayload,
+                  created_by: user.id
+                });
+            }
+
+            // Send notification for new lead if it's new
+            if (!currentLead) {
+               await sendNotification(formData.artist_id, 'Novo Lead', `Um novo lead foi aberto para você: ${formData.event_name}`);
+            }
           }
           addToast('Lead salvo e agenda atualizada!', 'success');
         } catch (eventError) {
           console.error('Erro ao atualizar agenda:', eventError);
           addToast('Lead salvo, mas houve erro ao atualizar agenda (verifique colunas).', 'warning');
         }
-      } else {
-        addToast('Lead salvo com sucesso!', 'success');
       }
 
       setIsModalOpen(false);
