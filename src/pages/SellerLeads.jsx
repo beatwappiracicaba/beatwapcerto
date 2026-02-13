@@ -154,8 +154,11 @@ const SellerLeads = () => {
         return;
       }
 
+      // Remover campos que não pertencem à tabela leads (como o objeto artist expandido)
+      const { artist, id, created_at, ...leadData } = formData;
+
       const payload = {
-        ...formData,
+        ...leadData,
         seller_id: user.id,
         budget: parseFloat(formData.budget) || 0,
         // Convert empty string to null for optional UUIDs
