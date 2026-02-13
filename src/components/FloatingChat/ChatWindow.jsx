@@ -1179,7 +1179,5 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
         </div>
       )}
     </motion.div>
-      </div>
-    </AnimatePresence>
   );
 };
