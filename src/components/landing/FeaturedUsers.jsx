@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Star, Music, Shield, Info, Instagram as IgIcon, Globe, X, Briefcase } from 'lucide-react';
+import { User, Star, Shield, Info, Briefcase, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 import { useToast } from '../../context/ToastContext';
 
@@ -61,6 +61,15 @@ const FeaturedUsers = () => {
   const [selected, setSelected] = useState(null);
   const { addToast } = useToast();
   const [ipHash, setIpHash] = useState(null);
+  const producersRef = useRef(null);
+  const sellersRef = useRef(null);
+  const artistsRef = useRef(null);
+  const makeScroll = (ref, dir) => () => {
+    const el = ref.current;
+    if (!el) return;
+    const delta = Math.max(240, Math.round(el.clientWidth * 0.8));
+    el.scrollBy({ left: dir * delta, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -132,18 +141,34 @@ const FeaturedUsers = () => {
               </h2>
             </motion.div>
 
-            <div className="overflow-x-auto -mx-6 px-6 pb-2">
-              <div className="flex gap-6 snap-x snap-mandatory">
-                {producers.map((user) => (
-                  <div key={user.id} className="min-w-[160px] sm:min-w-[200px] snap-start">
-                    <UserCard 
-                      user={user} 
-                      type="producer" 
-                      onSelect={handleUserClick} 
-                    />
-                  </div>
-                ))}
+            <div className="relative -mx-6">
+              <div ref={producersRef} className="overflow-x-auto px-6 pb-2">
+                <div className="flex gap-6 snap-x snap-mandatory">
+                  {producers.map((user) => (
+                  <div key={user.id} className="min-w-[160px] sm:min-w-[180px] snap-start">
+                      <UserCard 
+                        user={user} 
+                        type="producer" 
+                        onSelect={handleUserClick} 
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
+              <button
+                aria-label="Anterior"
+                className="hidden md:flex items-center justify-center absolute left-0 top-1/2 -translate-y-1/2 ml-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                onClick={makeScroll(producersRef, -1)}
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <button
+                aria-label="Próximo"
+                className="hidden md:flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 mr-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                onClick={makeScroll(producersRef, 1)}
+              >
+                <ChevronRight size={20} />
+              </button>
             </div>
           </div>
         )}
@@ -162,18 +187,34 @@ const FeaturedUsers = () => {
               </h2>
             </motion.div>
 
-            <div className="overflow-x-auto -mx-6 px-6 pb-2">
-              <div className="flex gap-6 snap-x snap-mandatory">
-                {sellers.map((user) => (
-                  <div key={user.id} className="min-w-[160px] sm:min-w-[200px] snap-start">
-                    <UserCard 
-                      user={user} 
-                      type="seller" 
-                      onSelect={handleUserClick} 
-                    />
-                  </div>
-                ))}
+            <div className="relative -mx-6">
+              <div ref={sellersRef} className="overflow-x-auto px-6 pb-2">
+                <div className="flex gap-6 snap-x snap-mandatory">
+                  {sellers.map((user) => (
+                  <div key={user.id} className="min-w-[160px] sm:min-w-[180px] snap-start">
+                      <UserCard 
+                        user={user} 
+                        type="seller" 
+                        onSelect={handleUserClick} 
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
+              <button
+                aria-label="Anterior"
+                className="hidden md:flex items-center justify-center absolute left-0 top-1/2 -translate-y-1/2 ml-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                onClick={makeScroll(sellersRef, -1)}
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <button
+                aria-label="Próximo"
+                className="hidden md:flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 mr-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                onClick={makeScroll(sellersRef, 1)}
+              >
+                <ChevronRight size={20} />
+              </button>
             </div>
           </div>
         )}
@@ -192,18 +233,34 @@ const FeaturedUsers = () => {
               </h2>
             </motion.div>
 
-            <div className="overflow-x-auto -mx-6 px-6 pb-2">
-              <div className="flex gap-6 snap-x snap-mandatory">
-                {artists.map((user) => (
-                  <div key={user.id} className="min-w-[160px] sm:min-w-[200px] snap-start">
-                    <UserCard 
-                      user={user} 
-                      type="artist" 
-                      onSelect={handleUserClick} 
-                    />
-                  </div>
-                ))}
+            <div className="relative -mx-6">
+              <div ref={artistsRef} className="overflow-x-auto px-6 pb-2">
+                <div className="flex gap-6 snap-x snap-mandatory">
+                  {artists.map((user) => (
+                  <div key={user.id} className="min-w-[160px] sm:min-w-[180px] snap-start">
+                      <UserCard 
+                        user={user} 
+                        type="artist" 
+                        onSelect={handleUserClick} 
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
+              <button
+                aria-label="Anterior"
+                className="hidden md:flex items-center justify-center absolute left-0 top-1/2 -translate-y-1/2 ml-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                onClick={makeScroll(artistsRef, -1)}
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <button
+                aria-label="Próximo"
+                className="hidden md:flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 mr-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                onClick={makeScroll(artistsRef, 1)}
+              >
+                <ChevronRight size={20} />
+              </button>
             </div>
           </div>
         )}

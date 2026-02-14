@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/landing/Header';
 import Hero from '../components/landing/Hero';
@@ -12,7 +12,7 @@ import SpecialOffer from '../components/landing/SpecialOffer';
 import Contact from '../components/landing/Contact';
 import Footer from '../components/landing/Footer';
 import { supabase } from '../services/supabaseClient';
-import { Play, Pause, BadgeCheck, Music, MessageCircle } from 'lucide-react';
+import { Play, Pause, BadgeCheck, Music, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Instagram, Globe, Youtube, Video } from 'lucide-react';
@@ -31,7 +31,16 @@ const Home = () => {
   const [isPaused, setIsPaused] = useState(false);
   const [ipHash, setIpHash] = useState(null);
   const [playStartTS, setPlayStartTS] = useState(null);
-  
+  const upcomingRef = useRef(null);
+  const releasedRef = useRef(null);
+  const compositionsRef = useRef(null);
+  const composersRef = useRef(null);
+  const makeScroll = (ref, dir) => () => {
+    const el = ref.current;
+    if (!el) return;
+    const delta = Math.max(240, Math.round(el.clientWidth * 0.8));
+    el.scrollBy({ left: dir * delta, behavior: 'smooth' });
+  };
 
   // Reset scroll on mount
   useEffect(() => {
@@ -234,10 +243,11 @@ const Home = () => {
                       <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Em Breve</span></h2>
                       <p className="text-gray-400"><span>Pré-saves e lançamentos agendados</span></p>
                     </div>
-                    <div className="overflow-x-auto -mx-6 px-6 pb-2">
-                      <div className="flex gap-6 snap-x snap-mandatory">
+                    <div className="relative -mx-6">
+                      <div ref={upcomingRef} className="overflow-x-auto px-6 pb-2">
+                        <div className="flex gap-6 snap-x snap-mandatory">
                         {upcoming.map((release, index) => (
-                          <div key={release.id} className="min-w-[220px] sm:min-w-[240px] snap-start">
+                          <div key={release.id} className="min-w-[180px] sm:min-w-[200px] snap-start">
                             <motion.div 
                               initial={{ opacity: 0, y: 20 }}
                               whileInView={{ opacity: 1, y: 0 }}
@@ -301,7 +311,22 @@ const Home = () => {
                             </motion.div>
                           </div>
                         ))}
+                        </div>
                       </div>
+                      <button
+                        aria-label="Anterior"
+                        className="hidden md:flex items-center justify-center absolute left-0 top-1/2 -translate-y-1/2 ml-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                        onClick={makeScroll(upcomingRef, -1)}
+                      >
+                        <ChevronLeft size={20} />
+                      </button>
+                      <button
+                        aria-label="Próximo"
+                        className="hidden md:flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 mr-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                        onClick={makeScroll(upcomingRef, 1)}
+                      >
+                        <ChevronRight size={20} />
+                      </button>
                     </div>
                   </div>
                 </section>
@@ -313,10 +338,11 @@ const Home = () => {
                       <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Já Lançadas</span></h2>
                       <p className="text-gray-400"><span>Ouça agora os lançamentos disponíveis</span></p>
                     </div>
-                    <div className="overflow-x-auto -mx-6 px-6 pb-2">
-                      <div className="flex gap-6 snap-x snap-mandatory">
+                    <div className="relative -mx-6">
+                      <div ref={releasedRef} className="overflow-x-auto px-6 pb-2">
+                        <div className="flex gap-6 snap-x snap-mandatory">
                         {released.map((release, index) => (
-                          <div key={release.id} className="min-w-[220px] sm:min-w-[240px] snap-start">
+                          <div key={release.id} className="min-w-[180px] sm:min-w-[200px] snap-start">
                             <motion.div 
                               initial={{ opacity: 0, y: 20 }}
                               whileInView={{ opacity: 1, y: 0 }}
@@ -380,7 +406,22 @@ const Home = () => {
                             </motion.div>
                           </div>
                         ))}
+                        </div>
                       </div>
+                      <button
+                        aria-label="Anterior"
+                        className="hidden md:flex items-center justify-center absolute left-0 top-1/2 -translate-y-1/2 ml-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                        onClick={makeScroll(releasedRef, -1)}
+                      >
+                        <ChevronLeft size={20} />
+                      </button>
+                      <button
+                        aria-label="Próximo"
+                        className="hidden md:flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 mr-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                        onClick={makeScroll(releasedRef, 1)}
+                      >
+                        <ChevronRight size={20} />
+                      </button>
                     </div>
                   </div>
                 </section>
@@ -392,16 +433,16 @@ const Home = () => {
         {/* Latest Compositions Section */}
         {latestCompositions.length > 0 && (
           <section className="py-20 px-6 bg-black/20">
-            <div className="max-w-7xl mx-auto">
+            <div className="max-w-7xl mx-auto relative">
               <div className="text-center mb-12">
                 <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Últimas Composições Lançadas</span></h2>
                 <p className="text-gray-400"><span>Obras exclusivas de nossos compositores parceiros</span></p>
               </div>
 
-              <div className="overflow-x-auto -mx-6 px-6 pb-2">
+              <div ref={compositionsRef} className="overflow-x-auto -mx-6 px-6 pb-2">
                 <div className="flex gap-6 snap-x snap-mandatory">
                   {latestCompositions.map((comp, index) => (
-                    <div key={comp.id} className="min-w-[220px] sm:min-w-[240px] snap-start">
+                    <div key={comp.id} className="min-w-[180px] sm:min-w-[200px] snap-start">
                       <motion.div 
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -458,6 +499,20 @@ const Home = () => {
                   ))}
                 </div>
               </div>
+              <button
+                aria-label="Anterior"
+                className="hidden md:flex items-center justify-center absolute left-0 top-1/2 -translate-y-1/2 -ml-1 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                onClick={makeScroll(compositionsRef, -1)}
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <button
+                aria-label="Próximo"
+                className="hidden md:flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 -mr-1 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                onClick={makeScroll(compositionsRef, 1)}
+              >
+                <ChevronRight size={20} />
+              </button>
             </div>
           </section>
         )}
@@ -511,10 +566,11 @@ const Home = () => {
                 <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Compositores Parceiros</span></h2>
                 <p className="text-gray-400"><span>Profissionais disponíveis para suas produções</span></p>
               </div>
-              <div className="overflow-x-auto -mx-6 px-6 pb-2">
-                <div className="flex gap-6 snap-x snap-mandatory">
+              <div className="relative -mx-6">
+                <div ref={composersRef} className="overflow-x-auto px-6 pb-2">
+                  <div className="flex gap-6 snap-x snap-mandatory">
                   {composers.map((composer, index) => (
-                    <div key={composer.id} className="min-w-[220px] sm:min-w-[240px] snap-start">
+                    <div key={composer.id} className="min-w-[180px] sm:min-w-[200px] snap-start">
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -536,7 +592,22 @@ const Home = () => {
                       </motion.div>
                     </div>
                   ))}
+                  </div>
                 </div>
+                <button
+                  aria-label="Anterior"
+                  className="hidden md:flex items-center justify-center absolute left-0 top-1/2 -translate-y-1/2 ml-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                  onClick={makeScroll(composersRef, -1)}
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <button
+                  aria-label="Próximo"
+                  className="hidden md:flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 mr-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                  onClick={makeScroll(composersRef, 1)}
+                >
+                  <ChevronRight size={20} />
+                </button>
               </div>
             </div>
           </section>
