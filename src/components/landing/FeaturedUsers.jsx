@@ -31,20 +31,17 @@ const UserCard = ({ user, type, onSelect }) => {
             <User size={48} className="text-white/20" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-          <span className="text-beatwap-gold text-sm font-medium flex items-center gap-2">
-            <Info size={16} /> Ver Perfil
-          </span>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3 sm:p-4">
+          <div className="w-full">
+            <div className="text-white text-sm font-bold truncate">{user.name || roleLabel}</div>
+            <div className="text-[11px] text-gray-300 truncate flex items-center gap-2">
+              <span>{roleLabel}</span>
+              <span className="hidden sm:flex items-center gap-1 text-beatwap-gold">
+                <Info size={14} /> <span>Ver Perfil</span>
+              </span>
+            </div>
+          </div>
         </div>
-      </div>
-      <div className="hidden sm:block p-4">
-        <h3 className="font-bold text-lg text-white truncate">
-          <span>{user.name || roleLabel}</span>
-        </h3>
-        <p className="text-sm text-gray-400 truncate">
-          <span>{roleLabel}</span>
-          {user.genero_musical && <span> • {user.genero_musical}</span>}
-        </p>
       </div>
     </motion.div>
   );
