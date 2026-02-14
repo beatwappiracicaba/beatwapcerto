@@ -36,7 +36,6 @@ const Footer = () => {
               <li><a href="#how-it-works" className="text-gray-400 hover:text-beatwap-gold transition-colors">Como funciona</a></li>
               <li><a href="#benefits" className="text-gray-400 hover:text-beatwap-gold transition-colors">Vantagens</a></li>
               <li><a href="/login" className="text-gray-400 hover:text-beatwap-gold transition-colors">Login</a></li>
-              <li><a href="/register" className="text-gray-400 hover:text-beatwap-gold transition-colors">Cadastro</a></li>
             </ul>
           </div>
 
