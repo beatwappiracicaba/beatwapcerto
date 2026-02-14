@@ -1,221 +1,325 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Shield, Music, CreditCard, Star, User } from 'lucide-react';
+import { Check, Shield, Music, CreditCard, Star, User, Zap, MessageSquare, PenTool } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { useAuth } from '../../context/AuthContext';
 import CheckoutModal from './CheckoutModal';
 
 const Pricing = () => {
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState(null);
-  const [isAvulsoChoiceOpen, setIsAvulsoChoiceOpen] = useState(false);
   const { user, profile } = useAuth();
   const navigate = useNavigate();
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [selectedPlanType, setSelectedPlanType] = useState('avulso');
+  const [customCheckoutData, setCustomCheckoutData] = useState(null);
+  
+  // State for Plan Logic
+  const [userType, setUserType] = useState('artist'); // 'artist' | 'composer'
+  const [avulsoQuantity, setAvulsoQuantity] = useState(1);
 
-  const openPlan = (planLabel, url) => {
-    try {
-      const artistName = profile?.nome || profile?.nome_completo_razao_social || '';
-      const msg = artistName ? `Comprei o ${planLabel} - ${artistName}` : `Comprei o ${planLabel}`;
-      const wa = 'https://wa.me/5519981083497?text=' + encodeURIComponent(msg);
-      const a1 = document.createElement('a');
-      a1.href = url;
-      a1.target = '_blank';
-      a1.rel = 'noopener,noreferrer';
-      document.body.appendChild(a1);
-      a1.click();
-      const a2 = document.createElement('a');
-      a2.href = wa;
-      a2.target = '_blank';
-      a2.rel = 'noopener,noreferrer';
-      document.body.appendChild(a2);
-      a2.click();
-      a1.remove();
-      a2.remove();
-    } catch {}
+  // Determine user type from profile if logged in
+  useEffect(() => {
+    if (profile?.cargo === 'Compositor') {
+      setUserType('composer');
+    }
+  }, [profile]);
+
+  // Vendedor/Produtor check
+  const isEmployee = profile?.cargo === 'Vendedor' || profile?.cargo === 'Produtor' || profile?.cargo === 'Admin';
+
+  const calculateAvulsoPrice = (qty, type) => {
+    const q = Math.max(1, parseInt(qty) || 1);
+    if (type === 'artist') {
+      // R$ 100 first, R$ 50 others
+      if (q === 1) return 100;
+      return 100 + (q - 1) * 50;
+    } else {
+      // R$ 25 first, R$ 10 others
+      if (q === 1) return 25;
+      return 25 + (q - 1) * 10;
+    }
   };
 
-  const handleSelectPlan = (plan) => {
+  const handleAvulsoBuy = () => {
     if (!user) {
       navigate('/login');
       return;
     }
-    setSelectedPlan(plan);
+    const price = calculateAvulsoPrice(avulsoQuantity, userType);
+    const itemName = userType === 'artist' ? 'música(s)' : 'composição(ões)';
+    
+    setCustomCheckoutData({
+      planName: `Plano Avulso (${avulsoQuantity} ${itemName})`,
+      price: `R$ ${price.toFixed(2).replace('.', ',')}`,
+      message: `Olá! Gostaria de adquirir o pacote avulso de ${avulsoQuantity} ${itemName} por R$ ${price.toFixed(2).replace('.', ',')}. Meu email é ${user.email}.`
+    });
+    setSelectedPlanType('custom');
     setIsCheckoutOpen(true);
   };
 
+  const openPlan = (planKey) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    if (planKey === 'vitalicio') {
+        const msg = `Olá! Tenho interesse no Plano Vitalício (${userType === 'artist' ? 'Artista' : 'Compositor'}). Gostaria de saber como conseguir um convite.`;
+        const wa = `https://wa.me/5519981083497?text=${encodeURIComponent(msg)}`;
+        window.open(wa, '_blank');
+        return;
+    }
+
+    let price = '';
+    let name = '';
+    let link = '';
+
+    if (userType === 'artist') {
+        if (planKey === 'mensal') { price = 'R$ 200,00'; name = 'Plano Mensal (Artista)'; link = 'https://mpago.la/13HdzTe'; }
+        if (planKey === 'anual') { price = 'R$ 1.200,00'; name = 'Plano Anual (Artista)'; link = 'https://mpago.la/13wuYRF'; }
+    } else {
+        if (planKey === 'mensal') { price = 'R$ 100,00'; name = 'Plano Mensal (Compositor)'; link = ''; }
+        if (planKey === 'anual') { price = 'R$ 600,00'; name = 'Plano Anual (Compositor)'; link = ''; }
+    }
+
+    setCustomCheckoutData({
+        planName: name,
+        price: price,
+        link: link, 
+        message: `Olá! Quero assinar o ${name} por ${price}. Email: ${user.email}`
+    });
+    setSelectedPlanType('custom'); 
+    setIsCheckoutOpen(true);
+  };
+
+  if (isEmployee) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 bg-black">
+        <Shield size={64} className="text-beatwap-gold mb-4" />
+        <h2 className="text-3xl font-bold text-white mb-2">Acesso Corporativo</h2>
+        <p className="text-gray-400 max-w-md">
+          Seu perfil ({profile?.cargo}) é configurado como colaborador interno.
+          Você não precisa de planos para acessar o sistema.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <section className="py-20 px-6 bg-gradient-to-b from-beatwap-black to-black relative overflow-hidden">
-      {isAvulsoChoiceOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#121212] w-full max-w-md rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
-            <div className="p-6 border-b border-white/10 bg-white/5">
-              <h3 className="text-xl font-bold text-white">Plano Avulso</h3>
-              <p className="text-sm text-gray-400">É apenas 1 música ou mais de 1?</p>
-            </div>
-            <div className="p-6 space-y-4">
-              <AnimatedButton
-                className="w-full"
-                onClick={() => {
-                  setIsAvulsoChoiceOpen(false);
-                  const a = document.createElement('a');
-                  a.href = 'https://mpago.la/1bNzgUz';
-                  a.target = '_blank';
-                  a.rel = 'noopener,noreferrer';
-                  document.body.appendChild(a);
-                  a.click();
-                  a.remove();
-                }}
+      <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-beatwap-gold/30 to-transparent"></div>
+
+      <div className="max-w-7xl mx-auto relative z-10">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-5xl font-bold mb-6 text-white">
+            Escolha seu <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">Plano Ideal</span>
+          </h2>
+          <p className="text-xl text-gray-400 max-w-2xl mx-auto mb-8">
+            Potencialize sua carreira com as ferramentas certas.
+          </p>
+
+          {/* User Type Toggle */}
+          <div className="flex justify-center mb-12">
+            <div className="bg-white/5 p-1 rounded-full flex relative border border-white/10">
+              <div 
+                className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-beatwap-gold rounded-full transition-all duration-300 ${userType === 'composer' ? 'translate-x-[calc(100%+4px)]' : 'translate-x-0'}`}
+              />
+              <button 
+                onClick={() => setUserType('artist')}
+                className={`relative z-10 px-6 md:px-8 py-2 rounded-full font-bold transition-colors text-sm md:text-base flex items-center gap-2 ${userType === 'artist' ? 'text-black' : 'text-gray-400 hover:text-white'}`}
               >
-                Só 1 música
-              </AnimatedButton>
-              <AnimatedButton
-                variant="secondary"
-                className="w-full"
-                onClick={() => {
-                  setIsAvulsoChoiceOpen(false);
-                  const artistName = profile?.nome || profile?.nome_completo_razao_social || '';
-                  const msg = artistName ? `Quero contratar plano avulso para mais de 1 música - ${artistName}` : 'Quero contratar plano avulso para mais de 1 música';
-                  const wa = 'https://wa.me/5519981083497?text=' + encodeURIComponent(msg);
-                  const a = document.createElement('a');
-                  a.href = wa;
-                  a.target = '_blank';
-                  a.rel = 'noopener,noreferrer';
-                  document.body.appendChild(a);
-                  a.click();
-                  a.remove();
-                }}
+                <Music size={16} /> Sou Artista
+              </button>
+              <button 
+                onClick={() => setUserType('composer')}
+                className={`relative z-10 px-6 md:px-8 py-2 rounded-full font-bold transition-colors text-sm md:text-base flex items-center gap-2 ${userType === 'composer' ? 'text-black' : 'text-gray-400 hover:text-white'}`}
               >
-                Mais de 1 música
-              </AnimatedButton>
-              <div className="text-center">
-                <button onClick={() => setIsAvulsoChoiceOpen(false)} className="text-gray-400 hover:text-white text-sm">Cancelar</button>
-              </div>
+                <PenTool size={16} /> Sou Compositor
+              </button>
             </div>
           </div>
         </div>
-      )}
-      <CheckoutModal 
-        isOpen={isCheckoutOpen} 
-        onClose={() => setIsCheckoutOpen(false)} 
-        planType={selectedPlan} 
-      />
-      {/* Background Elements */}
-      <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-beatwap-gold/30 to-transparent"></div>
-      
-      <div className="max-w-7xl mx-auto relative z-10">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-bold mb-6 text-white">Planos de Distribuição Musical</h2>
-          <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-            Escolha o plano ideal para sua carreira. Sem taxas escondidas, sem contratos abusivos.
-          </p>
-        </div>
 
-        {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
-          {/* Plano Avulso */}
-          <div className="bg-white/5 border border-white/10 rounded-3xl p-8 hover:border-beatwap-gold/50 transition-all duration-300 group">
-            <div className="mb-6">
-              <h3 className="text-2xl font-bold text-white mb-2">Plano Avulso</h3>
-              <p className="text-gray-400 text-sm">Ideal para lançamentos pontuais</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
+          
+          {/* 1. PLANO AVULSO */}
+          <div className="bg-white/5 border border-white/10 rounded-3xl p-6 hover:border-purple-500/50 transition-all duration-300 flex flex-col">
+            <div className="mb-4">
+              <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center mb-4 text-purple-400">
+                <Music size={24} />
+              </div>
+              <h3 className="text-xl font-bold text-white">Plano Avulso</h3>
+              <p className="text-gray-400 text-sm mt-1">Pague apenas pelo que usar</p>
             </div>
-            <div className="mb-6">
-              <span className="text-4xl font-bold text-beatwap-gold">R$ 100</span>
-              <span className="text-gray-400">/música</span>
+
+            <div className="mb-6 bg-black/40 p-4 rounded-xl border border-white/5">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-gray-400">Quantidade:</span>
+                <input 
+                  type="number" 
+                  min="1" 
+                  max="100"
+                  value={avulsoQuantity}
+                  onChange={(e) => setAvulsoQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-16 bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-center outline-none focus:border-beatwap-gold"
+                />
+              </div>
+              <div className="text-center my-3">
+                <span className="text-3xl font-bold text-white">
+                  R$ {calculateAvulsoPrice(avulsoQuantity, userType).toFixed(0)}
+                </span>
+              </div>
+              <p className="text-xs text-center text-gray-500">
+                {userType === 'artist' 
+                  ? '1ª música R$ 100, add. R$ 50' 
+                  : '1ª comp. R$ 25, add. R$ 10'}
+              </p>
             </div>
-            <p className="text-sm text-gray-300 mb-6 border-b border-white/10 pb-6">
-              Músicas adicionais no mesmo envio: <span className="text-white font-bold">R$ 50,00</span> cada
-            </p>
-            <ul className="space-y-4 mb-8">
-              <li className="flex items-center gap-3 text-sm text-gray-300">
-                <Check size={18} className="text-beatwap-gold" /> Distribuição digital completa
+
+            <ul className="space-y-3 mb-8 flex-grow">
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-green-500 flex-shrink-0" />
+                <span>Upload de {avulsoQuantity} {userType === 'artist' ? 'música(s)' : 'composição(ões)'}</span>
               </li>
-              <li className="flex items-center gap-3 text-sm text-gray-300">
-                <Check size={18} className="text-beatwap-gold" /> Cadastro de metadados e ISRC
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-yellow-500 flex-shrink-0" />
+                <span>Chat restrito (Apenas Produtores)</span>
               </li>
-              <li className="flex items-center gap-3 text-sm text-gray-300">
-                <Check size={18} className="text-beatwap-gold" /> Suporte básico ao artista
-              </li>
-              <li className="flex items-center gap-3 text-sm text-gray-300">
-                <Check size={18} className="text-beatwap-gold" /> 75% Royalties para você
+              <li className="flex gap-3 text-sm text-gray-500">
+                <User size={16} className="text-gray-600 flex-shrink-0" />
+                <span>Sem acesso a Mentoria</span>
               </li>
             </ul>
-            <AnimatedButton 
-              variant="outline" 
-              className="w-full" 
-              onClick={() => {
-                if (!user) {
-                  navigate('/login');
-                  return;
-                }
-                setIsAvulsoChoiceOpen(true);
-              }}
-            >
-              Comprar Plano por Música
+
+            <AnimatedButton variant="outline" className="w-full" onClick={handleAvulsoBuy}>
+              Comprar Pacote
             </AnimatedButton>
           </div>
 
-          {/* Plano Mensal */}
-          <div className="bg-white/5 border border-white/10 rounded-3xl p-8 hover:border-beatwap-gold/50 transition-all duration-300 group relative">
-            <div className="mb-6">
-              <h3 className="text-2xl font-bold text-white mb-2">Plano Mensal</h3>
-              <p className="text-gray-400 text-sm">Para artistas em atividade constante</p>
+          {/* 2. PLANO MENSAL */}
+          <div className="bg-white/5 border border-white/10 rounded-3xl p-6 hover:border-beatwap-gold/50 transition-all duration-300 flex flex-col relative group">
+            <div className="absolute top-0 right-0 bg-beatwap-gold/20 text-beatwap-gold text-xs font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl">
+              MAIS POPULAR
             </div>
-            <div className="mb-6">
-              <span className="text-4xl font-bold text-beatwap-gold">R$ 200</span>
-              <span className="text-gray-400">/mês</span>
+            <div className="mb-4">
+              <div className="w-12 h-12 bg-beatwap-gold/20 rounded-xl flex items-center justify-center mb-4 text-beatwap-gold">
+                <Star size={24} />
+              </div>
+              <h3 className="text-xl font-bold text-white">Mensal</h3>
+              <p className="text-gray-400 text-sm mt-1">Mentoria e visibilidade constante</p>
             </div>
-            <p className="text-sm text-gray-300 mb-6 border-b border-white/10 pb-6">
-              Até <span className="text-white font-bold">4 músicas</span> por mês. Extras: R$ 40,00 cada.
-            </p>
-            <ul className="space-y-4 mb-8">
-              <li className="flex items-center gap-3 text-sm text-gray-300">
-                <Check size={18} className="text-beatwap-gold" /> Gestão de lançamentos
+
+            <div className="mb-6">
+              <span className="text-4xl font-bold text-white">
+                R$ {userType === 'artist' ? '200' : '100'}
+              </span>
+              <span className="text-gray-400 text-sm">/mês</span>
+            </div>
+
+            <ul className="space-y-3 mb-8 flex-grow">
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-beatwap-gold flex-shrink-0" />
+                <span>2 uploads/mês inclusos</span>
               </li>
-              <li className="flex items-center gap-3 text-sm text-gray-300">
-                <Check size={18} className="text-beatwap-gold" /> Organização de catálogo
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-beatwap-gold flex-shrink-0" />
+                <span>Adicional: R$ {userType === 'artist' ? '40' : '10'}</span>
               </li>
-              <li className="flex items-center gap-3 text-sm text-gray-300">
-                <Check size={18} className="text-beatwap-gold" /> Suporte durante o mês
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-beatwap-gold flex-shrink-0" />
+                <span>Chat Liberado (Todos)</span>
               </li>
-              <li className="flex items-center gap-3 text-sm text-gray-300">
-                <Check size={18} className="text-beatwap-gold" /> 75% Royalties para você
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-beatwap-gold flex-shrink-0" />
+                <span>Acesso a Mentoria & Marketing</span>
+              </li>
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-beatwap-gold flex-shrink-0" />
+                <span>Assistente IA incluso</span>
               </li>
             </ul>
-            <AnimatedButton variant="outline" className="w-full" onClick={() => openPlan('Plano mensal', 'https://mpago.la/13HdzTe')}>Assinar Plano Mensal</AnimatedButton>
+
+            <AnimatedButton className="w-full bg-beatwap-gold text-black hover:bg-white" onClick={() => openPlan('mensal')}>
+              Assinar Mensal
+            </AnimatedButton>
           </div>
 
-          {/* Plano Anual */}
-          <div className="bg-gradient-to-b from-beatwap-gold/10 to-transparent border border-beatwap-gold rounded-3xl p-8 relative transform md:-translate-y-4 shadow-xl shadow-beatwap-gold/10">
-            <div className="absolute top-0 right-0 bg-beatwap-gold text-black text-xs font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl">
-              MELHOR CUSTO-BENEFÍCIO ⭐
+          {/* 3. PLANO ANUAL */}
+          <div className="bg-white/5 border border-white/10 rounded-3xl p-6 hover:border-blue-500/50 transition-all duration-300 flex flex-col">
+            <div className="mb-4">
+              <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mb-4 text-blue-400">
+                <CreditCard size={24} />
+              </div>
+              <h3 className="text-xl font-bold text-white">Anual</h3>
+              <p className="text-gray-400 text-sm mt-1">Economia e longo prazo</p>
             </div>
+
             <div className="mb-6">
-              <h3 className="text-2xl font-bold text-white mb-2">Plano Anual</h3>
-              <p className="text-gray-400 text-sm">Equivalente a R$ 100,00/mês</p>
+              <span className="text-4xl font-bold text-white">
+                R$ {userType === 'artist' ? '1.200' : '600'}
+              </span>
+              <span className="text-gray-400 text-sm">/ano</span>
             </div>
-            <div className="mb-6">
-              <span className="text-4xl font-bold text-beatwap-gold">R$ 1.200</span>
-              <span className="text-gray-400">/ano</span>
-            </div>
-            <p className="text-sm text-gray-300 mb-6 border-b border-white/10 pb-6">
-              Até <span className="text-white font-bold">4 músicas</span> por mês. Extras: R$ 30,00 cada.
-            </p>
-            <ul className="space-y-4 mb-8">
-              <li className="flex items-center gap-3 text-sm text-white font-medium">
-                <Star size={18} className="text-beatwap-gold fill-beatwap-gold" /> Distribuição digital completa
+
+            <ul className="space-y-3 mb-8 flex-grow">
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-blue-400 flex-shrink-0" />
+                <span>24 uploads/ano (Total)</span>
               </li>
-              <li className="flex items-center gap-3 text-sm text-white font-medium">
-                <Star size={18} className="text-beatwap-gold fill-beatwap-gold" /> Gestão contínua do catálogo
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-blue-400 flex-shrink-0" />
+                <span>Todos benefícios do Mensal</span>
               </li>
-              <li className="flex items-center gap-3 text-sm text-white font-medium">
-                <Star size={18} className="text-beatwap-gold fill-beatwap-gold" /> Prioridade no suporte
-              </li>
-              <li className="flex items-center gap-3 text-sm text-white font-medium">
-                <Star size={18} className="text-beatwap-gold fill-beatwap-gold" /> Acompanhamento anual
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-blue-400 flex-shrink-0" />
+                <span>Chat & Mentoria Full</span>
               </li>
             </ul>
-            <AnimatedButton className="w-full bg-beatwap-gold text-black hover:bg-white" onClick={() => openPlan('Plano anual', 'https://mpago.la/13wuYRF')}>Assinar Plano Anual</AnimatedButton>
+
+            <AnimatedButton variant="outline" className="w-full" onClick={() => openPlan('anual')}>
+              Assinar Anual
+            </AnimatedButton>
           </div>
+
+          {/* 4. VITALÍCIO */}
+          <div className="bg-gradient-to-b from-gray-800 to-black border border-gray-700 rounded-3xl p-6 hover:border-white/50 transition-all duration-300 flex flex-col">
+            <div className="mb-4">
+              <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-4 text-white">
+                <Zap size={24} />
+              </div>
+              <h3 className="text-xl font-bold text-white">Vitalício</h3>
+              <p className="text-gray-400 text-sm mt-1">Exclusivo para convidados</p>
+            </div>
+
+            <div className="mb-6">
+              <span className="text-2xl font-bold text-white">
+                Sob Consulta
+              </span>
+            </div>
+
+            <ul className="space-y-3 mb-8 flex-grow">
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-white flex-shrink-0" />
+                <span>Uploads Ilimitados</span>
+              </li>
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-white flex-shrink-0" />
+                <span>IA Ilimitada</span>
+              </li>
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-white flex-shrink-0" />
+                <span>Chat Totalmente Liberado</span>
+              </li>
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-white flex-shrink-0" />
+                <span>Acesso Vitalício</span>
+              </li>
+            </ul>
+
+            <AnimatedButton variant="outline" className="w-full border-gray-600 hover:bg-white hover:text-black" onClick={() => openPlan('vitalicio')}>
+              Solicitar Convite
+            </AnimatedButton>
+          </div>
+
         </div>
 
         {/* General Conditions & Services */}
@@ -241,7 +345,7 @@ const Pricing = () => {
                 </div>
                 <div>
                   <h4 className="font-bold text-white text-lg">Divisão Justa de Royalties</h4>
-                  <p className="text-gray-400 text-sm">75% para o artista e 25% para a plataforma. A porcentagem da plataforma cobre suporte, estrutura e auxílio nos lançamentos.</p>
+                  <p className="text-gray-400 text-sm">75% para o artista e 25% para a plataforma.</p>
                 </div>
               </div>
               <div className="flex gap-4">
@@ -283,6 +387,14 @@ const Pricing = () => {
             </div>
           </div>
         </div>
+
+        {/* Custom Checkout Modal Handling */}
+        <CheckoutModal 
+          isOpen={isCheckoutOpen} 
+          onClose={() => setIsCheckoutOpen(false)} 
+          planType={selectedPlanType}
+          customData={customCheckoutData}
+        />
       </div>
     </section>
   );

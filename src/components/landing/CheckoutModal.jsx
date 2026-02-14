@@ -26,7 +26,7 @@ const plans = {
   }
 };
 
-const CheckoutModal = ({ isOpen, onClose, planType }) => {
+const CheckoutModal = ({ isOpen, onClose, planType, customData }) => {
   const { user } = useAuth();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -49,6 +49,9 @@ const CheckoutModal = ({ isOpen, onClose, planType }) => {
   });
 
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  // Determine plan details
+  const selectedPlan = customData || plans[planType] || plans['avulso'];
 
   useEffect(() => {
     if (isOpen && user) {
@@ -164,7 +167,7 @@ Data: ${new Date().toLocaleDateString()}
       // await supabase.from('purchase_attempts').insert({...})
 
       // 3. Open WhatsApp
-      const plan = plans[planType];
+      const plan = selectedPlan;
       const message = `Olá, acabei de contratar o ${plan.name} na BeatWap! Meu email é ${formData.email}. Gostaria de confirmar o pagamento.`;
       const whatsappUrl = `https://wa.me/5519981083497?text=${encodeURIComponent(message)}`;
       const a1 = document.createElement('a');
@@ -173,14 +176,18 @@ Data: ${new Date().toLocaleDateString()}
       a1.rel = 'noopener,noreferrer';
       document.body.appendChild(a1);
       a1.click();
-      const a2 = document.createElement('a');
-      a2.href = plan.link;
-      a2.target = '_blank';
-      a2.rel = 'noopener,noreferrer';
-      document.body.appendChild(a2);
-      a2.click();
+      
+      if (plan.link) {
+        const a2 = document.createElement('a');
+        a2.href = plan.link;
+        a2.target = '_blank';
+        a2.rel = 'noopener,noreferrer';
+        document.body.appendChild(a2);
+        a2.click();
+        a2.remove();
+      }
+      
       a1.remove();
-      a2.remove();
       onClose();
       addToast('Redirecionando para pagamento...', 'success');
 

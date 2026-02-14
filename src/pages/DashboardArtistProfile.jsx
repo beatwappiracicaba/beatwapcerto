@@ -108,14 +108,14 @@ export const DashboardArtistProfile = () => {
         setRemainingUploads(null);
         return;
       } else if (plan.includes('mensal')) {
-        base = 4;
+        base = 2;
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
         const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
         start = monthStart.toISOString();
         end = monthEnd.toISOString();
         setPeriodLabel('Mensal (mês calendário atual)');
       } else if (plan.includes('anual')) {
-        base = 48;
+        base = 24;
         const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
         const yearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
         start = yearStart.toISOString();
@@ -125,10 +125,20 @@ export const DashboardArtistProfile = () => {
         base = 0;
         setPeriodLabel('Gratuito');
       }
-      let q = supabase
-        .from('musics')
-        .select('id', { count: 'exact', head: true })
-        .eq('artista_id', user.id);
+
+      let q;
+      if (profile.cargo === 'Compositor') {
+        q = supabase
+          .from('compositions')
+          .select('id', { count: 'exact', head: true })
+          .eq('composer_id', user.id);
+      } else {
+        q = supabase
+          .from('musics')
+          .select('id', { count: 'exact', head: true })
+          .eq('artista_id', user.id);
+      }
+
       if (start) q = q.gte('created_at', start);
       if (end) q = q.lte('created_at', end);
       const { count } = await q;
