@@ -299,8 +299,12 @@ const Home = () => {
                                       : <Play fill="currentColor" className="ml-1" />}
                                   </button>
                                 </div>
+                                <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent block sm:hidden">
+                                  <div className="text-white text-sm font-bold truncate">{release.titulo || 'Lançamento'}</div>
+                                  <div className="text-[11px] text-gray-300 truncate">{release.nome_artista || 'Artista'}</div>
+                                </div>
                               </div>
-                              <div className="p-4 flex-1 flex flex-col justify-between min-h-[120px]">
+                              <div className="hidden sm:flex p-4 flex-1 flex-col justify-between min-h-[120px]">
                                 <div>
                                   <h3 className="font-bold text-lg text-white truncate"><span>{release.titulo || 'Lançamento'}</span></h3>
                                   <p className="text-sm text-gray-400 truncate"><span>{release.nome_artista || 'Artista'}</span></p>
@@ -400,8 +404,12 @@ const Home = () => {
                                       : <Play fill="currentColor" className="ml-1" />}
                                   </button>
                                 </div>
+                                <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent block sm:hidden">
+                                  <div className="text-white text-sm font-bold truncate">{release.titulo || 'Lançamento'}</div>
+                                  <div className="text-[11px] text-gray-300 truncate">{release.nome_artista || 'Artista'}</div>
+                                </div>
                               </div>
-                              <div className="p-4 flex-1 flex flex-col justify-between min-h-[120px]">
+                              <div className="hidden sm:flex p-4 flex-1 flex-col justify-between min-h-[120px]">
                                 <div>
                                   <h3 className="font-bold text-lg text-white truncate"><span>{release.titulo || 'Lançamento'}</span></h3>
                                   <p className="text-sm text-gray-400 truncate"><span>{release.nome_artista || 'Artista'}</span></p>
@@ -495,10 +503,14 @@ const Home = () => {
                                 : <Play fill="currentColor" className="ml-1" />}
                             </button>
                           </div>
+                          <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent block sm:hidden">
+                            <div className="text-white text-sm font-bold truncate">{comp.title}</div>
+                            <div className="text-[11px] text-gray-300 truncate">{comp.composer_name}</div>
+                          </div>
                         </div>
-                        <h3 className="font-bold text-lg truncate"><span>{comp.title}</span></h3>
-                        <p className="text-sm text-gray-400 truncate"><span>{comp.composer_name}</span></p>
-                        <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{comp.genre || 'Gênero'}</span></p>
+                        <h3 className="hidden sm:block font-bold text-lg truncate"><span>{comp.title}</span></h3>
+                        <p className="hidden sm:block text-sm text-gray-400 truncate"><span>{comp.composer_name}</span></p>
+                        <p className="hidden sm:block text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{comp.genre || 'Gênero'}</span></p>
                         {comp.composer_phone && (
                           <button 
                             onClick={(e) => {
