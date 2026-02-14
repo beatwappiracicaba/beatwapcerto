@@ -14,7 +14,7 @@ const Pricing = () => {
   
   // State for Plan Logic
   const [userType, setUserType] = useState('artist'); // 'artist' | 'composer'
-  const [avulsoQuantity, setAvulsoQuantity] = useState(1);
+  const [avulsoQuantity, setAvulsoQuantity] = useState('0'); // permitir limpar e digitar; exige >=1 para continuar
 
   // Determine user type from profile if logged in
   useEffect(() => {
@@ -27,7 +27,8 @@ const Pricing = () => {
   const isEmployee = profile?.cargo === 'Vendedor' || profile?.cargo === 'Produtor' || profile?.cargo === 'Admin';
 
   const calculateAvulsoPrice = (qty, type) => {
-    const q = Math.max(1, parseInt(qty) || 1);
+    const q = parseInt(qty, 10);
+    if (!q || q < 1) return 0;
     if (type === 'artist') {
       // R$ 100 first, R$ 50 others
       if (q === 1) return 100;
@@ -44,13 +45,18 @@ const Pricing = () => {
       navigate('/login');
       return;
     }
-    const price = calculateAvulsoPrice(avulsoQuantity, userType);
+    const q = parseInt(avulsoQuantity, 10);
+    if (!q || q < 1) {
+      window.alert('Informe a quantidade de músicas para continuar.');
+      return;
+    }
+    const price = calculateAvulsoPrice(q, userType);
     const itemName = userType === 'artist' ? 'música(s)' : 'composição(ões)';
     
     setCustomCheckoutData({
-      planName: `Plano Avulso (${avulsoQuantity} ${itemName})`,
+      planName: `Plano Avulso (${q} ${itemName})`,
       price: `R$ ${price.toFixed(2).replace('.', ',')}`,
-      message: `Olá! Gostaria de adquirir o pacote avulso de ${avulsoQuantity} ${itemName} por R$ ${price.toFixed(2).replace('.', ',')}. Meu email é ${user.email}.`
+      message: `Olá! Gostaria de adquirir o pacote avulso de ${q} ${itemName} por R$ ${price.toFixed(2).replace('.', ',')}. Meu email é ${user.email}.`
     });
     setSelectedPlanType('custom');
     setIsCheckoutOpen(true);
@@ -156,13 +162,16 @@ const Pricing = () => {
                 <span className="text-sm text-gray-400">Quantidade:</span>
                 <input 
                   type="number" 
-                  min="1" 
+                  min="0"
                   max="100"
                   value={avulsoQuantity}
-                  onChange={(e) => setAvulsoQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                  onChange={(e) => setAvulsoQuantity(e.target.value)}
                   className="w-16 bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-center outline-none focus:border-beatwap-gold"
                 />
               </div>
+              {(!parseInt(avulsoQuantity, 10) || parseInt(avulsoQuantity, 10) < 1) && (
+                <div className="text-xs text-red-400 text-right mb-2">Informe a quantidade para continuar</div>
+              )}
               <div className="text-center my-3">
                 <span className="text-3xl font-bold text-white">
                   R$ {calculateAvulsoPrice(avulsoQuantity, userType).toFixed(0)}
@@ -178,7 +187,7 @@ const Pricing = () => {
             <ul className="space-y-3 mb-8 flex-grow">
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-green-500 flex-shrink-0" />
-                <span>Upload de {avulsoQuantity} {userType === 'artist' ? 'música(s)' : 'composição(ões)'}</span>
+                <span>Upload de {parseInt(avulsoQuantity, 10) || 0} {userType === 'artist' ? 'música(s)' : 'composição(ões)'}</span>
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-yellow-500 flex-shrink-0" />
