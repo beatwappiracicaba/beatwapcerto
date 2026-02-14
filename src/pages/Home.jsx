@@ -213,109 +213,181 @@ const Home = () => {
         <Hero />
         
         {/* Latest Releases Section */}
-        {latestReleases.length > 0 && (
-          <section className="py-20 px-6 bg-black/30">
-            <div className="max-w-7xl mx-auto">
-              <div className="text-center mb-12">
-                <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Lançamentos Recentes</span></h2>
-                <p className="text-gray-400"><span>Ouça o que os nossos artistas estão produzindo</span></p>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {latestReleases.map((release, index) => (
-                  <motion.div 
-                    key={release.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="group relative"
-                  >
-                  <div 
-                    className="aspect-square rounded-2xl overflow-hidden mb-4 relative shadow-lg cursor-pointer"
-                    onClick={() => {
-                      const url = release.preview_url || release.audio_url;
-                      togglePlay(release.id, url);
-                    }}
-                  >
-                      <img 
-                        src={release.cover_url} 
-                        alt={release.titulo || 'Capa'} 
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
-                      />
-                      {release.release_date && (() => {
-                        const [y, m, d] = release.release_date.split('-');
-                        const rDate = new Date(y, m - 1, d);
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        const isReleased = rDate <= today;
-                        return (
-                          <div className={`absolute top-2 left-2 text-black text-xs font-bold px-2 py-1 rounded ${isReleased ? 'bg-white' : 'bg-beatwap-gold'}`}>
-                            <span>{isReleased ? 'Lançado em' : 'Lança em'} {rDate.toLocaleDateString('pt-BR')}</span>
+        {latestReleases.length > 0 && (() => {
+          const today = new Date(); today.setHours(0, 0, 0, 0);
+          const upcoming = latestReleases.filter(r => {
+            if (!r.release_date) return true;
+            const [y, m, d] = r.release_date.split('-'); const date = new Date(y, m - 1, d);
+            return date > today;
+          });
+          const released = latestReleases.filter(r => {
+            if (!r.release_date) return false;
+            const [y, m, d] = r.release_date.split('-'); const date = new Date(y, m - 1, d);
+            return date <= today;
+          });
+          return (
+            <>
+              {upcoming.length > 0 && (
+                <section className="py-20 px-6 bg-black/30">
+                  <div className="max-w-7xl mx-auto">
+                    <div className="text-center mb-12">
+                      <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Em Breve</span></h2>
+                      <p className="text-gray-400"><span>Pré-saves e lançamentos agendados</span></p>
+                    </div>
+                    <div className="overflow-x-auto -mx-6 px-6 pb-2">
+                      <div className="flex gap-6 snap-x snap-mandatory">
+                        {upcoming.map((release, index) => (
+                          <div key={release.id} className="min-w-[220px] sm:min-w-[240px] snap-start">
+                            <motion.div 
+                              initial={{ opacity: 0, y: 20 }}
+                              whileInView={{ opacity: 1, y: 0 }}
+                              transition={{ delay: index * 0.1 }}
+                              className="group relative"
+                            >
+                              <div 
+                                className="aspect-square rounded-2xl overflow-hidden mb-4 relative shadow-lg cursor-pointer"
+                                onClick={() => {
+                                  const url = release.preview_url || release.audio_url;
+                                  togglePlay(release.id, url);
+                                }}
+                              >
+                                <img 
+                                  src={release.cover_url} 
+                                  alt={release.titulo || 'Capa'} 
+                                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                                />
+                                {release.release_date && (() => {
+                                  const [y, m, d] = release.release_date.split('-');
+                                  const rDate = new Date(y, m - 1, d);
+                                  return (
+                                    <div className="absolute top-2 left-2 text-black text-xs font-bold px-2 py-1 rounded bg-beatwap-gold">
+                                      <span>Lança em {rDate.toLocaleDateString('pt-BR')}</span>
+                                    </div>
+                                  );
+                                })()}
+                                {release.is_beatwap_produced && (
+                                  <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm p-1.5 rounded-full border border-beatwap-gold/50 z-10" title="Produzido, Mixado e Masterizado pela BeatWap">
+                                    <BadgeCheck className="text-beatwap-gold w-5 h-5" />
+                                  </div>
+                                )}
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <button 
+                                    className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const url = release.preview_url || release.audio_url;
+                                      togglePlay(release.id, url);
+                                    }}
+                                  >
+                                    {playingTrack === release.id && !isPaused
+                                      ? <Pause fill="currentColor" className="ml-1" />
+                                      : <Play fill="currentColor" className="ml-1" />}
+                                  </button>
+                                </div>
+                              </div>
+                              <h3 className="font-bold text-lg truncate"><span>{release.titulo || 'Lançamento'}</span></h3>
+                              <p className="text-sm text-gray-400 truncate"><span>{release.nome_artista || 'Artista'}</span></p>
+                              <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{release.estilo || ''}</span></p>
+                              {release.presave_link && (
+                                <div className="mt-2">
+                                  <AnimatedButton onClick={() => { 
+                                    recordEvent({ type: 'music_click_presave', music_id: release.id, artist_id: release.artista_id });
+                                    window.open(release.presave_link, '_blank');
+                                  }}>
+                                    <span>Pré-save</span>
+                                  </AnimatedButton>
+                                </div>
+                              )}
+                            </motion.div>
                           </div>
-                        );
-                      })()}
-                      {release.is_beatwap_produced && (
-                        <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm p-1.5 rounded-full border border-beatwap-gold/50 z-10" title="Produzido, Mixado e Masterizado pela BeatWap">
-                          <BadgeCheck className="text-beatwap-gold w-5 h-5" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button 
-                          className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const url = release.preview_url || release.audio_url;
-                            togglePlay(release.id, url);
-                          }}
-                        >
-                          {playingTrack === release.id && !isPaused
-                            ? <Pause fill="currentColor" className="ml-1" />
-                            : <Play fill="currentColor" className="ml-1" />}
-                        </button>
+                        ))}
                       </div>
                     </div>
-                    <h3 className="font-bold text-lg truncate"><span>{release.titulo || 'Lançamento'}</span></h3>
-                    <p className="text-sm text-gray-400 truncate"><span>{release.nome_artista || 'Artista'}</span></p>
-                    <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{release.estilo || ''}</span></p>
-                    <p className="text-[10px] text-gray-500 mt-1 flex items-center gap-1">
-                      {release.is_beatwap_produced ? (
-                        <>
-                          <BadgeCheck size={12} className="text-beatwap-gold" />
-                          <span className="text-beatwap-gold font-medium">
-                            Prod. {release.producer?.nome || release.producer?.nome_completo_razao_social || 'BeatWap'}
-                          </span>
-                        </>
-                      ) : (
-                        <span>Produção Independente</span>
-                      )}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      <span>Lançamento: {release.release_date ? new Date(release.release_date).toLocaleDateString('pt-BR') : 'Em breve'}</span>
-                    </p>
-                    {release.presave_link && (
-                      <div className="mt-2">
-                        <AnimatedButton onClick={() => { 
-                          recordEvent({ type: 'music_click_presave', music_id: release.id, artist_id: release.artista_id });
-                          window.open(release.presave_link, '_blank');
-                        }}>
-                          <span>
-                          {(() => {
-                             const [y, m, d] = (release.release_date || '').split('-');
-                             const rDate = release.release_date ? new Date(y, m - 1, d) : new Date(8640000000000000);
-                             const today = new Date();
-                             today.setHours(0, 0, 0, 0);
-                             return rDate <= today ? 'SmartLink' : 'Pré-save';
-                          })()}
-                          </span>
-                        </AnimatedButton>
+                  </div>
+                </section>
+              )}
+              {released.length > 0 && (
+                <section className="py-10 px-6 bg-black/20">
+                  <div className="max-w-7xl mx-auto">
+                    <div className="text-center mb-12">
+                      <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Já Lançadas</span></h2>
+                      <p className="text-gray-400"><span>Ouça agora os lançamentos disponíveis</span></p>
+                    </div>
+                    <div className="overflow-x-auto -mx-6 px-6 pb-2">
+                      <div className="flex gap-6 snap-x snap-mandatory">
+                        {released.map((release, index) => (
+                          <div key={release.id} className="min-w-[220px] sm:min-w-[240px] snap-start">
+                            <motion.div 
+                              initial={{ opacity: 0, y: 20 }}
+                              whileInView={{ opacity: 1, y: 0 }}
+                              transition={{ delay: index * 0.1 }}
+                              className="group relative"
+                            >
+                              <div 
+                                className="aspect-square rounded-2xl overflow-hidden mb-4 relative shadow-lg cursor-pointer"
+                                onClick={() => {
+                                  const url = release.preview_url || release.audio_url;
+                                  togglePlay(release.id, url);
+                                }}
+                              >
+                                <img 
+                                  src={release.cover_url} 
+                                  alt={release.titulo || 'Capa'} 
+                                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                                />
+                                {release.release_date && (() => {
+                                  const [y, m, d] = release.release_date.split('-');
+                                  const rDate = new Date(y, m - 1, d);
+                                  return (
+                                    <div className="absolute top-2 left-2 text-black text-xs font-bold px-2 py-1 rounded bg-white">
+                                      <span>Lançado em {rDate.toLocaleDateString('pt-BR')}</span>
+                                    </div>
+                                  );
+                                })()}
+                                {release.is_beatwap_produced && (
+                                  <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm p-1.5 rounded-full border border-beatwap-gold/50 z-10" title="Produzido, Mixado e Masterizado pela BeatWap">
+                                    <BadgeCheck className="text-beatwap-gold w-5 h-5" />
+                                  </div>
+                                )}
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <button 
+                                    className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const url = release.preview_url || release.audio_url;
+                                      togglePlay(release.id, url);
+                                    }}
+                                  >
+                                    {playingTrack === release.id && !isPaused
+                                      ? <Pause fill="currentColor" className="ml-1" />
+                                      : <Play fill="currentColor" className="ml-1" />}
+                                  </button>
+                                </div>
+                              </div>
+                              <h3 className="font-bold text-lg truncate"><span>{release.titulo || 'Lançamento'}</span></h3>
+                              <p className="text-sm text-gray-400 truncate"><span>{release.nome_artista || 'Artista'}</span></p>
+                              <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{release.estilo || ''}</span></p>
+                              <div className="mt-2">
+                                <AnimatedButton onClick={() => { 
+                                  if (release.presave_link) {
+                                    recordEvent({ type: 'music_click_presave', music_id: release.id, artist_id: release.artista_id });
+                                    window.open(release.presave_link, '_blank');
+                                  }
+                                }}>
+                                  <span>SmartLink</span>
+                                </AnimatedButton>
+                              </div>
+                            </motion.div>
+                          </div>
+                        ))}
                       </div>
-                    )}
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
+                    </div>
+                  </div>
+                </section>
+              )}
+            </>
+          );
+        })()}
 
         {/* Latest Compositions Section */}
         {latestCompositions.length > 0 && (
@@ -326,62 +398,65 @@ const Home = () => {
                 <p className="text-gray-400"><span>Obras exclusivas de nossos compositores parceiros</span></p>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {latestCompositions.map((comp, index) => (
-                  <motion.div 
-                    key={comp.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="group relative"
-                  >
-                    <div 
-                      className="aspect-square rounded-2xl overflow-hidden mb-4 relative shadow-lg cursor-pointer bg-gray-800"
-                      onClick={() => togglePlay(comp.id, comp.audio_url)}
-                    >
-                      {comp.cover_url ? (
-                        <img 
-                          src={comp.cover_url} 
-                          alt={comp.title} 
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-500">
-                          <Music size={40} />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button 
-                          className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            togglePlay(comp.id, comp.audio_url);
-                          }}
-                        >
-                          {playingTrack === comp.id && !isPaused
-                            ? <Pause fill="currentColor" className="ml-1" />
-                            : <Play fill="currentColor" className="ml-1" />}
-                        </button>
-                      </div>
-                    </div>
-                    <h3 className="font-bold text-lg truncate"><span>{comp.title}</span></h3>
-                    <p className="text-sm text-gray-400 truncate"><span>{comp.composer_name}</span></p>
-                    <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{comp.genre || 'Gênero'}</span></p>
-                    {comp.composer_phone && (
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const num = comp.composer_phone.replace(/\D/g, '');
-                          window.open(`https://wa.me/55${num}?text=Olá, vi sua composição "${comp.title}" na BeatWap e gostaria de saber mais.`, '_blank');
-                        }}
-                        className="mt-3 flex items-center gap-2 text-xs font-bold text-green-400 bg-green-400/10 px-3 py-2 rounded-lg hover:bg-green-400/20 transition-colors w-full justify-center"
+              <div className="overflow-x-auto -mx-6 px-6 pb-2">
+                <div className="flex gap-6 snap-x snap-mandatory">
+                  {latestCompositions.map((comp, index) => (
+                    <div key={comp.id} className="min-w-[220px] sm:min-w-[240px] snap-start">
+                      <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="group relative"
                       >
-                        <MessageCircle size={14} />
-                        <span>WhatsApp do Compositor</span>
-                      </button>
-                    )}
-                  </motion.div>
-                ))}
+                        <div 
+                          className="aspect-square rounded-2xl overflow-hidden mb-4 relative shadow-lg cursor-pointer bg-gray-800"
+                          onClick={() => togglePlay(comp.id, comp.audio_url)}
+                        >
+                          {comp.cover_url ? (
+                            <img 
+                              src={comp.cover_url} 
+                              alt={comp.title} 
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-500">
+                              <Music size={40} />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <button 
+                              className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                togglePlay(comp.id, comp.audio_url);
+                              }}
+                            >
+                              {playingTrack === comp.id && !isPaused
+                                ? <Pause fill="currentColor" className="ml-1" />
+                                : <Play fill="currentColor" className="ml-1" />}
+                            </button>
+                          </div>
+                        </div>
+                        <h3 className="font-bold text-lg truncate"><span>{comp.title}</span></h3>
+                        <p className="text-sm text-gray-400 truncate"><span>{comp.composer_name}</span></p>
+                        <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{comp.genre || 'Gênero'}</span></p>
+                        {comp.composer_phone && (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const num = comp.composer_phone.replace(/\D/g, '');
+                              window.open(`https://wa.me/55${num}?text=Olá, vi sua composição "${comp.title}" na BeatWap e gostaria de saber mais.`, '_blank');
+                            }}
+                            className="mt-3 flex items-center gap-2 text-xs font-bold text-green-400 bg-green-400/10 px-3 py-2 rounded-lg hover:bg-green-400/20 transition-colors w-full justify-center"
+                          >
+                            <MessageCircle size={14} />
+                            <span>WhatsApp do Compositor</span>
+                          </button>
+                        )}
+                      </motion.div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </section>
@@ -395,31 +470,34 @@ const Home = () => {
                 <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Últimos Projetos de Vídeos Feitos</span></h2>
                 <p className="text-gray-400"><span>Conteúdos recentes publicados pela produtora</span></p>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                {latestProjects.map((p, index) => (
-                  <motion.div 
-                    key={p.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="group relative bg-white/5 border border-white/10 rounded-2xl overflow-hidden"
-                  >
-                    <div className="aspect-video bg-gray-800 relative">
-                      <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm"><span>YouTube</span></div>
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button 
-                          className="px-4 py-2 bg-beatwap-gold rounded-full text-black font-bold hover:bg-white"
-                          onClick={() => window.open(p.url, '_blank')}
-                        >
-                          <span>Abrir</span>
-                        </button>
-                      </div>
+              <div className="overflow-x-auto -mx-6 px-6 pb-2">
+                <div className="flex gap-6 snap-x snap-mandatory">
+                  {latestProjects.map((p, index) => (
+                    <div key={p.id} className="min-w-[280px] sm:min-w-[320px] snap-start">
+                      <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="group relative bg-white/5 border border-white/10 rounded-2xl overflow-hidden"
+                      >
+                        <div className="aspect-video bg-gray-800 relative">
+                          <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm"><span>YouTube</span></div>
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <button 
+                              className="px-4 py-2 bg-beatwap-gold rounded-full text-black font-bold hover:bg-white"
+                              onClick={() => window.open(p.url, '_blank')}
+                            >
+                              <span>Abrir</span>
+                            </button>
+                          </div>
+                        </div>
+                        <div className="p-4">
+                          <h3 className="font-bold text-lg truncate"><span>{p.title}</span></h3>
+                        </div>
+                      </motion.div>
                     </div>
-                    <div className="p-4">
-                      <h3 className="font-bold text-lg truncate"><span>{p.title}</span></h3>
-                    </div>
-                  </motion.div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </section>
@@ -433,29 +511,32 @@ const Home = () => {
                 <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Compositores Parceiros</span></h2>
                 <p className="text-gray-400"><span>Profissionais disponíveis para suas produções</span></p>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {composers.map((composer, index) => (
-                  <motion.div
-                    key={composer.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="group p-4 rounded-2xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 hover:border-beatwap-gold/50 transition-all"
-                    onClick={() => navigate(`/profile/${composer.id}`)}
-                  >
-                    <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-4 bg-gray-700 border-2 border-black group-hover:scale-110 transition-transform">
-                      {composer.avatar_url ? (
-                        <img src={composer.avatar_url} alt={composer.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-xl text-white font-bold">
-                          {composer.name?.charAt(0) || 'C'}
+              <div className="overflow-x-auto -mx-6 px-6 pb-2">
+                <div className="flex gap-6 snap-x snap-mandatory">
+                  {composers.map((composer, index) => (
+                    <div key={composer.id} className="min-w-[220px] sm:min-w-[240px] snap-start">
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="group p-4 rounded-2xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 hover:border-beatwap-gold/50 transition-all"
+                        onClick={() => navigate(`/profile/${composer.id}`)}
+                      >
+                        <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-4 bg-gray-700 border-2 border-black group-hover:scale-110 transition-transform">
+                          {composer.avatar_url ? (
+                            <img src={composer.avatar_url} alt={composer.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-xl text-white font-bold">
+                              {composer.name?.charAt(0) || 'C'}
+                            </div>
+                          )}
                         </div>
-                      )}
+                        <h3 className="font-bold text-lg text-center">{composer.name || 'Compositor'}</h3>
+                        <p className="text-sm text-gray-400 text-center line-clamp-2 mt-1">{composer.bio || 'Compositor parceiro'}</p>
+                      </motion.div>
                     </div>
-                    <h3 className="font-bold text-lg text-center">{composer.name || 'Compositor'}</h3>
-                    <p className="text-sm text-gray-400 text-center line-clamp-2 mt-1">{composer.bio || 'Compositor parceiro'}</p>
-                  </motion.div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </section>

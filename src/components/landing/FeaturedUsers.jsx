@@ -132,15 +132,18 @@ const FeaturedUsers = () => {
               </h2>
             </motion.div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-              {producers.map((user) => (
-                <UserCard 
-                  key={user.id} 
-                  user={user} 
-                  type="producer" 
-                  onSelect={handleUserClick} 
-                />
-              ))}
+            <div className="overflow-x-auto -mx-6 px-6 pb-2">
+              <div className="flex gap-6 snap-x snap-mandatory">
+                {producers.map((user) => (
+                  <div key={user.id} className="min-w-[160px] sm:min-w-[200px] snap-start">
+                    <UserCard 
+                      user={user} 
+                      type="producer" 
+                      onSelect={handleUserClick} 
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -159,15 +162,18 @@ const FeaturedUsers = () => {
               </h2>
             </motion.div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-              {sellers.map((user) => (
-                <UserCard 
-                  key={user.id} 
-                  user={user} 
-                  type="seller" 
-                  onSelect={handleUserClick} 
-                />
-              ))}
+            <div className="overflow-x-auto -mx-6 px-6 pb-2">
+              <div className="flex gap-6 snap-x snap-mandatory">
+                {sellers.map((user) => (
+                  <div key={user.id} className="min-w-[160px] sm:min-w-[200px] snap-start">
+                    <UserCard 
+                      user={user} 
+                      type="seller" 
+                      onSelect={handleUserClick} 
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -186,15 +192,18 @@ const FeaturedUsers = () => {
               </h2>
             </motion.div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-              {artists.map((user) => (
-                <UserCard 
-                  key={user.id} 
-                  user={user} 
-                  type="artist" 
-                  onSelect={handleUserClick} 
-                />
-              ))}
+            <div className="overflow-x-auto -mx-6 px-6 pb-2">
+              <div className="flex gap-6 snap-x snap-mandatory">
+                {artists.map((user) => (
+                  <div key={user.id} className="min-w-[160px] sm:min-w-[200px] snap-start">
+                    <UserCard 
+                      user={user} 
+                      type="artist" 
+                      onSelect={handleUserClick} 
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
