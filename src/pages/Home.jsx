@@ -479,7 +479,7 @@ const Home = () => {
           <section className="py-20 px-6 bg-black/25">
             <div className="max-w-7xl mx-auto">
               <div className="text-center mb-12">
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">Patrocinadores/Parcerias</h2>
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 break-words leading-snug">Patrocinadores/Parcerias</h2>
                 <p className="text-gray-400">Marcas que apoiam nossos artistas e projetos</p>
               </div>
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-6">
