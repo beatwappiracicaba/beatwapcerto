@@ -27,6 +27,8 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     cover_file: null,
     audio_file: null,
     is_album: false,
+    beatwap_feat_artist_ids: [],
+    is_beatwap_composer_partner: false,
     tracks: [] // [{ titulo: '', estilo: '', audio_file: File|null, authorization_file: File|null }]
   });
 
@@ -37,6 +39,19 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
   });
 
   const [errors, setErrors] = useState({});
+  const [artistOptions, setArtistOptions] = useState([]);
+
+  React.useEffect(() => {
+    const loadArtists = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id,nome,nome_completo_razao_social')
+        .eq('cargo', 'Artista')
+        .order('nome', { ascending: true });
+      setArtistOptions(data || []);
+    };
+    loadArtists();
+  }, []);
 
   React.useEffect(() => {
     if (targetArtist) {
@@ -103,7 +118,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
   const addTrack = () => {
     setFormData(prev => ({ 
       ...prev, 
-      tracks: [...prev.tracks, { titulo: '', estilo: '', isrc: '', has_feat: false, feat_name: '', composer: '', producer: '', audio_file: null, authorization_file: null }] 
+      tracks: [...prev.tracks, { titulo: '', estilo: '', isrc: '', has_feat: false, feat_name: '', composer: '', producer: '', beatwap_feat_artist_ids: [], is_beatwap_composer_partner: false, audio_file: null, authorization_file: null }] 
     }));
   };
   const removeTrack = (index) => {
@@ -123,6 +138,25 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     const file = e.target.files?.[0] || null;
     if (!file) return;
     updateTrackField(index, field, file);
+  };
+
+  const toggleSingleFeatArtist = (id) => {
+    setFormData(prev => {
+      const arr = prev.beatwap_feat_artist_ids || [];
+      const exists = arr.includes(id);
+      const next = exists ? arr.filter(x => x !== id) : [...arr, id];
+      return { ...prev, beatwap_feat_artist_ids: next };
+    });
+  };
+
+  const toggleTrackFeatArtist = (idx, id) => {
+    setFormData(prev => {
+      const tracks = [...prev.tracks];
+      const arr = tracks[idx].beatwap_feat_artist_ids || [];
+      const exists = arr.includes(id);
+      tracks[idx] = { ...tracks[idx], beatwap_feat_artist_ids: exists ? arr.filter(x => x !== id) : [...arr, id] };
+      return { ...prev, tracks };
+    });
   };
 
   const handleSubmit = async () => {
@@ -231,7 +265,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
               t.authorization_file ? uploadFile(t.authorization_file, 'music_docs') : Promise.resolve(null)
             ]);
             const comp = (t.composer || '').split(',').map(s => s.trim()).filter(Boolean).join(', ');
-            return { audioUrl: audioU, authUrl: authU, titulo: t.titulo, estilo: t.estilo, isrc: t.isrc, has_feat: t.has_feat, feat_name: t.feat_name, composer: comp, producer: t.producer };
+            return { audioUrl: audioU, authUrl: authU, titulo: t.titulo, estilo: t.estilo, isrc: t.isrc, has_feat: t.has_feat, feat_name: t.feat_name, composer: comp, producer: t.producer, beatwap_feat_artist_ids: t.beatwap_feat_artist_ids || [], is_beatwap_composer_partner: !!t.is_beatwap_composer_partner };
           })
         );
         const rows = trackUploads.map((tu) => ({
@@ -249,13 +283,20 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
           feat_name: tu.feat_name || null,
           composer: (tu.composer || null),
           producer: tu.producer || null,
+          feat_beatwap_artist_ids: tu.beatwap_feat_artist_ids || [],
+          is_beatwap_composer_partner: tu.is_beatwap_composer_partner || false,
           album_id: albumId,
           album_title: formData.titulo
         }));
-        const { error: errBatch } = await supabase.from('musics').insert(rows);
+        let { error: errBatch } = await supabase.from('musics').insert(rows);
+        if (errBatch && (String(errBatch.message || '').includes('feat_beatwap_artist_ids') || String(errBatch.message || '').includes('is_beatwap_composer_partner'))) {
+          const rowsFallback = rows.map(({ feat_beatwap_artist_ids, is_beatwap_composer_partner, ...rest }) => rest);
+          const r2 = await supabase.from('musics').insert(rowsFallback);
+          errBatch = r2.error || null;
+        }
         if (errBatch) throw errBatch;
       } else {
-        const { error } = await supabase.from('musics').insert({
+        let { error } = await supabase.from('musics').insert({
           artista_id: activeUser.id,
           titulo: formData.titulo,
           nome_artista: formData.nome_artista,
@@ -269,8 +310,29 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
           has_feat: formData.has_feat || false,
           feat_name: formData.feat_name || null,
           composer: ((formData.composer || '').split(',').map(s => s.trim()).filter(Boolean).join(', ')) || null,
-          producer: formData.producer || null
+          producer: formData.producer || null,
+          feat_beatwap_artist_ids: formData.beatwap_feat_artist_ids || [],
+          is_beatwap_composer_partner: !!formData.is_beatwap_composer_partner
         });
+        if (error && (String(error.message || '').includes('feat_beatwap_artist_ids') || String(error.message || '').includes('is_beatwap_composer_partner'))) {
+          const { error: err2 } = await supabase.from('musics').insert({
+            artista_id: activeUser.id,
+            titulo: formData.titulo,
+            nome_artista: formData.nome_artista,
+            estilo: formData.estilo,
+            cover_url: coverUrl,
+            audio_url: audioUrl,
+            authorization_url: authUrl,
+            plataformas: formData.plataformas.includes('Todas') ? ['Todas'] : formData.plataformas_selecionadas,
+            status: 'pendente',
+            isrc: (formData.isrc || '').trim() || null,
+            has_feat: formData.has_feat || false,
+            feat_name: formData.feat_name || null,
+            composer: ((formData.composer || '').split(',').map(s => s.trim()).filter(Boolean).join(', ')) || null,
+            producer: formData.producer || null
+          });
+          error = err2 || null;
+        }
         if (error) throw error;
       }
 
@@ -374,6 +436,15 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                       />
                     </div>
                     <p className="text-xs text-gray-500 mt-1">Ex.: Nome 1, Nome 2</p>
+                    <div className="flex items-center gap-2 mb-3">
+                      <input
+                        type="checkbox"
+                        checked={!!formData.is_beatwap_composer_partner}
+                        onChange={(e) => setFormData(prev => ({ ...prev, is_beatwap_composer_partner: e.target.checked }))}
+                        className="w-5 h-5 accent-beatwap-gold rounded cursor-pointer"
+                      />
+                      <label className="text-sm text-gray-300">Compositor é parceiro BeatWap</label>
+                    </div>
                     <div className="bg-white/5 border border-white/10 rounded-xl p-3">
                       <div className="flex items-center justify-between mb-2">
                         <label className="text-sm font-medium text-gray-400">Possui Feat?</label>
@@ -385,12 +456,37 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                         />
                       </div>
                       {formData.has_feat && (
-                        <AnimatedInput 
-                          label="Nome do Feat" 
-                          value={formData.feat_name || ''} 
-                          onChange={(e) => setFormData({...formData, feat_name: e.target.value})} 
-                          placeholder="Ex: MC Convidado"
-                        />
+                        <>
+                          <AnimatedInput 
+                            label="Nome do Feat" 
+                            value={formData.feat_name || ''} 
+                            onChange={(e) => setFormData({...formData, feat_name: e.target.value})} 
+                            placeholder="Ex: MC Convidado"
+                          />
+                          <div className="mt-2">
+                            <div className="text-xs font-medium text-gray-400 mb-1">Selecionar artistas BeatWap</div>
+                            <div className="max-h-40 overflow-auto grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {artistOptions.map(a => {
+                                const label = a.nome || a.nome_completo_razao_social || 'Sem nome';
+                                const checked = (formData.beatwap_feat_artist_ids || []).includes(a.id);
+                                return (
+                                  <label key={a.id} className="flex items-center gap-2 text-xs text-gray-300">
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => toggleSingleFeatArtist(a.id)}
+                                      className="w-4 h-4 accent-beatwap-gold rounded cursor-pointer"
+                                    />
+                                    <span>{label}</span>
+                                  </label>
+                                );
+                              })}
+                              {artistOptions.length === 0 && (
+                                <div className="text-xs text-gray-500">Nenhum artista BeatWap encontrado</div>
+                              )}
+                            </div>
+                          </div>
+                        </>
                       )}
                     </div>
                   </>
@@ -499,14 +595,48 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                               />
                             </div>
                             {t.has_feat && (
-                              <AnimatedInput 
-                                label="Nome do Feat" 
-                                value={t.feat_name || ''} 
-                                onChange={(e) => updateTrackField(idx, 'feat_name', e.target.value)} 
-                                placeholder="Nome do Artista"
-                              />
+                              <div className="space-y-2">
+                                <AnimatedInput 
+                                  label="Nome do Feat" 
+                                  value={t.feat_name || ''} 
+                                  onChange={(e) => updateTrackField(idx, 'feat_name', e.target.value)} 
+                                  placeholder="Nome do Artista"
+                                />
+                                <div>
+                                  <div className="text-xs font-medium text-gray-400 mb-1">Selecionar artistas BeatWap</div>
+                                  <div className="max-h-32 overflow-auto grid grid-cols-1 md:grid-cols-2 gap-1">
+                                    {artistOptions.map(a => {
+                                      const label = a.nome || a.nome_completo_razao_social || 'Sem nome';
+                                      const checked = (t.beatwap_feat_artist_ids || []).includes(a.id);
+                                      return (
+                                        <label key={a.id} className="flex items-center gap-2 text-xs text-gray-300">
+                                          <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={() => toggleTrackFeatArtist(idx, a.id)}
+                                            className="w-4 h-4 accent-beatwap-gold rounded cursor-pointer"
+                                          />
+                                          <span>{label}</span>
+                                        </label>
+                                      );
+                                    })}
+                                    {artistOptions.length === 0 && (
+                                      <div className="text-xs text-gray-500">Nenhum artista BeatWap encontrado</div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
                             )}
                           </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={!!t.is_beatwap_composer_partner}
+                            onChange={(e) => updateTrackField(idx, 'is_beatwap_composer_partner', e.target.checked)}
+                            className="w-4 h-4 accent-beatwap-gold rounded cursor-pointer"
+                          />
+                          <label className="text-xs text-gray-300">Compositor é parceiro BeatWap</label>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           <div className="flex items-center gap-3 p-3 bg-black/20 border border-white/10 rounded-xl">

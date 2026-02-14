@@ -257,7 +257,7 @@ const Home = () => {
                               initial={{ opacity: 0, y: 20 }}
                               whileInView={{ opacity: 1, y: 0 }}
                               transition={{ delay: index * 0.1 }}
-                              className="bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold transition-colors group"
+                              className="h-full flex flex-col bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold transition-colors group"
                             >
                               <div 
                                 className="aspect-square bg-gray-800 relative overflow-hidden"
@@ -300,20 +300,24 @@ const Home = () => {
                                   </button>
                                 </div>
                               </div>
-                              <div className="p-4">
-                                <h3 className="font-bold text-lg text-white truncate"><span>{release.titulo || 'Lançamento'}</span></h3>
-                                <p className="text-sm text-gray-400 truncate"><span>{release.nome_artista || 'Artista'}</span></p>
-                                <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{release.estilo || ''}</span></p>
-                                {release.presave_link && (
-                                  <div className="mt-2">
+                              <div className="p-4 flex-1 flex flex-col justify-between min-h-[120px]">
+                                <div>
+                                  <h3 className="font-bold text-lg text-white truncate"><span>{release.titulo || 'Lançamento'}</span></h3>
+                                  <p className="text-sm text-gray-400 truncate"><span>{release.nome_artista || 'Artista'}</span></p>
+                                  <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{release.estilo || ''}</span></p>
+                                </div>
+                                <div className="mt-2">
+                                  {release.presave_link ? (
                                     <AnimatedButton onClick={() => { 
                                       recordEvent({ type: 'music_click_presave', music_id: release.id, artist_id: release.artista_id });
                                       window.open(release.presave_link, '_blank');
                                     }}>
                                       <span>Pré-save</span>
                                     </AnimatedButton>
-                                  </div>
-                                )}
+                                  ) : (
+                                    <div className="h-9" />
+                                  )}
+                                </div>
                               </div>
                             </motion.div>
                           </div>
@@ -354,7 +358,7 @@ const Home = () => {
                               initial={{ opacity: 0, y: 20 }}
                               whileInView={{ opacity: 1, y: 0 }}
                               transition={{ delay: index * 0.1 }}
-                              className="bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold transition-colors group"
+                              className="h-full flex flex-col bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold transition-colors group"
                             >
                               <div 
                                 className="aspect-square bg-gray-800 relative overflow-hidden"
@@ -397,18 +401,23 @@ const Home = () => {
                                   </button>
                                 </div>
                               </div>
-                              <div className="p-4">
-                                <h3 className="font-bold text-lg text-white truncate"><span>{release.titulo || 'Lançamento'}</span></h3>
-                                <p className="text-sm text-gray-400 truncate"><span>{release.nome_artista || 'Artista'}</span></p>
-                                <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{release.estilo || ''}</span></p>
+                              <div className="p-4 flex-1 flex flex-col justify-between min-h-[120px]">
+                                <div>
+                                  <h3 className="font-bold text-lg text-white truncate"><span>{release.titulo || 'Lançamento'}</span></h3>
+                                  <p className="text-sm text-gray-400 truncate"><span>{release.nome_artista || 'Artista'}</span></p>
+                                  <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{release.estilo || ''}</span></p>
+                                </div>
                                 <div className="mt-2">
                                   <AnimatedButton onClick={() => { 
                                     if (release.presave_link) {
                                       recordEvent({ type: 'music_click_presave', music_id: release.id, artist_id: release.artista_id });
                                       window.open(release.presave_link, '_blank');
+                                    } else {
+                                      const url = release.preview_url || release.audio_url;
+                                      togglePlay(release.id, url);
                                     }
                                   }}>
-                                    <span>SmartLink</span>
+                                    <span>{release.presave_link ? 'Pré-save' : (playingTrack === release.id && !isPaused ? 'Pausar' : 'Reproduzir')}</span>
                                   </AnimatedButton>
                                 </div>
                               </div>

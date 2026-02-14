@@ -122,16 +122,25 @@ const PublicProfile = () => {
           console.error('Error fetching seller stats:', err);
         }
       } else if (cargo === 'artista') {
-        // Fetch Musics for Artists
-        const { data: musicData, error: musicError } = await supabase
+        const { data: ownMusics, error: ownErr } = await supabase
           .from('musics')
           .select('*')
           .eq('artista_id', profileData.id)
           .eq('status', 'aprovado')
           .order('created_at', { ascending: false });
-
-        if (musicError) throw musicError;
-        setItems(musicData || []);
+        if (ownErr) throw ownErr;
+        const { data: featMusics, error: featErr } = await supabase
+          .from('musics')
+          .select('*')
+          .contains('feat_beatwap_artist_ids', [profileData.id])
+          .eq('status', 'aprovado')
+          .order('created_at', { ascending: false });
+        if (featErr) throw featErr;
+        const map = {};
+        (ownMusics || []).forEach(m => { map[m.id] = m; });
+        (featMusics || []).forEach(m => { map[m.id] = m; });
+        const merged = Object.values(map).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        setItems(merged);
       } else if (cargo === 'produtor') {
         // Fetch Musics produced by this producer
         const { data: producedData, error: producedError } = await supabase

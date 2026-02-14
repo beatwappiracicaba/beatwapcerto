@@ -16,7 +16,7 @@ const UserCard = ({ user, type, onSelect }) => {
   return (
     <motion.div
       whileHover={{ y: -5 }}
-      className="bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold transition-colors group"
+      className="h-full flex flex-col bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold transition-colors group"
       onClick={() => onSelect(user)}
     >
       <div className="aspect-square bg-gray-800 relative overflow-hidden">
@@ -37,7 +37,7 @@ const UserCard = ({ user, type, onSelect }) => {
           </span>
         </div>
       </div>
-      <div className="p-4">
+      <div className="p-4 flex-1 flex flex-col justify-center min-h-[72px]">
         <h3 className="font-bold text-lg text-white truncate">
           <span>{user.name || roleLabel}</span>
         </h3>
