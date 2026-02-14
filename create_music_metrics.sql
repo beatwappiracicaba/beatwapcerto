@@ -11,6 +11,9 @@ create table if not exists music_external_metrics (
   unique(music_id, source)
 );
 
+alter table public.music_external_metrics enable row level security;
+alter table public.music_external_metrics force row level security;
+
 -- Policy to allow authenticated users to read metrics (since artists need to see them)
 create policy "Enable read access for all authenticated users"
   on music_external_metrics for select
