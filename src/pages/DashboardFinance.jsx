@@ -4,7 +4,7 @@ import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { DollarSign, Calendar, Clock, CheckCircle, AlertTriangle, FileText, FolderOpen, ExternalLink } from 'lucide-react';
+import { DollarSign, Calendar, Clock, CheckCircle, AlertTriangle, FileText, FolderOpen, ExternalLink, User } from 'lucide-react';
 import { FinanceDistributionModal } from '../components/finance/FinanceDistributionModal';
 
 const DashboardFinance = () => {
