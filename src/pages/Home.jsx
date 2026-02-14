@@ -247,15 +247,15 @@ const Home = () => {
                       <div ref={upcomingRef} className="overflow-x-auto px-6 pb-2">
                         <div className="flex gap-6 snap-x snap-mandatory">
                         {upcoming.map((release, index) => (
-                          <div key={release.id} className="min-w-[180px] sm:min-w-[200px] snap-start">
+                          <div key={release.id} className="min-w-[160px] sm:min-w-[180px] snap-start">
                             <motion.div 
                               initial={{ opacity: 0, y: 20 }}
                               whileInView={{ opacity: 1, y: 0 }}
                               transition={{ delay: index * 0.1 }}
-                              className="group relative"
+                              className="bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold transition-colors group"
                             >
                               <div 
-                                className="aspect-square rounded-2xl overflow-hidden mb-4 relative shadow-lg cursor-pointer"
+                                className="aspect-square bg-gray-800 relative overflow-hidden"
                                 onClick={() => {
                                   const url = release.preview_url || release.audio_url;
                                   togglePlay(release.id, url);
@@ -264,7 +264,7 @@ const Home = () => {
                                 <img 
                                   src={release.cover_url} 
                                   alt={release.titulo || 'Capa'} 
-                                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
                                 />
                                 {release.release_date && (() => {
                                   const [y, m, d] = release.release_date.split('-');
@@ -295,19 +295,21 @@ const Home = () => {
                                   </button>
                                 </div>
                               </div>
-                              <h3 className="font-bold text-lg truncate"><span>{release.titulo || 'Lançamento'}</span></h3>
-                              <p className="text-sm text-gray-400 truncate"><span>{release.nome_artista || 'Artista'}</span></p>
-                              <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{release.estilo || ''}</span></p>
-                              {release.presave_link && (
-                                <div className="mt-2">
-                                  <AnimatedButton onClick={() => { 
-                                    recordEvent({ type: 'music_click_presave', music_id: release.id, artist_id: release.artista_id });
-                                    window.open(release.presave_link, '_blank');
-                                  }}>
-                                    <span>Pré-save</span>
-                                  </AnimatedButton>
-                                </div>
-                              )}
+                              <div className="p-4">
+                                <h3 className="font-bold text-lg text-white truncate"><span>{release.titulo || 'Lançamento'}</span></h3>
+                                <p className="text-sm text-gray-400 truncate"><span>{release.nome_artista || 'Artista'}</span></p>
+                                <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{release.estilo || ''}</span></p>
+                                {release.presave_link && (
+                                  <div className="mt-2">
+                                    <AnimatedButton onClick={() => { 
+                                      recordEvent({ type: 'music_click_presave', music_id: release.id, artist_id: release.artista_id });
+                                      window.open(release.presave_link, '_blank');
+                                    }}>
+                                      <span>Pré-save</span>
+                                    </AnimatedButton>
+                                  </div>
+                                )}
+                              </div>
                             </motion.div>
                           </div>
                         ))}
@@ -342,15 +344,15 @@ const Home = () => {
                       <div ref={releasedRef} className="overflow-x-auto px-6 pb-2">
                         <div className="flex gap-6 snap-x snap-mandatory">
                         {released.map((release, index) => (
-                          <div key={release.id} className="min-w-[180px] sm:min-w-[200px] snap-start">
+                          <div key={release.id} className="min-w-[160px] sm:min-w-[180px] snap-start">
                             <motion.div 
                               initial={{ opacity: 0, y: 20 }}
                               whileInView={{ opacity: 1, y: 0 }}
                               transition={{ delay: index * 0.1 }}
-                              className="group relative"
+                              className="bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold transition-colors group"
                             >
                               <div 
-                                className="aspect-square rounded-2xl overflow-hidden mb-4 relative shadow-lg cursor-pointer"
+                                className="aspect-square bg-gray-800 relative overflow-hidden"
                                 onClick={() => {
                                   const url = release.preview_url || release.audio_url;
                                   togglePlay(release.id, url);
@@ -359,7 +361,7 @@ const Home = () => {
                                 <img 
                                   src={release.cover_url} 
                                   alt={release.titulo || 'Capa'} 
-                                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
                                 />
                                 {release.release_date && (() => {
                                   const [y, m, d] = release.release_date.split('-');
@@ -390,18 +392,20 @@ const Home = () => {
                                   </button>
                                 </div>
                               </div>
-                              <h3 className="font-bold text-lg truncate"><span>{release.titulo || 'Lançamento'}</span></h3>
-                              <p className="text-sm text-gray-400 truncate"><span>{release.nome_artista || 'Artista'}</span></p>
-                              <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{release.estilo || ''}</span></p>
-                              <div className="mt-2">
-                                <AnimatedButton onClick={() => { 
-                                  if (release.presave_link) {
-                                    recordEvent({ type: 'music_click_presave', music_id: release.id, artist_id: release.artista_id });
-                                    window.open(release.presave_link, '_blank');
-                                  }
-                                }}>
-                                  <span>SmartLink</span>
-                                </AnimatedButton>
+                              <div className="p-4">
+                                <h3 className="font-bold text-lg text-white truncate"><span>{release.titulo || 'Lançamento'}</span></h3>
+                                <p className="text-sm text-gray-400 truncate"><span>{release.nome_artista || 'Artista'}</span></p>
+                                <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{release.estilo || ''}</span></p>
+                                <div className="mt-2">
+                                  <AnimatedButton onClick={() => { 
+                                    if (release.presave_link) {
+                                      recordEvent({ type: 'music_click_presave', music_id: release.id, artist_id: release.artista_id });
+                                      window.open(release.presave_link, '_blank');
+                                    }
+                                  }}>
+                                    <span>SmartLink</span>
+                                  </AnimatedButton>
+                                </div>
                               </div>
                             </motion.div>
                           </div>
