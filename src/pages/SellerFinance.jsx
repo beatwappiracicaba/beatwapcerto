@@ -3,7 +3,7 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { DollarSign, TrendingUp, AlertCircle, CheckCircle, FileText, Calendar, User } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertCircle, CheckCircle, FileText, Calendar, User, FolderOpen, ExternalLink } from 'lucide-react';
 import { FinanceDistributionModal } from '../components/finance/FinanceDistributionModal';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 
@@ -125,6 +125,58 @@ const SellerFinance = () => {
             <div className="text-2xl font-bold text-white">{formatCurrency(stats.paidCommissions)}</div>
           </Card>
         </div>
+
+        {/* Payments Folder Section */}
+        {events.filter(e => e.receipt_seller || e.status === 'pago').length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <FolderOpen className="text-beatwap-gold" size={24} />
+              Comprovantes de Pagamento
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {events
+                .filter(e => e.receipt_seller || e.status === 'pago')
+                .map((event) => (
+                  <div 
+                    key={`receipt-${event.id}`}
+                    className="group bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-all duration-300"
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="p-3 bg-green-500/10 rounded-lg text-green-500 group-hover:bg-green-500/20 transition-colors">
+                        <FileText size={24} />
+                      </div>
+                      {event.receipt_seller ? (
+                        <a 
+                          href={event.receipt_seller} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                          title="Abrir Comprovante"
+                        >
+                          <ExternalLink size={20} />
+                        </a>
+                      ) : (
+                        <span className="text-xs text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded">Sem Anexo</span>
+                      )}
+                    </div>
+                    
+                    <h3 className="font-bold text-white mb-1 truncate" title={event.title}>{event.title}</h3>
+                    
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Data do Show:</span>
+                        <span className="text-white">{new Date(event.date).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Comissão Paga:</span>
+                        <span className="text-green-400 font-bold">{formatCurrency(event.seller_commission)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
 
         {/* Events List */}
         <div className="space-y-4">
