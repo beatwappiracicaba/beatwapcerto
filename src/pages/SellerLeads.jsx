@@ -150,6 +150,24 @@ const SellerLeads = () => {
 
   const handleDeleteLead = async () => {
     if (!currentLead) return;
+    
+    // Check if there are linked events with contracts
+    try {
+      const { data: events } = await supabase
+        .from('artist_work_events')
+        .select('has_contract')
+        .eq('lead_id', currentLead.id);
+        
+      const hasContract = events?.some(e => e.has_contract);
+      
+      if (hasContract) {
+        addToast('Não é possível excluir lead com contrato. Apenas cancele o status.', 'error');
+        return;
+      }
+    } catch (err) {
+      console.error('Error checking contracts:', err);
+    }
+
     if (!window.confirm('Tem certeza que deseja excluir este lead? Esta ação não pode ser desfeita.')) return;
 
     setLoading(true);
@@ -160,7 +178,10 @@ const SellerLeads = () => {
         .delete()
         .eq('lead_id', currentLead.id);
       
-      if (agendaError) console.error('Error deleting agenda event:', agendaError);
+      if (agendaError) {
+        console.error('Error deleting agenda event:', agendaError);
+        throw new Error('Erro ao remover agendamentos vinculados.');
+      }
 
       // 2. Delete from negotiation_history
       const { error: historyError } = await supabase
@@ -168,22 +189,30 @@ const SellerLeads = () => {
         .delete()
         .eq('lead_id', currentLead.id);
 
-      if (historyError) console.error('Error deleting history:', historyError);
+      if (historyError) {
+        console.error('Error deleting history:', historyError);
+        // Não impede a deleção do lead se falhar o histórico, mas idealmente deveria
+      }
 
       // 3. Delete lead
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('leads')
         .delete()
-        .eq('id', currentLead.id);
+        .eq('id', currentLead.id)
+        .select();
 
       if (error) throw error;
+      
+      if (!data || data.length === 0) {
+        throw new Error('Lead não pôde ser excluído (verifique permissões).');
+      }
 
       addToast('Lead excluído com sucesso!', 'success');
       setIsModalOpen(false);
       fetchLeads();
     } catch (error) {
       console.error('Error deleting lead:', error);
-      addToast('Erro ao excluir lead.', 'error');
+      addToast(error.message || 'Erro ao excluir lead.', 'error');
     } finally {
       setLoading(false);
     }
