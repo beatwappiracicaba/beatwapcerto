@@ -247,7 +247,7 @@ const Home = () => {
                       <div ref={upcomingRef} className="overflow-x-auto px-6 pb-2">
                         <div className="flex gap-6 snap-x snap-mandatory">
                         {upcoming.map((release, index) => (
-                          <div key={release.id} className="min-w-[160px] sm:min-w-[180px] snap-start">
+                          <div key={release.id} className="w-[160px] sm:w-[180px] snap-start">
                             <motion.div 
                               initial={{ opacity: 0, y: 20 }}
                               whileInView={{ opacity: 1, y: 0 }}
@@ -344,7 +344,7 @@ const Home = () => {
                       <div ref={releasedRef} className="overflow-x-auto px-6 pb-2">
                         <div className="flex gap-6 snap-x snap-mandatory">
                         {released.map((release, index) => (
-                          <div key={release.id} className="min-w-[160px] sm:min-w-[180px] snap-start">
+                          <div key={release.id} className="w-[160px] sm:w-[180px] snap-start">
                             <motion.div 
                               initial={{ opacity: 0, y: 20 }}
                               whileInView={{ opacity: 1, y: 0 }}
@@ -574,7 +574,7 @@ const Home = () => {
                 <div ref={composersRef} className="overflow-x-auto px-6 pb-2">
                   <div className="flex gap-6 snap-x snap-mandatory">
                   {composers.map((composer, index) => (
-                    <div key={composer.id} className="min-w-[180px] sm:min-w-[200px] snap-start">
+                    <div key={composer.id} className="w-[160px] sm:w-[180px] snap-start">
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
