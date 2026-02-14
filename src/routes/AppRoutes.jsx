@@ -29,6 +29,7 @@ import { AdminCompositions } from '../pages/AdminCompositions';
 import { AdminSponsors } from '../pages/AdminDashboard';
 import { AdminSettings } from '../pages/AdminSettings';
 import { DashboardCompositions } from '../pages/DashboardCompositions';
+import DashboardFinance from '../pages/DashboardFinance';
 import PublicProfile from '../pages/PublicProfile';
 import SellerDashboard from '../pages/SellerDashboard';
 import SellerArtists from '../pages/SellerArtists';
