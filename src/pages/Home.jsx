@@ -549,16 +549,16 @@ const Home = () => {
 
         {/* Latest Producer Video Projects */}
         {latestProjects.length > 0 && (
-          <section className="py-20 px-6 bg-black/25">
+          <section className="py-16 px-4 sm:px-6 bg-black/25">
             <div className="max-w-7xl mx-auto">
               <div className="text-center mb-12">
-                <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Últimos Projetos de Vídeos Feitos</span></h2>
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4"><span>Últimos Projetos de Vídeos Feitos</span></h2>
                 <p className="text-gray-400"><span>Conteúdos recentes publicados pela produtora</span></p>
               </div>
-              <div className="overflow-x-auto -mx-6 pl-14 pr-14 md:pl-16 md:pr-16 pb-2">
-                <div className="flex gap-6 snap-x snap-mandatory">
+              <div className="overflow-x-auto px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2">
+                <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory">
                   {latestProjects.map((p, index) => (
-                    <div key={p.id} className="min-w-[280px] sm:min-w-[320px] snap-start">
+                    <div key={p.id} className="w-[82vw] sm:min-w-[320px] snap-center">
                       <motion.div 
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -587,8 +587,12 @@ const Home = () => {
                               <span>Abrir</span>
                             </button>
                           </div>
+                          <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent block sm:hidden">
+                            <div className="text-white text-sm font-bold truncate">{p.title}</div>
+                            <div className="text-[11px] text-gray-300 truncate">{p.platform || 'Projeto'}</div>
+                          </div>
                         </div>
-                        <div className="p-4">
+                        <div className="hidden sm:block p-4">
                           <h3 className="font-bold text-lg truncate"><span>{p.title}</span></h3>
                         </div>
                       </motion.div>
