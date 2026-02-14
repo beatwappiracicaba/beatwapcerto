@@ -37,6 +37,7 @@ export const ShowRevenueDistributor = () => {
           artist:profiles!artist_work_events_artista_id_fkey(nome, avatar_url),
           seller:profiles!seller_id(nome)
         `)
+        .or('status.neq.cancelado,has_contract.eq.true')
         .order('date', { ascending: false });
 
       // Fallback if FK name is different or relation needs inference
@@ -46,6 +47,7 @@ export const ShowRevenueDistributor = () => {
         const { data: simpleData, error: simpleError } = await supabase
           .from('artist_work_events')
           .select('*')
+          .or('status.neq.cancelado,has_contract.eq.true')
           .order('date', { ascending: false });
           
         if (simpleError) throw simpleError;
