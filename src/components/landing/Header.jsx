@@ -78,26 +78,34 @@ const Header = () => {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          className="md:hidden bg-beatwap-dark/95 backdrop-blur-xl border-t border-white/10 absolute top-full left-0 right-0 shadow-2xl"
-        >
-          <div className="flex flex-col p-6 gap-4">
-            {navItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => scrollToSection(item.id)}
-                className="text-left text-gray-300 hover:text-beatwap-gold py-2 font-medium"
-              >
-                {item.label}
-              </button>
-            ))}
-            <AnimatedButton onClick={() => navigate('/login')} className="w-full justify-center">
-              Área do Artista
-            </AnimatedButton>
-          </div>
-        </motion.div>
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/60 z-40 md:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          {/* Sheet from top */}
+          <motion.div
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="fixed top-0 left-0 right-0 z-50 md:hidden bg-beatwap-dark/95 backdrop-blur-xl border-b border-white/10 shadow-2xl"
+          >
+            <div className="flex flex-col p-6 gap-4">
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => scrollToSection(item.id)}
+                  className="text-left text-gray-300 hover:text-beatwap-gold py-2 font-medium"
+                >
+                  {item.label}
+                </button>
+              ))}
+              <AnimatedButton onClick={() => navigate('/login')} className="w-full justify-center">
+                Área do Artista
+              </AnimatedButton>
+            </div>
+          </motion.div>
+        </>
       )}
     </motion.header>
   );
