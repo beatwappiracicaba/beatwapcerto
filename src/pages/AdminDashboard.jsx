@@ -173,15 +173,16 @@ export const AdminHome = () => {
         const { data: pub } = supabase.storage.from('project_covers').getPublicUrl(up.path);
         cover_url = pub.publicUrl;
       }
-      const { error } = await supabase.from('producer_projects').insert({
-        producer_id: user.id,
-        title,
-        url,
-        platform,
-        cover_url,
-        published: true
-      });
-      if (error) throw error;
+      // Tenta inserir com cover_url; se a coluna não existir no banco remoto, faz fallback sem ela
+      let payload = { producer_id: user.id, title, url, platform, published: true };
+      if (cover_url) payload = { ...payload, cover_url };
+      let { error } = await supabase.from('producer_projects').insert(payload);
+      if (error && /cover_url/i.test(String(error?.message || error?.details || ''))) {
+        const retry = await supabase.from('producer_projects').insert({ producer_id: user.id, title, url, platform, published: true });
+        if (retry.error) throw retry.error;
+      } else if (error) {
+        throw error;
+      }
       addToast('Projeto adicionado', 'success');
       setProjectForm({ title: '', url: '', platform: 'YouTube' });
       setProjectCoverFile(null);
