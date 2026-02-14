@@ -26,12 +26,13 @@ BEGIN
   END IF;
 END$$;
 
-CREATE POLICY IF NOT EXISTS "Insert notifications (self or producer)"
-ON public.notifications FOR INSERT
-WITH CHECK (
-  recipient_id = auth.uid() OR public.is_produtor()
-);
+-- Ensure idempotency for the insert policy and (re)create it without IF NOT EXISTS (not supported)
+DROP POLICY IF EXISTS "Insert notifications (self or producer)" ON public.notifications;
+CREATE POLICY "Insert notifications (self or producer)"
+  ON public.notifications FOR INSERT
+  WITH CHECK (
+    recipient_id = auth.uid() OR public.is_produtor()
+  );
 
 -- Note: Enable HaveIBeenPwned compromised password check via Supabase Dashboard:
 -- Authentication -> Settings -> Passwords -> Enable "Check for compromised passwords".
-
