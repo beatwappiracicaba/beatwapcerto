@@ -745,6 +745,7 @@ export const AdminArtists = () => {
               <option value="Avulso">Avulso</option>
               <option value="Mensal">Mensal</option>
               <option value="Anual">Anual</option>
+              <option value="Vitalicio">Vitalicio</option>
               
             </select>
             <AnimatedInput placeholder="Envios extras (bonus_quota)" type="number" value={planForm.bonus_quota} onChange={(e) => setPlanForm({ ...planForm, bonus_quota: e.target.value })} />
