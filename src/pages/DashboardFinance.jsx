@@ -29,6 +29,7 @@ const DashboardFinance = () => {
           seller:profiles!seller_id(nome)
         `)
         .eq('artista_id', user.id)
+        .or('status.neq.cancelado,has_contract.eq.true')
         .order('date', { ascending: false });
 
       if (error) throw error;
@@ -183,14 +184,21 @@ const DashboardFinance = () => {
                        </div>
                     )}
                     
-                    <AnimatedButton 
-                      onClick={() => handleOpenDistribution(event)}
-                      variant={event.status === 'pago' ? 'secondary' : 'primary'}
-                      className="whitespace-nowrap w-full md:w-auto"
-                      icon={event.status === 'pago' ? FileText : DollarSign}
-                    >
-                      {event.status === 'pago' ? 'Ver Comprovantes' : 'Fazer Pagamento'}
-                    </AnimatedButton>
+                    {event.status === 'pago' ? (
+                      <AnimatedButton 
+                        onClick={() => handleOpenDistribution(event)}
+                        variant="secondary"
+                        className="whitespace-nowrap w-full md:w-auto"
+                        icon={FileText}
+                      >
+                        Ver Comprovantes
+                      </AnimatedButton>
+                    ) : (
+                      <div className="flex items-center gap-2 text-yellow-500 bg-yellow-500/10 px-3 py-2 rounded-lg text-sm font-medium">
+                        <Clock size={16} />
+                        <span>Aguardando Pagamento</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -204,6 +212,7 @@ const DashboardFinance = () => {
         onClose={() => setIsModalOpen(false)} 
         event={selectedEvent}
         onUpdate={fetchEvents}
+        userRole="artist"
       />
     </DashboardLayout>
   );

@@ -230,17 +230,25 @@ const SellerLeads = () => {
         try {
           const { data: existingEvent } = await supabase
             .from('artist_work_events')
-            .select('id')
+            .select('id, has_contract')
             .eq('lead_id', leadId)
             .maybeSingle();
 
           if (formData.status === 'perdido' || formData.status === 'cancelado') {
-            // Delete event from calendar
             if (existingEvent) {
-              await supabase
-                .from('artist_work_events')
-                .delete()
-                .eq('id', existingEvent.id);
+              if (existingEvent.has_contract) {
+                // If has contract, keep the event but mark as canceled
+                await supabase
+                  .from('artist_work_events')
+                  .update({ status: 'cancelado' })
+                  .eq('id', existingEvent.id);
+              } else {
+                // If no contract, delete the event
+                await supabase
+                  .from('artist_work_events')
+                  .delete()
+                  .eq('id', existingEvent.id);
+              }
               
               // Send notification for canceled show
               await addNotification({

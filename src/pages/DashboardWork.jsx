@@ -41,6 +41,7 @@ export const DashboardWork = () => {
       .eq('artista_id', user.id)
       .gte('date', startISO)
       .lte('date', endISO)
+      .or('status.neq.cancelado,has_contract.eq.true')
       .order('date', { ascending: true });
     setEvents(ev || []);
     const { data: td } = await supabase

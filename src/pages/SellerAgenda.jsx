@@ -77,7 +77,8 @@ const SellerAgenda = () => {
         .select('*, creator:created_by(nome)')
         .eq('artista_id', selectedArtist)
         .gte('date', startOfMonth)
-        .lte('date', endOfMonth);
+        .lte('date', endOfMonth)
+        .or('status.neq.cancelado,has_contract.eq.true');
 
       if (error) throw error;
       setArtistEvents(data || []);
@@ -89,7 +90,8 @@ const SellerAgenda = () => {
         .select('*')
         .eq('artista_id', selectedArtist)
         .gte('date', new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString())
-        .lte('date', new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString());
+        .lte('date', new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString())
+        .or('status.neq.cancelado,has_contract.eq.true');
       setArtistEvents(data || []);
     }
   };

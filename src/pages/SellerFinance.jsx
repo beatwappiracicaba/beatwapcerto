@@ -51,6 +51,7 @@ const SellerFinance = () => {
           artist:profiles!artist_work_events_artista_id_fkey(nome)
         `)
         .eq('seller_id', user.id)
+        .or('status.neq.cancelado,has_contract.eq.true')
         .order('date', { ascending: false });
 
       if (error) throw error;
@@ -229,11 +230,11 @@ const SellerFinance = () => {
                     
                     <AnimatedButton 
                       onClick={() => handleOpenDistribution(event)}
-                      variant="secondary"
+                      variant={event.status === 'pago' ? 'secondary' : 'primary'}
                       className="whitespace-nowrap w-full md:w-auto"
-                      icon={FileText}
+                      icon={event.status === 'pago' ? FileText : DollarSign}
                     >
-                      Comprovantes
+                      {event.status === 'pago' ? 'Ver Comprovantes' : 'Fazer Pagamento'}
                     </AnimatedButton>
                   </div>
                 </div>

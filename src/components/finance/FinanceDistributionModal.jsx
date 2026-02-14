@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Upload, Check, FileText, DollarSign, User, Briefcase, Building } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
@@ -19,12 +19,23 @@ export const FinanceDistributionModal = ({ isOpen, onClose, event, onUpdate, use
     receipt_artist: null,
     receipt_seller: null,
     receipt_house: null,
-    receipt_manager: null
+    receipt_manager: null,
+    contract_file: null
   });
+
+  const [markAsPaid, setMarkAsPaid] = useState(false);
+  const [hasContract, setHasContract] = useState(false);
+
+  useEffect(() => {
+    if (event) {
+      setMarkAsPaid(event.status === 'pago');
+      setHasContract(event.has_contract || false);
+    }
+  }, [event, isOpen]);
 
   if (!isOpen || !event) return null;
 
-  const canEdit = isArtist || isProducer;
+  const canEdit = isSeller || isProducer;
 
   const handleFileChange = (e, field) => {
     if (!canEdit) return; 
@@ -79,9 +90,20 @@ export const FinanceDistributionModal = ({ isOpen, onClose, event, onUpdate, use
       if (files.receipt_manager) {
         updates.receipt_manager = await uploadFile(files.receipt_manager, `manager/${event.id}`);
       }
+      if (files.contract_file) {
+        updates.contract_url = await uploadFile(files.contract_file, `contracts/${event.id}`);
+        updates.has_contract = true; // Auto-set if file uploaded
+      }
 
       // Update database
-      if (Object.keys(updates).length > 0) {
+      if (Object.keys(updates).length > 0 || (markAsPaid && event.status !== 'pago') || (hasContract !== event.has_contract)) {
+        if (markAsPaid) {
+          updates.status = 'pago';
+        }
+        if (hasContract !== event.has_contract) {
+          updates.has_contract = hasContract;
+        }
+
         const { error } = await supabase
           .from('artist_work_events')
           .update(updates)
@@ -89,11 +111,11 @@ export const FinanceDistributionModal = ({ isOpen, onClose, event, onUpdate, use
 
         if (error) throw error;
         
-        addToast('Comprovantes enviados com sucesso!', 'success');
+        addToast('Atualização realizada com sucesso!', 'success');
         onUpdate && onUpdate();
         onClose();
       } else {
-        addToast('Selecione pelo menos um comprovante para enviar.', 'info');
+        addToast('Nenhuma alteração para salvar.', 'info');
       }
 
     } catch (error) {
@@ -140,6 +162,56 @@ export const FinanceDistributionModal = ({ isOpen, onClose, event, onUpdate, use
           </div>
 
           <div className="space-y-4">
+            <h4 className="font-bold text-white border-b border-white/10 pb-2">Contrato e Documentação</h4>
+             <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <FileText className="text-beatwap-gold" size={18} />
+                    <div>
+                      <div className="font-bold">Contrato do Show</div>
+                      <div className="text-xs text-gray-400">{hasContract ? 'Contrato Assinado' : 'Pendente de Assinatura'}</div>
+                    </div>
+                  </div>
+                  {event.contract_url ? (
+                    <a href={event.contract_url} target="_blank" rel="noopener noreferrer" className="text-green-400 text-xs hover:underline flex items-center gap-1">
+                      <Check size={12} /> Ver Contrato
+                    </a>
+                  ) : (
+                    <span className="text-yellow-500 text-xs">Sem Contrato</span>
+                  )}
+                </div>
+                {canEdit && (
+                  <div className="space-y-3">
+                     <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="has-contract"
+                        checked={hasContract}
+                        onChange={(e) => setHasContract(e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-600 bg-black/20 text-beatwap-gold focus:ring-beatwap-gold focus:ring-offset-0"
+                      />
+                      <label htmlFor="has-contract" className="text-white text-sm cursor-pointer select-none">
+                        Marcar como "Contrato Assinado" (Impede exclusão se cancelado)
+                      </label>
+                    </div>
+
+                    <div className="relative">
+                      <input 
+                        type="file" 
+                        accept=".pdf,.doc,.docx"
+                        onChange={(e) => handleFileChange(e, 'contract_file')}
+                        className="hidden" 
+                        id="file-contract"
+                      />
+                      <label htmlFor="file-contract" className="flex items-center justify-center gap-2 w-full p-3 border border-dashed border-white/20 rounded-lg cursor-pointer hover:bg-white/5 transition-colors text-sm text-gray-400">
+                        <Upload size={16} />
+                        {files.contract_file ? files.contract_file.name : 'Anexar Contrato (PDF)'}
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+
             <h4 className="font-bold text-white border-b border-white/10 pb-2">Comprovantes de Pagamento</h4>
             
             {/* Artist Receipt */}
@@ -292,15 +364,31 @@ export const FinanceDistributionModal = ({ isOpen, onClose, event, onUpdate, use
           </div>
         </div>
 
-        <div className="p-6 border-t border-white/10 flex justify-end gap-3 sticky bottom-0 bg-[#111] z-10">
-          <AnimatedButton onClick={onClose} variant="secondary">
-            Cancelar
-          </AnimatedButton>
+        <div className="p-6 border-t border-white/10 flex items-center justify-between sticky bottom-0 bg-[#111] z-10 gap-4">
           {canEdit && (
-            <AnimatedButton onClick={handleSubmit} variant="primary" loading={loading} icon={Check}>
-              Salvar e Enviar
-            </AnimatedButton>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="mark-paid"
+                checked={markAsPaid}
+                onChange={(e) => setMarkAsPaid(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-600 bg-black/20 text-beatwap-gold focus:ring-beatwap-gold focus:ring-offset-0"
+              />
+              <label htmlFor="mark-paid" className="text-white text-sm cursor-pointer select-none">
+                Marcar como Pago
+              </label>
+            </div>
           )}
+          <div className="flex gap-3 ml-auto">
+            <AnimatedButton onClick={onClose} variant="secondary">
+              Cancelar
+            </AnimatedButton>
+            {canEdit && (
+              <AnimatedButton onClick={handleSubmit} variant="primary" loading={loading} icon={Check}>
+                Salvar
+              </AnimatedButton>
+            )}
+          </div>
         </div>
       </div>
     </div>
