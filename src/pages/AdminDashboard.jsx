@@ -281,7 +281,16 @@ export const AdminHome = () => {
             {(loadingProjects ? [] : projects).map((p) => (
               <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
                 <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center text-xs text-gray-300">
-                  {p.cover_url ? <img src={p.cover_url} alt={p.title} className="w-full h-full object-cover" /> : (p.platform || '').toUpperCase()}
+                  {p.cover_url ? (
+                    <img src={p.cover_url} alt={p.title} className="w-full h-full object-cover" />
+                  ) : (() => {
+                      const isYT = (p.platform || '').toLowerCase() === 'youtube';
+                      const m = (p.url || '').match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
+                      const vid = m ? m[1] : null;
+                      return (isYT && vid)
+                        ? <img src={`https://img.youtube.com/vi/${vid}/mqdefault.jpg`} alt={p.title} className="w-full h-full object-cover" />
+                        : (p.platform || '').toUpperCase();
+                  })()}
                 </div>
                 <div className="flex-1">
                   <div className="font-bold text-white text-sm truncate">{p.title}</div>

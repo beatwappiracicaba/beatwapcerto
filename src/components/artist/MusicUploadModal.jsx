@@ -230,7 +230,8 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
               uploadFile(t.audio_file, 'music_files'),
               t.authorization_file ? uploadFile(t.authorization_file, 'music_docs') : Promise.resolve(null)
             ]);
-            return { audioUrl: audioU, authUrl: authU, titulo: t.titulo, estilo: t.estilo, isrc: t.isrc, has_feat: t.has_feat, feat_name: t.feat_name, composer: t.composer, producer: t.producer };
+            const comp = (t.composer || '').split(',').map(s => s.trim()).filter(Boolean).join(', ');
+            return { audioUrl: audioU, authUrl: authU, titulo: t.titulo, estilo: t.estilo, isrc: t.isrc, has_feat: t.has_feat, feat_name: t.feat_name, composer: comp, producer: t.producer };
           })
         );
         const rows = trackUploads.map((tu) => ({
@@ -246,11 +247,10 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
           isrc: (tu.isrc || '').trim() || null,
           has_feat: tu.has_feat || false,
           feat_name: tu.feat_name || null,
-          composer: tu.composer || null,
+          composer: (tu.composer || null),
           producer: tu.producer || null,
           album_id: albumId,
-          album_title: formData.titulo,
-          added_by: isProducerMode ? 'admin' : 'artist'
+          album_title: formData.titulo
         }));
         const { error: errBatch } = await supabase.from('musics').insert(rows);
         if (errBatch) throw errBatch;
@@ -268,9 +268,8 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
           isrc: (formData.isrc || '').trim() || null,
           has_feat: formData.has_feat || false,
           feat_name: formData.feat_name || null,
-          composer: formData.composer || null,
-          producer: formData.producer || null,
-          added_by: isProducerMode ? 'admin' : 'artist'
+          composer: ((formData.composer || '').split(',').map(s => s.trim()).filter(Boolean).join(', ')) || null,
+          producer: formData.producer || null
         });
         if (error) throw error;
       }
@@ -362,10 +361,10 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                   <>
                     <div className="grid grid-cols-2 gap-4">
                       <AnimatedInput 
-                        label="Compositor" 
+                        label="Compositores" 
                         value={formData.composer || ''} 
                         onChange={(e) => setFormData({...formData, composer: e.target.value})} 
-                        placeholder="Nome do Compositor"
+                        placeholder="Separe por vírgula (Ex: Nome 1, Nome 2)"
                       />
                       <AnimatedInput 
                         label="Produtor" 
@@ -374,12 +373,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                         placeholder="Nome do Produtor"
                       />
                     </div>
-                    <AnimatedInput 
-                      label="ISRC (Opcional)" 
-                      value={formData.isrc || ''} 
-                      onChange={(e) => setFormData({...formData, isrc: e.target.value})} 
-                      placeholder="Código ISRC"
-                    />
+                    <p className="text-xs text-gray-500 mt-1">Ex.: Nome 1, Nome 2</p>
                     <div className="bg-white/5 border border-white/10 rounded-xl p-3">
                       <div className="flex items-center justify-between mb-2">
                         <label className="text-sm font-medium text-gray-400">Possui Feat?</label>
@@ -475,10 +469,10 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           <AnimatedInput 
-                            label="Compositor" 
+                            label="Compositores" 
                             value={t.composer || ''} 
                             onChange={(e) => updateTrackField(idx, 'composer', e.target.value)} 
-                            placeholder="Compositor"
+                            placeholder="Separe por vírgula (Ex: Nome 1, Nome 2)"
                           />
                           <AnimatedInput 
                             label="Produtor" 

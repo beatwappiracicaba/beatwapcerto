@@ -544,8 +544,20 @@ const Home = () => {
                         transition={{ delay: index * 0.1 }}
                         className="group relative bg-white/5 border border-white/10 rounded-2xl overflow-hidden"
                       >
-                        <div className="aspect-video bg-gray-800 relative">
-                          <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm"><span>YouTube</span></div>
+                        <div className="aspect-video bg-gray-800 relative overflow-hidden">
+                          {(() => {
+                            const url = p.url || '';
+                            const isYT = (p.platform || '').toLowerCase() === 'youtube';
+                            let vid = null;
+                            if (isYT) {
+                              const m = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
+                              vid = m ? m[1] : null;
+                            }
+                            const thumb = vid ? `https://img.youtube.com/vi/${vid}/hqdefault.jpg` : null;
+                            return thumb
+                              ? <img src={thumb} alt={p.title} className="w-full h-full object-cover" />
+                              : <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm"><span>{p.platform || 'Projeto'}</span></div>;
+                          })()}
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <button 
                               className="px-4 py-2 bg-beatwap-gold rounded-full text-black font-bold hover:bg-white"
