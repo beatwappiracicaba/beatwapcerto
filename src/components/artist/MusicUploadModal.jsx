@@ -160,7 +160,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     try {
       // Quota check
       const { data: prof } = await supabase.from('profiles').select('plano, bonus_quota, plan_started_at').eq('id', activeUser.id).maybeSingle();
-      const plan = (prof?.plano || 'Gratuito').toLowerCase();
+      const plan = (prof?.plano || 'sem plano').toLowerCase();
       const bonus = Number(prof?.bonus_quota || 0);
       let base = 0;
       let start = null;

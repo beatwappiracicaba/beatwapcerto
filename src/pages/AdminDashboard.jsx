@@ -375,7 +375,7 @@ export const AdminArtists = () => {
   const [isMarketingOpen, setIsMarketingOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [metricsForm, setMetricsForm] = useState({ plays: '', listeners: '', revenue: '', growth: '' });
-  const [planForm, setPlanForm] = useState({ plano: 'Gratuito', bonus_quota: 0, plan_started_at: '' });
+  const [planForm, setPlanForm] = useState({ plano: 'Avulso', bonus_quota: 0, plan_started_at: '' });
   const [searchName, setSearchName] = useState('');
   const { addNotification } = useNotification();
   const { addToast } = useToast();
@@ -484,7 +484,7 @@ export const AdminArtists = () => {
         .eq('id', selectedArtist)
         .maybeSingle();
       setPlanForm({
-        plano: data?.plano || 'Gratuito',
+        plano: data?.plano || 'Avulso',
         bonus_quota: Number(data?.bonus_quota || 0),
         plan_started_at: data?.plan_started_at ? String(data.plan_started_at).slice(0, 10) : ''
       });
@@ -741,7 +741,7 @@ export const AdminArtists = () => {
           <div className="font-bold">Plano do artista</div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={planForm.plano} onChange={(e) => setPlanForm({ ...planForm, plano: e.target.value })}>
-              <option value="Gratuito">Gratuito</option>
+
               <option value="Avulso">Avulso</option>
               <option value="Mensal">Mensal</option>
               <option value="Anual">Anual</option>

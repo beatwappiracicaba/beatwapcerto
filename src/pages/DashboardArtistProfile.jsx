@@ -89,7 +89,7 @@ export const DashboardArtistProfile = () => {
   useEffect(() => {
     const computeQuota = async () => {
       if (!user || !profile) return;
-      const plan = (profile.plano || 'Gratuito').toLowerCase();
+      const plan = (profile.plano || 'sem plano').toLowerCase();
       const bonus = Number(profile.bonus_quota || 0);
       let base = 0;
       let start = null;
@@ -123,7 +123,7 @@ export const DashboardArtistProfile = () => {
         setPeriodLabel('Anual (ano calendário atual)');
       } else {
         base = 0;
-        setPeriodLabel('Gratuito');
+        setPeriodLabel('Sem Plano');
       }
 
       let q;
