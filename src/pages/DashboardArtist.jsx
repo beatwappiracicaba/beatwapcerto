@@ -39,6 +39,48 @@ export const DashboardArtistHome = () => {
 
       const showRevenue = shows?.reduce((acc, curr) => acc + (Number(curr.artist_share) || 0), 0) || 0;
 
+      // Load ALL musics for the artist to get music-specific external metrics and details
+      const { data: allMusics } = await supabase
+        .from('musics')
+        .select('id, titulo, cover_url')
+        .eq('artista_id', user.id);
+        
+      const musicIds = (allMusics || []).map(m => m.id);
+      const musicMap = (allMusics || []).reduce((acc, m) => {
+        acc[m.id] = m;
+        return acc;
+      }, {});
+      
+      let totalExternalPlays = 0;
+      let totalExternalListeners = 0;
+      let totalExternalRevenue = 0;
+      
+      if (musicIds.length > 0) {
+        const { data: extMetrics } = await supabase
+          .from('music_external_metrics')
+          .select('plays, listeners, revenue')
+          .in('music_id', musicIds)
+          .eq('source', 'manual');
+          
+        (extMetrics || []).forEach(em => {
+          totalExternalPlays += Number(em.plays || 0);
+          // Listeners might overlap between musics, but since we have no user ID for external listeners, 
+          // we usually sum them or take max?
+          // For simplicity and typical "monthly listeners" logic, usually it's per artist. 
+          // But here we input per music. If user inputs 1000 listeners on Song A and 1000 on Song B, 
+          // total listeners is hard to know without deduplication.
+          // However, usually "Monthly Listeners" is an artist-level metric.
+          // But the user asked to input metrics "of each music manually".
+          // Let's sum them for now, or maybe the user inputs "Monthly Listeners" in the artist profile metrics (legacy)?
+          // Actually, the legacy `artist_metrics` table had `listeners`. 
+          // The new `music_external_metrics` has `listeners`.
+          // Let's assume we sum them or take the max? Summing listeners across tracks usually inflates numbers.
+          // Let's SUM for now as requested "put metrics of each music... and it appears".
+          totalExternalListeners += Number(em.listeners || 0); 
+          totalExternalRevenue += Number(em.revenue || 0);
+        });
+      }
+
       const agg = {
         plays: 0,
         listeners: new Set(),
@@ -47,26 +89,70 @@ export const DashboardArtistHome = () => {
         social_clicks: 0
       };
 
+      // Track plays per music to find Top 1
+      const playsPerMusic = {}; // { musicId: count }
+
       (events || []).forEach(e => {
         if (e.type === 'music_play') {
           agg.plays++;
           agg.time += Number(e.duration_seconds || 0);
           if (e.ip_hash) agg.listeners.add(e.ip_hash);
+          
+          // Count internal plays per music
+          const mid = e.music_id;
+          if (mid) playsPerMusic[mid] = (playsPerMusic[mid] || 0) + 1;
         } else if (e.type === 'profile_view') {
           agg.profile_views++;
         } else if (e.type && e.type.startsWith('artist_click_')) {
           agg.social_clicks++;
         }
       });
+      
+      // Merge External plays into per-music counts
+      if (musicIds.length > 0) {
+        const { data: extMetrics } = await supabase
+          .from('music_external_metrics')
+          .select('music_id, plays')
+          .in('music_id', musicIds)
+          .eq('source', 'manual');
+          
+        (extMetrics || []).forEach(em => {
+           if (em.music_id) {
+             playsPerMusic[em.music_id] = (playsPerMusic[em.music_id] || 0) + Number(em.plays || 0);
+           }
+        });
+      }
+
+      // Find Top Music
+      let topMusic = null;
+      let maxPlays = -1;
+      let topMusicId = null;
+      
+      for (const [mid, count] of Object.entries(playsPerMusic)) {
+        if (count > maxPlays) {
+          maxPlays = count;
+          topMusicId = mid;
+        }
+      }
+      
+      if (topMusicId && musicMap[topMusicId]) {
+         topMusic = { ...musicMap[topMusicId], totalPlays: maxPlays };
+      }
+
+      // Merge Internal + External totals
+      const finalPlays = agg.plays + totalExternalPlays;
+      const finalListeners = agg.listeners.size + totalExternalListeners; 
+      const finalStreamingRevenue = (Number(legacy?.receita_estimada || 0)) + totalExternalRevenue;
 
       setMetrics({ 
-        total_plays: agg.plays, 
-        ouvintes_mensais: agg.listeners.size, 
-        receita_estimada: legacy?.receita_estimada || 0,
-        tempo_ouvido: agg.time,
+        total_plays: finalPlays, 
+        ouvintes_mensais: finalListeners, 
+        receita_estimada: finalStreamingRevenue,
+        tempo_ouvido: agg.time, 
         visitas_perfil: agg.profile_views,
         cliques_sociais: agg.social_clicks,
-        faturamento_shows: showRevenue
+        faturamento_shows: showRevenue,
+        topMusic
       });
       setLoading(false);
     };
@@ -113,6 +199,39 @@ export const DashboardArtistHome = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="col-span-1 md:col-span-2">
+           <div className="flex items-center justify-between mb-4">
+             <div className="text-sm text-gray-400"><span>Música com mais visualizações</span></div>
+             <div className="px-2 py-1 bg-green-500/10 rounded-lg text-green-500 text-xs font-bold">TOP 1</div>
+           </div>
+           
+           {(() => {
+             if (loading) return <div className="text-2xl font-bold text-gray-500">...</div>;
+             
+             if (!metrics?.topMusic) {
+               return <div className="text-sm text-gray-500">Nenhuma música com visualizações ainda.</div>;
+             }
+             
+             const tm = metrics.topMusic;
+             return (
+               <div className="flex items-center gap-4">
+                 <div className="w-16 h-16 rounded-lg bg-gray-800 overflow-hidden shrink-0">
+                   {tm.cover_url ? (
+                     <img src={tm.cover_url} alt={tm.titulo} className="w-full h-full object-cover" />
+                   ) : (
+                     <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">Capa</div>
+                   )}
+                 </div>
+                 <div>
+                   <div className="font-bold text-xl text-white line-clamp-1">{tm.titulo}</div>
+                   <div className="text-gray-400 text-sm">
+                     <span className="text-beatwap-gold font-bold">{tm.totalPlays}</span> plays totais
+                   </div>
+                 </div>
+               </div>
+             );
+           })()}
+        </Card>
         <Card>
           <div className="text-sm text-gray-400"><span>Tempo Ouvido</span></div>
           <div className="text-3xl font-bold">
@@ -126,6 +245,9 @@ export const DashboardArtistHome = () => {
             </span>
           </div>
         </Card>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
         <Card>
           <div className="text-sm text-gray-400"><span>Visitas no Perfil</span></div>
           <div className="text-3xl font-bold"><span>{loading ? '...' : metrics?.visitas_perfil ?? 0}</span></div>
@@ -165,15 +287,20 @@ export const DashboardArtistMusics = () => {
   useEffect(() => {
     const loadMetrics = async () => {
       if (!user) return;
+      
+      // 1. Internal Metrics
       const { data: ev } = await supabase
         .from('analytics_events')
         .select('type,music_id,duration_seconds')
         .eq('artist_id', user.id)
         .in('type', ['music_play','music_click_presave']);
+        
       const agg = {};
+      
+      // Initialize with internal data
       (ev || []).forEach(e => {
         const mid = e.music_id || 'unknown';
-        if (!agg[mid]) agg[mid] = { plays: 0, totalSeconds: 0, presaves: 0 };
+        if (!agg[mid]) agg[mid] = { plays: 0, totalSeconds: 0, presaves: 0, revenue: 0 };
         if (e.type === 'music_play') {
           agg[mid].plays += 1;
           agg[mid].totalSeconds += Number(e.duration_seconds || 0);
@@ -181,10 +308,36 @@ export const DashboardArtistMusics = () => {
           agg[mid].presaves += 1;
         }
       });
+
+      // 2. External Metrics
+      const musicIds = musics.map(m => m.id);
+      if (musicIds.length > 0) {
+        const { data: extMetrics } = await supabase
+          .from('music_external_metrics')
+          .select('*')
+          .in('music_id', musicIds)
+          .eq('source', 'manual');
+
+        (extMetrics || []).forEach(em => {
+          const mid = em.music_id;
+          if (!agg[mid]) agg[mid] = { plays: 0, totalSeconds: 0, presaves: 0, revenue: 0 };
+          
+          // Merge logic: Add external plays to internal plays? Or just display external?
+          // Usually external stats (Spotify) are much larger and include internal plays if they are reported.
+          // But here "manual" implies specific external input.
+          // We will ADD them for the display in the list.
+          agg[mid].externalPlays = Number(em.plays || 0);
+          agg[mid].externalRevenue = Number(em.revenue || 0);
+          // Note: totalSeconds is only internal. Presaves only internal (unless we add manual presaves field).
+        });
+      }
+
       setMusicMetrics(agg);
     };
-    loadMetrics();
-  }, [user]);
+    if (musics.length > 0) {
+      loadMetrics();
+    }
+  }, [user, musics]);
 
   const computeRemaining = useCallback(async () => {
     if (!user) return;
@@ -288,7 +441,11 @@ export const DashboardArtistMusics = () => {
                         const mmn = Math.floor((mm.totalSeconds % 3600) / 60);
                         const ss = mm.totalSeconds % 60;
                         const totalFmt = `${hh}h ${mmn}m ${ss}s`;
-                        return `Plays: ${mm.plays} • Tempo total: ${totalFmt} • Pré-saves: ${mm.presaves}`;
+                        
+                        const displayPlays = (mm.externalPlays || 0) + mm.plays;
+                        const displayRevenue = mm.externalRevenue ? ` • R$ ${mm.externalRevenue}` : '';
+                        
+                        return `Plays: ${displayPlays}${displayRevenue} • Tempo total: ${totalFmt} • Pré-saves: ${mm.presaves}`;
                       })()}
                       </span>
                     </div>

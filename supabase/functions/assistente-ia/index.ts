@@ -12,7 +12,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -51,7 +51,7 @@ Regras obrigatórias:
     // Format history for OpenAI
     const openAIMessages = [
       systemMessage,
-      ...messages.map(msg => ({
+      ...messages.map((msg: any) => ({
         role: msg.role === 'assistant' ? 'assistant' : 'user', // Ensure 'assistant' role is correct
         content: msg.content
       }))
@@ -93,7 +93,7 @@ Regras obrigatórias:
       throw new Error('Empty response from OpenAI');
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Edge Function Error:', error)
     return new Response(
       JSON.stringify({ error: error.message || 'Internal Server Error' }),

@@ -386,6 +386,9 @@ export const AdminArtists = () => {
   const [workTodos, setWorkTodos] = useState([]);
   const [approvedMusics, setApprovedMusics] = useState([]);
   const [musicMetrics, setMusicMetrics] = useState({});
+  const [selectedMusicId, setSelectedMusicId] = useState('');
+  const [manualMusicMetrics, setManualMusicMetrics] = useState({ plays: '', listeners: '', revenue: '' });
+
   const load = useCallback(async () => {
     const { data } = await supabase
       .from('profiles')
@@ -395,12 +398,66 @@ export const AdminArtists = () => {
     const decryptedArtists = (data || []).map(artist => ({
       ...artist,
       nome_completo_razao_social: decryptData(artist.nome_completo_razao_social),
-      // Decrypt nome if it happens to be encrypted (though usually public)
       nome: decryptData(artist.nome)
     }));
     
     setArtists(decryptedArtists);
   }, []);
+
+  const loadMusicExternalMetrics = async (musicId) => {
+    if (!musicId) {
+      setManualMusicMetrics({ plays: '', listeners: '', revenue: '' });
+      return;
+    }
+    const { data } = await supabase
+      .from('music_external_metrics')
+      .select('*')
+      .eq('music_id', musicId)
+      .eq('source', 'manual')
+      .maybeSingle();
+      
+    if (data) {
+      setManualMusicMetrics({
+        plays: String(data.plays || ''),
+        listeners: String(data.listeners || ''),
+        revenue: String(data.revenue || '')
+      });
+    } else {
+      setManualMusicMetrics({ plays: '', listeners: '', revenue: '' });
+    }
+  };
+
+  useEffect(() => {
+    if (selectedMusicId) {
+      loadMusicExternalMetrics(selectedMusicId);
+    }
+  }, [selectedMusicId]);
+
+  const handleSaveMusicMetrics = async () => {
+    if (!selectedMusicId) { addToast('Selecione uma música', 'error'); return; }
+    try {
+      const payload = {
+        music_id: selectedMusicId,
+        source: 'manual',
+        plays: parseInt(manualMusicMetrics.plays) || 0,
+        listeners: parseInt(manualMusicMetrics.listeners) || 0,
+        revenue: parseFloat(manualMusicMetrics.revenue) || 0,
+        updated_at: new Date()
+      };
+
+      const { error } = await supabase
+        .from('music_external_metrics')
+        .upsert(payload, { onConflict: 'music_id,source' });
+
+      if (error) throw error;
+      addToast('Métricas da música atualizadas', 'success');
+      loadArtistMusics(); // Refresh list to show updated values if needed
+    } catch (err) {
+      console.error(err);
+      addToast('Falha ao salvar métricas da música', 'error');
+    }
+  };
+
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     if (selectedArtist) {
@@ -446,35 +503,65 @@ export const AdminArtists = () => {
     };
   }, [selectedArtist]);
   useEffect(() => {
-    const loadArtistMusics = async () => {
-      if (!selectedArtist) { setApprovedMusics([]); setMusicMetrics({}); return; }
-      const { data: mus } = await supabase
-        .from('musics')
-        .select('id,titulo')
-        .eq('artista_id', selectedArtist)
-        .eq('status', 'aprovado')
-        .order('created_at', { ascending: false });
-      setApprovedMusics(mus || []);
+    loadArtistMusics();
+  }, [selectedArtist]);
+
+  const loadArtistMusics = async () => {
+    if (!selectedArtist) { setApprovedMusics([]); setMusicMetrics({}); return; }
+    const { data: mus } = await supabase
+      .from('musics')
+      .select('id,titulo')
+      .eq('artista_id', selectedArtist)
+      .eq('status', 'aprovado')
+      .order('created_at', { ascending: false });
+    setApprovedMusics(mus || []);
+
+    // Load metrics for all musics (internal + external)
+    const musicIds = (mus || []).map(m => m.id);
+    const metricsMap = {};
+
+    // 1. Internal Analytics
+    if (musicIds.length > 0) {
       const { data: ev } = await supabase
         .from('analytics_events')
         .select('type,music_id,duration_seconds')
-        .eq('artist_id', selectedArtist)
+        .in('music_id', musicIds)
         .in('type', ['music_play','music_click_presave']);
-      const agg = {};
+      
       (ev || []).forEach(e => {
-        const mid = e.music_id || 'unknown';
-        if (!agg[mid]) agg[mid] = { plays: 0, totalSeconds: 0, presaves: 0 };
+        const mid = e.music_id;
+        if (!metricsMap[mid]) metricsMap[mid] = { plays: 0, totalSeconds: 0, presaves: 0, revenue: 0, listeners: 0 };
         if (e.type === 'music_play') {
-          agg[mid].plays += 1;
-          agg[mid].totalSeconds += Number(e.duration_seconds || 0);
+          metricsMap[mid].plays += 1;
+          metricsMap[mid].totalSeconds += Number(e.duration_seconds || 0);
         } else if (e.type === 'music_click_presave') {
-          agg[mid].presaves += 1;
+          metricsMap[mid].presaves += 1;
         }
       });
-      setMusicMetrics(agg);
-    };
-    loadArtistMusics();
-  }, [selectedArtist]);
+
+      // 2. External Manual Metrics
+      const { data: extMetrics } = await supabase
+        .from('music_external_metrics')
+        .select('*')
+        .in('music_id', musicIds)
+        .eq('source', 'manual');
+        
+      (extMetrics || []).forEach(em => {
+        const mid = em.music_id;
+        if (!metricsMap[mid]) metricsMap[mid] = { plays: 0, totalSeconds: 0, presaves: 0, revenue: 0, listeners: 0 };
+        // External metrics override or add to internal? 
+        // Request implies "colocar as métricas... manualmente". Usually this means TOTAL plays from external platforms.
+        // We will display external plays as the primary "Plays" metric if available, or maybe show both?
+        // The user said "colocoria manualmente... e assim aparece para o artista a musica com mais visualizações".
+        // So let's store them in the map. We'll decide how to display below.
+        metricsMap[mid].externalPlays = em.plays || 0;
+        metricsMap[mid].externalListeners = em.listeners || 0;
+        metricsMap[mid].externalRevenue = em.revenue || 0;
+      });
+    }
+    setMusicMetrics(metricsMap);
+  };
+
   useEffect(() => {
     const loadPlan = async () => {
       if (!selectedArtist) { setPlanForm({ plano: 'Gratuito', bonus_quota: 0, plan_started_at: '' }); return; }
@@ -713,30 +800,75 @@ export const AdminArtists = () => {
           <AnimatedInput placeholder="Crescimento" value={metricsForm.growth} onChange={(e) => setMetricsForm({ ...metricsForm, growth: e.target.value })} />
         </div>
         <AnimatedButton onClick={handleUpdateMetrics}>Salvar métricas</AnimatedButton>
-        {approvedMusics.length > 0 && (
-          <div className="pt-6">
-            <div className="font-bold mb-2">Métricas por Música (automático)</div>
-            <div className="space-y-2">
-              {approvedMusics.map(m => {
-                const mm = musicMetrics[m.id] || { plays: 0, totalSeconds: 0, presaves: 0 };
-                const hh = Math.floor(mm.totalSeconds / 3600);
-                const mmn = Math.floor((mm.totalSeconds % 3600) / 60);
-                const ss = mm.totalSeconds % 60;
-                const totalFmt = `${hh}h ${mmn}m ${ss}s`;
-                return (
-                  <div key={m.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
-                    <div className="text-white font-semibold">{m.titulo || 'Sem título'}</div>
-                    <div className="flex items-center gap-4 text-sm text-gray-300">
-                      <span>Plays: <span className="text-white font-bold">{mm.plays}</span></span>
-                      <span>Tempo total: <span className="text-white font-bold">{totalFmt}</span></span>
-                      <span>Pré-saves: <span className="text-white font-bold">{mm.presaves}</span></span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+        <div className="pt-6">
+          <div className="font-bold mb-4">Gerenciar Métricas por Música (SomVibe/Plataformas)</div>
+          
+          <div className="flex flex-col md:flex-row gap-3 mb-4">
+             <select 
+               className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white flex-1"
+               value={selectedMusicId}
+               onChange={(e) => setSelectedMusicId(e.target.value)}
+             >
+               <option value="">Selecione uma música para editar métricas...</option>
+               {approvedMusics.map(m => (
+                 <option key={m.id} value={m.id}>{m.titulo}</option>
+               ))}
+             </select>
           </div>
-        )}
+
+          {selectedMusicId && (
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6">
+               <h4 className="text-sm font-bold text-gray-300 mb-3">Métricas Externas (SomVibe) - {approvedMusics.find(m => m.id === selectedMusicId)?.titulo}</h4>
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                 <AnimatedInput 
+                   placeholder="Plays Totais (Externo)" 
+                   type="number"
+                   value={manualMusicMetrics.plays} 
+                   onChange={(e) => setManualMusicMetrics({ ...manualMusicMetrics, plays: e.target.value })} 
+                 />
+                 <AnimatedInput 
+                   placeholder="Ouvintes Mensais" 
+                   type="number"
+                   value={manualMusicMetrics.listeners} 
+                   onChange={(e) => setManualMusicMetrics({ ...manualMusicMetrics, listeners: e.target.value })} 
+                 />
+                 <AnimatedInput 
+                   placeholder="Receita Gerada (R$)" 
+                   type="number"
+                   value={manualMusicMetrics.revenue} 
+                   onChange={(e) => setManualMusicMetrics({ ...manualMusicMetrics, revenue: e.target.value })} 
+                 />
+               </div>
+               <AnimatedButton onClick={handleSaveMusicMetrics} className="w-full md:w-auto">Salvar Métricas da Música</AnimatedButton>
+            </div>
+          )}
+
+          <div className="font-bold mb-2">Resumo das Músicas (Plataforma + Externo)</div>
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {approvedMusics.map(m => {
+              const mm = musicMetrics[m.id] || { plays: 0, totalSeconds: 0, presaves: 0 };
+              const hh = Math.floor(mm.totalSeconds / 3600);
+              const mmn = Math.floor((mm.totalSeconds % 3600) / 60);
+              const ss = mm.totalSeconds % 60;
+              const totalFmt = `${hh}h ${mmn}m ${ss}s`;
+              
+              // Display priority: External > Internal
+              const displayPlays = (mm.externalPlays !== undefined) ? mm.externalPlays : mm.plays;
+              const displayRevenue = (mm.externalRevenue !== undefined) ? `R$ ${mm.externalRevenue}` : '-';
+
+              return (
+                <div key={m.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
+                  <div className="text-white font-semibold">{m.titulo || 'Sem título'}</div>
+                  <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4 text-sm text-gray-300">
+                    <span title="Total de plays (Plataformas Digitais + Interno)">Plays: <span className="text-white font-bold">{displayPlays}</span></span>
+                    {mm.externalRevenue !== undefined && <span>Receita: <span className="text-green-400 font-bold">{displayRevenue}</span></span>}
+                    <span className="text-xs text-gray-500">(Interno: {mm.plays} plays)</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
         <div className="pt-4 space-y-3">
           <div className="font-bold">Plano do artista</div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
