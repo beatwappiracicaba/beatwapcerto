@@ -79,9 +79,6 @@ export const AdminLayout = ({ children }) => {
           )}
           {/* Chat removido do menu, manter apenas flutuante */}
         </nav>
-        <Card className="mt-8 bg-white/[0.03] border-white/10">
-          <AnimatedButton onClick={signOut} icon={LogOut}>Sair</AnimatedButton>
-        </Card>
       </aside>
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />}
       <main className="flex-1 md:ml-0 ml-0 w-full min-w-0">

@@ -119,13 +119,9 @@ export const DashboardLayout = ({ children }) => {
               <TrendingUp size={18} /> <span>{isCompositor ? 'Carreira & Negócios' : 'Mentoria/Marketing'}</span>
             </NavLink>
           )}
-          
-          {/* Chat removido do menu, manter apenas flutuante */}
         </nav>
-        <Card className="mt-8 bg-white/[0.03] border-white/10">
-          <AnimatedButton onClick={signOut} icon={LogOut}><span>Sair</span></AnimatedButton>
-        </Card>
       </aside>
+
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />}
       <main className="flex-1 w-full px-4 sm:px-6 py-6 md:ml-0 ml-0">
         <div className="flex items-center justify-between mb-6 gap-3">

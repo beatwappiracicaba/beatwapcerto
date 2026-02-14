@@ -271,7 +271,7 @@ export const DashboardArtistProfile = () => {
   const tabs = [
     { id: 'detalhes', label: 'Detalhes', icon: User },
     { id: 'endereco', label: 'Endereço', icon: MapPin },
-    { id: 'plano', label: 'Plano', icon: CreditCard },
+    ...(profile?.cargo !== 'Vendedor' ? [{ id: 'plano', label: 'Plano', icon: CreditCard }] : []),
     { id: 'contrato', label: 'Contrato', icon: FileText },
     { id: 'senha', label: 'Minha Senha', icon: Lock },
     { id: 'artista', label: 'Meu Perfil Público', icon: User },
