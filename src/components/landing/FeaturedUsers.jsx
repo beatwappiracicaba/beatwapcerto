@@ -1,9 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { User, Star, Shield, Info, Briefcase, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
-import { useToast } from '../../context/ToastContext';
 
 const UserCard = ({ user, type, onSelect }) => {
   const getRoleLabel = () => {
@@ -56,11 +55,7 @@ const FeaturedUsers = () => {
   const [artists, setArtists] = useState([]);
   const [producers, setProducers] = useState([]);
   const [sellers, setSellers] = useState([]);
-  const [recentUsers, setRecentUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState(null);
-  const { addToast } = useToast();
-  const [ipHash, setIpHash] = useState(null);
   const producersRef = useRef(null);
   const sellersRef = useRef(null);
   const artistsRef = useRef(null);
@@ -92,7 +87,6 @@ const FeaturedUsers = () => {
           setProducers(admins);
           setSellers(vendors);
           setArtists(regular);
-          setRecentUsers(normalized.slice(0, 5));
         }
       } catch (err) {
         console.error('Error fetching users:', err);
@@ -102,15 +96,6 @@ const FeaturedUsers = () => {
     };
 
     fetchUsers();
-    (async () => {
-      try {
-        const res = await fetch('https://api.ipify.org?format=json');
-        const json = await res.json();
-        setIpHash(json?.ip || null);
-      } catch {
-        setIpHash(null);
-      }
-    })();
   }, []);
 
   const handleUserClick = (user) => {

@@ -93,7 +93,12 @@ const Home = () => {
         if (!a._rd && b._rd) return 1;
         return new Date(b.created_at) - new Date(a.created_at);
       });
-      const combined = [...upcoming, ...pastOrNoDate].slice(0, 8).map(({ _rd, _isUpcoming, ...rest }) => rest);
+      const combined = [...upcoming, ...pastOrNoDate].slice(0, 8).map(r => {
+        const o = { ...r };
+        delete o._rd;
+        delete o._isUpcoming;
+        return o;
+      });
       setLatestReleases(combined);
     } catch (error) {
       console.error('Error fetching releases:', error);
