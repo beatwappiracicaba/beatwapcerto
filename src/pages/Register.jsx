@@ -20,6 +20,8 @@ const Register = () => {
     password: '', 
     confirmPassword: '' 
   });
+  const [agreeLegal, setAgreeLegal] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [roleParam, setRoleParam] = useState(null);
 
   useEffect(() => {
@@ -36,6 +38,11 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    if (!agreeLegal) {
+      addToast('Você precisa aceitar os Termos, Privacidade e Direitos Autorais.', 'error');
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       addToast('As senhas não coincidem.', 'error');
       return;
@@ -49,6 +56,7 @@ const Register = () => {
       
       let optionsData = {
         name: capitalizedName,
+        marketing_opt_in: marketingOptIn
       };
 
       let access_control = {};
@@ -204,6 +212,35 @@ const Register = () => {
             value={formData.confirmPassword}
             onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
           />
+          <div className="space-y-2">
+            <label className="flex items-start gap-3 p-3 bg-white/5 border border-white/10 rounded-lg cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={agreeLegal}
+                onChange={(e) => setAgreeLegal(e.target.checked)}
+                className="mt-1 accent-beatwap-gold"
+              />
+              <span className="text-sm text-gray-300">
+                Declaro que li e concordo com os{' '}
+                <Link to="/legal/termos" className="text-beatwap-gold hover:underline">Termos de Uso</Link>,{' '}
+                <Link to="/legal/privacidade" className="text-beatwap-gold hover:underline">Política de Privacidade</Link>{' '}
+                e{' '}
+                <Link to="/legal/direitos" className="text-beatwap-gold hover:underline">Direitos Autorais</Link>.{' '}
+                <Link to="/legal/todos" className="text-gray-400 hover:text-beatwap-gold underline ml-1">Ver tudo</Link>
+              </span>
+            </label>
+            <label className="flex items-start gap-3 p-3 bg-white/5 border border-white/10 rounded-lg cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={marketingOptIn}
+                onChange={(e) => setMarketingOptIn(e.target.checked)}
+                className="mt-1 accent-beatwap-gold"
+              />
+              <span className="text-sm text-gray-300">
+                Quero receber mensagens sobre promoções e novidades da BeatWap (opcional).
+              </span>
+            </label>
+          </div>
 
           <AnimatedButton 
             fullWidth 

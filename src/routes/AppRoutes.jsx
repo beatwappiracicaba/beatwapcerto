@@ -18,6 +18,7 @@ import AuthCallback from '../pages/AuthCallback';
 import Terms from '../pages/Terms';
 import Privacy from '../pages/Privacy';
 import Copyright from '../pages/Copyright';
+import LegalAll from '../pages/LegalAll';
 import { DashboardArtistHome, DashboardArtistMusics, DashboardArtistChat } from '../pages/DashboardArtist';
 import { DashboardMarketing } from '../pages/DashboardMarketing';
 import DashboardWork from '../pages/DashboardWork';
@@ -101,6 +102,7 @@ export const AppRoutes = () => {
         <Route path="/legal/termos" element={<Terms />} />
         <Route path="/legal/privacidade" element={<Privacy />} />
         <Route path="/legal/direitos" element={<Copyright />} />
+        <Route path="/legal/todos" element={<LegalAll />} />
         
         <Route path="/notifications/:id" element={profile ? <NotificationDetails /> : <Navigate to="/" replace />} />
 
