@@ -84,6 +84,14 @@ const Header = () => {
             className="fixed inset-0 bg-black/60 z-40 md:hidden"
             onClick={() => setMobileMenuOpen(false)}
           />
+          {/* Floating Close Button */}
+          <button
+            aria-label="Fechar menu"
+            onClick={() => setMobileMenuOpen(false)}
+            className="fixed top-4 right-4 z-[60] md:hidden bg-beatwap-gold text-black rounded-full p-2 shadow-lg"
+          >
+            <X size={20} />
+          </button>
           {/* Sheet from top */}
           <motion.div
             initial={{ y: -20, opacity: 0 }}
