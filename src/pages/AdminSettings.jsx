@@ -20,12 +20,14 @@ export const AdminSettings = () => {
     p_compositions: true,
     p_work: true,
     p_marketing: true,
+    p_finance: true,
     // Admin permissions
     p_admin_artists: true,
     p_admin_musics: true,
     p_admin_compositions: true,
     p_admin_sponsors: true,
     p_admin_settings: true,
+    p_admin_finance: true,
     // Seller permissions
     p_seller_artists: true,
     p_seller_calendar: true,
@@ -68,11 +70,13 @@ export const AdminSettings = () => {
           musics: true,
           work: true,
           marketing: true,
+          finance: true,
           admin_artists: true,
           admin_musics: true,
           admin_compositions: true,
           admin_sponsors: true,
           admin_settings: true,
+          admin_finance: true,
           seller_artists: true,
           seller_calendar: true,
           seller_leads: true,
@@ -119,6 +123,7 @@ export const AdminSettings = () => {
         params.set('p_admin_compositions', form.p_admin_compositions ? '1' : '0');
         params.set('p_admin_sponsors', form.p_admin_sponsors ? '1' : '0');
         params.set('p_admin_settings', form.p_admin_settings ? '1' : '0');
+        params.set('p_admin_finance', form.p_admin_finance ? '1' : '0');
       } else if (form.role === 'Vendedor') {
         params.set('p_seller_artists', form.p_seller_artists ? '1' : '0');
         params.set('p_seller_calendar', form.p_seller_calendar ? '1' : '0');
@@ -129,10 +134,12 @@ export const AdminSettings = () => {
       } else if (form.role === 'Compositor') {
         params.set('p_compositions', form.p_compositions ? '1' : '0');
         params.set('p_marketing', form.p_marketing ? '1' : '0');
+        params.set('p_finance', form.p_finance ? '1' : '0');
       } else {
         params.set('p_musics', form.p_musics ? '1' : '0');
         params.set('p_work', form.p_work ? '1' : '0');
         params.set('p_marketing', form.p_marketing ? '1' : '0');
+        params.set('p_finance', form.p_finance ? '1' : '0');
       }
       
       const url = `${window.location.origin}/register?${params.toString()}`;
@@ -272,7 +279,8 @@ export const AdminSettings = () => {
                       { key: 'p_admin_musics', label: 'Músicas' },
                       { key: 'p_admin_compositions', label: 'Composições' },
                       { key: 'p_admin_sponsors', label: 'Patrocinadores' },
-                      { key: 'p_admin_settings', label: 'Configurações' }
+                      { key: 'p_admin_settings', label: 'Configurações' },
+                      { key: 'p_admin_finance', label: 'Financeiro' }
                     ].map((perm) => (
                       <label key={perm.key} className="flex items-center gap-2 p-2 rounded-lg bg-black/20 border border-white/10 cursor-pointer hover:border-white/30 transition-colors">
                         <input
@@ -308,11 +316,13 @@ export const AdminSettings = () => {
                     // Artist & Composer Permissions
                     (form.role === 'Compositor' ? [
                       { key: 'p_compositions', label: 'Composições' },
-                      { key: 'p_marketing', label: 'Marketing' }
+                      { key: 'p_marketing', label: 'Marketing' },
+                      { key: 'p_finance', label: 'Financeiro' }
                     ] : [
                       { key: 'p_musics', label: 'Músicas' },
                       { key: 'p_work', label: 'Trabalho' },
-                      { key: 'p_marketing', label: 'Marketing' }
+                      { key: 'p_marketing', label: 'Marketing' },
+                      { key: 'p_finance', label: 'Financeiro' }
                     ]).map((perm) => (
                       <label key={perm.key} className="flex items-center gap-2 p-2 rounded-lg bg-black/20 border border-white/10 cursor-pointer hover:border-white/30 transition-colors">
                         <input
@@ -431,6 +441,7 @@ export const AdminSettings = () => {
                             { key: 'admin_musics', label: 'Gerenciar Músicas' },
                             { key: 'admin_sponsors', label: 'Patrocinadores' },
                             { key: 'admin_settings', label: 'Configurações' },
+                            { key: 'admin_finance', label: 'Financeiro' },
                             { key: 'marketing', label: 'Marketing' },
                             { key: 'chat', label: 'Chat' },
                             { key: 'admin_compositions', label: 'Composições' }
@@ -475,6 +486,7 @@ export const AdminSettings = () => {
                           [
                             { key: 'compositions', label: 'Minhas Composições' },
                             { key: 'marketing', label: 'Marketing' },
+                            { key: 'finance', label: 'Financeiro' },
                             { key: 'chat', label: 'Chat' }
                           ].map(perm => (
                             <button
@@ -495,6 +507,7 @@ export const AdminSettings = () => {
                             { key: 'musics', label: 'Músicas' },
                             { key: 'work', label: 'Trabalho' },
                             { key: 'marketing', label: 'Marketing' },
+                            { key: 'finance', label: 'Financeiro' },
                             { key: 'chat', label: 'Chat' }
                           ].map(perm => (
                             <button

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutGrid, Music, LogOut, Menu, X, TrendingUp, Lock, Users, Calendar, Target, DollarSign, FileText, MessageCircle } from 'lucide-react';
+import { LayoutGrid, Music, LogOut, Menu, X, TrendingUp, Lock, Users, Calendar, Target, FileText, MessageCircle, DollarSign } from 'lucide-react';
 import { Card } from './ui/Card';
 import { AnimatedButton } from './ui/AnimatedButton';
 import { useAuth } from '../context/AuthContext';
@@ -24,7 +24,8 @@ export const DashboardLayout = ({ children }) => {
     compositions: isCompositor,
     work: !isCompositor, 
     marketing: true, 
-    chat: true 
+    chat: true,
+    finance: true
   };
 
   const location = useLocation();
@@ -36,6 +37,7 @@ export const DashboardLayout = ({ children }) => {
     if (path.includes('/dashboard/compositions') && permissions.compositions === false) return false;
     if (path.includes('/dashboard/work') && permissions.work === false) return false;
     if (path.includes('/dashboard/marketing') && permissions.marketing === false) return false;
+    if (path.includes('/dashboard/finance') && permissions.finance === false) return false;
     return true;
   };
 
@@ -103,6 +105,12 @@ export const DashboardLayout = ({ children }) => {
           {!isVendedor && permissions.work !== false && !isCompositor && (
             <NavLink to="/dashboard/work" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
               <LayoutGrid size={18} /> <span>Trabalho</span>
+            </NavLink>
+          )}
+          
+          {!isVendedor && permissions.finance !== false && (
+            <NavLink to="/dashboard/finance" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+              <DollarSign size={18} /> <span>Financeiro</span>
             </NavLink>
           )}
           

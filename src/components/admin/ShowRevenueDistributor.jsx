@@ -3,13 +3,15 @@ import { Card } from '../ui/Card';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
 import { supabase } from '../../services/supabaseClient';
-import { DollarSign, Check, X, Calendar, User, AlertTriangle } from 'lucide-react';
+import { DollarSign, Check, X, Calendar, User, AlertTriangle, FileText } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
+import { FinanceDistributionModal } from '../finance/FinanceDistributionModal';
 
 export const ShowRevenueDistributor = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [distributeForm, setDistributeForm] = useState({
     revenue: '',
     artist_share: '',
@@ -239,19 +241,38 @@ export const ShowRevenueDistributor = () => {
                             </span>
                         </div>
 
-                        <AnimatedButton 
-                            onClick={handleDistribute} 
-                            className="w-full"
-                            variant="primary"
-                            icon={Check}
-                        >
-                            Salvar Distribuição
-                        </AnimatedButton>
+                        <div className="flex gap-3">
+                            <AnimatedButton 
+                                onClick={handleDistribute} 
+                                className="flex-1"
+                                variant="primary"
+                                icon={Check}
+                            >
+                                Salvar Distribuição
+                            </AnimatedButton>
+                            
+                            <AnimatedButton 
+                                onClick={() => setIsReceiptModalOpen(true)} 
+                                className="flex-1"
+                                variant="secondary"
+                                icon={FileText}
+                            >
+                                Comprovantes
+                            </AnimatedButton>
+                        </div>
                     </div>
                 </div>
             )}
         </Card>
       </div>
+
+      <FinanceDistributionModal 
+        isOpen={isReceiptModalOpen} 
+        onClose={() => setIsReceiptModalOpen(false)} 
+        event={selectedEvent}
+        onUpdate={fetchEvents}
+        userRole="producer"
+      />
     </div>
   );
 };

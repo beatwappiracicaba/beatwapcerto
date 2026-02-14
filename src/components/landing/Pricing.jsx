@@ -280,45 +280,7 @@ const Pricing = () => {
             </AnimatedButton>
           </div>
 
-          {/* 4. VITALÍCIO */}
-          <div className="bg-gradient-to-b from-gray-800 to-black border border-gray-700 rounded-3xl p-6 hover:border-white/50 transition-all duration-300 flex flex-col">
-            <div className="mb-4">
-              <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-4 text-white">
-                <Zap size={24} />
-              </div>
-              <h3 className="text-xl font-bold text-white">Vitalício</h3>
-              <p className="text-gray-400 text-sm mt-1">Exclusivo para convidados</p>
-            </div>
 
-            <div className="mb-6">
-              <span className="text-2xl font-bold text-white">
-                Sob Consulta
-              </span>
-            </div>
-
-            <ul className="space-y-3 mb-8 flex-grow">
-              <li className="flex gap-3 text-sm text-gray-300">
-                <Check size={16} className="text-white flex-shrink-0" />
-                <span>Uploads Ilimitados</span>
-              </li>
-              <li className="flex gap-3 text-sm text-gray-300">
-                <Check size={16} className="text-white flex-shrink-0" />
-                <span>IA Ilimitada</span>
-              </li>
-              <li className="flex gap-3 text-sm text-gray-300">
-                <Check size={16} className="text-white flex-shrink-0" />
-                <span>Chat Totalmente Liberado</span>
-              </li>
-              <li className="flex gap-3 text-sm text-gray-300">
-                <Check size={16} className="text-white flex-shrink-0" />
-                <span>Acesso Vitalício</span>
-              </li>
-            </ul>
-
-            <AnimatedButton variant="outline" className="w-full border-gray-600 hover:bg-white hover:text-black" onClick={() => openPlan('vitalicio')}>
-              Solicitar Convite
-            </AnimatedButton>
-          </div>
 
         </div>
 

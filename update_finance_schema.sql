@@ -1,22 +1,19 @@
+-- Add columns for financial receipts and manager details to artist_work_events
+ALTER TABLE artist_work_events
+ADD COLUMN IF NOT EXISTS manager_id UUID REFERENCES profiles(id),
+ADD COLUMN IF NOT EXISTS manager_cut NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS receipt_artist TEXT,
+ADD COLUMN IF NOT EXISTS receipt_seller TEXT,
+ADD COLUMN IF NOT EXISTS receipt_house TEXT,
+ADD COLUMN IF NOT EXISTS receipt_manager TEXT;
 
--- Add finance columns to artist_work_events
-ALTER TABLE artist_work_events 
-ADD COLUMN IF NOT EXISTS revenue DECIMAL(10,2) DEFAULT 0,
-ADD COLUMN IF NOT EXISTS artist_share DECIMAL(10,2) DEFAULT 0,
-ADD COLUMN IF NOT EXISTS house_cut DECIMAL(10,2) DEFAULT 0,
-ADD COLUMN IF NOT EXISTS seller_id UUID REFERENCES profiles(id),
-ADD COLUMN IF NOT EXISTS seller_commission DECIMAL(10,2) DEFAULT 0,
-ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pendente' CHECK (status IN ('pendente', 'pago', 'cancelado'));
+-- Update RLS policies to ensure parties can view their respective receipts
+-- (Assuming RLS is enabled, we might need specific policies for reading these columns, 
+-- but usually row-level access is enough. If column-level security is needed, it's more complex.
+-- For now, assuming if you can see the row, you can see the columns, but frontend filters what is shown.)
 
--- Policy to allow Producer to update these fields
-CREATE POLICY "Producer can update financials" ON artist_work_events
-FOR UPDATE
-USING (public.is_produtor())
-WITH CHECK (public.is_produtor());
-
--- Ensure Seller can see events they are linked to (if not already covered)
--- The previous policy covered 'seller' role generally or explicit id check.
--- Let's ensure sellers can see events where they are the seller_id
-CREATE POLICY "Seller see own sales" ON artist_work_events
-FOR SELECT
-USING (seller_id = auth.uid());
+-- Add comment to explain columns
+COMMENT ON COLUMN artist_work_events.receipt_artist IS 'URL do comprovante de pagamento do artista';
+COMMENT ON COLUMN artist_work_events.receipt_seller IS 'URL do comprovante de pagamento do vendedor';
+COMMENT ON COLUMN artist_work_events.receipt_house IS 'URL do comprovante de pagamento da produtora/manutenção';
+COMMENT ON COLUMN artist_work_events.receipt_manager IS 'URL do comprovante de pagamento do empresário';

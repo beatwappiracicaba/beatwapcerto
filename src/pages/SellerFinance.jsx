@@ -3,12 +3,17 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { DollarSign, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertCircle, CheckCircle, FileText, Calendar, User } from 'lucide-react';
+import { FinanceDistributionModal } from '../components/finance/FinanceDistributionModal';
+import { AnimatedButton } from '../components/ui/AnimatedButton';
 
 const SellerFinance = () => {
   const { user } = useAuth();
   const [commissions, setCommissions] = useState([]);
+  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [stats, setStats] = useState({
     totalSold: 0,
     totalCommissions: 0,
@@ -38,6 +43,16 @@ const SellerFinance = () => {
         .eq('seller_id', user.id)
         .order('created_at', { ascending: false });
 
+      // Fetch Events (Shows with commission)
+      const { data: eventsData } = await supabase
+        .from('artist_work_events')
+        .select(`
+          *,
+          artist:profiles!artist_work_events_artista_id_fkey(nome)
+        `)
+        .eq('seller_id', user.id)
+        .order('date', { ascending: false });
+
       if (error) throw error;
       
       const comms = commData || [];
@@ -46,6 +61,7 @@ const SellerFinance = () => {
       const paidCommissions = comms.filter(c => c.status === 'pago').reduce((acc, curr) => acc + (curr.amount || 0), 0);
 
       setCommissions(comms);
+      setEvents(eventsData || []);
       setStats({
         totalSold,
         totalCommissions,
@@ -58,6 +74,11 @@ const SellerFinance = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOpenDistribution = (event) => {
+    setSelectedEvent(event);
+    setIsModalOpen(true);
   };
 
   const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -103,6 +124,70 @@ const SellerFinance = () => {
             </div>
             <div className="text-2xl font-bold text-white">{formatCurrency(stats.paidCommissions)}</div>
           </Card>
+        </div>
+
+        {/* Events List */}
+        <div className="space-y-4">
+          <h3 className="text-xl font-bold text-white">Shows & Eventos</h3>
+          {events.length === 0 ? (
+            <div className="text-center py-12 bg-white/5 rounded-2xl border border-dashed border-white/10">
+              <p className="text-gray-400">Nenhum show com comissão registrado.</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {events.map((event) => (
+                <div key={event.id} className="bg-white/5 border border-white/10 rounded-xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:bg-white/[0.07] transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h3 className="font-bold text-lg text-white truncate">{event.title}</h3>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                        event.status === 'pago' 
+                          ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                          : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                      }`}>
+                        {event.status === 'pago' ? 'Pago' : 'Pendente'}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
+                      <span className="flex items-center gap-1.5">
+                        <Calendar size={14} />
+                        {new Date(event.date).toLocaleDateString()}
+                      </span>
+                      {event.revenue > 0 && (
+                        <span className="flex items-center gap-1.5 text-white font-medium">
+                          <DollarSign size={14} className="text-beatwap-gold" />
+                          Faturamento: {formatCurrency(event.revenue)}
+                        </span>
+                      )}
+                      {event.artist && (
+                        <span className="flex items-center gap-1.5">
+                          <User size={14} />
+                          Artista: {event.artist.nome}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 w-full md:w-auto">
+                    {event.seller_commission > 0 && (
+                       <div className="hidden md:flex flex-col items-end text-xs text-gray-500 mr-2">
+                         <span>Sua Comissão: {formatCurrency(event.seller_commission)}</span>
+                       </div>
+                    )}
+                    
+                    <AnimatedButton 
+                      onClick={() => handleOpenDistribution(event)}
+                      variant="secondary"
+                      className="whitespace-nowrap w-full md:w-auto"
+                      icon={FileText}
+                    >
+                      Comprovantes
+                    </AnimatedButton>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* List */}
@@ -152,6 +237,14 @@ const SellerFinance = () => {
           )}
         </div>
       </div>
+
+      <FinanceDistributionModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        event={selectedEvent}
+        onUpdate={fetchFinanceData}
+        userRole="seller"
+      />
     </DashboardLayout>
   );
 };
