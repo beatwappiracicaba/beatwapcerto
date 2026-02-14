@@ -15,7 +15,7 @@ import { supabase } from '../services/supabaseClient';
 import { Play, Pause, BadgeCheck, Music, MessageCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
-import { Instagram, Globe } from 'lucide-react';
+import { Instagram, Globe, Youtube, Video } from 'lucide-react';
  
 
 const Home = () => {
@@ -537,6 +537,43 @@ const Home = () => {
         <Transparency />
         <Pricing />
         <SpecialOffer />
+        <section className="py-16 px-6">
+          <div className="max-w-5xl mx-auto">
+            <h4 className="text-white font-bold mb-6 text-center md:text-left">Redes Sociais</h4>
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-4">
+              <a
+                href="https://www.instagram.com/beatwap?igsh=eDZ4a3lvN3ZqOWNy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-beatwap-gold hover:text-black transition-all"
+                title="Instagram"
+                aria-label="Instagram BeatWap"
+              >
+                <Instagram size={22} />
+              </a>
+              <a
+                href="https://www.youtube.com/@beatwap019"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-red-600 hover:text-white transition-all"
+                title="YouTube"
+                aria-label="YouTube BeatWap"
+              >
+                <Youtube size={22} />
+              </a>
+              <a
+                href="https://www.tiktok.com/@beatmusichits?_r=1&_t=ZS-92pn4DAMEw1"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-[#00f2ea] hover:text-black transition-all"
+                title="TikTok"
+                aria-label="TikTok BeatWap"
+              >
+                <Video size={22} />
+              </a>
+            </div>
+          </div>
+        </section>
         <Contact />
       </main>
       <Footer />
