@@ -249,7 +249,7 @@ const Home = () => {
                       <p className="text-gray-400"><span>Pré-saves e lançamentos agendados</span></p>
                     </div>
                     <div className="relative -mx-6">
-                      <div ref={upcomingRef} className="overflow-x-auto px-6 pb-2">
+                      <div ref={upcomingRef} className="overflow-x-auto pl-14 pr-14 md:pl-16 md:pr-16 pb-2">
                         <div className="flex gap-6 snap-x snap-mandatory">
                         {upcoming.map((release, index) => (
                           <div key={release.id} className="w-[160px] sm:w-[180px] snap-start">
@@ -346,7 +346,7 @@ const Home = () => {
                       <p className="text-gray-400"><span>Ouça agora os lançamentos disponíveis</span></p>
                     </div>
                     <div className="relative -mx-6">
-                      <div ref={releasedRef} className="overflow-x-auto px-6 pb-2">
+                      <div ref={releasedRef} className="overflow-x-auto pl-14 pr-14 md:pl-16 md:pr-16 pb-2">
                         <div className="flex gap-6 snap-x snap-mandatory">
                         {released.map((release, index) => (
                           <div key={release.id} className="w-[160px] sm:w-[180px] snap-start">
@@ -448,7 +448,7 @@ const Home = () => {
                 <p className="text-gray-400"><span>Obras exclusivas de nossos compositores parceiros</span></p>
               </div>
 
-              <div ref={compositionsRef} className="overflow-x-auto -mx-6 px-6 pb-2">
+              <div ref={compositionsRef} className="overflow-x-auto -mx-6 pl-14 pr-14 md:pl-16 md:pr-16 pb-2">
                 <div className="flex gap-6 snap-x snap-mandatory">
                   {latestCompositions.map((comp, index) => (
                     <div key={comp.id} className="min-w-[180px] sm:min-w-[200px] snap-start">
@@ -534,7 +534,7 @@ const Home = () => {
                 <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Últimos Projetos de Vídeos Feitos</span></h2>
                 <p className="text-gray-400"><span>Conteúdos recentes publicados pela produtora</span></p>
               </div>
-              <div className="overflow-x-auto -mx-6 px-6 pb-2">
+              <div className="overflow-x-auto -mx-6 pl-14 pr-14 md:pl-16 md:pr-16 pb-2">
                 <div className="flex gap-6 snap-x snap-mandatory">
                   {latestProjects.map((p, index) => (
                     <div key={p.id} className="min-w-[280px] sm:min-w-[320px] snap-start">

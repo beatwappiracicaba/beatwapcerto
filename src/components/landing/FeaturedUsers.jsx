@@ -127,7 +127,7 @@ const FeaturedUsers = () => {
             </motion.div>
 
             <div className="relative -mx-6">
-              <div ref={producersRef} className="overflow-x-auto px-6 pb-2">
+              <div ref={producersRef} className="overflow-x-auto pl-14 pr-14 md:pl-16 md:pr-16 pb-2">
                 <div className="flex gap-6 snap-x snap-mandatory">
                   {producers.map((user) => (
                     <div key={user.id} className="w-[160px] sm:w-[180px] snap-start">
@@ -173,7 +173,7 @@ const FeaturedUsers = () => {
             </motion.div>
 
             <div className="relative -mx-6">
-              <div ref={sellersRef} className="overflow-x-auto px-6 pb-2">
+              <div ref={sellersRef} className="overflow-x-auto pl-14 pr-14 md:pl-16 md:pr-16 pb-2">
                 <div className="flex gap-6 snap-x snap-mandatory">
                   {sellers.map((user) => (
                     <div key={user.id} className="w-[160px] sm:w-[180px] snap-start">
@@ -219,7 +219,7 @@ const FeaturedUsers = () => {
             </motion.div>
 
             <div className="relative -mx-6">
-              <div ref={artistsRef} className="overflow-x-auto px-6 pb-2">
+              <div ref={artistsRef} className="overflow-x-auto pl-14 pr-14 md:pl-16 md:pr-16 pb-2">
                 <div className="flex gap-6 snap-x snap-mandatory">
                   {artists.map((user) => (
                     <div key={user.id} className="w-[160px] sm:w-[180px] snap-start">
