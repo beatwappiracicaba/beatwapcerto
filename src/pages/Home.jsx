@@ -35,6 +35,7 @@ const Home = () => {
   const releasedRef = useRef(null);
   const compositionsRef = useRef(null);
   const composersRef = useRef(null);
+  const sponsorsRef = useRef(null);
   const makeScroll = (ref, dir) => () => {
     const el = ref.current;
     if (!el) return;
@@ -254,11 +255,11 @@ const Home = () => {
                     <div className="relative">
                       <div
                         ref={upcomingRef}
-                        className="overflow-x-auto px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2"
+                        className="overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2"
                       >
-                        <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory">
+                        <div className="flex gap-6">
                         {upcoming.map((release, index) => (
-                          <div key={release.id} className="w-[82vw] sm:w-[200px] snap-center">
+                          <div key={release.id} className="flex-none w-[280px]">
                             <motion.div 
                               initial={{ opacity: 0, y: 20 }}
                               whileInView={{ opacity: 1, y: 0 }}
@@ -365,11 +366,11 @@ const Home = () => {
                     <div className="relative">
                       <div
                         ref={releasedRef}
-                        className="overflow-x-auto px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2"
+                        className="overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2"
                       >
-                        <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory">
+                        <div className="flex gap-6">
                         {released.map((release, index) => (
-                          <div key={release.id} className="w-[88vw] sm:w-[200px] snap-center">
+                          <div key={release.id} className="flex-none w-[280px]">
                             <motion.div 
                               initial={{ opacity: 0, y: 20 }}
                               whileInView={{ opacity: 1, y: 0 }}
@@ -481,10 +482,10 @@ const Home = () => {
                 Arraste para o lado e veja todas
               </div>
 
-              <div ref={compositionsRef} className="overflow-x-auto -mx-6 pl-14 pr-14 md:pl-16 md:pr-16 pb-2">
-                <div className="flex gap-6 snap-x snap-mandatory">
+              <div ref={compositionsRef} className="overflow-x-auto scroll-smooth whitespace-nowrap -mx-6 pl-14 pr-14 md:pl-16 md:pr-16 pb-2">
+                <div className="flex gap-6">
                   {latestCompositions.map((comp, index) => (
-                    <div key={comp.id} className="min-w-[180px] sm:min-w-[200px] snap-start">
+                    <div key={comp.id} className="flex-none w-[280px]">
                       <motion.div 
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -571,10 +572,10 @@ const Home = () => {
                 <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4"><span>Últimos Projetos de Vídeos Feitos</span></h2>
                 <p className="text-gray-400"><span>Conteúdos recentes publicados pela produtora</span></p>
               </div>
-              <div className="overflow-x-auto px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2">
-                <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory">
+              <div className="overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2">
+                <div className="flex gap-6">
                   {latestProjects.map((p, index) => (
-                    <div key={p.id} className="w-[82vw] sm:min-w-[320px] snap-center">
+                    <div key={p.id} className="flex-none w-[280px]">
                       <motion.div 
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -632,10 +633,10 @@ const Home = () => {
                 Arraste para o lado e veja todos
               </div>
               <div className="relative -mx-6">
-                <div ref={composersRef} className="overflow-x-auto px-6 pb-2">
-                  <div className="flex gap-6 snap-x snap-mandatory">
+                <div ref={composersRef} className="overflow-x-auto scroll-smooth whitespace-nowrap px-6 pb-2">
+                  <div className="flex gap-6">
                   {composers.map((composer, index) => (
-                    <div key={composer.id} className="w-[160px] sm:w-[180px] snap-start">
+                    <div key={composer.id} className="flex-none w-[280px]">
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -699,52 +700,70 @@ const Home = () => {
                 <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 break-words leading-snug">Patrocinadores/Parcerias</h2>
                 <p className="text-gray-400">Marcas que apoiam nossos artistas e projetos</p>
               </div>
-              <div className="text-xs text-gray-400 mb-4 px-4 md:hidden text-center">
-                Role para baixo e veja todas as marcas
+              <div className="text-xs text-gray-400 mb-2 px-4 md:hidden text-center">
+                Arraste para o lado e veja todas as marcas
               </div>
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-6">
-                {sponsors.map((s, index) => (
-                  <motion.div
-                    key={s.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="flex justify-center"
-                  >
-                    <div
-                      className="group relative w-full max-w-[100px] aspect-square rounded-xl overflow-hidden bg-gray-800 border-2 border-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105 shadow-lg"
-                      onClick={() => setActiveSponsorMenu(activeSponsorMenu === s.id ? null : s.id)}
-                    >
-                      {s.logo_url ? (
-                        <img src={s.logo_url} alt={s.name} className="w-full h-full object-contain" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-white text-sm">Sem logo</div>
-                      )}
-                      <div className={`absolute inset-0 rounded-xl bg-black/40 opacity-0 transition-opacity flex items-center justify-center ${activeSponsorMenu === s.id ? 'opacity-100' : 'group-hover:opacity-100'}`}>
-                        <div className="flex items-center gap-4">
-                          {s.instagram_url && (
-                            <button
-                              className="p-2 rounded-full bg-beatwap-gold text-black hover:bg-white transition-colors"
-                              onClick={(e) => { e.stopPropagation(); recordEvent({ type: 'sponsor_click', sponsor_id: s.id }); window.open(s.instagram_url, '_blank'); }}
-                              aria-label="Instagram"
-                            >
-                              <Instagram size={18} />
-                            </button>
+              <div className="relative -mx-6">
+                <div ref={sponsorsRef} className="overflow-x-auto scroll-smooth whitespace-nowrap px-6 pb-2">
+                  <div className="flex gap-6">
+                    {sponsors.map((s, index) => (
+                      <motion.div
+                        key={s.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="flex-none w-[280px]"
+                      >
+                        <div
+                          className="group relative w-full aspect-square rounded-xl overflow-hidden bg-gray-800 border-2 border-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105 shadow-lg"
+                          onClick={() => setActiveSponsorMenu(activeSponsorMenu === s.id ? null : s.id)}
+                        >
+                          {s.logo_url ? (
+                            <img src={s.logo_url} alt={s.name} className="w-full h-full object-contain" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-white text-sm">Sem logo</div>
                           )}
-                          {s.site_url && (
-                            <button
-                              className="p-2 rounded-full bg-beatwap-gold text-black hover:bg-white transition-colors"
-                              onClick={(e) => { e.stopPropagation(); recordEvent({ type: 'sponsor_click', sponsor_id: s.id }); window.open(s.site_url, '_blank'); }}
-                              aria-label="Site"
-                            >
-                              <Globe size={18} />
-                            </button>
-                          )}
+                          <div className={`absolute inset-0 rounded-xl bg-black/40 opacity-0 transition-opacity flex items-center justify-center ${activeSponsorMenu === s.id ? 'opacity-100' : 'group-hover:opacity-100'}`}>
+                            <div className="flex items-center gap-4">
+                              {s.instagram_url && (
+                                <button
+                                  className="p-2 rounded-full bg-beatwap-gold text-black hover:bg-white transition-colors"
+                                  onClick={(e) => { e.stopPropagation(); recordEvent({ type: 'sponsor_click', sponsor_id: s.id }); window.open(s.instagram_url, '_blank'); }}
+                                  aria-label="Instagram"
+                                >
+                                  <Instagram size={18} />
+                                </button>
+                              )}
+                              {s.site_url && (
+                                <button
+                                  className="p-2 rounded-full bg-beatwap-gold text-black hover:bg-white transition-colors"
+                                  onClick={(e) => { e.stopPropagation(); recordEvent({ type: 'sponsor_click', sponsor_id: s.id }); window.open(s.site_url, '_blank'); }}
+                                  aria-label="Site"
+                                >
+                                  <Globe size={18} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  aria-label="Anterior"
+                  className="hidden md:flex items-center justify-center absolute left-0 top-1/2 -translate-y-1/2 ml-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                  onClick={makeScroll(sponsorsRef, -1)}
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <button
+                  aria-label="Próximo"
+                  className="hidden md:flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 mr-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                  onClick={makeScroll(sponsorsRef, 1)}
+                >
+                  <ChevronRight size={20} />
+                </button>
               </div>
             </div>
           </section>
