@@ -130,7 +130,7 @@ const FeaturedUsers = () => {
               >
                 <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory items-stretch">
                   {producers.map((user) => (
-                    <div key={user.id} className="w-full sm:w-[220px] snap-center">
+                    <div key={user.id} className="w-[350px] max-w-full snap-center">
                       <UserCard 
                         user={user} 
                         type="producer" 
@@ -179,7 +179,7 @@ const FeaturedUsers = () => {
               >
                 <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory items-stretch">
                   {sellers.map((user) => (
-                    <div key={user.id} className="w-full sm:w-[220px] snap-center">
+                    <div key={user.id} className="w-[350px] max-w-full snap-center">
                       <UserCard 
                         user={user} 
                         type="seller" 
@@ -228,7 +228,7 @@ const FeaturedUsers = () => {
               >
                 <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory items-stretch">
                   {artists.map((user) => (
-                    <div key={user.id} className="w-full sm:w-[220px] snap-center">
+                    <div key={user.id} className="w-[350px] max-w-full snap-center">
                       <UserCard 
                         user={user} 
                         type="artist" 
