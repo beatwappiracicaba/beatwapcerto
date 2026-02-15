@@ -248,6 +248,9 @@ const Home = () => {
                       <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4"><span>Em Breve</span></h2>
                       <p className="text-gray-400"><span>Pré-saves e lançamentos agendados</span></p>
                     </div>
+                    <div className="text-xs text-gray-400 mb-2 px-4 md:hidden">
+                      Arraste para o lado e veja todos
+                    </div>
                     <div className="relative">
                       <div
                         ref={upcomingRef}
@@ -356,6 +359,9 @@ const Home = () => {
                       <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4"><span>Já Lançadas</span></h2>
                       <p className="text-gray-400"><span>Ouça agora os lançamentos disponíveis</span></p>
                     </div>
+                    <div className="text-xs text-gray-400 mb-2 px-4 md:hidden">
+                      Arraste para o lado e veja todos
+                    </div>
                     <div className="relative">
                       <div
                         ref={releasedRef}
@@ -442,14 +448,14 @@ const Home = () => {
                       </div>
                       <button
                         aria-label="Anterior"
-                        className="flex items-center justify-center absolute left-0 top-1/2 -translate-y-1/2 ml-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                        className="hidden md:flex items-center justify-center absolute left-0 top-1/2 -translate-y-1/2 ml-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
                         onClick={makeScroll(releasedRef, -1)}
                       >
                         <ChevronLeft size={20} />
                       </button>
                       <button
                         aria-label="Próximo"
-                        className="flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 mr-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                        className="hidden md:flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 mr-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
                         onClick={makeScroll(releasedRef, 1)}
                       >
                         <ChevronRight size={20} />
@@ -469,6 +475,10 @@ const Home = () => {
               <div className="text-center mb-12">
                 <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Últimas Composições Lançadas</span></h2>
                 <p className="text-gray-400"><span>Obras exclusivas de nossos compositores parceiros</span></p>
+              </div>
+
+              <div className="text-xs text-gray-400 mb-2 px-4 md:hidden">
+                Arraste para o lado e veja todas
               </div>
 
               <div ref={compositionsRef} className="overflow-x-auto -mx-6 pl-14 pr-14 md:pl-16 md:pr-16 pb-2">
@@ -618,6 +628,9 @@ const Home = () => {
                 <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Compositores Parceiros</span></h2>
                 <p className="text-gray-400"><span>Profissionais disponíveis para suas produções</span></p>
               </div>
+              <div className="text-xs text-gray-400 mb-2 px-4 md:hidden">
+                Arraste para o lado e veja todos
+              </div>
               <div className="relative -mx-6">
                 <div ref={composersRef} className="overflow-x-auto px-6 pb-2">
                   <div className="flex gap-6 snap-x snap-mandatory">
@@ -685,6 +698,9 @@ const Home = () => {
               <div className="text-center mb-12">
                 <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 break-words leading-snug">Patrocinadores/Parcerias</h2>
                 <p className="text-gray-400">Marcas que apoiam nossos artistas e projetos</p>
+              </div>
+              <div className="text-xs text-gray-400 mb-4 px-4 md:hidden text-center">
+                Role para baixo e veja todas as marcas
               </div>
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-6">
                 {sponsors.map((s, index) => (
