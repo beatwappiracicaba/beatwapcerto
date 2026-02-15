@@ -16,10 +16,10 @@ const UserCard = ({ user, type, onSelect }) => {
   return (
     <motion.div
       whileHover={{ y: -5 }}
-      className="h-full flex flex-col bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold transition-colors group"
+      className="bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold transition-colors group"
       onClick={() => onSelect(user)}
     >
-      <div className="w-full h-full bg-gray-800 relative overflow-hidden">
+      <div className="aspect-square bg-gray-800 relative overflow-hidden">
         {user.avatar_url ? (
           <img 
             src={user.avatar_url} 
@@ -126,19 +126,17 @@ const FeaturedUsers = () => {
             <div className="relative">
               <div
                 ref={producersRef}
-                className="overflow-x-auto px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2"
+                className="flex gap-4 overflow-x-auto scroll-smooth px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2 no-scrollbar snap-x snap-mandatory"
               >
-                <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory items-stretch">
-                  {producers.map((user) => (
-                    <div key={user.id} className="w-[350px] h-[350px] snap-center">
-                      <UserCard 
-                        user={user} 
-                        type="producer" 
-                        onSelect={handleUserClick} 
-                      />
-                    </div>
-                  ))}
-                </div>
+                {producers.map((user) => (
+                  <div key={user.id} className="min-w-[180px] sm:min-w-[220px] snap-center">
+                    <UserCard 
+                      user={user} 
+                      type="producer" 
+                      onSelect={handleUserClick} 
+                    />
+                  </div>
+                ))}
               </div>
               <button
                 aria-label="Anterior"
@@ -175,19 +173,17 @@ const FeaturedUsers = () => {
             <div className="relative">
               <div
                 ref={sellersRef}
-                className="overflow-x-auto px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2"
+                className="flex gap-4 overflow-x-auto scroll-smooth px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2 no-scrollbar snap-x snap-mandatory"
               >
-                <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory items-stretch">
-                  {sellers.map((user) => (
-                    <div key={user.id} className="w-[350px] h-[350px] snap-center">
-                      <UserCard 
-                        user={user} 
-                        type="seller" 
-                        onSelect={handleUserClick} 
-                      />
-                    </div>
-                  ))}
-                </div>
+                {sellers.map((user) => (
+                  <div key={user.id} className="min-w-[180px] sm:min-w-[220px] snap-center">
+                    <UserCard 
+                      user={user} 
+                      type="seller" 
+                      onSelect={handleUserClick} 
+                    />
+                  </div>
+                ))}
               </div>
               <button
                 aria-label="Anterior"
@@ -224,19 +220,17 @@ const FeaturedUsers = () => {
             <div className="relative">
               <div
                 ref={artistsRef}
-                className="overflow-x-auto px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2"
+                className="flex gap-4 overflow-x-auto scroll-smooth px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2 no-scrollbar snap-x snap-mandatory"
               >
-                <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory items-stretch">
-                  {artists.map((user) => (
-                    <div key={user.id} className="w-[350px] h-[350px] snap-center">
-                      <UserCard 
-                        user={user} 
-                        type="artist" 
-                        onSelect={handleUserClick} 
-                      />
-                    </div>
-                  ))}
-                </div>
+                {artists.map((user) => (
+                  <div key={user.id} className="min-w-[180px] sm:min-w-[220px] snap-center">
+                    <UserCard 
+                      user={user} 
+                      type="artist" 
+                      onSelect={handleUserClick} 
+                    />
+                  </div>
+                ))}
               </div>
               <button
                 aria-label="Anterior"
