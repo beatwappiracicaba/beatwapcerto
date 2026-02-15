@@ -19,7 +19,7 @@ const UserCard = ({ user, type, onSelect }) => {
       className="h-full flex flex-col bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold transition-colors group"
       onClick={() => onSelect(user)}
     >
-      <div className="aspect-square bg-gray-800 relative overflow-hidden">
+      <div className="w-full h-full bg-gray-800 relative overflow-hidden">
         {user.avatar_url ? (
           <img 
             src={user.avatar_url} 
@@ -130,7 +130,7 @@ const FeaturedUsers = () => {
               >
                 <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory items-stretch">
                   {producers.map((user) => (
-                    <div key={user.id} className="w-[350px] max-w-full snap-center">
+                    <div key={user.id} className="w-[350px] h-[350px] snap-center">
                       <UserCard 
                         user={user} 
                         type="producer" 
@@ -179,7 +179,7 @@ const FeaturedUsers = () => {
               >
                 <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory items-stretch">
                   {sellers.map((user) => (
-                    <div key={user.id} className="w-[350px] max-w-full snap-center">
+                    <div key={user.id} className="w-[350px] h-[350px] snap-center">
                       <UserCard 
                         user={user} 
                         type="seller" 
@@ -228,7 +228,7 @@ const FeaturedUsers = () => {
               >
                 <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory items-stretch">
                   {artists.map((user) => (
-                    <div key={user.id} className="w-[350px] max-w-full snap-center">
+                    <div key={user.id} className="w-[350px] h-[350px] snap-center">
                       <UserCard 
                         user={user} 
                         type="artist" 
