@@ -123,31 +123,37 @@ const FeaturedUsers = () => {
               </h2>
             </motion.div>
 
+            <div className="text-xs text-gray-400 mb-2 px-4 md:hidden">
+              Arraste para o lado e veja todos
+            </div>
+
             <div className="relative">
               <div
                 ref={producersRef}
-                className="flex gap-4 overflow-x-auto scroll-smooth px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2 no-scrollbar snap-x snap-mandatory"
+                className="flex gap-6 overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2 no-scrollbar"
               >
                 {producers.map((user) => (
-                  <div key={user.id} className="min-w-[180px] sm:min-w-[220px] snap-center">
-                    <UserCard 
-                      user={user} 
-                      type="producer" 
-                      onSelect={handleUserClick} 
-                    />
+                  <div key={user.id} className="flex-none w-[280px] aspect-square rounded-xl overflow-hidden">
+                    <div className="h-full">
+                      <UserCard 
+                        user={user} 
+                        type="producer" 
+                        onSelect={handleUserClick} 
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
               <button
                 aria-label="Anterior"
-                className="flex items-center justify-center absolute left-0 top-1/2 -translate-y-1/2 ml-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                className="hidden md:flex items-center justify-center absolute left-0 top-1/2 -translate-y-1/2 ml-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
                 onClick={makeScroll(producersRef, -1)}
               >
                 <ChevronLeft size={20} />
               </button>
               <button
                 aria-label="Próximo"
-                className="flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 mr-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                className="hidden md:flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 mr-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
                 onClick={makeScroll(producersRef, 1)}
               >
                 <ChevronRight size={20} />
@@ -170,18 +176,24 @@ const FeaturedUsers = () => {
               </h2>
             </motion.div>
 
+            <div className="text-xs text-gray-400 mb-2 px-4 md:hidden">
+              Arraste para o lado e veja todos
+            </div>
+
             <div className="relative">
               <div
                 ref={sellersRef}
-                className="flex gap-4 overflow-x-auto scroll-smooth px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2 no-scrollbar snap-x snap-mandatory"
+                className="flex gap-6 overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2 no-scrollbar"
               >
                 {sellers.map((user) => (
-                  <div key={user.id} className="min-w-[180px] sm:min-w-[220px] snap-center">
-                    <UserCard 
-                      user={user} 
-                      type="seller" 
-                      onSelect={handleUserClick} 
-                    />
+                  <div key={user.id} className="flex-none w-[280px] aspect-square rounded-xl overflow-hidden">
+                    <div className="h-full">
+                      <UserCard 
+                        user={user} 
+                        type="seller" 
+                        onSelect={handleUserClick} 
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -217,18 +229,24 @@ const FeaturedUsers = () => {
               </h2>
             </motion.div>
 
+            <div className="text-xs text-gray-400 mb-2 px-4 md:hidden">
+              Arraste para o lado e veja todos
+            </div>
+
             <div className="relative">
               <div
                 ref={artistsRef}
-                className="flex gap-4 overflow-x-auto scroll-smooth px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2 no-scrollbar snap-x snap-mandatory"
+                className="flex gap-6 overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2 no-scrollbar"
               >
                 {artists.map((user) => (
-                  <div key={user.id} className="min-w-[180px] sm:min-w-[220px] snap-center">
-                    <UserCard 
-                      user={user} 
-                      type="artist" 
-                      onSelect={handleUserClick} 
-                    />
+                  <div key={user.id} className="flex-none w-[280px] aspect-square rounded-xl overflow-hidden">
+                    <div className="h-full">
+                      <UserCard 
+                        user={user} 
+                        type="artist" 
+                        onSelect={handleUserClick} 
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
