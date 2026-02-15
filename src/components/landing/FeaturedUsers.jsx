@@ -28,13 +28,13 @@ const UserCard = ({ user, type, onSelect }) => {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
-            <User size={48} className="text-white/20" />
+            <User size={64} className="text-white/20" />
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3 sm:p-4">
           <div className="w-full">
-            <div className="text-white text-sm font-bold truncate">{user.name || roleLabel}</div>
-            <div className="text-[11px] text-gray-300 truncate flex items-center gap-2">
+            <div className="text-white text-base sm:text-sm font-bold leading-snug">{user.name || roleLabel}</div>
+            <div className="text-xs sm:text-[11px] text-gray-300 flex items-center gap-2">
               <span>{roleLabel}</span>
               <span className="hidden sm:flex items-center gap-1 text-beatwap-gold">
                 <Info size={14} /> <span>Ver Perfil</span>
@@ -130,7 +130,7 @@ const FeaturedUsers = () => {
               >
                 <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory items-stretch">
                   {producers.map((user) => (
-                    <div key={user.id} className="w-[90vw] sm:w-[220px] snap-center">
+                    <div key={user.id} className="w-full sm:w-[220px] snap-center">
                       <UserCard 
                         user={user} 
                         type="producer" 
@@ -179,7 +179,7 @@ const FeaturedUsers = () => {
               >
                 <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory items-stretch">
                   {sellers.map((user) => (
-                    <div key={user.id} className="w-[90vw] sm:w-[220px] snap-center">
+                    <div key={user.id} className="w-full sm:w-[220px] snap-center">
                       <UserCard 
                         user={user} 
                         type="seller" 
@@ -228,7 +228,7 @@ const FeaturedUsers = () => {
               >
                 <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory items-stretch">
                   {artists.map((user) => (
-                    <div key={user.id} className="w-[90vw] sm:w-[220px] snap-center">
+                    <div key={user.id} className="w-full sm:w-[220px] snap-center">
                       <UserCard 
                         user={user} 
                         type="artist" 
