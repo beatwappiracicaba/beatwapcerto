@@ -12,7 +12,7 @@ import SpecialOffer from '../components/landing/SpecialOffer';
 import Contact from '../components/landing/Contact';
 import Footer from '../components/landing/Footer';
 import { supabase } from '../services/supabaseClient';
-import { Play, Pause, BadgeCheck, Music, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Play, Pause, BadgeCheck, Music, MessageCircle, ChevronLeft, ChevronRight, User, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Instagram, Globe, Youtube, Video } from 'lucide-react';
@@ -641,20 +641,33 @@ const Home = () => {
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.1 }}
-                        className="group p-4 rounded-2xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 hover:border-beatwap-gold/50 transition-all"
+                        className="group bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold transition-colors"
                         onClick={() => navigate(`/profile/${composer.id}`)}
                       >
-                        <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-4 bg-gray-700 border-2 border-black group-hover:scale-110 transition-transform">
+                        <div className="aspect-square bg-gray-800 relative overflow-hidden">
                           {composer.avatar_url ? (
-                            <img src={composer.avatar_url} alt={composer.name} className="w-full h-full object-cover" />
+                            <img 
+                              src={composer.avatar_url} 
+                              alt={composer.name || 'Compositor'} 
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-xl text-white font-bold">
-                              {composer.name?.charAt(0) || 'C'}
+                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                              <User size={64} className="text-white/20" />
                             </div>
                           )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3 sm:p-4">
+                            <div className="w-full">
+                              <div className="text-white text-base sm:text-sm font-bold leading-snug">{composer.name || 'Compositor'}</div>
+                              <div className="text-xs sm:text-[11px] text-gray-300 flex items-center gap-2">
+                                <span>Compositor</span>
+                                <span className="hidden sm:flex items-center gap-1 text-beatwap-gold">
+                                  <Info size={14} /> <span>Ver Perfil</span>
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <h3 className="font-bold text-lg text-center">{composer.name || 'Compositor'}</h3>
-                        <p className="text-sm text-gray-400 text-center line-clamp-2 mt-1">{composer.bio || 'Compositor parceiro'}</p>
                       </motion.div>
                     </div>
                   ))}
