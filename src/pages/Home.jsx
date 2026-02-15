@@ -363,7 +363,7 @@ const Home = () => {
                       >
                         <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory">
                         {released.map((release, index) => (
-                          <div key={release.id} className="w-[82vw] sm:w-[200px] snap-center">
+                          <div key={release.id} className="w-[88vw] sm:w-[200px] snap-center">
                             <motion.div 
                               initial={{ opacity: 0, y: 20 }}
                               whileInView={{ opacity: 1, y: 0 }}
@@ -442,14 +442,14 @@ const Home = () => {
                       </div>
                       <button
                         aria-label="Anterior"
-                        className="hidden md:flex items-center justify-center absolute left-0 top-1/2 -translate-y-1/2 ml-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                        className="flex items-center justify-center absolute left-0 top-1/2 -translate-y-1/2 ml-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
                         onClick={makeScroll(releasedRef, -1)}
                       >
                         <ChevronLeft size={20} />
                       </button>
                       <button
                         aria-label="Próximo"
-                        className="hidden md:flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 mr-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                        className="flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 mr-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
                         onClick={makeScroll(releasedRef, 1)}
                       >
                         <ChevronRight size={20} />

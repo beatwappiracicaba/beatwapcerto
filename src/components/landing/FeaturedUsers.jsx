@@ -130,7 +130,7 @@ const FeaturedUsers = () => {
               >
                 <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory items-stretch">
                   {producers.map((user) => (
-                    <div key={user.id} className="w-[82vw] sm:w-[200px] snap-center">
+                    <div key={user.id} className="w-[88vw] sm:w-[200px] snap-center">
                       <UserCard 
                         user={user} 
                         type="producer" 
@@ -172,11 +172,14 @@ const FeaturedUsers = () => {
               </h2>
             </motion.div>
 
-            <div className="relative -mx-6">
-              <div ref={sellersRef} className="overflow-x-auto pl-14 pr-14 md:pl-16 md:pr-16 pb-2">
-                <div className="flex gap-6 snap-x snap-mandatory">
+            <div className="relative">
+              <div
+                ref={sellersRef}
+                className="overflow-x-auto px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2"
+              >
+                <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory items-stretch">
                   {sellers.map((user) => (
-                    <div key={user.id} className="w-[160px] sm:w-[180px] snap-start">
+                    <div key={user.id} className="w-[88vw] sm:w-[200px] snap-center">
                       <UserCard 
                         user={user} 
                         type="seller" 
@@ -218,11 +221,14 @@ const FeaturedUsers = () => {
               </h2>
             </motion.div>
 
-            <div className="relative -mx-6">
-              <div ref={artistsRef} className="overflow-x-auto pl-14 pr-14 md:pl-16 md:pr-16 pb-2">
-                <div className="flex gap-6 snap-x snap-mandatory">
+            <div className="relative">
+              <div
+                ref={artistsRef}
+                className="overflow-x-auto px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2"
+              >
+                <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory items-stretch">
                   {artists.map((user) => (
-                    <div key={user.id} className="w-[160px] sm:w-[180px] snap-start">
+                    <div key={user.id} className="w-[88vw] sm:w-[200px] snap-center">
                       <UserCard 
                         user={user} 
                         type="artist" 
