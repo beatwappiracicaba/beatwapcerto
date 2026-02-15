@@ -242,17 +242,20 @@ const Home = () => {
           return (
             <>
               {upcoming.length > 0 && (
-                <section className="py-20 px-6 bg-black/30">
+                <section className="py-16 px-4 sm:px-6 bg-black/30">
                   <div className="max-w-7xl mx-auto">
                     <div className="text-center mb-12">
-                      <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Em Breve</span></h2>
+                      <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4"><span>Em Breve</span></h2>
                       <p className="text-gray-400"><span>Pré-saves e lançamentos agendados</span></p>
                     </div>
-                    <div className="relative -mx-6">
-                      <div ref={upcomingRef} className="overflow-x-auto pl-14 pr-14 md:pl-16 md:pr-16 pb-2">
-                        <div className="flex gap-6 snap-x snap-mandatory">
+                    <div className="relative">
+                      <div
+                        ref={upcomingRef}
+                        className="overflow-x-auto px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2"
+                      >
+                        <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory">
                         {upcoming.map((release, index) => (
-                          <div key={release.id} className="w-[160px] sm:w-[180px] snap-start">
+                          <div key={release.id} className="w-[82vw] sm:w-[200px] snap-center">
                             <motion.div 
                               initial={{ opacity: 0, y: 20 }}
                               whileInView={{ opacity: 1, y: 0 }}
@@ -347,17 +350,20 @@ const Home = () => {
                 </section>
               )}
               {released.length > 0 && (
-                <section className="py-10 px-6 bg-black/20">
+                <section className="py-14 px-4 sm:px-6 bg-black/20">
                   <div className="max-w-7xl mx-auto">
                     <div className="text-center mb-12">
-                      <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Já Lançadas</span></h2>
+                      <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4"><span>Já Lançadas</span></h2>
                       <p className="text-gray-400"><span>Ouça agora os lançamentos disponíveis</span></p>
                     </div>
-                    <div className="relative -mx-6">
-                      <div ref={releasedRef} className="overflow-x-auto pl-14 pr-14 md:pl-16 md:pr-16 pb-2">
-                        <div className="flex gap-6 snap-x snap-mandatory">
+                    <div className="relative">
+                      <div
+                        ref={releasedRef}
+                        className="overflow-x-auto px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2"
+                      >
+                        <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory">
                         {released.map((release, index) => (
-                          <div key={release.id} className="w-[160px] sm:w-[180px] snap-start">
+                          <div key={release.id} className="w-[82vw] sm:w-[200px] snap-center">
                             <motion.div 
                               initial={{ opacity: 0, y: 20 }}
                               whileInView={{ opacity: 1, y: 0 }}
