@@ -16,7 +16,7 @@ const UserCard = ({ user, type, onSelect }) => {
   return (
     <motion.div
       whileHover={{ y: -5 }}
-      className="bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold transition-colors group"
+      className="h-full flex flex-col bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold transition-colors group"
       onClick={() => onSelect(user)}
     >
       <div className="aspect-square bg-gray-800 relative overflow-hidden">
@@ -123,11 +123,14 @@ const FeaturedUsers = () => {
               </h2>
             </motion.div>
 
-            <div className="relative -mx-6">
-              <div ref={producersRef} className="overflow-x-auto pl-14 pr-14 md:pl-16 md:pr-16 pb-2">
-                <div className="flex gap-6 snap-x snap-mandatory">
+            <div className="relative">
+              <div
+                ref={producersRef}
+                className="overflow-x-auto px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2"
+              >
+                <div className="flex gap-4 sm:gap-6 snap-x snap-mandatory items-stretch">
                   {producers.map((user) => (
-                    <div key={user.id} className="w-[160px] sm:w-[180px] snap-start">
+                    <div key={user.id} className="w-[82vw] sm:w-[200px] snap-center">
                       <UserCard 
                         user={user} 
                         type="producer" 
@@ -139,14 +142,14 @@ const FeaturedUsers = () => {
               </div>
               <button
                 aria-label="Anterior"
-                className="hidden md:flex items-center justify-center absolute left-0 top-1/2 -translate-y-1/2 ml-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                className="flex items-center justify-center absolute left-0 top-1/2 -translate-y-1/2 ml-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
                 onClick={makeScroll(producersRef, -1)}
               >
                 <ChevronLeft size={20} />
               </button>
               <button
                 aria-label="Próximo"
-                className="hidden md:flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 mr-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
+                className="flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 mr-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
                 onClick={makeScroll(producersRef, 1)}
               >
                 <ChevronRight size={20} />
