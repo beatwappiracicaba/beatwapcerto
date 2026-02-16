@@ -483,7 +483,7 @@ const Home = () => {
               </div>
 
               <div ref={compositionsRef} className="overflow-x-auto scroll-smooth whitespace-nowrap -mx-6 pl-14 pr-14 md:pl-16 md:pr-16 pb-2">
-                <div className="flex gap-6">
+                <div className="flex gap-6 justify-center md:justify-start">
                   {latestCompositions.map((comp, index) => (
                     <div key={comp.id} className="flex-none w-[280px]">
                       <motion.div 
@@ -573,7 +573,7 @@ const Home = () => {
                 <p className="text-gray-400"><span>Conteúdos recentes publicados pela produtora</span></p>
               </div>
               <div className="overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2">
-                <div className="flex gap-6">
+                <div className="flex gap-6 justify-center md:justify-start">
                   {latestProjects.map((p, index) => (
                     <div key={p.id} className="flex-none w-[280px]">
                       <motion.div 
@@ -634,7 +634,7 @@ const Home = () => {
               </div>
               <div className="relative -mx-6">
                 <div ref={composersRef} className="overflow-x-auto scroll-smooth whitespace-nowrap px-6 pb-2">
-                  <div className="flex gap-6">
+                  <div className="flex gap-6 justify-center md:justify-start">
                   {composers.map((composer, index) => (
                     <div key={composer.id} className="flex-none w-[280px]">
                       <motion.div
@@ -718,7 +718,7 @@ const Home = () => {
               </div>
               <div className="relative -mx-6">
                 <div ref={sponsorsRef} className="overflow-x-auto scroll-smooth whitespace-nowrap px-6 pb-2">
-                  <div className="flex gap-6">
+                  <div className="flex gap-6 justify-center md:justify-start">
                     {sponsors.map((s, index) => (
                       <motion.div
                         key={s.id}
@@ -791,8 +791,8 @@ const Home = () => {
         <SpecialOffer />
         <section className="py-16 px-6">
           <div className="max-w-5xl mx-auto">
-            <h4 className="text-white font-bold mb-6 text-center md:text-left">Redes Sociais</h4>
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-4">
+            <h4 className="text-beatwap-gold font-extrabold text-3xl md:text-4xl mb-8 text-center animate-gold-fade">Redes Sociais</h4>
+            <div className="flex flex-wrap items-center justify-center gap-4">
               <a
                 href="https://www.instagram.com/beatwap?igsh=eDZ4a3lvN3ZqOWNy"
                 target="_blank"
@@ -827,6 +827,32 @@ const Home = () => {
           </div>
         </section>
         <Contact />
+        {sponsors.length > 0 && (
+          <section className="bg-black border-t border-white/10 py-4">
+            <div className="max-w-7xl mx-auto px-6">
+              <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+                {sponsors.map((s) => (
+                  <div
+                    key={s.id}
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-md bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden"
+                    title={s.name}
+                  >
+                    {s.logo_url ? (
+                      <img
+                        src={s.logo_url}
+                        alt={s.name}
+                        className="max-w-[80%] max-h-[80%] object-contain"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="text-[10px] text-gray-400">Marca</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
       </main>
       <Footer />
     </div>

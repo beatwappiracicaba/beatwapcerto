@@ -1,9 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { MessageCircle } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 
-export const ChatButton = ({ isAdmin = false, currentUserId = 1 }) => {
+export const ChatButton = () => {
   const { toggleChat, isOpen, chats, supportQueue, userRole } = useChat();
   const prevUnreadRef = useRef(0);
   const audioRef = useRef(null);

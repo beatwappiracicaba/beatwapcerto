@@ -1,10 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Bot, User, Sparkles, AlertCircle } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Send, Bot, User, Sparkles } from 'lucide-react';
 import { aiService } from '../../services/aiService';
-import { AnimatedInput } from '../ui/AnimatedInput';
 
-export const AIChatView = ({ userName }) => {
+export const AIChatView = () => {
   const [messages, setMessages] = useState([
     {
       id: 'welcome',

@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutGrid, Users, Music, LogOut, Menu, X, Settings, DollarSign } from 'lucide-react';
-import { Card } from './ui/Card';
-import { AnimatedButton } from './ui/AnimatedButton';
+import { LayoutGrid, Users, Music, Menu, X, Settings, DollarSign } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { NotificationBell } from './notifications/NotificationBell';
 import { ProfileButton } from './ProfileButton';
@@ -10,7 +8,7 @@ import { ChatButton } from './FloatingChat/ChatButton';
 import { ChatWindow } from './FloatingChat/ChatWindow';
 
 export const AdminLayout = ({ children }) => {
-  const { signOut, user, profile } = useAuth();
+  const { user, profile } = useAuth();
   const currentUserId = user?.id;
   const [sidebarOpen, setSidebarOpen] = useState(false);
 

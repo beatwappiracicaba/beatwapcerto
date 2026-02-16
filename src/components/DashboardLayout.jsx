@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutGrid, Music, LogOut, Menu, X, TrendingUp, Lock, Users, Calendar, Target, FileText, MessageCircle, DollarSign } from 'lucide-react';
-import { Card } from './ui/Card';
-import { AnimatedButton } from './ui/AnimatedButton';
+import { LayoutGrid, Music, Menu, X, TrendingUp, Lock, Users, Calendar, Target, FileText, MessageCircle, DollarSign } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ChatButton } from './FloatingChat/ChatButton';
 import { ChatWindow } from './FloatingChat/ChatWindow';
@@ -10,7 +8,7 @@ import { NotificationBell } from './notifications/NotificationBell';
 import { ProfileButton } from './ProfileButton';
 
 export const DashboardLayout = ({ children }) => {
-  const { signOut, user, profile } = useAuth();
+  const { user, profile } = useAuth();
   const isProdutor = profile?.cargo?.toLowerCase() === 'produtor';
   const isVendedor = profile?.cargo?.toLowerCase() === 'vendedor';
   const isAdmin = isProdutor || isVendedor; // Treat Vendor as Admin for Chat purposes

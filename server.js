@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import fetch from 'node-fetch';
+import process from 'process';
 
 dotenv.config();
 
@@ -31,7 +32,7 @@ Usuário perguntou:
 
 app.post('/api/assistente-ia', async (req, res) => {
   try {
-    const { message, userId } = req.body;
+    const { message } = req.body;
 
     if (!message) {
       return res.status(400).json({ error: 'Mensagem é obrigatória' });

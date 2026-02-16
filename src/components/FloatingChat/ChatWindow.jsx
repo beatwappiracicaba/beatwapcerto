@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../services/supabaseClient';
-import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, ArrowLeft, Search, User, UserCheck, Lock, Trash2, Plus, Users, Music, Briefcase, Bell, ChevronLeft, Bot, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { MessageCircle, X, Send, ArrowLeft, Search, User, UserCheck, Trash2, Plus, Users, Music, Briefcase, Bell, ChevronLeft, Bot, Sparkles } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
 import { MessageBubble } from './MessageBubble';
 import { AnimatedInput } from '../ui/AnimatedInput';
 import { AIChatView } from './AIChatView';
 
-export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
+export const ChatWindow = ({ currentUserId }) => {
   const { 
     chats, 
     isOpen, 
@@ -16,12 +16,9 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
     activeChatId, 
     setActiveChatId, 
     sendMessage, 
-    getChatByArtist,
     createChat,
     admins,
-    assignChat,
     deleteChat,
-    loading,
     markChatRead,
     supportQueue,
     requestSupport,
@@ -111,7 +108,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
     } else if (mode === 'chat' && !activeChatId) {
       setMode('list');
     }
-  }, [activeChatId]);
+  }, [activeChatId, mode]);
 
 
 
@@ -148,7 +145,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
     };
     el.addEventListener('scroll', onScroll);
     return () => el.removeEventListener('scroll', onScroll);
-  }, [scrollContainerRef.current]);
+  }, []);
  
   useEffect(() => {
     const el = scrollContainerRef.current;
@@ -174,15 +171,6 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
     await sendMessage(activeChatId, textToSend, 'me'); 
   };
 
-  const handleAssign = async () => {
-    if (activeChatId) {
-      try {
-        await assignChat(activeChatId);
-      } catch (error) {
-        console.error("Failed to assign chat", error);
-      }
-    }
-  };
   
   const handleInitiateSupport = (role) => {
     setPendingRequestRole(role);
@@ -325,9 +313,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
 
   if (!isOpen) return null;
 
-  const isAssignedToMe = activeChat?.assignedTo === currentUserId;
-  const isAssignedToOther = activeChat?.assignedTo && activeChat?.assignedTo !== currentUserId;
-  const isUnassigned = !activeChat?.assignedTo;
+  
   
   // Logic for Queue Filtering
   const queueFilter = 
@@ -538,7 +524,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                         <div className="flex-1 min-w-0">
                              {req.metadata?.summary ? (
                                <div className="p-2 bg-black/20 rounded-lg border border-white/5">
-                                 <p className="text-xs text-gray-300 italic break-words">"{req.metadata.summary}"</p>
+                                <p className="text-xs text-gray-300 italic break-words">{req.metadata.summary}</p>
                                </div>
                              ) : (
                                <p className="text-xs text-gray-500 italic">Sem descrição...</p>
@@ -672,7 +658,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                                 <p className="text-xs text-gray-400">Negócios e contratações</p>
                               </div>
                             </button>
-                            <button onClick={() => handleRequestSupport('compositor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left border border-white/5">
+                            <button onClick={() => handleInitiateSupport('compositor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left border border-white/5">
                               <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400"><Music size={20} /></div>
                               <div>
                                 <h4 className="font-bold text-white">Falar com Compositor</h4>
@@ -685,7 +671,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                         {/* Options for Seller */}
                         {(userRole === 'Vendedor') && (
                           <>
-                            <button onClick={() => handleRequestSupport('produtor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left border border-white/5">
+                            <button onClick={() => handleInitiateSupport('produtor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left border border-white/5">
                               <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400"><Users size={20} /></div>
                               <div>
                                 <h4 className="font-bold text-white">Falar com Produtor</h4>
@@ -717,7 +703,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                         {/* Options for Composer */}
                         {(userRole === 'Compositor') && (
                           <>
-                            <button onClick={() => handleRequestSupport('produtor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left border border-white/5">
+                            <button onClick={() => handleInitiateSupport('produtor')} className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl flex items-center gap-3 transition-colors text-left border border-white/5">
                               <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400"><Users size={20} /></div>
                               <div>
                                 <h4 className="font-bold text-white">Falar com Produtor</h4>
@@ -1070,7 +1056,7 @@ export const ChatWindow = ({ isAdmin = false, currentUserId }) => {
                        </div>
                        {req.metadata?.summary && (
                          <div className="mt-2 text-xs text-gray-300 bg-white/5 p-2 rounded italic">
-                           "{req.metadata.summary}"
+                           {req.metadata.summary}
                          </div>
                        )}
                      </div>

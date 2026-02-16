@@ -1,4 +1,3 @@
-import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { MotivationalPanel } from './MotivationalPanel';
 import { motion } from 'framer-motion';
