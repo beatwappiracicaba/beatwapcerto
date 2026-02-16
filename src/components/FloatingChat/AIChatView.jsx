@@ -8,7 +8,7 @@ export const AIChatView = () => {
     {
       id: 'welcome',
       role: 'assistant',
-      content: 'Olá, eu sou o Assistente BeatWap. Estou aqui para ajudar você a crescer como artista. O que vamos planejar hoje?',
+      content: 'Sou o Assistente de Composição da BeatWap. Mestre em Sertanejo, Pagode e MPB. Posso criar letras com estrutura (verso/pré/refrão/ponte), tom e andamento. No Sertanejo, inspiro-me em Marília Mendonça, Henrique & Juliano, Zé Neto & Cristiano, Gusttavo Lima, Luan Pereira e Ana Castela, sem copiar. Qual tema quer trabalhar?',
       timestamp: new Date()
     }
   ]);
