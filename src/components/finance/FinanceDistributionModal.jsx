@@ -191,7 +191,7 @@ export const FinanceDistributionModal = ({ isOpen, onClose, event, onUpdate, use
                         className="w-4 h-4 rounded border-gray-600 bg-black/20 text-beatwap-gold focus:ring-beatwap-gold focus:ring-offset-0"
                       />
                       <label htmlFor="has-contract" className="text-white text-sm cursor-pointer select-none">
-                        Marcar como "Contrato Assinado" (Impede exclusão se cancelado)
+                        Marcar como &quot;Contrato Assinado&quot; (Impede exclusão se cancelado)
                       </label>
                     </div>
 

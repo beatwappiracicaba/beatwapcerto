@@ -363,7 +363,7 @@ export const AdminSettings = () => {
                 <li>Use este formulário para convidar novos artistas ou produtores.</li>
                 <li>Defina as permissões iniciais que o usuário terá ao se cadastrar.</li>
                 <li>O link gerado contém todas as configurações e expira apenas se o email mudar.</li>
-                <li>Para usuários existentes, use a seção "Gerenciar Permissões" abaixo.</li>
+                <li>Para usuários existentes, use a seção &quot;Gerenciar Permissões&quot; abaixo.</li>
               </ul>
             </div>
           </div>

@@ -22,23 +22,24 @@ export const DashboardMarketing = () => {
 
   const isCompositor = profile?.cargo && ['compositor', 'produtor'].includes(profile.cargo.toLowerCase().trim());
 
+  const loadData = async () => {
+    if (!user) return;
+    try {
+      const { data: marketingData } = await supabase
+        .from('artist_marketing')
+        .select('*')
+        .eq('artist_id', user.id)
+        .maybeSingle();
+      
+      setData(marketingData || {});
+    } catch (error) {
+      console.error('Error loading marketing data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadData = async () => {
-      if (!user) return;
-      try {
-        const { data: marketingData } = await supabase
-          .from('artist_marketing')
-          .select('*')
-          .eq('artist_id', user.id)
-          .maybeSingle();
-        
-        setData(marketingData || {});
-      } catch (error) {
-        console.error('Error loading marketing data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
     loadData();
   }, [user]);
 
@@ -149,7 +150,7 @@ export const DashboardMarketing = () => {
                   {diagnosis.interpretation && (
                     <div className="mt-4 bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl flex gap-3">
                         <Zap className="text-blue-400 shrink-0 mt-1" size={18} />
-                        <p className="text-sm text-blue-200 italic">"{diagnosis.interpretation}"</p>
+                        <p className="text-sm text-blue-200 italic">{diagnosis.interpretation}</p>
                     </div>
                   )}
                 </Card>
@@ -414,7 +415,7 @@ export const DashboardMarketing = () => {
                             </div>
                             {data?.instagram_metrics?.interpretation && (
                                 <div className="text-xs text-gray-300 italic border-l-2 border-pink-500 pl-2">
-                                    "{data.instagram_metrics.interpretation}"
+                                    {data.instagram_metrics.interpretation}
                                 </div>
                             )}
                         </div>
@@ -443,7 +444,7 @@ export const DashboardMarketing = () => {
                             </div>
                             {data?.tiktok_metrics?.interpretation && (
                                 <div className="text-xs text-gray-300 italic border-l-2 border-cyan-400 pl-2">
-                                    "{data.tiktok_metrics.interpretation}"
+                                    {data.tiktok_metrics.interpretation}
                                 </div>
                             )}
                         </div>
@@ -472,7 +473,7 @@ export const DashboardMarketing = () => {
                             </div>
                             {data?.youtube_metrics?.interpretation && (
                                 <div className="text-xs text-gray-300 italic border-l-2 border-red-500 pl-2">
-                                    "{data.youtube_metrics.interpretation}"
+                                    {data.youtube_metrics.interpretation}
                                 </div>
                             )}
                         </div>

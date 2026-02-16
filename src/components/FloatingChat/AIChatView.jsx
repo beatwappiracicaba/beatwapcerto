@@ -4,6 +4,28 @@ import { Send, Bot, User, Sparkles } from 'lucide-react';
 import { aiService } from '../../services/aiService';
 
 export const AIChatView = () => {
+  const PRESET_BUTTONS = [
+    {
+      label: 'Sofrência',
+      text:
+        'Crie uma letra de sofrência sertaneja com verso, pré-refrão, refrão e ponte. Tema: coração partido após término; tom emotivo e melódico; andamento moderado.',
+    },
+    {
+      label: 'Modão romântico',
+      text:
+        'Escreva um modão romântico sertanejo com verso, pré-refrão, refrão e ponte. Tema: declaração apaixonada; tom caloroso; andamento médio.',
+    },
+    {
+      label: 'Pagode leve',
+      text:
+        'Componha um pagode leve com verso, refrão e ponte. Tema: encontro descontraído com amigos; tom alegre; andamento cadenciado.',
+    },
+    {
+      label: 'MPB lírica',
+      text:
+        'Crie uma canção MPB lírica com imagens poéticas: verso, refrão e ponte. Tema: saudade e cidade à noite; tom intimista; andamento lento.',
+    },
+  ];
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
@@ -161,15 +183,32 @@ export const AIChatView = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
       <div className="p-3 bg-black/20 border-t border-white/10">
+        <div className="mb-2 -mx-1 px-1 overflow-x-auto flex gap-2">
+          {PRESET_BUTTONS.map((p) => (
+            <button
+              key={p.label}
+              type="button"
+              onClick={() => {
+                setInputText(p.text);
+                inputRef.current?.focus();
+              }}
+              className="whitespace-nowrap text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-beatwap-gold/40 hover:bg-beatwap-gold/10 transition-colors"
+            >
+              <span className="inline-flex items-center gap-1">
+                <Sparkles size={12} className="text-beatwap-gold" />
+                {p.label}
+              </span>
+            </button>
+          ))}
+        </div>
         <form onSubmit={handleSend} className="relative flex items-center gap-2">
           <input
             ref={inputRef}
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="Pergunte sobre marketing, lançamentos..."
+            placeholder="Descreva seu tema ou use um preset abaixo..."
             className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors placeholder:text-gray-600"
             disabled={isLoading}
           />

@@ -19,7 +19,9 @@ const MentorshipPlans = () => {
       
       const wa = 'https://wa.me/5519981083497?text=' + encodeURIComponent(msg);
       window.open(wa, '_blank');
-    } catch {}
+    } catch (e) {
+      console.warn('Falha ao abrir WhatsApp');
+    }
   };
 
   return (
