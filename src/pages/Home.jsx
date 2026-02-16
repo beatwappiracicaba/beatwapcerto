@@ -431,14 +431,14 @@ const Home = () => {
                                 <div className="mt-2">
                                   <AnimatedButton onClick={() => { 
                                     if (release.presave_link) {
-                                      recordEvent({ type: 'music_click_presave', music_id: release.id, artist_id: release.artista_id });
+                                      recordEvent({ type: 'music_click_smartlink', music_id: release.id, artist_id: release.artista_id });
                                       window.open(release.presave_link, '_blank');
                                     } else {
                                       const url = release.preview_url || release.audio_url;
                                       togglePlay(release.id, url);
                                     }
                                   }}>
-                                    <span>{release.presave_link ? 'Pré-save' : (playingTrack === release.id && !isPaused ? 'Pausar' : 'Reproduzir')}</span>
+                                    <span>{release.presave_link ? 'Smartlink' : (playingTrack === release.id && !isPaused ? 'Pausar' : 'Reproduzir')}</span>
                                   </AnimatedButton>
                                 </div>
                               </div>
