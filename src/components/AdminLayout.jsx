@@ -12,11 +12,11 @@ export const AdminLayout = ({ children }) => {
   const currentUserId = user?.id;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [openSections, setOpenSections] = useState({
-    painel: true,
-    gestao: true,
-    catalogo: true,
-    financeiro: true,
-    sistema: true
+    painel: false,
+    gestao: false,
+    catalogo: false,
+    financeiro: false,
+    sistema: false
   });
   const location = useLocation();
 

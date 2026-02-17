@@ -15,7 +15,7 @@ export const DashboardLayout = ({ children }) => {
   const isCompositor = profile?.cargo?.toLowerCase() === 'compositor';
   const currentUserId = user?.id;
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [openSections, setOpenSections] = useState({ trabalhos: true, trabalhoSeller: true, financeiroSeller: true });
+  const [openSections, setOpenSections] = useState({ trabalhos: false, trabalhoSeller: false, financeiroSeller: false });
 
   // Default permissions (all enabled) if not set
   const permissions = profile?.access_control || { 

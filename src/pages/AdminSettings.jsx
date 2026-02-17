@@ -217,7 +217,7 @@ export const AdminSettings = () => {
         <Card className="space-y-6">
           <div className="flex items-center gap-2 text-lg md:text-xl font-bold">
             <Settings size={20} className="text-beatwap-gold" />
-            Configurações e Convites
+            Sistema e Convites
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
             <div className="rounded-2xl border p-4 sm:p-6 shadow-xl space-y-4 bg-white/5 border-white/10 w-full overflow-hidden">

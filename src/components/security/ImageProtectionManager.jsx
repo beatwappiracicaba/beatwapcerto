@@ -86,12 +86,7 @@ const proxifySrc = (img) => {
     const host = u.host;
     const isSameOrigin = host === window.location.host;
     if (!isSameOrigin && !img.getAttribute('data-no-proxy')) {
-      if (window.location.hostname.includes('localhost')) return;
-      const supa = (import.meta.env.VITE_SUPABASE_URL || '').toString();
-      if (!supa) return;
-      const base = supa.replace('.supabase.co', '.functions.supabase.co');
-      const proxied = `${base}/image-proxy?url=${encodeURIComponent(u.toString())}`;
-      img.setAttribute('src', proxied);
+      return;
     }
   } catch (e) { void 0; }
 };
