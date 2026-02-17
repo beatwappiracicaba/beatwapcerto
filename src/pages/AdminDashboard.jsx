@@ -959,6 +959,7 @@ export const AdminMusics = () => {
     const upcVal = (inputs.upc || '').trim();
     const releaseVal = (inputs.release_date || '').trim();
     const presaveVal = (inputs.presave || '').trim();
+    const showHome = inputs.show_on_home || false;
     
     if (!upcVal) { addToast('Informe o UPC do álbum para aprovar todas', 'error'); return; }
 
@@ -974,6 +975,7 @@ export const AdminMusics = () => {
             upc: upcVal,
             presave_link: presaveVal || null,
             release_date: releaseVal || null,
+            show_on_home: showHome,
             isrc: isrcVal || null
         }).eq('id', m.id);
         approvedCount++;
@@ -1142,12 +1144,14 @@ export const AdminMusics = () => {
                 </select>
               )}
 
-              <div className="flex items-center gap-2 cursor-pointer" onClick={() => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), show_on_home: !localInputs[m.id]?.show_on_home } }))}>
-                <div className={`w-4 h-4 rounded border flex items-center justify-center ${localInputs[m.id]?.show_on_home ? 'bg-beatwap-gold border-beatwap-gold text-black' : 'border-white/20 bg-white/5'}`}>
-                  {localInputs[m.id]?.show_on_home && <Check size={12} strokeWidth={4} />}
+              {!isAlbumTrack && (
+                <div className="flex items-center gap-2 cursor-pointer" onClick={() => setLocalInputs(prev => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), show_on_home: !localInputs[m.id]?.show_on_home } }))}>
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center ${localInputs[m.id]?.show_on_home ? 'bg-beatwap-gold border-beatwap-gold text-black' : 'border-white/20 bg-white/5'}`}>
+                    {localInputs[m.id]?.show_on_home && <Check size={12} strokeWidth={4} />}
+                  </div>
+                  <span className="text-[10px] text-gray-300 select-none">Mostrar Home</span>
                 </div>
-                <span className="text-[10px] text-gray-300 select-none">Mostrar Home</span>
-              </div>
+              )}
             </div>
             <AnimatedButton onClick={() => approve(m)} icon={Save}>Aprovar</AnimatedButton>
           </div>
@@ -1225,25 +1229,44 @@ export const AdminMusics = () => {
                         {item.tracks.some(t => t.status === 'pendente') && (
                            <div className="flex flex-col gap-2 p-3 bg-white/5 rounded-xl border border-white/10">
                               <div className="text-xs font-bold text-gray-300 mb-1">Aprovar Tudo</div>
-                              <div className="flex gap-2">
-                                <AnimatedInput
-                                  placeholder="UPC do Álbum"
-                                  value={localInputs[item.id]?.upc || ''}
-                                  onChange={(e) => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), upc: e.target.value } }))}
-                                  className="w-32"
-                                />
-                                <AnimatedInput
-                                  placeholder="Pre-save"
-                                  value={localInputs[item.id]?.presave || ''}
-                                  onChange={(e) => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), presave: e.target.value } }))}
-                                  className="w-32"
-                                />
-                                <input
-                                  type="date"
-                                  className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs w-32"
-                                  value={localInputs[item.id]?.release_date || ''}
-                                  onChange={(e) => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), release_date: e.target.value } }))}
-                                />
+                              <div className="flex flex-col gap-2">
+                                <div className="flex gap-2">
+                                  <AnimatedInput
+                                    placeholder="UPC do Álbum"
+                                    value={localInputs[item.id]?.upc || ''}
+                                    onChange={(e) => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), upc: e.target.value } }))}
+                                    className="w-32"
+                                  />
+                                  <AnimatedInput
+                                    placeholder="Pre-save"
+                                    value={localInputs[item.id]?.presave || ''}
+                                    onChange={(e) => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), presave: e.target.value } }))}
+                                    className="w-32"
+                                  />
+                                  <input
+                                    type="date"
+                                    className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs w-32"
+                                    value={localInputs[item.id]?.release_date || ''}
+                                    onChange={(e) => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), release_date: e.target.value } }))}
+                                  />
+                                </div>
+                                <div
+                                  className="flex items-center gap-2 cursor-pointer"
+                                  onClick={() =>
+                                    setLocalInputs(prev => ({
+                                      ...prev,
+                                      [item.id]: {
+                                        ...(prev[item.id] || {}),
+                                        show_on_home: !prev[item.id]?.show_on_home
+                                      }
+                                    }))
+                                  }
+                                >
+                                  <div className={`w-4 h-4 rounded border flex items-center justify-center ${localInputs[item.id]?.show_on_home ? 'bg-beatwap-gold border-beatwap-gold text-black' : 'border-white/20 bg-white/5'}`}>
+                                    {localInputs[item.id]?.show_on_home && <Check size={12} strokeWidth={4} />}
+                                  </div>
+                                  <span className="text-[10px] text-gray-300 select-none">Mostrar na Home</span>
+                                </div>
                               </div>
                               <AnimatedButton onClick={() => approveAll(item)} icon={CheckCircle2} className="w-full justify-center">
                                  Aprovar Todas as Faixas
