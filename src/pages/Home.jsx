@@ -484,9 +484,26 @@ const Home = () => {
                                 </div>
                                 <div className="mt-2">
                                   {item.type === 'album' ? (
-                                    <AnimatedButton onClick={() => navigate(`/album/${item.id}`)}>
-                                      <span>Ver Álbum</span>
-                                    </AnimatedButton>
+                                    <div className="flex flex-wrap gap-2">
+                                      <AnimatedButton onClick={() => navigate(`/album/${item.id}`)}>
+                                        <span>Ver Álbum</span>
+                                      </AnimatedButton>
+                                      {item.presave_link && (
+                                        <AnimatedButton
+                                          onClick={() => { 
+                                            const firstTrack = item.tracks?.[0];
+                                            const musicId = firstTrack?.id;
+                                            const artistId = firstTrack?.artista_id || item.artista_id;
+                                            if (musicId) {
+                                              recordEvent({ type: 'music_click_presave', music_id: musicId, artist_id: artistId });
+                                            }
+                                            window.open(item.presave_link, '_blank');
+                                          }}
+                                        >
+                                          <span>Pré-save</span>
+                                        </AnimatedButton>
+                                      )}
+                                    </div>
                                   ) : (
                                     item.presave_link ? (
                                       <AnimatedButton onClick={() => { 
@@ -620,9 +637,26 @@ const Home = () => {
                                 </div>
                                 <div className="mt-2">
                                   {item.type === 'album' ? (
-                                    <AnimatedButton onClick={() => navigate(`/album/${item.id}`)}>
-                                      <span>Ver Álbum</span>
-                                    </AnimatedButton>
+                                    <div className="flex flex-wrap gap-2">
+                                      <AnimatedButton onClick={() => navigate(`/album/${item.id}`)}>
+                                        <span>Ver Álbum</span>
+                                      </AnimatedButton>
+                                      {item.presave_link && (
+                                        <AnimatedButton
+                                          onClick={() => { 
+                                            const firstTrack = item.tracks?.[0];
+                                            const musicId = firstTrack?.id;
+                                            const artistId = firstTrack?.artista_id || item.artista_id;
+                                            if (musicId) {
+                                              recordEvent({ type: 'music_click_smartlink', music_id: musicId, artist_id: artistId });
+                                            }
+                                            window.open(item.presave_link, '_blank');
+                                          }}
+                                        >
+                                          <span>Smartlink</span>
+                                        </AnimatedButton>
+                                      )}
+                                    </div>
                                   ) : (
                                     <AnimatedButton onClick={() => { 
                                       if (item.presave_link) {

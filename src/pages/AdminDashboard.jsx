@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause, Check, FolderDown, CheckCircle2 } from 'lucide-react';
+import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause, Check, FolderDown, CheckCircle2, ChevronDown, ChevronRight } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -787,6 +787,7 @@ export const AdminMusics = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [localInputs, setLocalInputs] = useState({});
+  const [kindFilter, setKindFilter] = useState('todos');
   const [openAlbums, setOpenAlbums] = useState({});
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
@@ -1189,6 +1190,26 @@ export const AdminMusics = () => {
               </button>
           ))}
         </div>
+        <div className="flex flex-wrap gap-2 pb-4">
+          {[
+            { id: 'todos', label: 'Todos' },
+            { id: 'singles', label: 'Singles' },
+            { id: 'albuns', label: 'Álbuns' },
+          ].map(k => (
+            <button
+              key={k.id}
+              onClick={() => setKindFilter(k.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all ${
+                kindFilter === k.id
+                  ? 'bg-beatwap-gold text-beatwap-black font-bold'
+                  : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              {k.label}
+            </button>
+          ))}
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
           <select className="w-full sm:col-span-2 md:col-span-1 bg-white/5 border border-white/10 rounded-lg px-3 py-3 md:py-2 text-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="todos">Status: Todos</option>
@@ -1208,85 +1229,139 @@ export const AdminMusics = () => {
         </div>
         
         <div className="grid grid-cols-1 gap-6">
-          {groupedMusics.map(item => {
+          {groupedMusics
+          .filter(item => {
+            if (kindFilter === 'albuns') return item.type === 'album';
+            if (kindFilter === 'singles') return item.type === 'single';
+            return true;
+          })
+          .map(item => {
             if (item.type === 'album') {
-              const isOpen = openAlbums[item.id] ?? true;
+              const isOpen = !!openAlbums[item.id];
               return (
-                <div key={item.id} className="border border-white/10 rounded-2xl bg-white/5 p-4 space-y-4">
-                  <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                     <div
-                       className="flex items-center gap-4 cursor-pointer"
-                       onClick={() =>
-                         setOpenAlbums(prev => ({
-                           ...prev,
-                           [item.id]: !prev[item.id]
-                         }))
-                       }
-                     >
-                        <div className="w-24 h-24 rounded-xl overflow-hidden bg-black/50 border border-white/10">
-                           {item.cover_url ? <img src={item.cover_url} alt={item.title} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center"><FolderDown className="text-gray-500"/></div>}
-                        </div>
-                        <div>
-                           <div className="text-xl font-bold text-white">{item.title}</div>
-                           <div className="text-sm text-gray-400">Álbum • {item.tracks.length} faixas</div>
-                           <div className="text-xs text-gray-500 mt-1">{new Date(item.created_at).toLocaleDateString()}</div>
-                        </div>
-                     </div>
-                     <div className="flex flex-wrap gap-2">
-                        <AnimatedButton onClick={() => downloadAlbum(item)} variant="secondary" icon={Download}>
-                           Baixar Álbum (ZIP)
-                        </AnimatedButton>
-                        {item.tracks.some(t => t.status === 'pendente') && (
-                           <div className="flex flex-col gap-2 p-3 bg-white/5 rounded-xl border border-white/10">
-                              <div className="text-xs font-bold text-gray-300 mb-1">Aprovar Tudo</div>
-                              <div className="flex flex-col gap-2">
-                                <div className="flex gap-2">
-                                  <AnimatedInput
-                                    placeholder="UPC do Álbum"
-                                    value={localInputs[item.id]?.upc || ''}
-                                    onChange={(e) => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), upc: e.target.value } }))}
-                                    className="w-32"
-                                  />
-                                  <AnimatedInput
-                                    placeholder="Pre-save"
-                                    value={localInputs[item.id]?.presave || ''}
-                                    onChange={(e) => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), presave: e.target.value } }))}
-                                    className="w-32"
-                                  />
-                                  <input
-                                    type="date"
-                                    className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs w-32"
-                                    value={localInputs[item.id]?.release_date || ''}
-                                    onChange={(e) => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), release_date: e.target.value } }))}
-                                  />
-                                </div>
-                                <div
-                                  className="flex items-center gap-2 cursor-pointer"
-                                  onClick={() =>
-                                    setLocalInputs(prev => ({
-                                      ...prev,
-                                      [item.id]: {
-                                        ...(prev[item.id] || {}),
-                                        show_on_home: !prev[item.id]?.show_on_home
-                                      }
-                                    }))
-                                  }
-                                >
-                                  <div className={`w-4 h-4 rounded border flex items-center justify-center ${localInputs[item.id]?.show_on_home ? 'bg-beatwap-gold border-beatwap-gold text-black' : 'border-white/20 bg-white/5'}`}>
-                                    {localInputs[item.id]?.show_on_home && <Check size={12} strokeWidth={4} />}
-                                  </div>
-                                  <span className="text-[10px] text-gray-300 select-none">Mostrar na Home</span>
-                                </div>
-                              </div>
-                              <AnimatedButton onClick={() => approveAll(item)} icon={CheckCircle2} className="w-full justify-center">
-                                 Aprovar Todas as Faixas
-                              </AnimatedButton>
-                           </div>
+                <div key={item.id} className="border border-white/10 rounded-2xl bg-white/5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenAlbums(prev => ({
+                        ...prev,
+                        [item.id]: !prev[item.id]
+                      }))
+                    }
+                    className="w-full flex flex-col md:flex-row items-center justify-between gap-4 p-4"
+                  >
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden bg-black/50 border border-white/10 flex items-center justify-center">
+                        {item.cover_url ? (
+                          <img src={item.cover_url} alt={item.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <FolderDown className="text-gray-500 w-6 h-6" />
                         )}
-                     </div>
-                  </div>
+                      </div>
+                      <div className="flex-1 min-w-0 text-left">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-base md:text-lg font-bold text-white truncate">
+                            {item.title}
+                          </span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-beatwap-gold uppercase font-semibold">
+                            Álbum
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-400 truncate">
+                          <span>
+                            {item.tracks.length} faixas • {new Date(item.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="flex flex-wrap gap-2 justify-end">
+                        <AnimatedButton onClick={() => downloadAlbum(item)} variant="secondary" icon={Download}>
+                          Baixar Álbum (ZIP)
+                        </AnimatedButton>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-300">
+                        <span>{isOpen ? 'Recolher' : 'Ver faixas'}</span>
+                        {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                      </div>
+                    </div>
+                  </button>
+                  {item.tracks.some(t => t.status === 'pendente') && (
+                    <div className="px-4 pb-3">
+                      <div className="mt-2 flex flex-col gap-2 p-3 bg-white/5 rounded-xl border border-white/10">
+                        <div className="text-xs font-bold text-gray-300 mb-1">Aprovar Tudo</div>
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                          <div className="flex gap-2 flex-1">
+                            <AnimatedInput
+                              placeholder="UPC do Álbum"
+                              value={localInputs[item.id]?.upc || ''}
+                              onChange={(e) =>
+                                setLocalInputs(prev => ({
+                                  ...prev,
+                                  [item.id]: { ...(prev[item.id] || {}), upc: e.target.value }
+                                }))
+                              }
+                              className="w-32"
+                            />
+                            <AnimatedInput
+                              placeholder="Pre-save / Smartlink"
+                              value={localInputs[item.id]?.presave || ''}
+                              onChange={(e) =>
+                                setLocalInputs(prev => ({
+                                  ...prev,
+                                  [item.id]: { ...(prev[item.id] || {}), presave: e.target.value }
+                                }))
+                              }
+                              className="w-32"
+                            />
+                            <input
+                              type="date"
+                              className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs w-32"
+                              value={localInputs[item.id]?.release_date || ''}
+                              onChange={(e) =>
+                                setLocalInputs(prev => ({
+                                  ...prev,
+                                  [item.id]: { ...(prev[item.id] || {}), release_date: e.target.value }
+                                }))
+                              }
+                            />
+                          </div>
+                          <div
+                            className="flex items-center gap-2 cursor-pointer"
+                            onClick={() =>
+                              setLocalInputs(prev => ({
+                                ...prev,
+                                [item.id]: {
+                                  ...(prev[item.id] || {}),
+                                  show_on_home: !prev[item.id]?.show_on_home
+                                }
+                              }))
+                            }
+                          >
+                            <div
+                              className={`w-4 h-4 rounded border flex items-center justify-center ${
+                                localInputs[item.id]?.show_on_home
+                                  ? 'bg-beatwap-gold border-beatwap-gold text-black'
+                                  : 'border-white/20 bg-white/5'
+                              }`}
+                            >
+                              {localInputs[item.id]?.show_on_home && <Check size={12} strokeWidth={4} />}
+                            </div>
+                            <span className="text-[10px] text-gray-300 select-none">Mostrar na Home</span>
+                          </div>
+                        </div>
+                        <AnimatedButton
+                          onClick={() => approveAll(item)}
+                          icon={CheckCircle2}
+                          className="w-full justify-center"
+                        >
+                          Aprovar Todas as Faixas
+                        </AnimatedButton>
+                      </div>
+                    </div>
+                  )}
                   {isOpen && (
-                    <div className="space-y-3 pl-0 md:pl-4 border-l border-white/10">
+                    <div className="border-t border-white/10 p-3 space-y-3">
                       {item.tracks.map(track => renderTrackCard(track, true))}
                     </div>
                   )}
