@@ -649,7 +649,7 @@ export const AdminArtists = () => {
                 </div>
                 <div className="text-xs text-gray-400">Artista selecionado</div>
               </div>
-              <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
+              <div className="flex flex-col sm:flex-row sm:flex-wrap w-full sm:w-auto gap-2">
                 <AnimatedButton onClick={() => setIsProfileOpen(true)} className="w-full sm:w-auto justify-center">Editar Perfil</AnimatedButton>
                 <AnimatedButton onClick={() => setIsMarketingOpen(true)} variant="secondary" className="w-full sm:w-auto justify-center">Marketing</AnimatedButton>
               </div>
