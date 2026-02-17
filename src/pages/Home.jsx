@@ -12,7 +12,7 @@ import SpecialOffer from '../components/landing/SpecialOffer';
 import Contact from '../components/landing/Contact';
 import Footer from '../components/landing/Footer';
 import { supabase } from '../services/supabaseClient';
-import { Play, Pause, BadgeCheck, Music, MessageCircle, ChevronLeft, ChevronRight, User, Info } from 'lucide-react';
+import { Play, Pause, BadgeCheck, Music, MessageCircle, ChevronLeft, ChevronRight, User, Info, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Instagram, Globe, Youtube, Video } from 'lucide-react';
@@ -31,6 +31,7 @@ const Home = () => {
   const [isPaused, setIsPaused] = useState(false);
   const [ipHash, setIpHash] = useState(null);
   const [playStartTS, setPlayStartTS] = useState(null);
+  const [activeProjectVideo, setActiveProjectVideo] = useState(null);
   const upcomingRef = useRef(null);
   const releasedRef = useRef(null);
   const compositionsRef = useRef(null);
@@ -592,18 +593,42 @@ const Home = () => {
                               vid = m ? m[1] : null;
                             }
                             const thumb = vid ? `https://img.youtube.com/vi/${vid}/hqdefault.jpg` : null;
-                            return thumb
-                              ? <img src={thumb} alt={p.title} className="w-full h-full object-cover" />
-                              : <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm"><span>{p.platform || 'Projeto'}</span></div>;
+                            return activeProjectVideo === p.id && vid
+                              ? (
+                                <iframe
+                                  title={p.title}
+                                  src={`https://www.youtube.com/embed/${vid}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
+                                  className="absolute inset-0 w-full h-full"
+                                  allow="autoplay; encrypted-media; picture-in-picture"
+                                  allowFullScreen
+                                />
+                              )
+                              : (
+                                thumb
+                                  ? <img src={thumb} alt={p.title} className="w-full h-full object-cover" />
+                                  : <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm"><span>{p.platform || 'Projeto'}</span></div>
+                              );
                           })()}
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <button 
-                              className="px-4 py-2 bg-beatwap-gold rounded-full text-black font-bold hover:bg-white"
-                              onClick={() => window.open(p.url, '_blank')}
-                            >
-                              <span>Abrir</span>
-                            </button>
-                          </div>
+                          {activeProjectVideo !== p.id ? (
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <button 
+                                className="px-4 py-2 bg-beatwap-gold rounded-full text-black font-bold hover:bg-white"
+                                onClick={() => { setActiveProjectVideo(p.id); recordEvent({ type: 'producer_project_play', project_id: p.id }); }}
+                              >
+                                <span>Assistir</span>
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="absolute top-2 right-2 z-10">
+                              <button
+                                className="w-9 h-9 rounded-full bg-black/70 border border-white/20 flex items-center justify-center text-white hover:bg-black"
+                                onClick={() => setActiveProjectVideo(null)}
+                                aria-label="Fechar"
+                              >
+                                <X size={18} />
+                              </button>
+                            </div>
+                          )}
                           <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent block sm:hidden">
                             <div className="text-white text-sm font-bold truncate">{p.title}</div>
                             <div className="text-[11px] text-gray-300 truncate">{p.platform || 'Projeto'}</div>
