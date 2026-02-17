@@ -76,7 +76,11 @@ const Home = () => {
     const albumMap = new Map();
 
     items.forEach(r => {
-      if (r.album_id) {
+      const isAlbum = !!r.album_id;
+      if (!isAlbum && !r.show_on_home) {
+        return;
+      }
+      if (isAlbum) {
         if (!albumMap.has(r.album_id)) {
           albumMap.set(r.album_id, {
             type: 'album',
@@ -115,7 +119,6 @@ const Home = () => {
         .from('musics')
         .select('id,titulo,nome_artista,estilo,cover_url,preview_url,audio_url,presave_link,release_date,created_at,artista_id,is_beatwap_produced,show_on_home,produced_by,producer:profiles!produced_by(nome,nome_completo_razao_social),album_id,album_title')
         .eq('status', 'aprovado')
-        .eq('show_on_home', true)
         .order('created_at', { ascending: false })
         .limit(24);
 

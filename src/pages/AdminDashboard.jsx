@@ -787,6 +787,7 @@ export const AdminMusics = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [localInputs, setLocalInputs] = useState({});
+  const [openAlbums, setOpenAlbums] = useState({});
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
@@ -1209,10 +1210,19 @@ export const AdminMusics = () => {
         <div className="grid grid-cols-1 gap-6">
           {groupedMusics.map(item => {
             if (item.type === 'album') {
+              const isOpen = openAlbums[item.id] ?? true;
               return (
                 <div key={item.id} className="border border-white/10 rounded-2xl bg-white/5 p-4 space-y-4">
                   <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                     <div className="flex items-center gap-4">
+                     <div
+                       className="flex items-center gap-4 cursor-pointer"
+                       onClick={() =>
+                         setOpenAlbums(prev => ({
+                           ...prev,
+                           [item.id]: !prev[item.id]
+                         }))
+                       }
+                     >
                         <div className="w-24 h-24 rounded-xl overflow-hidden bg-black/50 border border-white/10">
                            {item.cover_url ? <img src={item.cover_url} alt={item.title} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center"><FolderDown className="text-gray-500"/></div>}
                         </div>
@@ -1275,9 +1285,11 @@ export const AdminMusics = () => {
                         )}
                      </div>
                   </div>
-                  <div className="space-y-3 pl-0 md:pl-4 border-l border-white/10">
-                    {item.tracks.map(track => renderTrackCard(track, true))}
-                  </div>
+                  {isOpen && (
+                    <div className="space-y-3 pl-0 md:pl-4 border-l border-white/10">
+                      {item.tracks.map(track => renderTrackCard(track, true))}
+                    </div>
+                  )}
                 </div>
               );
             } else {
