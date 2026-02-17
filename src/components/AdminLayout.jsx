@@ -12,14 +12,13 @@ export const AdminLayout = ({ children }) => {
   const currentUserId = user?.id;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [openSections, setOpenSections] = useState({
-    painel: false,
     gestao: false,
     catalogo: false,
     financeiro: false,
     sistema: false
   });
   const location = useLocation();
-
+ 
   // Default permissions for admin (all enabled if not set)
   const permissions = profile?.access_control || {
     admin_artists: true,
@@ -27,14 +26,14 @@ export const AdminLayout = ({ children }) => {
     admin_compositions: true,
     admin_sponsors: true,
     admin_settings: true,
-    admin_sellers: true
+    admin_sellers: true,
+    admin_finance: true
   };
-
+ 
   const toggleSection = (key) => {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
-
-  const painelActive = location.pathname === '/admin';
+ 
   const gestaoActive = ['/admin/artists', '/admin/composers', '/admin/sellers', '/admin/sponsors'].some((p) =>
     location.pathname.startsWith(p)
   );
@@ -54,43 +53,18 @@ export const AdminLayout = ({ children }) => {
           <X size={20} />
         </button>
         <nav className="space-y-4 text-sm">
-          <div className="space-y-1">
-            <button
-              type="button"
-              onClick={() => toggleSection('painel')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-colors text-xs uppercase tracking-wide ${
-                painelActive ? 'bg-white/10 text-beatwap-gold' : 'text-gray-400 hover:bg-white/5'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <LayoutGrid size={16} />
-                <span>Painel</span>
-              </span>
-              <ChevronDown
-                size={14}
-                className={`transition-transform duration-200 ${openSections.painel ? 'rotate-180' : ''}`}
-              />
-            </button>
-            <div
-              className={`overflow-hidden transition-all duration-200 ${
-                openSections.painel ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'
-              }`}
-            >
-              <div className="mt-1 space-y-1">
-                <NavLink
-                  to="/admin"
-                  end
-                  className={({ isActive }) =>
-                    `flex items-center gap-2 px-4 py-2 rounded-xl transition-colors ${
-                      isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
-                    }`
-                  }
-                >
-                  <span>Painel</span>
-                </NavLink>
-              </div>
-            </div>
-          </div>
+          <NavLink
+            to="/admin"
+            end
+            className={({ isActive }) =>
+              `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors text-xs uppercase tracking-wide ${
+                isActive ? 'bg-white/10 text-beatwap-gold' : 'text-gray-400 hover:bg-white/5'
+              }`
+            }
+          >
+            <LayoutGrid size={16} />
+            <span>Painel</span>
+          </NavLink>
 
           {(permissions.admin_artists !== false ||
             permissions.admin_sellers !== false ||
@@ -224,42 +198,44 @@ export const AdminLayout = ({ children }) => {
             </div>
           )}
 
-          <div className="space-y-1">
-            <button
-              type="button"
-              onClick={() => toggleSection('financeiro')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-colors ${
-                financeiroActive ? 'bg-white/10 text-beatwap-gold' : 'text-gray-300 hover:bg-white/5'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <DollarSign size={16} />
-                <span>Financeiro</span>
-              </span>
-              <ChevronDown
-                size={14}
-                className={`transition-transform duration-200 ${openSections.financeiro ? 'rotate-180' : ''}`}
-              />
-            </button>
-            <div
-              className={`overflow-hidden transition-all duration-200 ${
-                openSections.financeiro ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'
-              }`}
-            >
-              <div className="mt-1 space-y-1">
-                <NavLink
-                  to="/admin/finance"
-                  className={({ isActive }) =>
-                    `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
-                      isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
-                    }`
-                  }
-                >
+          {permissions.admin_finance !== false && (
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() => toggleSection('financeiro')}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-colors ${
+                  financeiroActive ? 'bg-white/10 text-beatwap-gold' : 'text-gray-300 hover:bg-white/5'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <DollarSign size={16} />
                   <span>Financeiro</span>
-                </NavLink>
+                </span>
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform duration-200 ${openSections.financeiro ? 'rotate-180' : ''}`}
+                />
+              </button>
+              <div
+                className={`overflow-hidden transition-all duration-200 ${
+                  openSections.financeiro ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'
+                }`}
+              >
+                <div className="mt-1 space-y-1">
+                  <NavLink
+                    to="/admin/finance"
+                    className={({ isActive }) =>
+                      `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
+                        isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
+                      }`
+                    }
+                  >
+                    <span>Financeiro</span>
+                  </NavLink>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {permissions.admin_settings !== false && (
             <div className="space-y-1">

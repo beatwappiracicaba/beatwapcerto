@@ -74,12 +74,15 @@ const Register = () => {
           compositions: params.get('p_compositions') === '1',
           work: params.get('p_work') !== '0', // Default true if not specified
           marketing: params.get('p_marketing') !== '0', // Default true if not specified
+          finance: params.get('p_finance') !== '0',
           // Admin permissions (default true if not specified)
           admin_artists: params.get('p_admin_artists') !== '0',
+          admin_sellers: params.get('p_admin_sellers') !== '0',
           admin_musics: params.get('p_admin_musics') !== '0',
           admin_compositions: params.get('p_admin_compositions') !== '0',
           admin_sponsors: params.get('p_admin_sponsors') !== '0',
           admin_settings: params.get('p_admin_settings') !== '0',
+          admin_finance: params.get('p_admin_finance') !== '0',
           // Seller permissions
           seller_artists: params.get('p_seller_artists') !== '0',
           seller_calendar: params.get('p_seller_calendar') !== '0',
