@@ -1265,6 +1265,8 @@ export const AdminMusics = () => {
           .map(item => {
             if (item.type === 'album') {
               const isOpen = !!openAlbums[item.id];
+              const base = item.tracks[0] || {};
+              const currentShowOnHome = localInputs[item.id]?.show_on_home ?? (base.show_on_home || false);
               return (
                 <div key={item.id} className="border border-white/10 rounded-2xl bg-white/5">
                   <button
@@ -1338,7 +1340,7 @@ export const AdminMusics = () => {
                         <div className="flex gap-2 flex-1">
                           <AnimatedInput
                             placeholder="UPC do Álbum"
-                            value={localInputs[item.id]?.upc || ''}
+                            value={localInputs[item.id]?.upc ?? base.upc ?? ''}
                             onChange={(e) =>
                               setLocalInputs(prev => ({
                                 ...prev,
@@ -1349,7 +1351,7 @@ export const AdminMusics = () => {
                           />
                           <AnimatedInput
                             placeholder="Pre-save / Smartlink"
-                            value={localInputs[item.id]?.presave || ''}
+                            value={localInputs[item.id]?.presave ?? base.presave_link ?? ''}
                             onChange={(e) =>
                               setLocalInputs(prev => ({
                                 ...prev,
@@ -1361,7 +1363,7 @@ export const AdminMusics = () => {
                           <input
                             type="date"
                             className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs w-32"
-                            value={localInputs[item.id]?.release_date || ''}
+                            value={localInputs[item.id]?.release_date ?? base.release_date ?? ''}
                             onChange={(e) =>
                               setLocalInputs(prev => ({
                                 ...prev,
@@ -1377,19 +1379,19 @@ export const AdminMusics = () => {
                               ...prev,
                               [item.id]: {
                                 ...(prev[item.id] || {}),
-                                show_on_home: !prev[item.id]?.show_on_home
+                                show_on_home: !currentShowOnHome
                               }
                             }))
                           }
                         >
                           <div
                             className={`w-4 h-4 rounded border flex items-center justify-center ${
-                              localInputs[item.id]?.show_on_home
+                              currentShowOnHome
                                 ? 'bg-beatwap-gold border-beatwap-gold text-black'
                                 : 'border-white/20 bg-white/5'
                             }`}
                           >
-                            {localInputs[item.id]?.show_on_home && <Check size={12} strokeWidth={4} />}
+                            {currentShowOnHome && <Check size={12} strokeWidth={4} />}
                           </div>
                           <span className="text-[10px] text-gray-300 select-none">Mostrar na Home</span>
                         </div>
