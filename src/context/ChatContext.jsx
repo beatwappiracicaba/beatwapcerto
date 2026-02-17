@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from './AuthContext';
 
@@ -12,6 +12,9 @@ export const ChatProvider = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeChatId, setActiveChatId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [typingState, setTypingState] = useState({});
+  const typingTimeoutsRef = useRef({});
+  const channelRef = useRef(null);
 
   useEffect(() => {
     if (user) {
@@ -19,7 +22,6 @@ export const ChatProvider = ({ children }) => {
       fetchQueue();
       fetchAdmins(); // Fetch admins for header display
       
-      // Subscribe to real-time changes
       const channel = supabase
         .channel('public:chat-realtime')
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chats' }, (payload) => {
@@ -129,14 +131,46 @@ export const ChatProvider = ({ children }) => {
             return next;
           });
         })
+        .on('broadcast', { event: 'typing' }, (payload) => {
+          const data = payload.payload || {};
+          const chatId = data.chatId;
+          const senderId = data.userId;
+          const isTyping = !!data.isTyping;
+          if (!chatId || !senderId || senderId === user.id) return;
+          if (isTyping) {
+            setTypingState(prev => ({ ...prev, [chatId]: true }));
+            const timeouts = typingTimeoutsRef.current || {};
+            if (timeouts[chatId]) {
+              clearTimeout(timeouts[chatId]);
+            }
+            timeouts[chatId] = setTimeout(() => {
+              setTypingState(prev => ({ ...prev, [chatId]: false }));
+            }, 3000);
+            typingTimeoutsRef.current = timeouts;
+          } else {
+            setTypingState(prev => ({ ...prev, [chatId]: false }));
+            const timeouts = typingTimeoutsRef.current || {};
+            if (timeouts[chatId]) {
+              clearTimeout(timeouts[chatId]);
+              delete timeouts[chatId];
+              typingTimeoutsRef.current = timeouts;
+            }
+          }
+        })
         .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
             console.log('Chat realtime subscribed');
           }
         });
 
+      channelRef.current = channel;
+
       return () => {
         supabase.removeChannel(channel);
+        channelRef.current = null;
+        const timeouts = typingTimeoutsRef.current || {};
+        Object.values(timeouts).forEach(t => clearTimeout(t));
+        typingTimeoutsRef.current = {};
       };
     } else {
       setChats([]);
@@ -639,6 +673,20 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  const sendTypingStatus = (chatId, isTyping) => {
+    try {
+      if (!chatId || !user) return;
+      if (!channelRef.current) return;
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { chatId, userId: user.id, isTyping }
+      });
+    } catch (error) {
+      console.error('Error sending typing status:', error);
+    }
+  };
+
   const toggleChat = () => setIsOpen(!isOpen);
   
   const openChatWithContext = (context) => {
@@ -793,7 +841,9 @@ export const ChatProvider = ({ children }) => {
       updateChatStatus,
       fetchChats,
       fetchQueue,
-      userRole: profile?.cargo
+      userRole: profile?.cargo,
+      typingState,
+      sendTypingStatus
     }}>
       {children}
     </ChatContext.Provider>

@@ -27,7 +27,9 @@ export const ChatWindow = ({ currentUserId }) => {
     sendBroadcast,
     fetchArtistsForSeller,
     updateChatStatus,
-    fetchChats
+    fetchChats,
+    typingState,
+    sendTypingStatus
   } = useChat();
   
   const { profile, user } = useAuth();
@@ -50,6 +52,7 @@ export const ChatWindow = ({ currentUserId }) => {
   const [pendingRequestRole, setPendingRequestRole] = useState(null);
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
   const [showNewMessageToast, setShowNewMessageToast] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [selectedQuestion, setSelectedQuestion] = useState(null);
@@ -87,6 +90,28 @@ export const ChatWindow = ({ currentUserId }) => {
   useEffect(() => {
     scrollToBottom();
   }, [chats, activeChatId, isOpen, mode]);
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setInputText(value);
+    if (!activeChatId) return;
+    if (!value.trim()) {
+      sendTypingStatus(activeChatId, false);
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+      return;
+    }
+    sendTypingStatus(activeChatId, true);
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    typingTimeoutRef.current = setTimeout(() => {
+      sendTypingStatus(activeChatId, false);
+      typingTimeoutRef.current = null;
+    }, 2000);
+  };
 
   useEffect(() => {
     if (!isOpen || activeTab !== 'chat' || mode !== 'chat' || !activeChatId) return;
@@ -178,6 +203,7 @@ export const ChatWindow = ({ currentUserId }) => {
     setInputText(''); // Clear immediately (optimistic)
 
     await sendMessage(activeChatId, textToSend, 'me'); 
+    sendTypingStatus(activeChatId, false);
   };
 
   
@@ -1117,7 +1143,7 @@ export const ChatWindow = ({ currentUserId }) => {
                 </div>
             )}
 
-             {!activeChat?.messages?.length ? (
+            {!activeChat?.messages?.length ? (
                <div className="flex flex-col items-center justify-center h-full text-gray-500 mt-20 text-center">
                  <MessageCircle size={40} className="mb-2 opacity-20" />
                  <p className="text-sm">Escreva o que precisa e espere alguém responder.</p>
@@ -1130,6 +1156,16 @@ export const ChatWindow = ({ currentUserId }) => {
                     isOwn={msg.sender === 'me'} 
                  />
                ))
+             )}
+             {typingState && activeChatId && typingState[activeChatId] && (
+               <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
+                 <div className="flex items-center gap-1">
+                   <div className="w-1.5 h-1.5 bg-beatwap-gold rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                   <div className="w-1.5 h-1.5 bg-beatwap-gold rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                   <div className="w-1.5 h-1.5 bg-beatwap-gold rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                 </div>
+                 <span>Digitando...</span>
+               </div>
              )}
              <div ref={messagesEndRef} />
              {showNewMessageToast && (
@@ -1153,7 +1189,7 @@ export const ChatWindow = ({ currentUserId }) => {
                 placeholder="Digite sua mensagem..."
                 className="flex-1 bg-black/30 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors"
                 value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
