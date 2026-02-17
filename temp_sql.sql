@@ -23,6 +23,7 @@ USING (
 
 -- 2. Allow Deletion of Chats by Participants or Producers
 DROP POLICY IF EXISTS "Users can delete their own chats" ON public.chats;
+DROP POLICY IF EXISTS "Participants and Staff can delete chats" ON public.chats;
 CREATE POLICY "Participants and Staff can delete chats" 
 ON public.chats FOR DELETE 
 USING (
@@ -70,30 +71,26 @@ BEGIN
   SELECT nome INTO sender_name FROM public.profiles WHERE id = NEW.sender_id;
   IF sender_name IS NULL THEN sender_name := 'Usuário'; END IF;
 
-  -- Notify all other participants
-  FOREACH recipient IN ARRAY chat_participants
-  LOOP
-    IF recipient != NEW.sender_id THEN
-      -- Insert notification (Expires in 24h)
-      INSERT INTO public.notifications (
-        recipient_id, 
-        title, 
-        message, 
-        link, 
-        type, 
-        expires_at,
-        metadata
-      ) VALUES (
-        recipient, 
-        'Novo chamado de suporte', 
-        'Você tem um novo chamado no chat da BeatWap.',
-        '/chat',
-        'chat_message',
-        now() + interval '24 hours',
-        jsonb_build_object('chat_id', NEW.chat_id, 'sender_id', NEW.sender_id)
-      );
-    END IF;
-  END LOOP;
+  -- Notificar demais participantes (uma única notificação por destinatário/chat)
+  INSERT INTO public.notifications (
+    recipient_id, title, message, link, type, expires_at, metadata
+  )
+  SELECT r AS recipient_id,
+         'Novo chamado de suporte' AS title,
+         'Você tem um novo chamado no chat da BeatWap.' AS message,
+         '/chat' AS link,
+         'chat_message' AS type,
+         now() + interval '24 hours' AS expires_at,
+         jsonb_build_object('chat_id', NEW.chat_id, 'sender_id', NEW.sender_id) AS metadata
+  FROM unnest(chat_participants) AS r
+  WHERE r <> NEW.sender_id
+    AND NOT EXISTS (
+      SELECT 1
+      FROM public.notifications n
+      WHERE n.recipient_id = r
+        AND n.type = 'chat_message'
+        AND (n.metadata->>'chat_id')::uuid = NEW.chat_id
+    );
   
   RETURN NEW;
 END;

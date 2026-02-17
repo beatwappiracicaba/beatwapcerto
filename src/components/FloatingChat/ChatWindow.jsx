@@ -1149,13 +1149,13 @@ export const ChatWindow = ({ currentUserId }) => {
                   </div>
                 )}
                 {activeChat?.initialSummary && (
-                  <div className="relative">
+                  <div className="relative overflow-hidden rounded-xl">
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-                      <span className="text-7xl sm:text-8xl font-extrabold text-white/5 tracking-widest">
+                      <span className="text-4xl sm:text-5xl font-extrabold text-white/5 tracking-[0.4em] uppercase whitespace-nowrap">
                         SUPORTE
                       </span>
                     </div>
-                    <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-xs text-gray-300 italic backdrop-blur-sm">
+                    <div className="relative p-3 bg-white/5 border border-white/10 rounded-xl text-xs text-gray-300 italic backdrop-blur-sm">
                       {activeChat.initialSummary}
                     </div>
                   </div>
@@ -1208,7 +1208,8 @@ export const ChatWindow = ({ currentUserId }) => {
                  <MessageBubble 
                     key={msg.id} 
                     message={msg} 
-                    isOwn={msg.sender === 'me'} 
+                    isOwn={msg.sender === 'me'}
+                    avatarUrl={! (msg.sender === 'me') ? activeChat.artistAvatarUrl : null}
                  />
                ))
              )}

@@ -1,10 +1,26 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Check, CheckCheck } from 'lucide-react';
+import { Check, CheckCheck, User as UserIcon } from 'lucide-react';
 
-export const MessageBubble = ({ message, isOwn }) => {
+export const MessageBubble = ({ message, isOwn, avatarUrl }) => {
+  const displayName = message.senderName || (isOwn ? 'Você' : (message.sender === 'admin' ? 'Produtor' : 'Usuário'));
+
   return (
-    <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4`}>
+    <div className={`flex items-end mb-4 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+      {!isOwn && (
+        <div className="mr-2 flex-shrink-0">
+          <div className="w-8 h-8 rounded-full bg-white/10 overflow-hidden flex items-center justify-center">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xs text-beatwap-gold font-bold">
+                {displayName.substring(0, 1).toUpperCase()}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -14,12 +30,11 @@ export const MessageBubble = ({ message, isOwn }) => {
             : 'bg-white/10 text-white rounded-tl-none'
         }`}
       >
-        {/* Sender Name */}
-        {!isOwn && (
-          <div className="text-[10px] font-bold text-beatwap-gold/80 mb-1">
-            {message.senderName || (message.sender === 'admin' ? 'Produtor' : 'Usuário')}
-          </div>
-        )}
+        <div className="text-[10px] font-bold mb-1">
+          <span className={isOwn ? 'text-black/60' : 'text-beatwap-gold/80'}>
+            {displayName}
+          </span>
+        </div>
 
         {message.context && (
           <div className={`text-xs mb-2 p-2 rounded ${
@@ -41,6 +56,14 @@ export const MessageBubble = ({ message, isOwn }) => {
           )}
         </div>
       </motion.div>
+
+      {isOwn && (
+        <div className="ml-2 flex-shrink-0">
+          <div className="w-8 h-8 rounded-full bg-white/10 overflow-hidden flex items-center justify-center">
+            <UserIcon size={16} className="text-black/60" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
