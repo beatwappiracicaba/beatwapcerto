@@ -94,42 +94,40 @@ export const ChatProvider = ({ children }) => {
           }
         })
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-          const m = payload.new;
-          // Fix: Extract role from metadata if available (since DB column is metadata, not sender_role)
-          const metaRole = m.metadata?.sender_cargo || '';
-          const roleStr = String(m.sender_role || m.sender_cargo || metaRole || '').toLowerCase();
-          
-          // Simplified sender logic - improves handling for multi-role chats
-          const sender = m.sender_id === user.id ? 'me' : (
-            roleStr.includes('artist') || roleStr.includes('artista') ? 'artist' : 'admin'
-          );
-          
-          const text = m.content ?? m.message ?? '';
-          const timestamp = m.created_at;
-          
-          setChats(prev => {
-            const idx = prev.findIndex(c => c.id === m.chat_id);
-            if (idx === -1) {
-              // Fallback: refetch if chat not in local state
-              fetchChats();
-              return prev;
-            }
+          try {
+            const m = payload.new;
+            if (!m) return;
+            const metaRole = m.metadata?.sender_cargo || '';
+            const roleStr = String(m.sender_role || m.sender_cargo || metaRole || '').toLowerCase();
+            const sender = m.sender_id === user.id ? 'me' : (
+              roleStr.includes('artist') || roleStr.includes('artista') ? 'artist' : 'admin'
+            );
+            const text = m.content ?? m.message ?? '';
+            const timestamp = m.created_at;
             
-            // Check if message already exists (deduplication for optimistic updates)
-            const msgExists = prev[idx].messages.some(msg => msg.id === m.id);
-            if (msgExists) return prev;
-
-            const updatedChat = {
-              ...prev[idx],
-              messages: [...prev[idx].messages, { ...m, sender, text, timestamp }],
-              lastMessage: text,
-              lastMessageTime: timestamp,
-              unreadCount: (sender !== 'me' && !m.read) ? (prev[idx].unreadCount || 0) + 1 : (prev[idx].unreadCount || 0)
-            };
-            const next = [...prev];
-            next[idx] = updatedChat;
-            return next;
-          });
+            setChats(prev => {
+              const idx = prev.findIndex(c => c.id === m.chat_id);
+              if (idx === -1) {
+                fetchChats();
+                return prev;
+              }
+              const msgExists = prev[idx].messages.some(msg => msg.id === m.id);
+              if (msgExists) return prev;
+  
+              const updatedChat = {
+                ...prev[idx],
+                messages: [...prev[idx].messages, { ...m, sender, text, timestamp }],
+                lastMessage: text,
+                lastMessageTime: timestamp,
+                unreadCount: (sender !== 'me' && !m.read) ? (prev[idx].unreadCount || 0) + 1 : (prev[idx].unreadCount || 0)
+              };
+              const next = [...prev];
+              next[idx] = updatedChat;
+              return next;
+            });
+          } catch (e) {
+            console.error('Error handling realtime message insert:', e);
+          }
         })
         .on('broadcast', { event: 'typing' }, (payload) => {
           const data = payload.payload || {};

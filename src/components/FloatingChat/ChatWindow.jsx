@@ -94,25 +94,33 @@ export const ChatWindow = ({ currentUserId }) => {
   // Realtime específico do chat ativo (reforço local ao provider)
   useEffect(() => {
     if (!isOpen || activeTab !== 'chat' || mode !== 'chat' || !activeChatId) return;
-    const channel = supabase
-      .channel(`chat-realtime:${activeChatId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `chat_id=eq.${activeChatId}`
-      }, (payload) => {
-        const nova = payload.new;
-        const exists = (activeChat?.messages || []).some(m => m.id === nova.id);
-        if (!exists) {
-          fetchChats();
-        }
-      })
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [isOpen, activeTab, mode, activeChatId, activeChat?.messages?.length, fetchChats]);
+    try {
+      const channel = supabase
+        .channel(`chat-realtime:${activeChatId}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages'
+        }, (payload) => {
+          try {
+            const nova = payload.new;
+            if (!nova || nova.chat_id !== activeChatId) return;
+            const exists = (activeChat?.messages || []).some(m => m.id === nova.id);
+            if (!exists) {
+              fetchChats();
+            }
+          } catch (e) {
+            console.error('Realtime message handler error:', e);
+          }
+        })
+        .subscribe();
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    } catch (e) {
+      console.error('Realtime subscription error:', e);
+    }
+  }, [isOpen, activeTab, mode, activeChatId, fetchChats]);
 
   const handleInputChange = (e) => {
     const value = e.target.value;
