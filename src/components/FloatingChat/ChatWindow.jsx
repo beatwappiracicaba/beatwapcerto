@@ -1140,6 +1140,29 @@ export const ChatWindow = ({ currentUserId }) => {
         {/* CHAT MODE */}
         {mode === 'chat' && (
           <div className="p-4 relative min-h-full">
+            {/* Watermark / System header */}
+            {(activeChat?.initialSummary || activeChat?.assignmentNotice) && (
+              <div className="mb-4">
+                {activeChat?.assignmentNotice && (
+                  <div className="text-[11px] text-gray-400 text-center mb-2">
+                    {activeChat.assignmentNotice}
+                  </div>
+                )}
+                {activeChat?.initialSummary && (
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+                      <span className="text-7xl sm:text-8xl font-extrabold text-white/5 tracking-widest">
+                        SUPORTE
+                      </span>
+                    </div>
+                    <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-xs text-gray-300 italic backdrop-blur-sm">
+                      {activeChat.initialSummary}
+                    </div>
+                  </div>
+                )}
+                <div className="h-px bg-white/10 my-4" />
+              </div>
+            )}
             {/* PENDING ACCEPTANCE OVERLAY */}
             {activeChat?.status === 'pending' && activeChat?.initiatedBy !== user.id && (
                 <div className="absolute inset-0 z-10 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
@@ -1174,9 +1197,11 @@ export const ChatWindow = ({ currentUserId }) => {
             {!activeChat?.messages?.length ? (
                <div className="flex flex-col items-center justify-center h-full text-gray-500 mt-20 text-center">
                  <MessageCircle size={40} className="mb-2 opacity-20" />
-                 <p className="text-sm">
-                   Sua solicitação foi enviada. Escreva o que precisa e aguarde um produtor responder.
-                 </p>
+                 {!activeChat?.initialSummary ? (
+                   <p className="text-sm">
+                     Escreva o que precisa e aguarde um produtor responder.
+                   </p>
+                 ) : null}
                </div>
              ) : (
                activeChat.messages.map(msg => (

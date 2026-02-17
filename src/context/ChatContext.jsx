@@ -262,7 +262,20 @@ export const ChatProvider = ({ children }) => {
         chatId = data.id;
       }
 
-      if (request.metadata?.summary) {
+      // Avoid duplicates: check existing system messages
+      let systemMsgs = [];
+      try {
+        const { data: sysData } = await supabase
+          .from('messages')
+          .select('id, metadata')
+          .eq('chat_id', chatId);
+        systemMsgs = (sysData || []).filter(m => ['initial_request','assignment_notice'].includes(m?.metadata?.type));
+      } catch {}
+
+      const hasInitial = systemMsgs.some(m => m?.metadata?.type === 'initial_request');
+      const hasAssign = systemMsgs.some(m => m?.metadata?.type === 'assignment_notice');
+
+      if (request.metadata?.summary && !hasInitial) {
         await supabase.from('messages').insert({
           chat_id: chatId,
           sender_id: user.id,
@@ -272,13 +285,15 @@ export const ChatProvider = ({ children }) => {
         });
       }
 
-      await supabase.from('messages').insert({
-        chat_id: chatId,
-        sender_id: user.id,
-        receiver_id: requesterId,
-        content: `${myName} iniciou seu atendimento.`,
-        metadata: { type: 'assignment_notice', sender_cargo: profile?.cargo || null }
-      });
+      if (!hasAssign) {
+        await supabase.from('messages').insert({
+          chat_id: chatId,
+          sender_id: user.id,
+          receiver_id: requesterId,
+          content: `${myName} iniciou seu atendimento.`,
+          metadata: { type: 'assignment_notice', sender_cargo: profile?.cargo || null }
+        });
+      }
 
       await fetchChats();
       setActiveChatId(chatId);
@@ -425,7 +440,6 @@ export const ChatProvider = ({ children }) => {
       const formattedChats = data.map(chat => {
         const sortedMessages = messagesByChat[chat.id] || [];
         const lastMsg = sortedMessages[sortedMessages.length - 1];
-        
         const messagesWithSender = sortedMessages.map(m => {
           const roleStr = String(m.sender_role || m.sender_cargo || '').toLowerCase();
           // Simplified sender logic - improves handling for multi-role chats
@@ -442,7 +456,12 @@ export const ChatProvider = ({ children }) => {
           };
         });
 
-        const unreadCount = messagesWithSender.filter(m => 
+        // Extract system-like messages and remove them from the conversation stream
+        const initialRequestMsg = messagesWithSender.find(m => m?.metadata?.type === 'initial_request');
+        const assignmentNoticeMsg = messagesWithSender.find(m => m?.metadata?.type === 'assignment_notice');
+        const visibleMessages = messagesWithSender.filter(m => !['initial_request','assignment_notice'].includes(m?.metadata?.type));
+
+        const unreadCount = visibleMessages.filter(m => 
           !m.read && m.sender !== 'me' // Simply count messages not from me that are unread
         ).length;
 
@@ -468,9 +487,15 @@ export const ChatProvider = ({ children }) => {
           assignedTo,
           status: chat.status,
           initiatedBy: chat.metadata?.initiated_by,
-          messages: messagesWithSender,
-          lastMessage: (lastMsg?.content ?? lastMsg?.message) || '',
-          lastMessageTime: lastMsg?.created_at || chat.created_at,
+          // Watermark/system info to show at the top of chat UI
+          initialSummary: initialRequestMsg?.text || null,
+          initialSummaryAt: initialRequestMsg?.timestamp || null,
+          assignmentNotice: assignmentNoticeMsg?.text || null,
+          assignmentNoticeAt: assignmentNoticeMsg?.timestamp || null,
+          // Visible conversation
+          messages: visibleMessages,
+          lastMessage: (visibleMessages[visibleMessages.length - 1]?.content ?? visibleMessages[visibleMessages.length - 1]?.message) || '',
+          lastMessageTime: visibleMessages.length ? visibleMessages[visibleMessages.length - 1]?.created_at : (lastMsg?.created_at || chat.created_at),
           unreadCount
         };
       });
