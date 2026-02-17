@@ -144,11 +144,11 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName, artist
           exit={{ opacity: 0, scale: 0.95 }}
           className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-6xl overflow-hidden flex flex-col max-h-[90vh]"
         >
-          <div className="p-4 border-b border-white/10 flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center sm:justify-between bg-beatwap-black">
-            <h3 className="text-lg sm:text-xl font-bold text-white text-center sm:text-left">
+          <div className="p-4 border-b border-white/10 flex flex-col gap-3 bg-beatwap-black">
+            <h3 className="text-lg sm:text-xl font-bold text-white text-center">
               Gerenciar {isComposer ? 'Carreira & Negócios' : 'Marketing'} - {artistName}
             </h3>
-            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 sm:gap-4">
+            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 sm:gap-3">
                 <AnimatedButton onClick={handleSave} disabled={saving}>
                     {saving ? <Loader className="animate-spin" size={20} /> : <Save size={20} />}
                     <span className="ml-2">Salvar</span>

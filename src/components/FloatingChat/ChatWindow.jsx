@@ -26,7 +26,8 @@ export const ChatWindow = ({ currentUserId }) => {
     sendNotification,
     sendBroadcast,
     fetchArtistsForSeller,
-    updateChatStatus
+    updateChatStatus,
+    fetchChats
   } = useChat();
   
   const { profile, user } = useAuth();
@@ -86,6 +87,14 @@ export const ChatWindow = ({ currentUserId }) => {
   useEffect(() => {
     scrollToBottom();
   }, [chats, activeChatId, isOpen, mode]);
+
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'chat' || mode !== 'chat' || !activeChatId) return;
+    const intervalId = setInterval(() => {
+      fetchChats();
+    }, 4000);
+    return () => clearInterval(intervalId);
+  }, [isOpen, activeTab, mode, activeChatId, fetchChats]);
 
   useEffect(() => {
     const handlerOnline = () => setIsOnline(true);
