@@ -4,6 +4,7 @@ import { NotificationProvider } from './context/NotificationContext';
 import { ChatProvider } from './context/ChatContext';
 import { DataProvider } from './context/DataContext';
 import { AppRoutes } from './routes/AppRoutes';
+import { ImageProtectionManager } from './components/security/ImageProtectionManager';
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <NotificationProvider>
           <DataProvider>
             <ChatProvider>
+              <ImageProtectionManager />
               <AppRoutes />
             </ChatProvider>
           </DataProvider>
