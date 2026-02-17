@@ -18,17 +18,25 @@ export const getCroppedImg = (imageSrc, pixelCrop) => {
           reject(new Error('Canvas context not available'));
           return;
         }
+
+        const crop = pixelCrop || {
+          x: 0,
+          y: 0,
+          width: image.width,
+          height: image.height,
+        };
+
         canvas.width = image.width;
         canvas.height = image.height;
         ctx.drawImage(image, 0, 0);
         const data = ctx.getImageData(
-          pixelCrop.x,
-          pixelCrop.y,
-          pixelCrop.width,
-          pixelCrop.height
+          crop.x,
+          crop.y,
+          crop.width,
+          crop.height
         );
-        canvas.width = pixelCrop.width;
-        canvas.height = pixelCrop.height;
+        canvas.width = crop.width;
+        canvas.height = crop.height;
         ctx.putImageData(data, 0, 0);
         canvas.toBlob((file) => {
           resolve(file);

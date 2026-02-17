@@ -148,7 +148,7 @@ export const ProfileEditModal = ({
                       min={1}
                       max={3}
                       step={0.1}
-                      onChange={(e) => setZoom(e.target.value)}
+                      onChange={(e) => setZoom(parseFloat(e.target.value))}
                       className="w-full accent-beatwap-gold h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
                     />
                 </div>
