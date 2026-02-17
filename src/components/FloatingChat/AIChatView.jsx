@@ -30,7 +30,7 @@ const createWelcomeMessage = () => ({
   id: 'welcome',
   role: 'assistant',
   content:
-    'Sou o Assistente de IA da BeatWap. Especialista em composições nos estilos Sertanejo, Pagode e MPB. Organizo respostas com títulos e seções para facilitar leitura. No Sertanejo me inspiro em Marília Mendonça, Henrique & Juliano, Zé Neto & Cristiano, Gusttavo Lima, Luan Pereira e Ana Castela, sem copiar. Qual tema quer trabalhar?',
+    'Sou o Assistente de IA da BeatWap. Posso te apoiar em todo o universo musical: composição, produção, mix/master, distribuição, marketing, direitos autorais, agenda de shows e equipamentos. Respondo em português, com tópicos organizados. Qual assunto você quer tratar agora?',
   timestamp: new Date(),
 });
 

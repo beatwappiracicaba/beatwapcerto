@@ -46,7 +46,18 @@ export const aiService = {
         }
         throw error;
       }
-      return data || [];
+      const rows = data || [];
+      try {
+        const clearedAtStr = window?.localStorage?.getItem('ai_history_cleared_at');
+        const clearedAt = clearedAtStr ? Number(clearedAtStr) : 0;
+        if (clearedAt > 0) {
+          return rows.filter(r => {
+            const t = new Date(r.created_at).getTime();
+            return isNaN(t) ? true : t > clearedAt;
+          });
+        }
+      } catch (_) { void 0; }
+      return rows;
     } catch (error) {
       console.error('Error fetching history:', error);
       return [];
@@ -66,13 +77,16 @@ export const aiService = {
       if (error) {
         if (error.code === '42P01') {
           console.warn('AI Chat History table missing. Nothing to clear.');
-          return false;
+          try { window?.localStorage?.setItem('ai_history_cleared_at', String(Date.now())); } catch (_) { void 0; }
+          return true;
         }
         throw error;
       }
+      try { window?.localStorage?.setItem('ai_history_cleared_at', String(Date.now())); } catch (_) { void 0; }
       return true;
     } catch (error) {
       console.error('Error clearing history:', error);
+      try { window?.localStorage?.setItem('ai_history_cleared_at', String(Date.now())); } catch (_) { void 0; }
       return false;
     }
   },

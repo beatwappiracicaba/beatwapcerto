@@ -11,6 +11,7 @@ import { useToast } from '../context/ToastContext';
 import { supabase } from '../services/supabaseClient';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../utils/cropImage';
+import logo from '../assets/images/beatwap-logo.png';
 import { ArtistContentManager } from '../components/admin/ArtistContentManager';
 import { GalleryManager } from '../components/profile/GalleryManager';
 import { ProfileEditModal } from '../components/ui/ProfileEditModal';
@@ -35,59 +36,7 @@ export const AdminHome = () => {
     url: '',
     platform: 'YouTube'
   });
-  const [projectCoverFile, setProjectCoverFile] = useState(null);
-  const [projectCoverPreview, setProjectCoverPreview] = useState(null);
-  const [projectCropImage, setProjectCropImage] = useState(null);
-  const [projectCrop, setProjectCrop] = useState({ x: 0, y: 0 });
-  const [projectZoom, setProjectZoom] = useState(1);
-  const [projectAspect, setProjectAspect] = useState(16 / 9);
-  const [projectCroppedAreaPixels, setProjectCroppedAreaPixels] = useState(null);
-
-  const onProjectFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setProjectCropImage(reader.result);
-      setProjectAspect(projectForm.platform === 'YouTube' ? 16 / 9 : 1);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = null;
-  };
-
-  const onProjectCropComplete = useCallback((croppedArea, pixels) => {
-    setProjectCroppedAreaPixels(pixels);
-  }, []);
-
-  const handleProjectCropConfirm = async () => {
-    try {
-      const blob = await getCroppedImg(projectCropImage, projectCroppedAreaPixels);
-      const preview = URL.createObjectURL(blob);
-      setProjectCoverPreview(preview);
-      setProjectCoverFile(blob);
-      setProjectCropImage(null);
-    } catch (e) {
-      addToast('Falha ao recortar imagem', 'error');
-    }
-  };
-
-  const validateCover = async (file, platform) => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const w = img.naturalWidth, h = img.naturalHeight;
-        const ratio = Number((w / h).toFixed(2));
-        if (platform === 'YouTube') {
-          resolve(Math.abs(ratio - 1.78) < 0.1);
-        } else if (platform === 'Spotify') {
-          resolve(Math.abs(ratio - 1.0) < 0.1);
-        } else {
-          resolve(true);
-        }
-      };
-      img.src = URL.createObjectURL(file);
-    });
-  };
+  // Upload de capa removido: thumbnail será carregada automaticamente do link (YouTube) ou usa logo
   useEffect(() => {
     const load = async () => {
       const { count: artistsCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('cargo', 'Artista');
@@ -163,19 +112,7 @@ export const AdminHome = () => {
         addToast('Tabela producer_projects ausente no banco. Aplique as migrações SQL.', 'error');
         return;
       }
-      let cover_url = null;
-      if (projectCoverFile) {
-        const ok = await validateCover(projectCoverFile, platform);
-        if (!ok) { addToast('Capa com proporção incorreta para a plataforma selecionada', 'error'); return; }
-        const fileName = `${user.id}/${Date.now()}-${projectCoverFile.name}`;
-        const { data: up, error: upErr } = await supabase.storage.from('project_covers').upload(fileName, projectCoverFile, { upsert: true });
-        if (upErr) { addToast('Falha ao enviar capa', 'error'); return; }
-        const { data: pub } = supabase.storage.from('project_covers').getPublicUrl(up.path);
-        cover_url = pub.publicUrl;
-      }
-      // Tenta inserir com cover_url; se a coluna não existir no banco remoto, faz fallback sem ela
-      let payload = { producer_id: user.id, title, url, platform, published: true };
-      if (cover_url) payload = { ...payload, cover_url };
+      const payload = { producer_id: user.id, title, url, platform, published: true };
       let { error } = await supabase.from('producer_projects').insert(payload);
       if (error && /cover_url/i.test(String(error?.message || error?.details || ''))) {
         const retry = await supabase.from('producer_projects').insert({ producer_id: user.id, title, url, platform, published: true });
@@ -185,8 +122,6 @@ export const AdminHome = () => {
       }
       addToast('Projeto adicionado', 'success');
       setProjectForm({ title: '', url: '', platform: 'YouTube' });
-      setProjectCoverFile(null);
-      setProjectCoverPreview(null);
       loadProjects();
     } catch (error) {
       console.error('Error creating producer project:', error);
@@ -252,27 +187,7 @@ export const AdminHome = () => {
             <option value="Spotify">Spotify</option>
             <option value="Outro">Outro</option>
           </select>
-          <div className="space-y-2">
-            <input
-              id="project-cover"
-              type="file"
-              accept="image/*"
-              onChange={onProjectFileChange}
-              className="hidden"
-            />
-            <label htmlFor="project-cover" className="cursor-pointer flex flex-col items-center gap-2">
-              <div className="p-3 bg-gray-800 rounded-full text-white">
-                <ImageIcon size={24} />
-              </div>
-              <span className="font-bold text-sm">Capa do Projeto</span>
-              <span className="text-xs text-gray-500">YouTube 16:9 • Spotify 1:1</span>
-            </label>
-            {projectCoverPreview && (
-              <div className="w-full h-24 rounded-xl overflow-hidden bg-black/30 border border-white/10">
-                <img src={projectCoverPreview} alt="Prévia da capa" className="w-full h-full object-cover" />
-              </div>
-            )}
-          </div>
+          <div className="text-xs text-gray-400 flex items-center">A capa será carregada do link (YouTube). Sem thumbnail válida, usamos a logo da BeatWap.</div>
         </div>
         <AnimatedButton onClick={createProject}>Adicionar Projeto</AnimatedButton>
         <div className="pt-4">
@@ -289,7 +204,7 @@ export const AdminHome = () => {
                       const vid = m ? m[1] : null;
                       return (isYT && vid)
                         ? <img src={`https://img.youtube.com/vi/${vid}/mqdefault.jpg`} alt={p.title} className="w-full h-full object-cover" />
-                        : (p.platform || '').toUpperCase();
+                        : <img src={logo} alt="BeatWap" className="w-full h-full object-cover p-2" />;
                   })()}
                 </div>
                 <div className="flex-1">
@@ -308,72 +223,7 @@ export const AdminHome = () => {
           </div>
         </div>
       </Card>
-      {projectCropImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-beatwap-black">
-              <h3 className="text-xl font-bold text-white">Ajustar Capa</h3>
-              <button onClick={() => setProjectCropImage(null)} className="text-gray-400 hover:text-white">
-                <ImageIcon size={24} />
-              </button>
-            </div>
-            <div className="p-6 space-y-6">
-              <div className="relative w-full h-64 bg-black rounded-lg overflow-hidden">
-                <Cropper
-                  image={projectCropImage}
-                  crop={projectCrop}
-                  zoom={projectZoom}
-                  aspect={projectAspect}
-                  onCropChange={setProjectCrop}
-                  onCropComplete={onProjectCropComplete}
-                  onZoomChange={setProjectZoom}
-                  showGrid={true}
-                />
-              </div>
-              <div className="flex justify-center gap-4">
-                <button
-                  onClick={() => setProjectAspect(16 / 9)}
-                  className={`px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${projectAspect === 16 / 9 ? 'bg-beatwap-gold text-black border-beatwap-gold' : 'bg-transparent text-gray-400 border-white/10 hover:border-white/30'}`}
-                >
-                  Paisagem (16:9)
-                </button>
-                <button
-                  onClick={() => setProjectAspect(1)}
-                  className={`px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${projectAspect === 1 ? 'bg-beatwap-gold text-black border-beatwap-gold' : 'bg-transparent text-gray-400 border-white/10 hover:border-white/30'}`}
-                >
-                  Perfil (1:1)
-                </button>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs text-gray-400">
-                  <span>Zoom</span>
-                  <span>{projectZoom}x</span>
-                </div>
-                <input
-                  type="range"
-                  value={projectZoom}
-                  min={1}
-                  max={3}
-                  step={0.1}
-                  onChange={(e) => setProjectZoom(e.target.value)}
-                  className="w-full accent-beatwap-gold h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                />
-              </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <button 
-                  onClick={() => setProjectCropImage(null)}
-                  className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
-                >
-                  Cancelar
-                </button>
-                <AnimatedButton onClick={handleProjectCropConfirm}>
-                  Confirmar e Usar
-                </AnimatedButton>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      
     </AdminLayout>
   );
 };
