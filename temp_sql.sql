@@ -1,6 +1,7 @@
 
 -- 1. Fix RLS for Support Queue (Allow Producers/Sellers to view/pick requests)
 DROP POLICY IF EXISTS "Producers/Sellers can view support queue" ON public.support_queue;
+DROP POLICY IF EXISTS "Staff can view support queue" ON public.support_queue;
 CREATE POLICY "Staff can view support queue" 
 ON public.support_queue FOR SELECT 
 USING (
