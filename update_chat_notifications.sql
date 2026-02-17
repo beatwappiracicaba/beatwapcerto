@@ -43,13 +43,29 @@ ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 -- Update existing notifications to be persistent if not set
 UPDATE public.notifications SET expires_at = NULL WHERE expires_at IS NULL;
 
--- Policy to only show valid notifications (not expired)
+-- Policies: garantir limpeza e recriação idempotente
 DROP POLICY IF EXISTS "Users can view their own notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Users can view their own valid notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Users can update their own notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Insert notifications (self or producer)" ON public.notifications;
 CREATE POLICY "Users can view their own valid notifications" 
 ON public.notifications FOR SELECT 
 USING (
   auth.uid() = recipient_id AND 
   (expires_at IS NULL OR expires_at > now())
+);
+CREATE POLICY "Users can update their own notifications"
+ON public.notifications FOR UPDATE
+USING (auth.uid() = recipient_id)
+WITH CHECK (auth.uid() = recipient_id);
+CREATE POLICY "Insert notifications (self or producer)"
+ON public.notifications FOR INSERT
+WITH CHECK (
+  (recipient_id = auth.uid())
+  OR EXISTS (
+    SELECT 1 FROM public.profiles p 
+    WHERE p.id = auth.uid() AND p.cargo IN ('Produtor','Admin','Superadmin')
+  )
 );
 
 -- Ensure trigger and function are clean before recreate

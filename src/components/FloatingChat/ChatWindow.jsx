@@ -652,7 +652,9 @@ export const ChatWindow = ({ currentUserId }) => {
                       </div>
                     )}
                     {chat.unreadCount > 0 && (
-                      <div className="absolute top-0 right-0 w-3 h-3 bg-beatwap-gold rounded-full border border-[#121212]" />
+                      <div className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-beatwap-gold text-black text-[10px] font-bold rounded-full border border-[#121212] flex items-center justify-center">
+                        {chat.unreadCount}
+                      </div>
                     )}
                   </div>
                   <div className="flex-1 overflow-hidden">
@@ -1224,12 +1226,7 @@ export const ChatWindow = ({ currentUserId }) => {
                </div>
              )}
              <div ref={messagesEndRef} />
-             {showNewMessageToast && (
-               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-beatwap-gold text-black text-xs font-bold px-3 py-2 rounded-full shadow">
-                 Novas mensagens
-                 <button className="ml-2 underline" onClick={scrollToBottom}>Ver</button>
-               </div>
-             )}
+            {/* Badge de não lidas já aparece na lista; removido toast de novas mensagens */}
           </div>
         )}
           </>
