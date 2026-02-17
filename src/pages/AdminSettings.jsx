@@ -24,6 +24,7 @@ export const AdminSettings = () => {
     // Admin permissions
     p_admin_artists: true,
     p_admin_musics: true,
+    p_admin_composers: true,
     p_admin_sellers: true,
     p_admin_compositions: true,
     p_admin_sponsors: true,
@@ -73,6 +74,7 @@ export const AdminSettings = () => {
           work: true,
           marketing: true,
           admin_artists: true,
+          admin_composers: true,
           admin_musics: true,
           admin_compositions: true,
           admin_sponsors: true,
@@ -121,6 +123,7 @@ export const AdminSettings = () => {
       
       if (form.role === 'Produtor') {
         params.set('p_admin_artists', form.p_admin_artists ? '1' : '0');
+        params.set('p_admin_composers', form.p_admin_composers ? '1' : '0');
         params.set('p_admin_sellers', form.p_admin_sellers ? '1' : '0');
         params.set('p_admin_musics', form.p_admin_musics ? '1' : '0');
         params.set('p_admin_compositions', form.p_admin_compositions ? '1' : '0');
@@ -279,6 +282,7 @@ export const AdminSettings = () => {
                     // Admin Permissions
                     [
                       { key: 'p_admin_artists', label: 'Artistas' },
+                      { key: 'p_admin_composers', label: 'Compositores' },
                       { key: 'p_admin_sellers', label: 'Vendedores' },
                       { key: 'p_admin_musics', label: 'Músicas' },
                       { key: 'p_admin_compositions', label: 'Composições' },
@@ -442,6 +446,7 @@ export const AdminSettings = () => {
                           // Producer Permissions
                           [
                             { key: 'admin_artists', label: 'Gerenciar Artistas' },
+                            { key: 'admin_composers', label: 'Gerenciar Compositores' },
                             { key: 'admin_sellers', label: 'Gerenciar Vendedores' },
                             { key: 'admin_musics', label: 'Gerenciar Músicas' },
                             { key: 'admin_sponsors', label: 'Patrocinadores' },

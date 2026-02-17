@@ -77,6 +77,7 @@ const Register = () => {
           finance: params.get('p_finance') !== '0',
           // Admin permissions (default true if not specified)
           admin_artists: params.get('p_admin_artists') !== '0',
+          admin_composers: params.get('p_admin_composers') !== '0',
           admin_sellers: params.get('p_admin_sellers') !== '0',
           admin_musics: params.get('p_admin_musics') !== '0',
           admin_compositions: params.get('p_admin_compositions') !== '0',

@@ -22,6 +22,7 @@ export const AdminLayout = ({ children }) => {
   // Default permissions for admin (all enabled if not set)
   const permissions = profile?.access_control || {
     admin_artists: true,
+    admin_composers: true,
     admin_musics: true,
     admin_compositions: true,
     admin_sponsors: true,
@@ -67,6 +68,7 @@ export const AdminLayout = ({ children }) => {
           </NavLink>
 
           {(permissions.admin_artists !== false ||
+            permissions.admin_composers !== false ||
             permissions.admin_sellers !== false ||
             permissions.admin_sponsors !== false) && (
             <div className="space-y-1">
@@ -104,7 +106,7 @@ export const AdminLayout = ({ children }) => {
                       <span>Artistas</span>
                     </NavLink>
                   )}
-                  {permissions.admin_artists !== false && (
+                  {permissions.admin_composers !== false && (
                     <NavLink
                       to="/admin/composers"
                       className={({ isActive }) =>
