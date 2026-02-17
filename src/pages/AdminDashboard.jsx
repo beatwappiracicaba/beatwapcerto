@@ -254,13 +254,15 @@ export const AdminArtists = () => {
     const { data } = await supabase
       .from('profiles')
       .select('id, nome, nome_completo_razao_social, avatar_url, cargo')
-      .in('cargo', ['Artista', 'Compositor']);
+      .eq('cargo', 'Artista');
       
-    const decryptedArtists = (data || []).map(artist => ({
-      ...artist,
-      nome_completo_razao_social: decryptData(artist.nome_completo_razao_social),
-      nome: decryptData(artist.nome)
-    }));
+    const decryptedArtists = (data || [])
+      .filter(a => a.cargo === 'Artista')
+      .map(artist => ({
+        ...artist,
+        nome_completo_razao_social: decryptData(artist.nome_completo_razao_social),
+        nome: decryptData(artist.nome)
+      }));
     
     setArtists(decryptedArtists);
   }, []);
