@@ -30,7 +30,7 @@ export const AIChatView = () => {
     {
       id: 'welcome',
       role: 'assistant',
-      content: 'Sou o Assistente de Composição da BeatWap. Mestre em Sertanejo, Pagode e MPB. Posso criar letras com estrutura (verso/pré/refrão/ponte), tom e andamento. No Sertanejo, inspiro-me em Marília Mendonça, Henrique & Juliano, Zé Neto & Cristiano, Gusttavo Lima, Luan Pereira e Ana Castela, sem copiar. Qual tema quer trabalhar?',
+      content: 'Sou o Assistente de IA da BeatWap. Especialista em composições nos estilos Sertanejo, Pagode e MPB. Organizo respostas com títulos e seções para facilitar leitura. No Sertanejo me inspiro em Marília Mendonça, Henrique & Juliano, Zé Neto & Cristiano, Gusttavo Lima, Luan Pereira e Ana Castela, sem copiar. Qual tema quer trabalhar?',
       timestamp: new Date()
     }
   ]);
@@ -89,7 +89,25 @@ export const AIChatView = () => {
 
     try {
       // Prepare history for API (exclude IDs and timestamps)
-      const apiHistory = [...messages, userMessage].map(m => ({
+      const systemMsg = {
+        role: 'system',
+        content: [
+          'Responda em Português com formatação organizada.',
+          'Estruture sempre com títulos e seções claras.',
+          'Para composições, use o formato:',
+          'Título',
+          'Tom e Andamento',
+          'Estrutura',
+          'Letra',
+          'Verso 1',
+          'Pré-refrão',
+          'Refrão',
+          'Verso 2',
+          'Ponte',
+          'Evite blocos de texto longos e separe por linhas.'
+        ].join('\\n')
+      };
+      const apiHistory = [systemMsg, ...messages, userMessage].map(m => ({
         role: m.role,
         content: m.content
       }));
@@ -153,7 +171,7 @@ export const AIChatView = () => {
                     ? 'bg-red-500/10 border border-red-500/20 text-red-200 rounded-tl-none'
                     : 'bg-[#1E1E1E] border border-white/5 text-gray-200 rounded-tl-none shadow-md'
               }`}>
-                <div className="whitespace-pre-wrap">{msg.content}</div>
+                <MessageContent content={msg.content} />
                 <div className={`text-[10px] mt-1 ${msg.role === 'user' ? 'text-white/40 text-right' : 'text-gray-600'}`}>
                   {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
@@ -225,6 +243,71 @@ export const AIChatView = () => {
           <span>IA da BeatWap (Powered by ChatGPT)</span>
         </div>
       </div>
+    </div>
+  );
+};
+
+const MessageContent = ({ content }) => {
+  const lines = String(content || '').split('\n');
+  const blocks = [];
+  let list = null;
+  for (let raw of lines) {
+    const line = raw.trim();
+    if (!line) {
+      if (list && list.length) {
+        blocks.push({ type: 'ul', items: [...list] });
+        list = null;
+      } else {
+        blocks.push({ type: 'br' });
+      }
+      continue;
+    }
+    if (/^#{1,6}\s+/.test(line) || /^t[ií]tulo\s*:?/i.test(line)) {
+      if (list && list.length) {
+        blocks.push({ type: 'ul', items: [...list] });
+        list = null;
+      }
+      const text = line.replace(/^#{1,6}\s+/, '').replace(/^t[ií]tulo\s*:?/i, '').trim();
+      blocks.push({ type: 'h', text });
+      continue;
+    }
+    if (/^[-*]\s+/.test(line) || /^\d+\.\s+/.test(line)) {
+      if (!list) list = [];
+      list.push(line.replace(/^[-*]\s+/, '').replace(/^\d+\.\s+/, ''));
+      continue;
+    }
+    if (list && list.length) {
+      blocks.push({ type: 'ul', items: [...list] });
+      list = null;
+    }
+    blocks.push({ type: 'p', text: line });
+  }
+  if (list && list.length) {
+    blocks.push({ type: 'ul', items: [...list] });
+  }
+  let firstTextIndex = blocks.findIndex(b => b.type === 'h' || b.type === 'p');
+  return (
+    <div className="space-y-2">
+      {blocks.map((b, idx) => {
+        if (b.type === 'h') {
+          return <div key={idx} className="text-white font-bold text-base">{b.text}</div>;
+        }
+        if (b.type === 'p') {
+          const isTitle = idx === firstTextIndex;
+          return <div key={idx} className={isTitle ? 'text-white font-bold' : 'text-gray-300'}>{b.text}</div>;
+        }
+        if (b.type === 'ul') {
+          return (
+            <ul key={idx} className="list-disc list-inside space-y-1 text-gray-300">
+              {b.items.map((it, i) => <li key={i}>{it}</li>)}
+            </ul>
+          );
+        }
+        if (b.type === 'br') {
+          return <div key={idx} className="h-2" />;
+        }
+        return null;
+      })}
     </div>
   );
 };

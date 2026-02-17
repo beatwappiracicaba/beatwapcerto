@@ -353,7 +353,7 @@ export const ChatWindow = ({ currentUserId }) => {
                 {activeTab === 'ai' ? (
                   <>
                     <Bot size={18} className="text-beatwap-gold" />
-                    <span>Assistente IA • Composição</span>
+                    <span>Assistente de IA</span>
                   </>
                 ) : (
                   mode === 'chat' 
@@ -457,7 +457,7 @@ export const ChatWindow = ({ currentUserId }) => {
             }`}
           >
             <Bot size={16} />
-            Assistente IA • Composição
+            Assistente de IA
             {activeTab === 'ai' && (
               <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-beatwap-gold" />
             )}
