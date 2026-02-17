@@ -26,6 +26,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     authorization_file: null,
     cover_file: null,
     audio_file: null,
+    audio_files: [],
     is_album: false,
     beatwap_feat_artist_ids: [],
     is_beatwap_composer_partner: false,
@@ -228,7 +229,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       const { count } = await q;
       const used = Number(count || 0);
       const remaining = Math.max(0, base + bonus - used);
-      const needed = formData.is_album ? formData.audio_files.length : 1;
+      const needed = formData.is_album ? (formData.tracks ? formData.tracks.length : 0) : 1;
       
       // Admins bypass quota check? Or enforce? Let's enforce for now to match "same functionality", but maybe add a bypass if needed.
       // For now, let's keep it enforced as it checks the *artist's* quota.
