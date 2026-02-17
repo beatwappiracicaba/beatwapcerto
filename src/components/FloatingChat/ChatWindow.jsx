@@ -91,6 +91,29 @@ export const ChatWindow = ({ currentUserId }) => {
     scrollToBottom();
   }, [chats, activeChatId, isOpen, mode]);
 
+  // Realtime específico do chat ativo (reforço local ao provider)
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'chat' || mode !== 'chat' || !activeChatId) return;
+    const channel = supabase
+      .channel(`chat-realtime:${activeChatId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `chat_id=eq.${activeChatId}`
+      }, (payload) => {
+        const nova = payload.new;
+        const exists = (activeChat?.messages || []).some(m => m.id === nova.id);
+        if (!exists) {
+          fetchChats();
+        }
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isOpen, activeTab, mode, activeChatId, activeChat?.messages?.length, fetchChats]);
+
   const handleInputChange = (e) => {
     const value = e.target.value;
     setInputText(value);

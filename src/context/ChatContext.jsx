@@ -229,10 +229,7 @@ export const ChatProvider = ({ children }) => {
       // I will check if a chat exists between these two to avoid spamming 100 chats for same pair.
       
       // First, find if we already have a chat with this user
-      const existing = chats.find(c => {
-         const otherId = c.participantIds?.find(id => id !== user.id) || c.artistId;
-         return otherId === request.requester_id;
-      });
+      const existing = chats.find(c => Array.isArray(c.participantIds) && c.participantIds.includes(user.id) && c.participantIds.includes(request.requester_id));
       
       if (existing) {
         setActiveChatId(existing.id);
@@ -608,7 +605,7 @@ export const ChatProvider = ({ children }) => {
 
   const createChat = async (artistId) => {
     // Check if exists in local state first
-    const existing = chats.find(c => c.artistId === artistId);
+    const existing = chats.find(c => Array.isArray(c.participantIds) && c.participantIds.includes(user.id) && c.participantIds.includes(artistId));
     if (existing) return existing.id;
 
     try {
@@ -628,6 +625,8 @@ export const ChatProvider = ({ children }) => {
         .from('chats')
         .select('id')
         .contains('participant_ids', [artistId])
+        .contains('participant_ids', [user.id])
+        .order('created_at', { ascending: false })
         .maybeSingle();
 
       if (existingDb) return existingDb.id;
