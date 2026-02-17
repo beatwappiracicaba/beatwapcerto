@@ -239,8 +239,8 @@ export const ChatWindow = ({ currentUserId }) => {
     }
     const success = await requestSupport(pendingRequestRole, { summary: requestSummary });
     if (success) {
-      alert('Solicitação enviada! Aguarde um atendimento.');
-      setMode('list');
+      setMode('chat');
+      setActiveChatId(null);
       setPendingRequestRole(null);
       setRequestSummary('');
     }
@@ -463,26 +463,35 @@ export const ChatWindow = ({ currentUserId }) => {
               </>
             )}
             
-            {activeTab === 'chat' && mode === 'chat' && (
-              <>
-                <button 
-                  onClick={async () => {
-                    if (window.confirm('Finalizar e apagar esta conversa para todos?')) {
-                      try {
-                        await deleteChat(activeChatId);
-                        setActiveChatId(null);
-                        setMode('list');
-                      } catch (e) {
-                        console.error('Falha ao apagar conversa', e);
+            {activeTab === 'chat' && mode === 'chat' && userRole === 'Produtor' && (
+              <button 
+                onClick={async () => {
+                  if (!activeChatId || !activeChat) return;
+                  if (window.confirm('Finalizar e apagar esta conversa para todos?')) {
+                    try {
+                      const recipientId = Array.isArray(activeChat.participantIds)
+                        ? activeChat.participantIds.find(id => id !== currentUserId) || activeChat.artistId
+                        : activeChat.artistId;
+                      if (recipientId) {
+                        await sendNotification(
+                          recipientId,
+                          'Atendimento finalizado',
+                          'Sua mensagem foi finalizada. Conte com a equipe BeatWap.'
+                        );
                       }
+                      await deleteChat(activeChatId);
+                      setActiveChatId(null);
+                      setMode('list');
+                    } catch (e) {
+                      console.error('Falha ao apagar conversa', e);
                     }
-                  }} 
-                  className="text-red-400 hover:bg-red-500/10 p-1 rounded-full"
-                  title="Finalizar e Apagar"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </>
+                  }
+                }} 
+                className="text-red-400 hover:bg-red-500/10 p-1 rounded-full"
+                title="Finalizar e Apagar"
+              >
+                <Trash2 size={18} />
+              </button>
             )}
             <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white">
               <X size={20} />
@@ -1165,7 +1174,9 @@ export const ChatWindow = ({ currentUserId }) => {
             {!activeChat?.messages?.length ? (
                <div className="flex flex-col items-center justify-center h-full text-gray-500 mt-20 text-center">
                  <MessageCircle size={40} className="mb-2 opacity-20" />
-                 <p className="text-sm">Escreva o que precisa e espere alguém responder.</p>
+                 <p className="text-sm">
+                   Sua solicitação foi enviada. Escreva o que precisa e aguarde um produtor responder.
+                 </p>
                </div>
              ) : (
                activeChat.messages.map(msg => (

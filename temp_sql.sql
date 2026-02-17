@@ -1,4 +1,4 @@
-﻿
+
 -- 1. Fix RLS for Support Queue (Allow Producers/Sellers to view/pick requests)
 DROP POLICY IF EXISTS "Producers/Sellers can view support queue" ON public.support_queue;
 CREATE POLICY "Staff can view support queue" 
@@ -49,7 +49,6 @@ USING (
   (expires_at IS NULL OR expires_at > now())
 );
 
--- Trigger to create notification on new message
 CREATE OR REPLACE FUNCTION public.handle_new_message_notification()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -58,12 +57,17 @@ DECLARE
   sender_name TEXT;
   p_role TEXT;
 BEGIN
+  -- Only notify for initial request messages in support chats
+  IF NEW.metadata IS NULL OR (NEW.metadata->>'type') IS DISTINCT FROM 'initial_request' THEN
+    RETURN NEW;
+  END IF;
+
   -- Get chat participants
   SELECT participant_ids INTO chat_participants FROM public.chats WHERE id = NEW.chat_id;
   
   -- Get sender name
   SELECT nome INTO sender_name FROM public.profiles WHERE id = NEW.sender_id;
-  IF sender_name IS NULL THEN sender_name := 'UsuÃ¡rio'; END IF;
+  IF sender_name IS NULL THEN sender_name := 'Usuário'; END IF;
 
   -- Notify all other participants
   FOREACH recipient IN ARRAY chat_participants
@@ -80,9 +84,9 @@ BEGIN
         metadata
       ) VALUES (
         recipient, 
-        'Nova mensagem de ' || sender_name, 
-        CASE WHEN length(NEW.content) > 50 THEN substring(NEW.content from 1 for 50) || '...' ELSE NEW.content END,
-        '/chat', -- or specific chat link
+        'Novo chamado de suporte', 
+        'Você tem um novo chamado no chat da BeatWap.',
+        '/chat',
         'chat_message',
         now() + interval '24 hours',
         jsonb_build_object('chat_id', NEW.chat_id, 'sender_id', NEW.sender_id)

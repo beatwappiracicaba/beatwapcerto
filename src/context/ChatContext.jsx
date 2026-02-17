@@ -217,55 +217,73 @@ export const ChatProvider = ({ children }) => {
 
   const pickSupportRequest = async (request) => {
     try {
-      // Create a new chat for this request
       const participant_ids = [user.id, request.requester_id];
-      
-      // Check if chat already exists for these participants (optional, but requested behavior is "separate chat")
-      // "vários vendedores pode pegar... abrindo uma chat separado para cada um" implies unique per pair.
-      // So if I already have a chat with this person, should I open it or create new?
-      // "abrindo uma chat separado" usually means a NEW chat. But usually 1:1 chat is unique per pair.
-      // I will check if a chat exists between these two to avoid spamming 100 chats for same pair.
-      
-      // First, find if we already have a chat with this user
-      const existing = chats.find(c => Array.isArray(c.participantIds) && c.participantIds.includes(user.id) && c.participantIds.includes(request.requester_id));
-      
+      const requesterId = request.requester_id;
+      const myName = profile?.nome || profile?.nome_completo_razao_social || 'Produtor';
+
+      const existing = chats.find(
+        c =>
+          Array.isArray(c.participantIds) &&
+          c.participantIds.includes(user.id) &&
+          c.participantIds.includes(requesterId)
+      );
+
       if (existing) {
         setActiveChatId(existing.id);
         setIsOpen(true);
         return existing.id;
       }
 
-      const { data, error } = await supabase
+      const { data: existingDb } = await supabase
         .from('chats')
-        .insert({
-          participant_ids,
-          owner_id: request.requester_id, // The one who asked for help
-          type: 'support',
-          metadata: { original_request_id: request.id, ...request.metadata }
-        })
-        .select()
-        .single();
+        .select('id')
+        .contains('participant_ids', [user.id])
+        .contains('participant_ids', [requesterId])
+        .order('created_at', { ascending: false })
+        .maybeSingle();
 
-      if (error) throw error;
-      
-      // Insert initial message from summary if exists so the context is preserved
+      let chatId;
+
+      if (existingDb) {
+        chatId = existingDb.id;
+      } else {
+        const { data, error } = await supabase
+          .from('chats')
+          .insert({
+            participant_ids,
+            owner_id: requesterId,
+            type: 'support',
+            metadata: { original_request_id: request.id, ...request.metadata }
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        chatId = data.id;
+      }
+
       if (request.metadata?.summary) {
         await supabase.from('messages').insert({
-          chat_id: data.id,
-          sender_id: request.requester_id, // The requester sent this message
+          chat_id: chatId,
+          sender_id: user.id,
+          receiver_id: requesterId,
           content: request.metadata.summary,
-          metadata: { type: 'initial_request', ...request.metadata }
+          metadata: { type: 'initial_request', ...request.metadata, sender_cargo: profile?.cargo || null }
         });
       }
 
+      await supabase.from('messages').insert({
+        chat_id: chatId,
+        sender_id: user.id,
+        receiver_id: requesterId,
+        content: `${myName} iniciou seu atendimento.`,
+        metadata: { type: 'assignment_notice', sender_cargo: profile?.cargo || null }
+      });
+
       await fetchChats();
-      setActiveChatId(data.id);
+      setActiveChatId(chatId);
       setIsOpen(true);
-      
-      // Delete the request from queue immediately after picking it
-      // Use RPC if possible, or simple delete.
-      // We will loop to ensure deletion if RLS allows
-      
+
       const { error: deleteError } = await supabase
         .from('support_queue')
         .delete()
@@ -273,16 +291,13 @@ export const ChatProvider = ({ children }) => {
         
       if (deleteError) {
         console.error('Error deleting request from queue (first attempt):', deleteError);
-        // Retry once more or log critical error
       } else {
-        // Force local update immediately
         setSupportQueue(prev => prev.filter(r => r.id !== request.id));
       }
       
-      // Refresh queue (realtime might handle this, but to be safe)
       fetchQueue();
 
-      return data.id;
+      return chatId;
     } catch (error) {
       console.error('Error picking request:', error);
       return null;
