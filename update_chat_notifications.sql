@@ -38,6 +38,7 @@ USING (
 -- 3. Notification System Improvements
 ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE;
 ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
 -- Update existing notifications to be persistent if not set
 UPDATE public.notifications SET expires_at = NULL WHERE expires_at IS NULL;
@@ -50,6 +51,10 @@ USING (
   auth.uid() = recipient_id AND 
   (expires_at IS NULL OR expires_at > now())
 );
+
+-- Ensure trigger and function are clean before recreate
+DROP TRIGGER IF EXISTS on_new_message_notification ON public.messages;
+DROP FUNCTION IF EXISTS public.handle_new_message_notification();
 
 CREATE OR REPLACE FUNCTION public.handle_new_message_notification()
 RETURNS TRIGGER AS $$
