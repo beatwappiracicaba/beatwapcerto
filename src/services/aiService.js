@@ -1,7 +1,6 @@
 import { supabase } from './supabaseClient';
 
 export const aiService = {
-  // Save message to Supabase
   async saveMessage(role, content) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -28,7 +27,6 @@ export const aiService = {
     }
   },
 
-  // Get chat history
   async getHistory() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -52,6 +50,30 @@ export const aiService = {
     } catch (error) {
       console.error('Error fetching history:', error);
       return [];
+    }
+  },
+
+  async clearHistory() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return false;
+
+      const { error } = await supabase
+        .from('ai_chat_messages')
+        .delete()
+        .eq('user_id', session.user.id);
+
+      if (error) {
+        if (error.code === '42P01') {
+          console.warn('AI Chat History table missing. Nothing to clear.');
+          return false;
+        }
+        throw error;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error clearing history:', error);
+      return false;
     }
   },
 

@@ -3,37 +3,39 @@ import { motion } from 'framer-motion';
 import { Send, Bot, User, Sparkles } from 'lucide-react';
 import { aiService } from '../../services/aiService';
 
+const PRESET_BUTTONS = [
+  {
+    label: 'Sofrência',
+    text:
+      'Crie uma letra de sofrência sertaneja com verso, pré-refrão, refrão e ponte. Tema: coração partido após término; tom emotivo e melódico; andamento moderado.',
+  },
+  {
+    label: 'Modão romântico',
+    text:
+      'Escreva um modão romântico sertanejo com verso, pré-refrão, refrão e ponte. Tema: declaração apaixonada; tom caloroso; andamento médio.',
+  },
+  {
+    label: 'Pagode leve',
+    text:
+      'Componha um pagode leve com verso, refrão e ponte. Tema: encontro descontraído com amigos; tom alegre; andamento cadenciado.',
+  },
+  {
+    label: 'MPB lírica',
+    text:
+      'Crie uma canção MPB lírica com imagens poéticas: verso, refrão e ponte. Tema: saudade e cidade à noite; tom intimista; andamento lento.',
+  },
+];
+
+const createWelcomeMessage = () => ({
+  id: 'welcome',
+  role: 'assistant',
+  content:
+    'Sou o Assistente de IA da BeatWap. Especialista em composições nos estilos Sertanejo, Pagode e MPB. Organizo respostas com títulos e seções para facilitar leitura. No Sertanejo me inspiro em Marília Mendonça, Henrique & Juliano, Zé Neto & Cristiano, Gusttavo Lima, Luan Pereira e Ana Castela, sem copiar. Qual tema quer trabalhar?',
+  timestamp: new Date(),
+});
+
 export const AIChatView = () => {
-  const PRESET_BUTTONS = [
-    {
-      label: 'Sofrência',
-      text:
-        'Crie uma letra de sofrência sertaneja com verso, pré-refrão, refrão e ponte. Tema: coração partido após término; tom emotivo e melódico; andamento moderado.',
-    },
-    {
-      label: 'Modão romântico',
-      text:
-        'Escreva um modão romântico sertanejo com verso, pré-refrão, refrão e ponte. Tema: declaração apaixonada; tom caloroso; andamento médio.',
-    },
-    {
-      label: 'Pagode leve',
-      text:
-        'Componha um pagode leve com verso, refrão e ponte. Tema: encontro descontraído com amigos; tom alegre; andamento cadenciado.',
-    },
-    {
-      label: 'MPB lírica',
-      text:
-        'Crie uma canção MPB lírica com imagens poéticas: verso, refrão e ponte. Tema: saudade e cidade à noite; tom intimista; andamento lento.',
-    },
-  ];
-  const [messages, setMessages] = useState([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content: 'Sou o Assistente de IA da BeatWap. Especialista em composições nos estilos Sertanejo, Pagode e MPB. Organizo respostas com títulos e seções para facilitar leitura. No Sertanejo me inspiro em Marília Mendonça, Henrique & Juliano, Zé Neto & Cristiano, Gusttavo Lima, Luan Pereira e Ana Castela, sem copiar. Qual tema quer trabalhar?',
-      timestamp: new Date()
-    }
-  ]);
+  const [messages, setMessages] = useState([createWelcomeMessage()]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
@@ -47,12 +49,10 @@ export const AIChatView = () => {
     scrollToBottom();
   }, [messages, isLoading]);
 
-  // Focus input on mount
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // Load history on mount
   useEffect(() => {
     const loadHistory = async () => {
       const history = await aiService.getHistory();
@@ -152,6 +152,22 @@ export const AIChatView = () => {
     }
   };
 
+  const handleReset = async () => {
+    if (isLoading) return;
+    const confirmed = window.confirm('Tem certeza que deseja apagar todas as mensagens do Assistente de IA?');
+    if (!confirmed) return;
+    setIsLoading(true);
+    try {
+      await aiService.clearHistory();
+      setMessages([createWelcomeMessage()]);
+      setInputText('');
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#121212]">
       {/* Messages Area */}
@@ -230,6 +246,16 @@ export const AIChatView = () => {
               </span>
             </button>
           ))}
+        </div>
+        <div className="flex justify-end mb-2">
+          <button
+            type="button"
+            onClick={handleReset}
+            disabled={isLoading}
+            className="text-[11px] text-red-400 hover:text-red-300 disabled:opacity-50"
+          >
+            Resetar chat
+          </button>
         </div>
         <form onSubmit={handleSend} className="relative flex items-center gap-2">
           <input
