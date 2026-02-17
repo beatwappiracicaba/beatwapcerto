@@ -17,6 +17,7 @@ import { GalleryManager } from '../components/profile/GalleryManager';
 import { ProfileEditModal } from '../components/ui/ProfileEditModal';
 import { MusicEditModal } from '../components/admin/MusicEditModal';
 import { MarketingManager } from '../components/admin/MarketingManager';
+import { CompositionsUploadModal } from '../components/artist/CompositionsUploadModal';
 import { useData } from '../context/DataContext';
 import { buildDistributionContractHTML } from '../utils/contractTemplate';
 import JSZip from 'jszip';
@@ -1265,6 +1266,218 @@ export const AdminMusics = () => {
           onSuccess={load} 
         />
       </Card>
+    </AdminLayout>
+  );
+};
+
+export const AdminComposers = () => {
+  const [composers, setComposers] = useState([]);
+  const [selectedComposer, setSelectedComposer] = useState(null);
+  const [searchName, setSearchName] = useState('');
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [planForm, setPlanForm] = useState({ plano: 'Avulso', bonus_quota: 0, plan_started_at: '' });
+  const [internalMetrics, setInternalMetrics] = useState({ plays: 0, listeners: 0, time: 0 });
+  const { addToast } = useToast();
+  const load = useCallback(async () => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id,nome,nome_completo_razao_social,avatar_url,cargo,plano,bonus_quota,plan_started_at')
+      .eq('cargo', 'Compositor')
+      .order('nome', { ascending: true });
+    const mapped = (data || []).map(p => ({
+      ...p,
+      nome: decryptData(p.nome),
+      nome_completo_razao_social: decryptData(p.nome_completo_razao_social)
+    }));
+    setComposers(mapped);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const loadPlan = async () => {
+      if (!selectedComposer) {
+        setPlanForm({ plano: 'Avulso', bonus_quota: 0, plan_started_at: '' });
+        return;
+      }
+      const { data } = await supabase
+        .from('profiles')
+        .select('plano,bonus_quota,plan_started_at')
+        .eq('id', selectedComposer)
+        .maybeSingle();
+      setPlanForm({
+        plano: data?.plano || 'Avulso',
+        bonus_quota: Number(data?.bonus_quota || 0),
+        plan_started_at: data?.plan_started_at ? String(data.plan_started_at).slice(0, 10) : ''
+      });
+    };
+    loadPlan();
+  }, [selectedComposer]);
+  useEffect(() => {
+    const loadMetrics = async () => {
+      if (!selectedComposer) { setInternalMetrics({ plays: 0, listeners: 0, time: 0 }); return; }
+      const { data: ev } = await supabase
+        .from('analytics_events')
+        .select('type,duration_seconds,ip_hash')
+        .eq('artist_id', selectedComposer)
+        .in('type', ['music_play']);
+      let plays = 0;
+      let time = 0;
+      const ls = new Set();
+      (ev || []).forEach(e => {
+        if (e.type === 'music_play') {
+          plays += 1;
+          time += Number(e.duration_seconds || 0);
+          if (e.ip_hash) ls.add(e.ip_hash);
+        }
+      });
+      setInternalMetrics({ plays, listeners: ls.size, time });
+    };
+    loadMetrics();
+  }, [selectedComposer]);
+  const handleSaveProfile = async ({ name, bio, blob }) => {
+    try {
+      if (!selectedComposer) return;
+      let avatar_url = null;
+      if (blob) {
+        const fileName = `${selectedComposer}-${Date.now()}.jpg`;
+        const { data: uploadRes, error: uploadErr } = await supabase.storage.from('avatars').upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
+        if (uploadErr) throw uploadErr;
+        const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(uploadRes.path);
+        avatar_url = publicUrl.publicUrl;
+      }
+      const updateData = {};
+      if (name) updateData.nome = name;
+      if (bio) updateData.bio = bio;
+      if (avatar_url) updateData.avatar_url = avatar_url;
+      if (Object.keys(updateData).length) {
+        const { error } = await supabase.from('profiles').update(updateData).eq('id', selectedComposer);
+        if (error) throw error;
+      }
+      addToast('Perfil do compositor atualizado', 'success');
+      setIsProfileOpen(false);
+      load();
+    } catch {
+      addToast('Falha ao atualizar perfil do compositor', 'error');
+    }
+  };
+  const handleSavePlan = async () => {
+    if (!selectedComposer) { addToast('Selecione o compositor', 'error'); return; }
+    try {
+      const update = {
+        plano: planForm.plano,
+        bonus_quota: Number(planForm.bonus_quota || 0),
+      };
+      if (planForm.plan_started_at) update.plan_started_at = new Date(planForm.plan_started_at).toISOString();
+      const { error } = await supabase.from('profiles').update(update).eq('id', selectedComposer);
+      if (error) throw error;
+      addToast('Plano do compositor atualizado', 'success');
+    } catch {
+      addToast('Falha ao atualizar plano', 'error');
+    }
+  };
+  const filtered = (composers || []).filter(c => {
+    const term = searchName.toLowerCase();
+    const n1 = (c.nome || '').toLowerCase();
+    const n2 = (c.nome_completo_razao_social || '').toLowerCase();
+    return n1.includes(term) || n2.includes(term);
+  });
+  return (
+    <AdminLayout>
+      <Card className="space-y-4">
+        <div className="font-bold">Enviar músicas pelo compositor</div>
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+          <div className="w-full">
+            <AnimatedInput placeholder="Buscar compositor pelo nome" value={searchName} onChange={(e) => setSearchName(e.target.value)} />
+          </div>
+          <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-full md:w-auto flex-1" value={selectedComposer || ''} onChange={(e) => setSelectedComposer(e.target.value)}>
+            <option value="">Selecione o compositor</option>
+            {filtered.map(c => <option key={c.id} value={c.id}>{c.nome || c.nome_completo_razao_social || 'Sem nome'}</option>)}
+          </select>
+          <AnimatedButton onClick={() => setIsUploadOpen(true)} className="w-full md:w-auto whitespace-nowrap">Enviar Composição</AnimatedButton>
+        </div>
+      </Card>
+      <Card className="space-y-4">
+        <div className="font-bold">Gerenciar perfil do compositor</div>
+        {selectedComposer && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-beatwap-gold/10 via-white/5 to-black/40 p-4">
+            <div className="absolute -top-20 -right-24 w-72 h-72 rounded-full bg-beatwap-gold/10 blur-3xl pointer-events-none" />
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl overflow-hidden ring-2 ring-beatwap-gold/60 border border-white/10 bg-black/30 flex items-center justify-center">
+                {(composers.find(a => a.id === selectedComposer)?.avatar_url) ? (
+                  <img src={composers.find(a => a.id === selectedComposer)?.avatar_url} alt="Compositor" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-lg font-extrabold text-beatwap-gold">
+                    {((composers.find(a => a.id === selectedComposer)?.nome || composers.find(a => a.id === selectedComposer)?.nome_completo_razao_social || 'C') || 'C')[0].toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xl font-extrabold text-white truncate">
+                  {composers.find(a => a.id === selectedComposer)?.nome || composers.find(a => a.id === selectedComposer)?.nome_completo_razao_social || 'Compositor'}
+                </div>
+                <div className="text-xs text-gray-400">Selecionado</div>
+              </div>
+              <div className="flex gap-2">
+                <AnimatedButton onClick={() => setIsProfileOpen(true)}>Editar Perfil</AnimatedButton>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+              <Card>
+                <div className="text-xs text-gray-400">Plays Internos</div>
+                <div className="text-2xl font-bold">{internalMetrics.plays}</div>
+              </Card>
+              <Card>
+                <div className="text-xs text-gray-400">Ouvintes</div>
+                <div className="text-2xl font-bold">{internalMetrics.listeners}</div>
+              </Card>
+              <Card>
+                <div className="text-xs text-gray-400">Tempo Ouvido</div>
+                <div className="text-2xl font-bold">
+                  {(() => {
+                    const s = internalMetrics.time || 0;
+                    const h = Math.floor(s / 3600);
+                    const m = Math.floor((s % 3600) / 60);
+                    return `${h}h ${m}m`;
+                  })()}
+                </div>
+              </Card>
+            </div>
+          </motion.div>
+        )}
+      </Card>
+      <Card className="space-y-4">
+        <div className="font-bold">Plano do compositor</div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={planForm.plano} onChange={(e) => setPlanForm({ ...planForm, plano: e.target.value })}>
+            <option value="Avulso">Avulso</option>
+            <option value="Mensal">Mensal</option>
+            <option value="Anual">Anual</option>
+            <option value="Vitalicio">Vitalicio</option>
+          </select>
+          <AnimatedInput placeholder="Envios extras (bonus_quota)" type="number" value={planForm.bonus_quota} onChange={(e) => setPlanForm({ ...planForm, bonus_quota: e.target.value })} />
+          <AnimatedInput placeholder="Início do plano" type="date" value={planForm.plan_started_at} onChange={(e) => setPlanForm({ ...planForm, plan_started_at: e.target.value })} />
+          <AnimatedButton onClick={handleSavePlan}>Salvar Plano</AnimatedButton>
+        </div>
+      </Card>
+      {isProfileOpen && (
+        <ProfileEditModal
+          isOpen={isProfileOpen}
+          onClose={() => setIsProfileOpen(false)}
+          currentAvatar={(composers.find(a => a.id === selectedComposer)?.avatar_url) || null}
+          currentName={(composers.find(a => a.id === selectedComposer)?.nome) || ''}
+          currentBio={(composers.find(a => a.id === selectedComposer)?.bio) || ''}
+          onSave={handleSaveProfile}
+          uploading={false}
+        />
+      )}
+      {isUploadOpen && (
+        <CompositionsUploadModal
+          isOpen={isUploadOpen}
+          onClose={() => setIsUploadOpen(false)}
+          onSuccess={() => setIsUploadOpen(false)}
+          composerId={selectedComposer}
+        />
+      )}
     </AdminLayout>
   );
 };

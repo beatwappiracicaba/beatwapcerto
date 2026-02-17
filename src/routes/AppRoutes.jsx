@@ -23,7 +23,7 @@ import { DashboardArtistHome, DashboardArtistMusics, DashboardArtistChat } from 
 import { DashboardMarketing } from '../pages/DashboardMarketing';
 import DashboardWork from '../pages/DashboardWork';
 import { DashboardArtistProfile } from '../pages/DashboardArtistProfile';
-import { AdminHome, AdminArtists, AdminMusics, AdminChat, AdminProfile } from '../pages/AdminDashboard';
+import { AdminHome, AdminArtists, AdminComposers, AdminMusics, AdminChat, AdminProfile } from '../pages/AdminDashboard';
 import { AdminSellers } from '../pages/AdminSellers';
 import { AdminFinance } from '../pages/AdminFinance';
 import { AdminCompositions } from '../pages/AdminCompositions';
@@ -92,6 +92,7 @@ export const AppRoutes = () => {
         <Route path="/admin" element={isProdutor ? <AdminHome /> : (loading ? <SplashScreen onComplete={() => {}} /> : <Navigate to="/" replace />)} />
         <Route path="/admin/profile" element={isProdutor ? <AdminProfile /> : <Navigate to="/" replace />} />
         <Route path="/admin/artists" element={isProdutor ? <AdminArtists /> : <Navigate to="/" replace />} />
+        <Route path="/admin/composers" element={isProdutor ? <AdminComposers /> : <Navigate to="/" replace />} />
         <Route path="/admin/sellers" element={isProdutor ? <AdminSellers /> : <Navigate to="/" replace />} />
         <Route path="/admin/finance" element={isProdutor ? <AdminFinance /> : <Navigate to="/" replace />} />
         <Route path="/admin/musics" element={isProdutor ? <AdminMusics /> : <Navigate to="/" replace />} />

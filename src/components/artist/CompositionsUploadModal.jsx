@@ -7,7 +7,7 @@ import { AnimatedInput } from '../ui/AnimatedInput';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
-export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess }) => {
+export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId = null }) => {
   const { user, profile } = useAuth();
   const { addToast } = useToast();
 
@@ -66,7 +66,8 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess }) => {
 
   const uploadFile = async (file, bucket) => {
     const fileExt = file.name.split('.').pop();
-    const fileName = `compositions/${user.id}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const ownerId = composerId || user.id;
+    const fileName = `compositions/${ownerId}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
     const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, file, { upsert: true });
     if (uploadError) throw uploadError;
     
@@ -94,8 +95,9 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess }) => {
       ];
       const [coverUrl, audioUrl] = await Promise.all(uploads);
 
+      const ownerId = composerId || user.id;
       const { error } = await supabase.from('compositions').insert({
-        composer_id: user.id,
+        composer_id: ownerId,
         title: formData.title,
         genre: formData.genre,
         description: formData.description,

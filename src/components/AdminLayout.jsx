@@ -41,6 +41,11 @@ export const AdminLayout = ({ children }) => {
               <Users size={18} /> Artistas
             </NavLink>
           )}
+          {permissions.admin_artists !== false && (
+            <NavLink to="/admin/composers" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
+              <Users size={18} /> Compositores
+            </NavLink>
+          )}
 
           {permissions.admin_sellers !== false && (
             <NavLink to="/admin/sellers" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
