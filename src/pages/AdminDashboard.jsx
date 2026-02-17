@@ -803,13 +803,6 @@ export const AdminArtists = () => {
             </div>
           </motion.div>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <AnimatedInput placeholder="Plays" value={metricsForm.plays} onChange={(e) => setMetricsForm({ ...metricsForm, plays: e.target.value })} />
-          <AnimatedInput placeholder="Listeners" value={metricsForm.listeners} onChange={(e) => setMetricsForm({ ...metricsForm, listeners: e.target.value })} />
-          <AnimatedInput placeholder="Receita" value={metricsForm.revenue} onChange={(e) => setMetricsForm({ ...metricsForm, revenue: e.target.value })} />
-          <AnimatedInput placeholder="Crescimento" value={metricsForm.growth} onChange={(e) => setMetricsForm({ ...metricsForm, growth: e.target.value })} />
-        </div>
-        <AnimatedButton onClick={handleUpdateMetrics}>Salvar métricas</AnimatedButton>
         <div className="pt-6">
           <div className="font-bold mb-4">Gerenciar Métricas por Música (SomVibe/Plataformas)</div>
           

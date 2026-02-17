@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, MessageCircle, Instagram, Youtube, Video, Send } from 'lucide-react';
+import { Mail, MessageCircle, Send } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
 import { useToast } from '../../context/ToastContext';
@@ -61,20 +61,7 @@ const Contact = () => {
               </a>
             </div>
 
-            <div className="mt-10">
-              <h4 className="text-white font-bold mb-4">Redes Sociais</h4>
-              <div className="flex gap-4">
-                <a href="https://www.instagram.com/beatwap?igsh=eDZ4a3lvN3ZqOWNy" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-beatwap-gold hover:text-black transition-all" title="Instagram">
-                  <Instagram size={20} />
-                </a>
-                <a href="https://www.youtube.com/@beatwap019" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-red-600 hover:text-white transition-all" title="YouTube">
-                  <Youtube size={20} />
-                </a>
-                <a href="https://www.tiktok.com/@beatmusichits?_r=1&_t=ZS-92pn4DAMEw1" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-[#00f2ea] hover:text-black transition-all" title="TikTok">
-                  <Video size={20} />
-                </a>
-              </div>
-            </div>
+            
           </motion.div>
 
           {/* Form */}

@@ -12,6 +12,7 @@ export const MusicEditModal = ({ isOpen, onClose, music, onSuccess }) => {
   const [producers, setProducers] = useState([]);
   const [formData, setFormData] = useState({
     upc: '',
+    isrc: '',
     presave_link: '',
     release_date: '',
     is_beatwap_produced: false,
@@ -35,6 +36,7 @@ export const MusicEditModal = ({ isOpen, onClose, music, onSuccess }) => {
     if (music) {
       setFormData({
         upc: music.upc || '',
+        isrc: music.isrc || '',
         presave_link: music.presave_link || '',
         release_date: music.release_date || '',
         is_beatwap_produced: music.is_beatwap_produced || false,
@@ -56,6 +58,7 @@ export const MusicEditModal = ({ isOpen, onClose, music, onSuccess }) => {
         .from('musics')
         .update({
           upc: formData.upc,
+          isrc: formData.isrc || null,
           presave_link: formData.presave_link || null,
           release_date: formData.release_date || null,
           is_beatwap_produced: formData.is_beatwap_produced,
@@ -108,6 +111,17 @@ export const MusicEditModal = ({ isOpen, onClose, music, onSuccess }) => {
                   placeholder="Código UPC"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">ISRC</label>
+              <input
+                type="text"
+                value={formData.isrc}
+                onChange={(e) => setFormData(prev => ({ ...prev, isrc: e.target.value }))}
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-4 text-white focus:outline-none focus:border-beatwap-gold/50"
+                placeholder="Código ISRC"
+              />
             </div>
 
             <div>

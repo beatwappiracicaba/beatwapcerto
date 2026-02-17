@@ -274,7 +274,7 @@ export const DashboardArtistMusics = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('musics')
-      .select('id,titulo,status,motivo_recusa,created_at,cover_url,nome_artista,upc,presave_link')
+      .select('id,titulo,status,motivo_recusa,created_at,cover_url,nome_artista,upc,presave_link,release_date,isrc')
       .eq('artista_id', user.id)
       .order('created_at', { ascending: false });
     if (!error) setMusics(data || []);
@@ -463,17 +463,30 @@ export const DashboardArtistMusics = () => {
                 </div>
                 {m.status === 'aprovado' && (
                   <>
-                    {m.upc && (
-                      <div className="text-xs px-2 py-1 rounded-full bg-white/10 text-white whitespace-nowrap">
-                        <span>UPC: {m.upc}</span>
-                      </div>
-                    )}
+                    <div className="text-xs px-2 py-1 rounded-full bg-white/10 text-white whitespace-nowrap">
+                      <span>UPC: {m.upc || 'Pendente'}</span>
+                    </div>
+                    <div className="text-xs px-2 py-1 rounded-full bg-white/10 text-white whitespace-nowrap">
+                      <span>ISRC: {m.isrc || 'Pendente'}</span>
+                    </div>
                     {m.presave_link && (
                       <AnimatedButton 
                         onClick={() => navigator.clipboard.writeText(m.presave_link)}
                         className="w-full sm:w-auto justify-center"
                       >
-                        <span>Copiar Pré-save</span>
+                        <span>
+                          {(() => {
+                            if (!m.release_date) return 'Copiar Pré-save';
+                            try {
+                              const [y, mo, d] = String(m.release_date).split('-');
+                              const rDate = new Date(Number(y), Number(mo) - 1, Number(d));
+                              const today = new Date(); today.setHours(0,0,0,0);
+                              return rDate <= today ? 'Copiar Smartlink' : 'Copiar Pré-save';
+                            } catch {
+                              return 'Copiar Pré-save';
+                            }
+                          })()}
+                        </span>
                       </AnimatedButton>
                     )}
                   </>
