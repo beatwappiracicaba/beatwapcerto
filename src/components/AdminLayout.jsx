@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
-import { LayoutGrid, Users, Music, Menu, X, Settings, DollarSign } from 'lucide-react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { LayoutGrid, Users, Music, Menu, X, Settings, DollarSign, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { NotificationBell } from './notifications/NotificationBell';
 import { ProfileButton } from './ProfileButton';
@@ -11,6 +11,14 @@ export const AdminLayout = ({ children }) => {
   const { user, profile } = useAuth();
   const currentUserId = user?.id;
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [openSections, setOpenSections] = useState({
+    painel: true,
+    gestao: true,
+    catalogo: true,
+    financeiro: true,
+    sistema: true
+  });
+  const location = useLocation();
 
   // Default permissions for admin (all enabled if not set)
   const permissions = profile?.access_control || {
@@ -22,6 +30,20 @@ export const AdminLayout = ({ children }) => {
     admin_sellers: true
   };
 
+  const toggleSection = (key) => {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const painelActive = location.pathname === '/admin';
+  const gestaoActive = ['/admin/artists', '/admin/composers', '/admin/sellers', '/admin/sponsors'].some((p) =>
+    location.pathname.startsWith(p)
+  );
+  const catalogoActive = ['/admin/musics', '/admin/compositions'].some((p) =>
+    location.pathname.startsWith(p)
+  );
+  const financeiroActive = location.pathname.startsWith('/admin/finance');
+  const sistemaActive = location.pathname.startsWith('/admin/settings');
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-[#0b0b0b] to-[#161616] text-white flex">
       <aside className={`fixed md:static top-0 left-0 h-full md:h-auto w-64 p-6 space-y-4 border-r border-white/10 bg-black/95 backdrop-blur-md transition-transform md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} z-[60]`}>
@@ -31,56 +53,252 @@ export const AdminLayout = ({ children }) => {
         <button className="md:hidden absolute top-4 right-4 text-gray-400 hover:text-white" onClick={() => setSidebarOpen(false)}>
           <X size={20} />
         </button>
-        <nav className="space-y-2">
-          <NavLink to="/admin" end className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-            <LayoutGrid size={18} /> Visão Geral
-          </NavLink>
-          
-          {permissions.admin_artists !== false && (
-            <NavLink to="/admin/artists" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-              <Users size={18} /> Artistas
-            </NavLink>
-          )}
-          {permissions.admin_artists !== false && (
-            <NavLink to="/admin/composers" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-              <Users size={18} /> Compositores
-            </NavLink>
+        <nav className="space-y-4 text-sm">
+          <div className="space-y-1">
+            <button
+              type="button"
+              onClick={() => toggleSection('painel')}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-colors text-xs uppercase tracking-wide ${
+                painelActive ? 'bg-white/10 text-beatwap-gold' : 'text-gray-400 hover:bg-white/5'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <LayoutGrid size={16} />
+                <span>Painel</span>
+              </span>
+              <ChevronDown
+                size={14}
+                className={`transition-transform duration-200 ${openSections.painel ? 'rotate-180' : ''}`}
+              />
+            </button>
+            <div
+              className={`overflow-hidden transition-all duration-200 ${
+                openSections.painel ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'
+              }`}
+            >
+              <div className="mt-1 space-y-1">
+                <NavLink
+                  to="/admin"
+                  end
+                  className={({ isActive }) =>
+                    `flex items-center gap-2 px-4 py-2 rounded-xl transition-colors ${
+                      isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
+                    }`
+                  }
+                >
+                  <span>Painel</span>
+                </NavLink>
+              </div>
+            </div>
+          </div>
+
+          {(permissions.admin_artists !== false ||
+            permissions.admin_sellers !== false ||
+            permissions.admin_sponsors !== false) && (
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() => toggleSection('gestao')}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-colors ${
+                  gestaoActive ? 'bg-white/10 text-beatwap-gold' : 'text-gray-300 hover:bg-white/5'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <Users size={16} />
+                  <span>Gestão</span>
+                </span>
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform duration-200 ${openSections.gestao ? 'rotate-180' : ''}`}
+                />
+              </button>
+              <div
+                className={`overflow-hidden transition-all duration-200 ${
+                  openSections.gestao ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0'
+                }`}
+              >
+                <div className="mt-1 space-y-1">
+                  {permissions.admin_artists !== false && (
+                    <NavLink
+                      to="/admin/artists"
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
+                          isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
+                        }`
+                      }
+                    >
+                      <span>Artistas</span>
+                    </NavLink>
+                  )}
+                  {permissions.admin_artists !== false && (
+                    <NavLink
+                      to="/admin/composers"
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
+                          isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
+                        }`
+                      }
+                    >
+                      <span>Compositores</span>
+                    </NavLink>
+                  )}
+                  {permissions.admin_sellers !== false && (
+                    <NavLink
+                      to="/admin/sellers"
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
+                          isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
+                        }`
+                      }
+                    >
+                      <span>Vendedores</span>
+                    </NavLink>
+                  )}
+                  {permissions.admin_sponsors !== false && (
+                    <NavLink
+                      to="/admin/sponsors"
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
+                          isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
+                        }`
+                      }
+                    >
+                      <span>Patrocinadores / Parcerias</span>
+                    </NavLink>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
 
-          {permissions.admin_sellers !== false && (
-            <NavLink to="/admin/sellers" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-              <Users size={18} /> Vendedores
-            </NavLink>
+          {(permissions.admin_musics !== false || permissions.admin_compositions !== false) && (
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() => toggleSection('catalogo')}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-colors ${
+                  catalogoActive ? 'bg-white/10 text-beatwap-gold' : 'text-gray-300 hover:bg-white/5'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <Music size={16} />
+                  <span>Catálogo</span>
+                </span>
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform duration-200 ${openSections.catalogo ? 'rotate-180' : ''}`}
+                />
+              </button>
+              <div
+                className={`overflow-hidden transition-all duration-200 ${
+                  openSections.catalogo ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'
+                }`}
+              >
+                <div className="mt-1 space-y-1">
+                  {permissions.admin_musics !== false && (
+                    <NavLink
+                      to="/admin/musics"
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
+                          isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
+                        }`
+                      }
+                    >
+                      <span>Músicas</span>
+                    </NavLink>
+                  )}
+                  {permissions.admin_compositions !== false && (
+                    <NavLink
+                      to="/admin/compositions"
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
+                          isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
+                        }`
+                      }
+                    >
+                      <span>Composições</span>
+                    </NavLink>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
 
-          <NavLink to="/admin/finance" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-            <DollarSign size={18} /> Financeiro
-          </NavLink>
-
-          {permissions.admin_musics !== false && (
-            <NavLink to="/admin/musics" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-              <Music size={18} /> Músicas
-            </NavLink>
-          )}
-
-          {permissions.admin_compositions !== false && (
-            <NavLink to="/admin/compositions" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-              <Music size={18} /> Composições
-            </NavLink>
-          )}
-
-          {permissions.admin_sponsors !== false && (
-            <NavLink to="/admin/sponsors" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-              <Users size={18} /> Patrocinadores/Parcerias
-            </NavLink>
-          )}
+          <div className="space-y-1">
+            <button
+              type="button"
+              onClick={() => toggleSection('financeiro')}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-colors ${
+                financeiroActive ? 'bg-white/10 text-beatwap-gold' : 'text-gray-300 hover:bg-white/5'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <DollarSign size={16} />
+                <span>Financeiro</span>
+              </span>
+              <ChevronDown
+                size={14}
+                className={`transition-transform duration-200 ${openSections.financeiro ? 'rotate-180' : ''}`}
+              />
+            </button>
+            <div
+              className={`overflow-hidden transition-all duration-200 ${
+                openSections.financeiro ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'
+              }`}
+            >
+              <div className="mt-1 space-y-1">
+                <NavLink
+                  to="/admin/finance"
+                  className={({ isActive }) =>
+                    `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
+                      isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
+                    }`
+                  }
+                >
+                  <span>Financeiro</span>
+                </NavLink>
+              </div>
+            </div>
+          </div>
 
           {permissions.admin_settings !== false && (
-            <NavLink to="/admin/settings" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'}`}>
-              <Settings size={18} /> Configurações
-            </NavLink>
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() => toggleSection('sistema')}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-colors ${
+                  sistemaActive ? 'bg-white/10 text-beatwap-gold' : 'text-gray-300 hover:bg-white/5'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <Settings size={16} />
+                  <span>Sistema</span>
+                </span>
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform duration-200 ${openSections.sistema ? 'rotate-180' : ''}`}
+                />
+              </button>
+              <div
+                className={`overflow-hidden transition-all duration-200 ${
+                  openSections.sistema ? 'max-h-24 opacity-100' : 'max-h-0 opacity-0'
+                }`}
+              >
+                <div className="mt-1 space-y-1">
+                  <NavLink
+                    to="/admin/settings"
+                    className={({ isActive }) =>
+                      `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
+                        isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
+                      }`
+                    }
+                  >
+                    <span>Configurações</span>
+                  </NavLink>
+                </div>
+              </div>
+            </div>
           )}
-          {/* Chat removido do menu, manter apenas flutuante */}
         </nav>
       </aside>
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />}
