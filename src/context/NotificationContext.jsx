@@ -62,21 +62,26 @@ export const NotificationProvider = ({ children }) => {
 
   const addNotification = async (notification) => {
     try {
-      const { error } = await supabase
-        .from('notifications')
-        .insert([{
-            recipient_id: notification.recipientId,
-            title: notification.title,
-            message: notification.message,
-            type: notification.type,
-            link: notification.link,
-            read: false
-        }])
-        .select();
-
-      if (error) throw error;
-      // Realtime subscription will handle the state update if the sender is also the recipient
-      // otherwise, we don't need to update local state for sent notifications
+      const { error: rpcError } = await supabase.rpc('send_notification', {
+        p_recipient_id: notification.recipientId,
+        p_title: notification.title,
+        p_message: notification.message,
+        p_link: notification.link || null
+      });
+      if (rpcError) {
+        // Fallback to direct insert (case function not available)
+        const { error: insertError } = await supabase
+          .from('notifications')
+          .insert([{
+              recipient_id: notification.recipientId,
+              title: notification.title,
+              message: notification.message,
+              type: notification.type,
+              link: notification.link,
+              read: false
+          }]);
+        if (insertError) throw insertError;
+      }
     } catch (error) {
       console.error('Error adding notification:', error);
       addToast('Erro ao enviar notificação', 'error');
