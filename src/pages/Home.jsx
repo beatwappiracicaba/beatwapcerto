@@ -239,6 +239,94 @@ const Home = () => {
       <Header />
       <main>
         <Hero />
+        <section className="relative py-16 px-4 sm:px-6 bg-gradient-to-r from-beatwap-gold/10 via-black to-beatwap-gold/5 border-y border-white/5 overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_55%)]" />
+          <div className="relative max-w-6xl mx-auto grid md:grid-cols-[3fr,2fr] gap-10 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="space-y-4"
+            >
+              <p className="text-sm font-semibold tracking-[0.2em] uppercase text-beatwap-gold/80">
+                Documentação sem dor de cabeça
+              </p>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold leading-tight">
+                Você cuida da música.
+                <span className="text-beatwap-gold"> A BeatWap cuida da burocracia.</span>
+              </h2>
+              <p className="text-sm sm:text-base text-gray-300 max-w-2xl">
+                Registros de direitos autorais e ABRAMUS, documentos para shows em prefeituras, projetos culturais
+                como Lei Rouanet e qualquer documentação que sua carreira musical precisar. Nossa equipe faz tudo
+                por você, do papel ao protocolo final.
+              </p>
+              <p className="text-sm sm:text-base text-gray-200">
+                Você só envia suas informações ou músicas e nós assumimos o processo do início ao fim.
+              </p>
+              <div className="flex flex-wrap gap-3 pt-2">
+                <AnimatedButton onClick={() => navigate('/register')}>
+                  Envie sua música sem complicação
+                </AnimatedButton>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = document.getElementById('contato') || document.getElementById('contact');
+                    if (target) {
+                      target.scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-xs sm:text-sm font-semibold text-gray-100 hover:border-beatwap-gold hover:text-beatwap-gold transition-colors"
+                >
+                  <MessageCircle size={16} />
+                  Conte com nosso suporte completo
+                </button>
+              </div>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="grid gap-4 sm:grid-cols-2"
+            >
+              <div className="rounded-2xl bg-black/40 border border-beatwap-gold/40 p-4 flex flex-col gap-3 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+                <div className="w-9 h-9 rounded-full bg-beatwap-gold/15 border border-beatwap-gold/60 flex items-center justify-center text-beatwap-gold">
+                  <BadgeCheck size={18} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">Direitos Autorais e ABRAMUS</p>
+                  <p className="text-xs text-gray-300">
+                    Organização de registros e cadastros para garantir que sua obra esteja protegida.
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-2xl bg-white/5 border border-white/10 p-4 flex flex-col gap-3">
+                <div className="w-9 h-9 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-beatwap-gold">
+                  <Music size={18} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">Shows e Projetos Culturais</p>
+                  <p className="text-xs text-gray-300">
+                    Documentos para prefeituras, editais e leis de incentivo tratados por especialistas.
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-2xl bg-black/40 border border-white/15 p-4 flex flex-col gap-3 sm:col-span-2">
+                <div className="flex items-center gap-2 text-xs font-semibold text-beatwap-gold">
+                  <span className="inline-flex h-2 w-2 rounded-full bg-green-400 mr-1 animate-pulse" />
+                  Suporte humano e consultivo para cada etapa
+                </div>
+                <p className="text-xs text-gray-200">
+                  Esqueça formulários confusos e protocolos intermináveis. A BeatWap traduz a burocracia para a
+                  linguagem do artista e acompanha você em tudo que envolve papelada.
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        </section>
         
         {/* Latest Releases Section */}
         {latestReleases.length > 0 && (() => {
