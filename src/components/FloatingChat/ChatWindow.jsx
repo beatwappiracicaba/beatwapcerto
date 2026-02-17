@@ -91,35 +91,23 @@ export const ChatWindow = ({ currentUserId }) => {
     scrollToBottom();
   }, [chats, activeChatId, isOpen, mode]);
 
+  // Poll de segurança para atualizar lista/conversas quando não estamos dentro do chat
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'chat') return;
+    if (mode === 'chat' && activeChatId) return; // já existe outro poll específico
+    const id = setInterval(() => {
+      fetchChats();
+    }, 4000);
+    return () => clearInterval(id);
+  }, [isOpen, activeTab, mode, activeChatId, fetchChats]);
+
   // Realtime específico do chat ativo (reforço local ao provider)
   useEffect(() => {
     if (!isOpen || activeTab !== 'chat' || mode !== 'chat' || !activeChatId) return;
-    try {
-      const channel = supabase
-        .channel(`chat-realtime:${activeChatId}`)
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages'
-        }, (payload) => {
-          try {
-            const nova = payload.new;
-            if (!nova || nova.chat_id !== activeChatId) return;
-            const exists = (activeChat?.messages || []).some(m => m.id === nova.id);
-            if (!exists) {
-              fetchChats();
-            }
-          } catch (e) {
-            console.error('Realtime message handler error:', e);
-          }
-        })
-        .subscribe();
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    } catch (e) {
-      console.error('Realtime subscription error:', e);
-    }
+    const intervalId = setInterval(() => {
+      fetchChats();
+    }, 2000);
+    return () => clearInterval(intervalId);
   }, [isOpen, activeTab, mode, activeChatId, fetchChats]);
 
   const handleInputChange = (e) => {
