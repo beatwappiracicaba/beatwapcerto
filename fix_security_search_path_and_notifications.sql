@@ -36,3 +36,49 @@ CREATE POLICY "Insert notifications (self or producer)"
 
 -- Note: Enable HaveIBeenPwned compromised password check via Supabase Dashboard:
 -- Authentication -> Settings -> Passwords -> Enable "Check for compromised passwords".
+
+-- 3) Enable RLS and policies for public.settings (read-only público; escrita por Produtor/Admin)
+ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
+
+-- Limpeza de policies pré-existentes
+DO $$
+DECLARE pol RECORD;
+BEGIN
+  FOR pol IN 
+    SELECT policyname 
+    FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'settings'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.settings', pol.policyname);
+  END LOOP;
+END $$;
+
+-- Leitura: permitir que qualquer usuário (inclusive anon) leia as configurações públicas
+CREATE POLICY "Allow public read of settings"
+ON public.settings FOR SELECT
+USING (true);
+
+-- Escrita: apenas Produtor/Admin/Superadmin autenticados podem inserir/atualizar
+CREATE POLICY "Producers/Admin can insert settings"
+ON public.settings FOR INSERT
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.profiles p 
+    WHERE p.id = auth.uid() AND p.cargo IN ('Produtor','Admin','Superadmin')
+  )
+);
+
+CREATE POLICY "Producers/Admin can update settings"
+ON public.settings FOR UPDATE
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles p 
+    WHERE p.id = auth.uid() AND p.cargo IN ('Produtor','Admin','Superadmin')
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.profiles p 
+    WHERE p.id = auth.uid() AND p.cargo IN ('Produtor','Admin','Superadmin')
+  )
+);
