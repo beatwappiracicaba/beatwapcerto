@@ -131,6 +131,18 @@ const Home = () => {
 
   const recordEvent = async (payload) => {
     try {
+      // Whitelist de eventos suportados pela tabela analytics_events
+      const t = String(payload?.type || '');
+      const allowed =
+        t === 'music_play' ||
+        t === 'music_click_presave' ||
+        t === 'music_click_smartlink' ||
+        t.startsWith('artist_click_') ||
+        t === 'sponsor_click';
+      if (!allowed) {
+        // Evita 400 por tipos/colunas não suportados (ex.: producer_project_play)
+        return;
+      }
       await supabase.from('analytics_events').insert([{ ...payload, ip_hash: ipHash || 'unknown' }]);
     } catch (e) { void 0; }
   };
@@ -613,7 +625,7 @@ const Home = () => {
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <button 
                                 className="px-4 py-2 bg-beatwap-gold rounded-full text-black font-bold hover:bg-white"
-                                onClick={() => { setActiveProjectVideo(p.id); recordEvent({ type: 'producer_project_play', project_id: p.id }); }}
+                                onClick={() => { setActiveProjectVideo(p.id); /* Evento desativado para evitar 400: producer_project_play */ }}
                               >
                                 <span>Assistir</span>
                               </button>
