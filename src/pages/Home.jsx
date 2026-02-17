@@ -71,11 +71,49 @@ const Home = () => {
     };
   }, [audioElement]);
 
+  const groupReleasesByAlbum = (items) => {
+    const groups = [];
+    const albumMap = new Map();
+
+    items.forEach(r => {
+      if (r.album_id) {
+        if (!albumMap.has(r.album_id)) {
+          albumMap.set(r.album_id, {
+            type: 'album',
+            id: r.album_id,
+            title: r.album_title || r.titulo || 'Álbum',
+            cover_url: r.cover_url,
+            artista_id: r.artista_id,
+            nome_artista: r.nome_artista,
+            release_date: r.release_date,
+            created_at: r.created_at,
+            estilo: r.estilo,
+            is_beatwap_produced: r.is_beatwap_produced,
+            presave_link: r.presave_link,
+            preview_url: r.preview_url,
+            audio_url: r.audio_url,
+            tracks: []
+          });
+        }
+        albumMap.get(r.album_id).tracks.push(r);
+      } else {
+        groups.push({ ...r, type: 'single' });
+      }
+    });
+
+    albumMap.forEach(group => {
+      group.tracks.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      groups.push(group);
+    });
+
+    return groups;
+  };
+
   const fetchLatestReleases = async () => {
     try {
       const { data, error } = await supabase
         .from('musics')
-        .select('id,titulo,nome_artista,estilo,cover_url,preview_url,audio_url,presave_link,release_date,created_at,artista_id,is_beatwap_produced,show_on_home,produced_by,producer:profiles!produced_by(nome,nome_completo_razao_social)')
+        .select('id,titulo,nome_artista,estilo,cover_url,preview_url,audio_url,presave_link,release_date,created_at,artista_id,is_beatwap_produced,show_on_home,produced_by,producer:profiles!produced_by(nome,nome_completo_razao_social),album_id,album_title')
         .eq('status', 'aprovado')
         .eq('show_on_home', true)
         .order('created_at', { ascending: false })
@@ -331,16 +369,18 @@ const Home = () => {
         {/* Latest Releases Section */}
         {latestReleases.length > 0 && (() => {
           const today = new Date(); today.setHours(0, 0, 0, 0);
-          const upcoming = latestReleases.filter(r => {
+          const upcomingBase = latestReleases.filter(r => {
             if (!r.release_date) return true;
             const [y, m, d] = r.release_date.split('-'); const date = new Date(y, m - 1, d);
             return date > today;
           });
-          const released = latestReleases.filter(r => {
+          const releasedBase = latestReleases.filter(r => {
             if (!r.release_date) return false;
             const [y, m, d] = r.release_date.split('-'); const date = new Date(y, m - 1, d);
             return date <= today;
           });
+          const upcoming = groupReleasesByAlbum(upcomingBase);
+          const released = groupReleasesByAlbum(releasedBase);
           return (
             <>
               {upcoming.length > 0 && (
@@ -359,28 +399,41 @@ const Home = () => {
                         className="overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2"
                       >
                         <div className="flex gap-6">
-                        {upcoming.map((release, index) => (
-                          <div key={release.id} className="flex-none w-[280px]">
+                        {upcoming.map((item, index) => (
+                          <div key={item.type === 'album' ? `album-${item.id}` : `single-${item.id}`} className="flex-none w-[280px]">
                             <motion.div 
                               initial={{ opacity: 0, y: 20 }}
                               whileInView={{ opacity: 1, y: 0 }}
                               transition={{ delay: index * 0.1 }}
                               className="h-full flex flex-col bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold transition-colors group"
                             >
-                              <div 
+                              <div
                                 className="aspect-square bg-gray-800 relative overflow-hidden"
                                 onClick={() => {
-                                  const url = release.preview_url || release.audio_url;
-                                  togglePlay(release.id, url);
+                                  if (item.type === 'album') {
+                                    navigate(`/album/${item.id}`);
+                                  } else {
+                                    const url = item.preview_url || item.audio_url;
+                                    togglePlay(item.id, url);
+                                  }
                                 }}
                               >
+                                {item.type === 'album' && item.cover_url && (
+                                  <img 
+                                    src={item.cover_url} 
+                                    alt={item.title || 'Capa'} 
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                                  />
+                                )}
+                                {item.type === 'single' && (
                                 <img 
-                                  src={release.cover_url} 
-                                  alt={release.titulo || 'Capa'} 
+                                  src={item.cover_url} 
+                                  alt={item.titulo || 'Capa'} 
                                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
                                 />
-                                {release.release_date && (() => {
-                                  const [y, m, d] = release.release_date.split('-');
+                                )}
+                                {item.release_date && (() => {
+                                  const [y, m, d] = item.release_date.split('-');
                                   const rDate = new Date(y, m - 1, d);
                                   return (
                                     <div className="absolute top-2 left-2 text-black text-xs font-bold px-2 py-1 rounded bg-beatwap-gold">
@@ -388,46 +441,60 @@ const Home = () => {
                                     </div>
                                   );
                                 })()}
-                                {release.is_beatwap_produced && (
+                                {item.is_beatwap_produced && (
                                   <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm p-1.5 rounded-full border border-beatwap-gold/50 z-10" title="Produzido, Mixado e Masterizado pela BeatWap">
                                     <BadgeCheck className="text-beatwap-gold w-5 h-5" />
                                   </div>
                                 )}
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <button 
-                                    className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const url = release.preview_url || release.audio_url;
-                                      togglePlay(release.id, url);
-                                    }}
-                                  >
-                                    {playingTrack === release.id && !isPaused
-                                      ? <Pause fill="currentColor" className="ml-1" />
-                                      : <Play fill="currentColor" className="ml-1" />}
-                                  </button>
-                                </div>
+                                {item.type === 'single' && (
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <button 
+                                      className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const url = item.preview_url || item.audio_url;
+                                        togglePlay(item.id, url);
+                                      }}
+                                    >
+                                      {playingTrack === item.id && !isPaused
+                                        ? <Pause fill="currentColor" className="ml-1" />
+                                        : <Play fill="currentColor" className="ml-1" />}
+                                    </button>
+                                  </div>
+                                )}
                                 <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent block sm:hidden">
-                                  <div className="text-white text-sm font-bold truncate">{release.titulo || 'Lançamento'}</div>
-                                  <div className="text-[11px] text-gray-300 truncate">{release.nome_artista || 'Artista'}</div>
+                                  <div className="text-white text-sm font-bold truncate">
+                                    {item.type === 'album' ? (item.title || 'Álbum') : (item.titulo || 'Lançamento')}
+                                  </div>
+                                  <div className="text-[11px] text-gray-300 truncate">{item.nome_artista || 'Artista'}</div>
                                 </div>
                               </div>
                               <div className="hidden sm:flex p-4 flex-1 flex-col justify-between min-h-[120px]">
                                 <div>
-                                  <h3 className="font-bold text-lg text-white truncate"><span>{release.titulo || 'Lançamento'}</span></h3>
-                                  <p className="text-sm text-gray-400 truncate"><span>{release.nome_artista || 'Artista'}</span></p>
-                                  <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{release.estilo || ''}</span></p>
+                                  <h3 className="font-bold text-lg text-white truncate">
+                                    <span>{item.type === 'album' ? (item.title || 'Álbum') : (item.titulo || 'Lançamento')}</span>
+                                  </h3>
+                                  <p className="text-sm text-gray-400 truncate"><span>{item.nome_artista || 'Artista'}</span></p>
+                                  <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider">
+                                    <span>{item.estilo || ''}</span>
+                                  </p>
                                 </div>
                                 <div className="mt-2">
-                                  {release.presave_link ? (
-                                    <AnimatedButton onClick={() => { 
-                                      recordEvent({ type: 'music_click_presave', music_id: release.id, artist_id: release.artista_id });
-                                      window.open(release.presave_link, '_blank');
-                                    }}>
-                                      <span>Pré-save</span>
+                                  {item.type === 'album' ? (
+                                    <AnimatedButton onClick={() => navigate(`/album/${item.id}`)}>
+                                      <span>Ver Álbum</span>
                                     </AnimatedButton>
                                   ) : (
-                                    <div className="h-9" />
+                                    item.presave_link ? (
+                                      <AnimatedButton onClick={() => { 
+                                        recordEvent({ type: 'music_click_presave', music_id: item.id, artist_id: item.artista_id });
+                                        window.open(item.presave_link, '_blank');
+                                      }}>
+                                        <span>Pré-save</span>
+                                      </AnimatedButton>
+                                    ) : (
+                                      <div className="h-9" />
+                                    )
                                   )}
                                 </div>
                               </div>
@@ -470,28 +537,41 @@ const Home = () => {
                         className="overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2"
                       >
                         <div className="flex gap-6">
-                        {released.map((release, index) => (
-                          <div key={release.id} className="flex-none w-[280px]">
+                        {released.map((item, index) => (
+                          <div key={item.type === 'album' ? `album-${item.id}` : `single-${item.id}`} className="flex-none w-[280px]">
                             <motion.div 
                               initial={{ opacity: 0, y: 20 }}
                               whileInView={{ opacity: 1, y: 0 }}
                               transition={{ delay: index * 0.1 }}
                               className="h-full flex flex-col bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold transition-colors group"
                             >
-                              <div 
+                              <div
                                 className="aspect-square bg-gray-800 relative overflow-hidden"
                                 onClick={() => {
-                                  const url = release.preview_url || release.audio_url;
-                                  togglePlay(release.id, url);
+                                  if (item.type === 'album') {
+                                    navigate(`/album/${item.id}`);
+                                  } else {
+                                    const url = item.preview_url || item.audio_url;
+                                    togglePlay(item.id, url);
+                                  }
                                 }}
                               >
+                                {item.type === 'album' && item.cover_url && (
+                                  <img 
+                                    src={item.cover_url} 
+                                    alt={item.title || 'Capa'} 
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                                  />
+                                )}
+                                {item.type === 'single' && (
                                 <img 
-                                  src={release.cover_url} 
-                                  alt={release.titulo || 'Capa'} 
+                                  src={item.cover_url} 
+                                  alt={item.titulo || 'Capa'} 
                                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
                                 />
-                                {release.release_date && (() => {
-                                  const [y, m, d] = release.release_date.split('-');
+                                )}
+                                {item.release_date && (() => {
+                                  const [y, m, d] = item.release_date.split('-');
                                   const rDate = new Date(y, m - 1, d);
                                   return (
                                     <div className="absolute top-2 left-2 text-black text-xs font-bold px-2 py-1 rounded bg-white">
@@ -499,48 +579,60 @@ const Home = () => {
                                     </div>
                                   );
                                 })()}
-                                {release.is_beatwap_produced && (
+                                {item.is_beatwap_produced && (
                                   <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm p-1.5 rounded-full border border-beatwap-gold/50 z-10" title="Produzido, Mixado e Masterizado pela BeatWap">
                                     <BadgeCheck className="text-beatwap-gold w-5 h-5" />
                                   </div>
                                 )}
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <button 
-                                    className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const url = release.preview_url || release.audio_url;
-                                      togglePlay(release.id, url);
-                                    }}
-                                  >
-                                    {playingTrack === release.id && !isPaused
-                                      ? <Pause fill="currentColor" className="ml-1" />
-                                      : <Play fill="currentColor" className="ml-1" />}
-                                  </button>
-                                </div>
+                                {item.type === 'single' && (
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <button 
+                                      className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const url = item.preview_url || item.audio_url;
+                                        togglePlay(item.id, url);
+                                      }}
+                                    >
+                                      {playingTrack === item.id && !isPaused
+                                        ? <Pause fill="currentColor" className="ml-1" />
+                                        : <Play fill="currentColor" className="ml-1" />}
+                                    </button>
+                                  </div>
+                                )}
                                 <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent block sm:hidden">
-                                  <div className="text-white text-sm font-bold truncate">{release.titulo || 'Lançamento'}</div>
-                                  <div className="text-[11px] text-gray-300 truncate">{release.nome_artista || 'Artista'}</div>
+                                  <div className="text-white text-sm font-bold truncate">
+                                    {item.type === 'album' ? (item.title || 'Álbum') : (item.titulo || 'Lançamento')}
+                                  </div>
+                                  <div className="text-[11px] text-gray-300 truncate">{item.nome_artista || 'Artista'}</div>
                                 </div>
                               </div>
                               <div className="hidden sm:flex p-4 flex-1 flex-col justify-between min-h-[120px]">
                                 <div>
-                                  <h3 className="font-bold text-lg text-white truncate"><span>{release.titulo || 'Lançamento'}</span></h3>
-                                  <p className="text-sm text-gray-400 truncate"><span>{release.nome_artista || 'Artista'}</span></p>
-                                  <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{release.estilo || ''}</span></p>
+                                  <h3 className="font-bold text-lg text-white truncate">
+                                    <span>{item.type === 'album' ? (item.title || 'Álbum') : (item.titulo || 'Lançamento')}</span>
+                                  </h3>
+                                  <p className="text-sm text-gray-400 truncate"><span>{item.nome_artista || 'Artista'}</span></p>
+                                  <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{item.estilo || ''}</span></p>
                                 </div>
                                 <div className="mt-2">
-                                  <AnimatedButton onClick={() => { 
-                                    if (release.presave_link) {
-                                      recordEvent({ type: 'music_click_smartlink', music_id: release.id, artist_id: release.artista_id });
-                                      window.open(release.presave_link, '_blank');
-                                    } else {
-                                      const url = release.preview_url || release.audio_url;
-                                      togglePlay(release.id, url);
-                                    }
-                                  }}>
-                                    <span>{release.presave_link ? 'Smartlink' : (playingTrack === release.id && !isPaused ? 'Pausar' : 'Reproduzir')}</span>
-                                  </AnimatedButton>
+                                  {item.type === 'album' ? (
+                                    <AnimatedButton onClick={() => navigate(`/album/${item.id}`)}>
+                                      <span>Ver Álbum</span>
+                                    </AnimatedButton>
+                                  ) : (
+                                    <AnimatedButton onClick={() => { 
+                                      if (item.presave_link) {
+                                        recordEvent({ type: 'music_click_smartlink', music_id: item.id, artist_id: item.artista_id });
+                                        window.open(item.presave_link, '_blank');
+                                      } else {
+                                        const url = item.preview_url || item.audio_url;
+                                        togglePlay(item.id, url);
+                                      }
+                                    }}>
+                                      <span>{item.presave_link ? 'Smartlink' : (playingTrack === item.id && !isPaused ? 'Pausar' : 'Reproduzir')}</span>
+                                    </AnimatedButton>
+                                  )}
                                 </div>
                               </div>
                             </motion.div>

@@ -32,6 +32,7 @@ import { AdminSettings } from '../pages/AdminSettings';
 import { DashboardCompositions } from '../pages/DashboardCompositions';
 import DashboardFinance from '../pages/DashboardFinance';
 import PublicProfile from '../pages/PublicProfile';
+import AlbumPage from '../pages/AlbumPage';
 import SellerDashboard from '../pages/SellerDashboard';
 import SellerArtists from '../pages/SellerArtists';
 import SellerAgenda from '../pages/SellerAgenda';
@@ -62,6 +63,7 @@ export const AppRoutes = () => {
         {/* Public Route - Landing Page */}
         <Route path="/" element={loading ? <SplashScreen onComplete={() => {}} /> : (isProdutor ? <Navigate to="/admin" replace /> : (isVendedor ? <Navigate to="/dashboard" replace /> : ((isArtista || isCompositor) ? <Navigate to="/dashboard" replace /> : <Home />)))} />
         <Route path="/profile/:id" element={<PublicProfile />} />
+        <Route path="/album/:id" element={<AlbumPage />} />
         
         {/* Auth Routes */}
         <Route element={<AuthLayout />}>

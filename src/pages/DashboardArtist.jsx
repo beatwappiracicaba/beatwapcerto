@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabaseClient';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { MusicUploadModal } from '../components/artist/MusicUploadModal';
-import { Plus, DollarSign } from 'lucide-react';
+import { Plus, DollarSign, Folder, ChevronDown, ChevronRight } from 'lucide-react';
 
 export const DashboardArtistHome = () => {
   const { user, profile } = useAuth();
@@ -269,12 +269,13 @@ export const DashboardArtistMusics = () => {
   const [remainingUploads, setRemainingUploads] = useState(null);
   const [isUnlimited, setIsUnlimited] = useState(false);
   const [musicMetrics, setMusicMetrics] = useState({});
+  const [expandedAlbums, setExpandedAlbums] = useState({});
 
   const fetchMusics = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('musics')
-      .select('id,titulo,status,motivo_recusa,created_at,cover_url,nome_artista,upc,presave_link,release_date,isrc')
+      .select('id,titulo,status,motivo_recusa,created_at,cover_url,nome_artista,upc,presave_link,release_date,isrc,album_id,album_title')
       .eq('artista_id', user.id)
       .order('created_at', { ascending: false });
     if (!error) setMusics(data || []);
@@ -284,6 +285,39 @@ export const DashboardArtistMusics = () => {
   useEffect(() => {
     if (user) fetchMusics();
   }, [user, fetchMusics]);
+
+  const groupedMusics = useMemo(() => {
+    const groups = [];
+    const albumMap = new Map();
+    const singles = [];
+
+    musics.forEach(m => {
+      if (m.album_id) {
+        if (!albumMap.has(m.album_id)) {
+          const group = {
+            type: 'album',
+            id: m.album_id,
+            title: m.album_title || m.titulo || 'Álbum',
+            cover_url: m.cover_url,
+            tracks: [],
+            created_at: m.created_at,
+            nome_artista: m.nome_artista
+          };
+          albumMap.set(m.album_id, group);
+          groups.push(group);
+        }
+        albumMap.get(m.album_id).tracks.push(m);
+      } else {
+        singles.push({ type: 'single', ...m });
+      }
+    });
+
+    return [...groups, ...singles].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }, [musics]);
+
+  const toggleAlbumExpanded = (albumId) => {
+    setExpandedAlbums(prev => ({ ...prev, [albumId]: !prev[albumId] }));
+  };
   useEffect(() => {
     const loadMetrics = async () => {
       if (!user) return;
@@ -338,6 +372,87 @@ export const DashboardArtistMusics = () => {
       loadMetrics();
     }
   }, [user, musics]);
+
+  const renderTrackRow = (m, isAlbumTrack = false) => {
+    const mm = musicMetrics[m.id] || { plays: 0, totalSeconds: 0, presaves: 0 };
+    const hh = Math.floor(mm.totalSeconds / 3600);
+    const mmn = Math.floor((mm.totalSeconds % 3600) / 60);
+    const ss = mm.totalSeconds % 60;
+    const totalFmt = `${hh}h ${mmn}m ${ss}s`;
+    const displayPlays = (mm.externalPlays || 0) + (mm.plays || 0);
+    const displayRevenue = mm.externalRevenue ? ` • R$ ${mm.externalRevenue}` : '';
+
+    return (
+      <div
+        key={m.id}
+        className={`flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors ${isAlbumTrack ? 'ml-4 border-l-2 border-l-beatwap-gold/40' : ''}`}
+      >
+        <div className="flex items-center gap-4 w-full sm:flex-1 min-w-0">
+          <div className="w-12 h-12 rounded-lg bg-gray-800 overflow-hidden shrink-0">
+            {m.cover_url ? (
+              <img src={m.cover_url} alt={m.titulo} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs"><span>Capa</span></div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-bold text-white truncate"><span>{m.titulo}</span></div>
+            <div className="text-xs text-gray-400 truncate"><span>{m.nome_artista} • {new Date(m.created_at).toLocaleDateString()}</span></div>
+            {m.status === 'aprovado' && (
+              <div className="mt-1 text-xs text-gray-300">
+                <span>{`Plays: ${displayPlays}${displayRevenue} • Tempo total: ${totalFmt} • Pré-saves: ${mm.presaves || 0}`}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:justify-end">
+          <div className={`text-xs px-3 py-1 rounded-full font-bold uppercase ${
+            m.status === 'aprovado' ? 'bg-green-500/20 text-green-500' :
+            m.status === 'recusado' ? 'bg-red-500/20 text-red-500' :
+            'bg-yellow-500/20 text-yellow-500'
+          }`}>
+            <span>{m.status}</span>
+          </div>
+          {m.status === 'aprovado' && (
+            <>
+              <div className="text-xs px-2 py-1 rounded-full bg-white/10 text-white whitespace-nowrap">
+                <span>UPC: {m.upc || 'Pendente'}</span>
+              </div>
+              <div className="text-xs px-2 py-1 rounded-full bg-white/10 text-white whitespace-nowrap">
+                <span>ISRC: {m.isrc || 'Pendente'}</span>
+              </div>
+              {m.presave_link && (
+                <AnimatedButton 
+                  onClick={() => navigator.clipboard.writeText(m.presave_link)}
+                  className="w-full sm:w-auto justify-center"
+                >
+                  <span>
+                    {(() => {
+                      if (!m.release_date) return 'Copiar Pré-save';
+                      try {
+                        const [y, mo, d] = String(m.release_date).split('-');
+                        const rDate = new Date(Number(y), Number(mo) - 1, Number(d));
+                        const today = new Date(); today.setHours(0,0,0,0);
+                        return rDate <= today ? 'Copiar Smartlink' : 'Copiar Pré-save';
+                      } catch {
+                        return 'Copiar Pré-save';
+                      }
+                    })()}
+                  </span>
+                </AnimatedButton>
+              )}
+            </>
+          )}
+          {m.motivo_recusa && (
+            <div className="text-xs text-red-400 max-w-full sm:max-w-[150px] truncate" title={m.motivo_recusa}>
+              <span>{m.motivo_recusa}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const computeRemaining = useCallback(async () => {
     if (!user) return;
@@ -407,98 +522,77 @@ export const DashboardArtistMusics = () => {
             <span>Nova Música</span>
           </AnimatedButton>
         </div>
-        <div className="mb-3 text-sm text-gray-300">
+          <div className="mb-3 text-sm text-gray-300">
           <span>Envios restantes: {isUnlimited ? 'Ilimitado' : (remainingUploads === null ? '...' : remainingUploads)}</span>
         </div>
 
         <div className="space-y-3">
           {loading && <div className="text-gray-400"><span>Carregando...</span></div>}
-          {!loading && musics.length === 0 && (
+            {!loading && groupedMusics.length === 0 && (
             <div className="text-center py-10 text-gray-400 border border-dashed border-white/10 rounded-xl">
               <p><span>Nenhuma música encontrada.</span></p>
               <p className="text-sm mt-2"><span>Clique em &quot;Nova Música&quot; para começar.</span></p>
             </div>
           )}
-          {!loading && musics.map((m) => (
-            <div key={m.id} className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
-              <div className="flex items-center gap-4 w-full sm:flex-1 min-w-0">
-                <div className="w-12 h-12 rounded-lg bg-gray-800 overflow-hidden shrink-0">
-                  {m.cover_url ? (
-                    <img src={m.cover_url} alt={m.titulo} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs"><span>Capa</span></div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-white truncate"><span>{m.titulo}</span></div>
-                  <div className="text-xs text-gray-400 truncate"><span>{m.nome_artista} • {new Date(m.created_at).toLocaleDateString()}</span></div>
-                  {m.status === 'aprovado' && (
-                    <div className="mt-1 text-xs text-gray-300">
-                      <span>
-                      {(() => {
-                        const mm = musicMetrics[m.id] || { plays: 0, totalSeconds: 0, presaves: 0 };
-                        const hh = Math.floor(mm.totalSeconds / 3600);
-                        const mmn = Math.floor((mm.totalSeconds % 3600) / 60);
-                        const ss = mm.totalSeconds % 60;
-                        const totalFmt = `${hh}h ${mmn}m ${ss}s`;
-                        
-                        const displayPlays = (mm.externalPlays || 0) + mm.plays;
-                        const displayRevenue = mm.externalRevenue ? ` • R$ ${mm.externalRevenue}` : '';
-                        
-                        return `Plays: ${displayPlays}${displayRevenue} • Tempo total: ${totalFmt} • Pré-saves: ${mm.presaves}`;
-                      })()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
+            {!loading && groupedMusics.map(item => {
+              if (item.type === 'album') {
+                const albumId = item.id;
+                const isExpanded = !!expandedAlbums[albumId];
+                const approvedTracks = item.tracks.filter(t => t.status === 'aprovado');
+                const totalMetrics = item.tracks.reduce((acc, t) => {
+                  const mm = musicMetrics[t.id] || {};
+                  acc.plays += (mm.plays || 0) + (mm.externalPlays || 0);
+                  acc.revenue += mm.externalRevenue || 0;
+                  return acc;
+                }, { plays: 0, revenue: 0 });
 
-              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:justify-end">
-                <div className={`text-xs px-3 py-1 rounded-full font-bold uppercase ${
-                  m.status === 'aprovado' ? 'bg-green-500/20 text-green-500' :
-                  m.status === 'recusado' ? 'bg-red-500/20 text-red-500' :
-                  'bg-yellow-500/20 text-yellow-500'
-                }`}>
-                  <span>{m.status}</span>
-                </div>
-                {m.status === 'aprovado' && (
-                  <>
-                    <div className="text-xs px-2 py-1 rounded-full bg-white/10 text-white whitespace-nowrap">
-                      <span>UPC: {m.upc || 'Pendente'}</span>
-                    </div>
-                    <div className="text-xs px-2 py-1 rounded-full bg-white/10 text-white whitespace-nowrap">
-                      <span>ISRC: {m.isrc || 'Pendente'}</span>
-                    </div>
-                    {m.presave_link && (
-                      <AnimatedButton 
-                        onClick={() => navigator.clipboard.writeText(m.presave_link)}
-                        className="w-full sm:w-auto justify-center"
-                      >
-                        <span>
-                          {(() => {
-                            if (!m.release_date) return 'Copiar Pré-save';
-                            try {
-                              const [y, mo, d] = String(m.release_date).split('-');
-                              const rDate = new Date(Number(y), Number(mo) - 1, Number(d));
-                              const today = new Date(); today.setHours(0,0,0,0);
-                              return rDate <= today ? 'Copiar Smartlink' : 'Copiar Pré-save';
-                            } catch {
-                              return 'Copiar Pré-save';
-                            }
-                          })()}
-                        </span>
-                      </AnimatedButton>
+                return (
+                  <div key={albumId} className="border border-white/10 rounded-2xl bg-white/5">
+                    <button
+                      type="button"
+                      onClick={() => toggleAlbumExpanded(albumId)}
+                      className="w-full flex items-center justify-between gap-4 p-4"
+                    >
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="w-12 h-12 rounded-lg bg-gray-900 overflow-hidden flex items-center justify-center border border-white/10">
+                          {item.cover_url ? (
+                            <img src={item.cover_url} alt={item.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <Folder className="w-6 h-6 text-beatwap-gold" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-white truncate">{item.title}</span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-beatwap-gold uppercase font-semibold">
+                              Álbum
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-400 truncate">
+                            <span>{item.nome_artista} • {item.tracks.length} faixas • {new Date(item.created_at).toLocaleDateString()}</span>
+                          </div>
+                          {approvedTracks.length > 0 && (
+                            <div className="text-[11px] text-gray-300 mt-1">
+                              <span>{`Aprovadas: ${approvedTracks.length} • Plays: ${totalMetrics.plays}${totalMetrics.revenue ? ` • R$ ${totalMetrics.revenue}` : ''}`}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-300">
+                        <span>{isExpanded ? 'Recolher' : 'Ver faixas'}</span>
+                        {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                      </div>
+                    </button>
+                    {isExpanded && (
+                      <div className="border-t border-white/10 p-3 space-y-2">
+                        {item.tracks.map(track => renderTrackRow(track, true))}
+                      </div>
                     )}
-                  </>
-                )}
-                {m.motivo_recusa && (
-                  <div className="text-xs text-red-400 max-w-full sm:max-w-[150px] truncate" title={m.motivo_recusa}>
-                    <span>{m.motivo_recusa}</span>
                   </div>
-                )}
-              </div>
-            </div>
-          ))}
+                );
+              }
+              return renderTrackRow(item, false);
+            })}
         </div>
       </Card>
 
