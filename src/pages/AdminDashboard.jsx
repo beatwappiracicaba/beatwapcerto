@@ -656,6 +656,17 @@ export const AdminArtists = () => {
             </div>
           </motion.div>
         )}
+        {isMarketingOpen && selectedArtist && (
+          <MarketingManager
+            isOpen={isMarketingOpen}
+            onClose={() => setIsMarketingOpen(false)}
+            artistId={selectedArtist}
+            artistName={artists.find(a => a.id === selectedArtist)?.nome || 'Usuário'}
+            artistRole={artists.find(a => a.id === selectedArtist)?.cargo || 'Artista'}
+            embedded
+          />
+        )}
+        {!isMarketingOpen && (
         <div className="pt-6">
           <div className="font-bold mb-4">Gerenciar Métricas por Música (SomVibe/Plataformas)</div>
           
@@ -725,6 +736,7 @@ export const AdminArtists = () => {
             })}
           </div>
         </div>
+        )}
         <div className="pt-4 space-y-3">
           <div className="font-bold">Plano do artista</div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -747,15 +759,6 @@ export const AdminArtists = () => {
           isOpen={isManagerOpen}
           onClose={() => setIsManagerOpen(false)}
           artist={artists.find(a => a.id === selectedArtist) || null}
-        />
-      )}
-      {isMarketingOpen && (
-        <MarketingManager
-          isOpen={isMarketingOpen}
-          onClose={() => setIsMarketingOpen(false)}
-          artistId={selectedArtist}
-          artistName={artists.find(a => a.id === selectedArtist)?.nome || 'Usuário'}
-          artistRole={artists.find(a => a.id === selectedArtist)?.cargo || 'Artista'}
         />
       )}
       {isProfileOpen && (
