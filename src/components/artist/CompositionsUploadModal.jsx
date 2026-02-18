@@ -332,6 +332,7 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
               </AnimatedButton>
             </div>
           </div>
+          {renderCoverCropModal()}
         </motion.div>
       </div>
     </AnimatePresence>

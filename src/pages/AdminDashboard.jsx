@@ -2186,7 +2186,7 @@ export const AdminSponsors = () => {
   const onCropComplete = (croppedArea, pixels) => setCroppedAreaPixels(pixels);
   const handleCropConfirm = async () => {
     try {
-      const blob = await getCroppedImg(imageSrc, croppedAreaPixels);
+      const blob = await getCroppedImg(imageSrc, croppedAreaPixels, 600, 600);
       const preview = URL.createObjectURL(blob);
       setLogoPreview(preview);
       setCroppedBlob(blob);
@@ -2292,7 +2292,7 @@ export const AdminSponsors = () => {
                 min={1}
                 max={3}
                 step={0.1}
-                onChange={(e) => setZoom(e.target.value)}
+                onChange={(e) => setZoom(parseFloat(e.target.value))}
                 className="w-full accent-beatwap-gold h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
               />
             </div>

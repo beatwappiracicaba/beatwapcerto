@@ -1,4 +1,6 @@
 import React, { useState, useRef } from 'react';
+import Cropper from 'react-easy-crop';
+import { getCroppedImg } from '../../utils/cropImage';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, Music, Image as ImageIcon, FileText, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
@@ -837,6 +839,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
               </AnimatedButton>
             </div>
           </div>
+          {renderCoverCropModal()}
         </motion.div>
       </div>
     </AnimatePresence>
