@@ -284,7 +284,9 @@ export const DashboardArtistProfile = () => {
       let avatar_url = null;
       if (blob) {
         const fileName = `${user.id}/${Date.now()}_avatar.png`;
-        const { data: uploadRes, error: uploadErr } = await supabase.storage.from('avatars').upload(fileName, blob, { contentType: 'image/png', upsert: true });
+        const { data: uploadRes, error: uploadErr } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, blob, { contentType: 'image/png', upsert: true });
         if (uploadErr) throw uploadErr;
         const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(uploadRes.path);
         avatar_url = publicUrl.publicUrl;
@@ -292,7 +294,6 @@ export const DashboardArtistProfile = () => {
       
       const updateData = {
         nome: name,
-        bio: bio,
         genero_musical: genre,
         youtube_url: socials?.youtube || null,
         spotify_url: socials?.spotify || null,
@@ -301,15 +302,33 @@ export const DashboardArtistProfile = () => {
         instagram_url: socials?.instagram || null,
         site_url: socials?.site || null,
       };
-
+      if (bio) updateData.bio = bio;
       if (avatar_url) updateData.avatar_url = avatar_url;
 
+      let bioSkipped = false;
       const { error } = await supabase.from('profiles').update(updateData).eq('id', user.id);
-      if (error) throw error;
+      if (error) {
+        const msg = String(error.message || error.details || '');
+        if (bio && (error.code === 'PGRST204' || msg.includes('bio'))) {
+          delete updateData.bio;
+          bioSkipped = true;
+          const { error: retryError } = await supabase
+            .from('profiles')
+            .update(updateData)
+            .eq('id', user.id);
+          if (retryError) throw retryError;
+        } else {
+          throw error;
+        }
+      }
       
       await refreshProfile();
-      addToast('Perfil público atualizado', 'success');
-      setAvatarModalOpen(false); // Reuse this state or add new one? I'll use a new state 'isProfileEditOpen'
+      if (bioSkipped) {
+        addToast('Perfil atualizado (Bio não salva; atualize o banco).', 'warning');
+      } else {
+        addToast('Perfil público atualizado', 'success');
+      }
+      setAvatarModalOpen(false);
       setIsProfileEditOpen(false);
     } catch (e) {
       console.error(e);
