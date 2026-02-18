@@ -309,7 +309,7 @@ export const DashboardWork = () => {
                     <span>Nenhuma composição encontrada.</span>
                   </p>
                   <p className="text-sm mt-2">
-                    <span>Clique em "Nova Composição" para enviar.</span>
+                    <span>Clique em Nova Composição para enviar.</span>
                   </p>
                 </div>
               )}

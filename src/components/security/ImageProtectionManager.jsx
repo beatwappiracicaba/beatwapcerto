@@ -5,6 +5,8 @@ const isWhitelisted = (img) => {
   if (!img) return true;
   if (img.closest('.permitir-download')) return true;
   if (img.getAttribute('data-download') === 'true') return true;
+  if (img.closest('.reactEasyCrop_Container')) return true;
+  if ((img.className || '').includes('reactEasyCrop_Image')) return true;
   return false;
 };
 

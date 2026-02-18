@@ -270,7 +270,9 @@ export const ChatProvider = ({ children }) => {
           .select('id, metadata')
           .eq('chat_id', chatId);
         systemMsgs = (sysData || []).filter(m => ['initial_request','assignment_notice'].includes(m?.metadata?.type));
-      } catch {}
+      } catch (e) {
+        void e;
+      }
 
       const hasInitial = systemMsgs.some(m => m?.metadata?.type === 'initial_request');
       const hasAssign = systemMsgs.some(m => m?.metadata?.type === 'assignment_notice');

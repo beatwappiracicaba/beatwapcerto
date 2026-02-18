@@ -64,7 +64,8 @@ const AlbumPage = () => {
   const recordEvent = async (payload) => {
     try {
       await supabase.from('analytics_events').insert([{ ...payload, ip_hash: 'album_page' }]);
-    } catch {
+    } catch (e) {
+      void e;
     }
   };
 
@@ -209,4 +210,3 @@ const AlbumPage = () => {
 };
 
 export default AlbumPage;
-
