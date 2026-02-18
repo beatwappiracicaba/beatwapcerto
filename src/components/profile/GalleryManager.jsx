@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import Cropper from 'react-easy-crop';
+import { getCroppedImg } from '../../utils/cropImage';
 import { supabase } from '../../services/supabaseClient';
 import { Card } from '../ui/Card';
 import { AnimatedButton } from '../ui/AnimatedButton';
@@ -17,6 +19,12 @@ export const GalleryManager = ({ userId }) => {
     link_url: '',
     type: 'image'
   });
+
+  const [imageSrc, setImageSrc] = useState(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedArea, setCroppedArea] = useState(null);
+  const [originalFile, setOriginalFile] = useState(null);
 
   useEffect(() => {
     if (userId) fetchPosts();
@@ -55,23 +63,45 @@ export const GalleryManager = ({ userId }) => {
        return;
     }
 
-    setNewPost({ ...newPost, file, type: fileType });
+    if (fileType === 'image') {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setImageSrc(reader.result);
+        setOriginalFile(file);
+        setCrop({ x: 0, y: 0 });
+        setZoom(1);
+        setCroppedArea(null);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setNewPost({ ...newPost, file, type: fileType });
+    }
+  };
+
+  const onCropComplete = (_, pixels) => {
+    setCroppedArea(pixels);
   };
 
   const handleSave = async () => {
-    if (!newPost.file) {
+    if (!newPost.file && !originalFile) {
       alert('Selecione um arquivo.');
       return;
     }
 
     setUploading(true);
     try {
-      const fileExt = newPost.file.name.split('.').pop();
+      let fileToUpload = newPost.file;
+      if (!fileToUpload && originalFile && imageSrc && croppedArea) {
+        const blob = await getCroppedImg(imageSrc, croppedArea, 1200, 1200);
+        fileToUpload = new File([blob], originalFile.name, { type: blob.type || originalFile.type });
+      }
+
+      const fileExt = fileToUpload.name.split('.').pop();
       const fileName = `${userId}/${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('posts')
-        .upload(fileName, newPost.file);
+        .upload(fileName, fileToUpload);
 
       if (uploadError) throw uploadError;
 
@@ -93,6 +123,8 @@ export const GalleryManager = ({ userId }) => {
 
       setShowModal(false);
       setNewPost({ file: null, caption: '', link_url: '', type: 'image' });
+      setImageSrc(null);
+      setOriginalFile(null);
       fetchPosts();
       alert('Publicado com sucesso!');
     } catch (error) {
@@ -236,6 +268,80 @@ export const GalleryManager = ({ userId }) => {
                 >
                     Publicar
                 </AnimatedButton>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {imageSrc && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md relative border border-white/10 bg-[#121212]">
+            <button
+              onClick={() => {
+                setImageSrc(null);
+                setOriginalFile(null);
+                setNewPost({ file: null, caption: '', link_url: '', type: 'image' });
+              }}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <h3 className="text-xl font-bold text-white mb-4">Ajustar imagem</h3>
+            <div className="space-y-4">
+              <div className="relative w-full h-64 bg-black rounded-xl overflow-hidden">
+                <Cropper
+                  image={imageSrc}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={1}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={onCropComplete}
+                  cropShape="rect"
+                  showGrid={true}
+                />
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-xs text-gray-400">Zoom</span>
+                <input
+                  type="range"
+                  min={1}
+                  max={3}
+                  step={0.1}
+                  value={zoom}
+                  onChange={(e) => setZoom(parseFloat(e.target.value))}
+                  className="w-full accent-beatwap-gold h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setImageSrc(null);
+                    setOriginalFile(null);
+                    setNewPost({ file: null, caption: '', link_url: '', type: 'image' });
+                  }}
+                  className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!imageSrc || !croppedArea || !originalFile) return;
+                    try {
+                      const blob = await getCroppedImg(imageSrc, croppedArea, 1200, 1200);
+                      const file = new File([blob], originalFile.name, { type: blob.type || originalFile.type });
+                      setNewPost({ ...newPost, file, type: 'image' });
+                      setImageSrc(null);
+                      setOriginalFile(null);
+                    } catch (e) {
+                      alert('Erro ao recortar imagem.');
+                    }
+                  }}
+                  className="px-4 py-2 text-sm font-bold bg-beatwap-gold text-black rounded-lg hover:bg-yellow-500 transition-colors"
+                >
+                  Confirmar recorte
+                </button>
               </div>
             </div>
           </Card>

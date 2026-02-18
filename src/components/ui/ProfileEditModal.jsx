@@ -81,7 +81,7 @@ export const ProfileEditModal = ({
 
   const handleCropConfirm = async () => {
     try {
-      const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
+      const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels, 600, 600);
       const preview = URL.createObjectURL(croppedBlob);
       setPreviewUrl(preview);
       setBlobToUpload(croppedBlob);
@@ -136,21 +136,21 @@ export const ProfileEditModal = ({
                     onCropChange={setCrop}
                     onCropComplete={onCropComplete}
                     onZoomChange={setZoom}
-                    cropShape="round"
-                    showGrid={false}
+                    cropShape="rect"
+                    showGrid={true}
                   />
                 </div>
                 <div className="flex items-center gap-4">
-                    <span className="text-xs text-gray-400">Zoom</span>
-                    <input
-                      type="range"
-                      value={zoom}
-                      min={1}
-                      max={3}
-                      step={0.1}
-                      onChange={(e) => setZoom(parseFloat(e.target.value))}
-                      className="w-full accent-beatwap-gold h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                    />
+                  <span className="text-xs text-gray-400">Zoom</span>
+                  <input
+                    type="range"
+                    value={zoom}
+                    min={1}
+                    max={3}
+                    step={0.1}
+                    onChange={(e) => setZoom(parseFloat(e.target.value))}
+                    className="w-full accent-beatwap-gold h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                  />
                 </div>
                 <div className="flex justify-end gap-2 mt-4">
                      <button 

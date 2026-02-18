@@ -1,5 +1,5 @@
 
-export const getCroppedImg = (imageSrc, pixelCrop) => {
+export const getCroppedImg = (imageSrc, pixelCrop, outputWidth, outputHeight) => {
   const createImage = (url) =>
     new Promise((resolve, reject) => {
       const image = new Image();
@@ -37,13 +37,29 @@ export const getCroppedImg = (imageSrc, pixelCrop) => {
           Math.min(Math.round(rawCrop.height), image.height - cropY)
         );
 
-        canvas.width = image.width;
-        canvas.height = image.height;
-        ctx.drawImage(image, 0, 0);
-        const data = ctx.getImageData(cropX, cropY, cropWidth, cropHeight);
-        canvas.width = cropWidth;
-        canvas.height = cropHeight;
-        ctx.putImageData(data, 0, 0);
+        if (outputWidth && outputHeight) {
+          canvas.width = outputWidth;
+          canvas.height = outputHeight;
+          ctx.drawImage(
+            image,
+            cropX,
+            cropY,
+            cropWidth,
+            cropHeight,
+            0,
+            0,
+            outputWidth,
+            outputHeight
+          );
+        } else {
+          canvas.width = image.width;
+          canvas.height = image.height;
+          ctx.drawImage(image, 0, 0);
+          const data = ctx.getImageData(cropX, cropY, cropWidth, cropHeight);
+          canvas.width = cropWidth;
+          canvas.height = cropHeight;
+          ctx.putImageData(data, 0, 0);
+        }
         canvas.toBlob((file) => {
           resolve(file);
         }, 'image/jpeg');

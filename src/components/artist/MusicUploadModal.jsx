@@ -83,6 +83,16 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     });
   };
 
+  const [coverImageSrc, setCoverImageSrc] = useState(null);
+  const [coverCrop, setCoverCrop] = useState({ x: 0, y: 0 });
+  const [coverZoom, setCoverZoom] = useState(1);
+  const [coverCroppedArea, setCoverCroppedArea] = useState(null);
+  const [coverOriginalFile, setCoverOriginalFile] = useState(null);
+
+  const handleCoverCropComplete = (_, pixels) => {
+    setCoverCroppedArea(pixels);
+  };
+
   const handleFileChange = async (e, type) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -90,8 +100,16 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     if (type === 'cover_file') {
       try {
         await validateImage(file);
-        setPreviews(prev => ({ ...prev, cover: URL.createObjectURL(file) }));
         setErrors(prev => ({ ...prev, cover: null }));
+        const reader = new FileReader();
+        reader.onload = () => {
+          setCoverImageSrc(reader.result);
+          setCoverOriginalFile(file);
+          setCoverCrop({ x: 0, y: 0 });
+          setCoverZoom(1);
+          setCoverCroppedArea(null);
+        };
+        reader.readAsDataURL(file);
       } catch (err) {
         setErrors(prev => ({ ...prev, cover: err }));
         return;
@@ -103,7 +121,23 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       setPreviews(prev => ({ ...prev, auth: file.name }));
     }
 
-    setFormData(prev => ({ ...prev, [type]: file }));
+    if (type !== 'cover_file') {
+      setFormData(prev => ({ ...prev, [type]: file }));
+    }
+  };
+
+  const handleCoverCropConfirm = async () => {
+    if (!coverImageSrc || !coverCroppedArea || !coverOriginalFile) return;
+    try {
+      const blob = await getCroppedImg(coverImageSrc, coverCroppedArea, 3000, 3000);
+      const croppedFile = new File([blob], coverOriginalFile.name, { type: blob.type || coverOriginalFile.type });
+      setPreviews(prev => ({ ...prev, cover: URL.createObjectURL(croppedFile) }));
+      setFormData(prev => ({ ...prev, cover_file: croppedFile }));
+      setCoverImageSrc(null);
+      setCoverOriginalFile(null);
+    } catch (err) {
+      setErrors(prev => ({ ...prev, cover: 'Erro ao recortar imagem.' }));
+    }
   };
 
   const uploadFile = async (file, bucket) => {
@@ -352,6 +386,72 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     } finally {
       setLoading(false);
     }
+  };
+
+  const renderCoverCropModal = () => {
+    if (!coverImageSrc) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+        <div className="bg-[#121212] rounded-2xl border border-white/10 w-full max-w-xl overflow-hidden">
+          <div className="p-4 border-b border-white/10 flex justify-between items-center">
+            <h3 className="text-white font-bold text-lg">Ajustar capa</h3>
+            <button
+              onClick={() => {
+                setCoverImageSrc(null);
+                setCoverOriginalFile(null);
+              }}
+              className="text-gray-400 hover:text-white"
+            >
+              ×
+            </button>
+          </div>
+          <div className="p-4 space-y-4">
+            <div className="relative w-full h-64 bg-black rounded-lg overflow-hidden">
+              <Cropper
+                image={coverImageSrc}
+                crop={coverCrop}
+                zoom={coverZoom}
+                aspect={1}
+                onCropChange={setCoverCrop}
+                onZoomChange={setCoverZoom}
+                onCropComplete={handleCoverCropComplete}
+                cropShape="rect"
+                showGrid={true}
+              />
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-xs text-gray-400">Zoom</span>
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.1}
+                value={coverZoom}
+                onChange={(e) => setCoverZoom(parseFloat(e.target.value))}
+                className="w-full accent-beatwap-gold h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setCoverImageSrc(null);
+                  setCoverOriginalFile(null);
+                }}
+                className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCoverCropConfirm}
+                className="px-4 py-2 text-sm font-bold bg-beatwap-gold text-black rounded-lg hover:bg-yellow-500 transition-colors"
+              >
+                Confirmar recorte
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (!isOpen) return null;
