@@ -47,6 +47,7 @@
 .reactEasyCrop_Container,
 .reactEasyCrop_CropArea {
   pointer-events: auto !important;
+  background-color: transparent !important;
 }
 
 .reactEasyCrop_Container {
@@ -55,5 +56,6 @@
 }
 
 .reactEasyCrop_Image {
+  object-fit: cover !important;
   background-color: transparent !important;
 }
