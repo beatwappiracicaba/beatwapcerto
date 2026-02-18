@@ -19,24 +19,30 @@ export const getCroppedImg = (imageSrc, pixelCrop) => {
           return;
         }
 
-        const crop = pixelCrop || {
+        const rawCrop = pixelCrop || {
           x: 0,
           y: 0,
           width: image.width,
           height: image.height,
         };
 
+        const cropX = Math.max(0, Math.min(Math.round(rawCrop.x), image.width - 1));
+        const cropY = Math.max(0, Math.min(Math.round(rawCrop.y), image.height - 1));
+        const cropWidth = Math.max(
+          1,
+          Math.min(Math.round(rawCrop.width), image.width - cropX)
+        );
+        const cropHeight = Math.max(
+          1,
+          Math.min(Math.round(rawCrop.height), image.height - cropY)
+        );
+
         canvas.width = image.width;
         canvas.height = image.height;
         ctx.drawImage(image, 0, 0);
-        const data = ctx.getImageData(
-          crop.x,
-          crop.y,
-          crop.width,
-          crop.height
-        );
-        canvas.width = crop.width;
-        canvas.height = crop.height;
+        const data = ctx.getImageData(cropX, cropY, cropWidth, cropHeight);
+        canvas.width = cropWidth;
+        canvas.height = cropHeight;
         ctx.putImageData(data, 0, 0);
         canvas.toBlob((file) => {
           resolve(file);
