@@ -204,12 +204,14 @@ export const DashboardArtistProfile = () => {
     try {
       setUploadingAvatar(true);
       const fileName = `${user.id}/${Date.now()}_avatar.png`;
-      const { error: uploadError } = await supabase.storage
+      const { data: uploadRes, error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(fileName, blob, { contentType: 'image/png', upsert: true });
       if (uploadError) throw uploadError;
-      const { data } = await supabase.storage.from('avatars').getPublicUrl(fileName);
-      const publicUrl = data.publicUrl;
+      const { data: publicUrlData } = await supabase.storage
+        .from('avatars')
+        .getPublicUrl(uploadRes.path);
+      const publicUrl = publicUrlData.publicUrl;
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ avatar_url: publicUrl })
