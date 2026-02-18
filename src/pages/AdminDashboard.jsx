@@ -2279,7 +2279,10 @@ export const AdminSponsors = () => {
         </div>
         {imageSrc ? (
           <div className="space-y-4">
-            <div className="relative w-full h-64 bg-black rounded-lg overflow-hidden">
+            <div
+              className="relative w-full max-w-sm aspect-square bg-black rounded-lg overflow-hidden pointer-events-auto mx-auto"
+              style={{ touchAction: 'none' }}
+            >
               <Cropper
                 image={imageSrc}
                 crop={crop}

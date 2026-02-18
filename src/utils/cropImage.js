@@ -5,7 +5,7 @@ export const getCroppedImg = (imageSrc, pixelCrop, outputWidth, outputHeight) =>
       const image = new Image();
       image.addEventListener('load', () => resolve(image));
       image.addEventListener('error', (error) => reject(error));
-      image.setAttribute('crossOrigin', 'anonymous'); // needed to avoid cross-origin issues on CodeSandbox
+      image.setAttribute('crossOrigin', 'anonymous');
       image.src = url;
     });
 
@@ -19,50 +19,52 @@ export const getCroppedImg = (imageSrc, pixelCrop, outputWidth, outputHeight) =>
           return;
         }
 
-        const rawCrop = pixelCrop || {
+        const fallbackCrop = {
           x: 0,
           y: 0,
-          width: image.width,
-          height: image.height,
+          width: image.naturalWidth || image.width,
+          height: image.naturalHeight || image.height,
         };
 
-        const cropX = Math.max(0, Math.min(Math.round(rawCrop.x), image.width - 1));
-        const cropY = Math.max(0, Math.min(Math.round(rawCrop.y), image.height - 1));
-        const cropWidth = Math.max(
-          1,
-          Math.min(Math.round(rawCrop.width), image.width - cropX)
-        );
-        const cropHeight = Math.max(
-          1,
-          Math.min(Math.round(rawCrop.height), image.height - cropY)
+        const crop = pixelCrop || fallbackCrop;
+
+        const scaleX = (image.naturalWidth || image.width) / (image.width || 1);
+        const scaleY = (image.naturalHeight || image.height) / (image.height || 1);
+
+        const sx = crop.x * scaleX;
+        const sy = crop.y * scaleY;
+        const sWidth = crop.width * scaleX;
+        const sHeight = crop.height * scaleY;
+
+        const targetWidth = outputWidth || crop.width;
+        const targetHeight = outputHeight || crop.height;
+
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+
+        ctx.drawImage(
+          image,
+          sx,
+          sy,
+          sWidth,
+          sHeight,
+          0,
+          0,
+          targetWidth,
+          targetHeight
         );
 
-        if (outputWidth && outputHeight) {
-          canvas.width = outputWidth;
-          canvas.height = outputHeight;
-          ctx.drawImage(
-            image,
-            cropX,
-            cropY,
-            cropWidth,
-            cropHeight,
-            0,
-            0,
-            outputWidth,
-            outputHeight
-          );
-        } else {
-          canvas.width = image.width;
-          canvas.height = image.height;
-          ctx.drawImage(image, 0, 0);
-          const data = ctx.getImageData(cropX, cropY, cropWidth, cropHeight);
-          canvas.width = cropWidth;
-          canvas.height = cropHeight;
-          ctx.putImageData(data, 0, 0);
-        }
-        canvas.toBlob((file) => {
-          resolve(file);
-        }, 'image/jpeg');
+        canvas.toBlob(
+          (file) => {
+            if (!file) {
+              reject(new Error('Failed to create blob from canvas'));
+              return;
+            }
+            resolve(file);
+          },
+          'image/jpeg',
+          0.9
+        );
       })
       .catch(reject);
   });
