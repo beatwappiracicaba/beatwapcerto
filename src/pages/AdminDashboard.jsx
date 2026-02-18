@@ -2280,7 +2280,7 @@ export const AdminSponsors = () => {
         {imageSrc ? (
           <div className="space-y-4">
             <div
-              className="relative w-full max-w-sm aspect-square bg-black rounded-lg overflow-hidden pointer-events-auto mx-auto"
+              className="relative w-full max-w-sm aspect-square bg-transparent rounded-lg overflow-hidden pointer-events-auto mx-auto"
               style={{ touchAction: 'none' }}
             >
               <Cropper
@@ -2293,7 +2293,7 @@ export const AdminSponsors = () => {
                 onZoomChange={setZoom}
                 cropShape="rect"
                 showGrid={false}
-                objectFit="contain"
+                objectFit="cover"
                 restrictPosition={false}
               />
             </div>

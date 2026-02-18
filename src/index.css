@@ -53,3 +53,7 @@
   position: relative !important;
   z-index: 9999 !important;
 }
+
+.reactEasyCrop_Image {
+  background-color: transparent !important;
+}

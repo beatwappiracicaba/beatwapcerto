@@ -137,7 +137,7 @@ export const ProfileEditModal = ({
               // Crop Mode
               <div className="space-y-4">
                 <div
-                  className="relative w-full max-w-sm aspect-square bg-black rounded-lg overflow-hidden pointer-events-auto mx-auto"
+                  className="relative w-full max-w-sm aspect-square bg-transparent rounded-lg overflow-hidden pointer-events-auto mx-auto"
                   style={{ touchAction: 'none' }}
                 >
                   <Cropper
@@ -150,7 +150,7 @@ export const ProfileEditModal = ({
                     onZoomChange={setZoom}
                     cropShape="rect"
                     showGrid={true}
-                    objectFit="contain"
+                    objectFit="cover"
                     restrictPosition={false}
                   />
                 </div>

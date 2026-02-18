@@ -299,7 +299,7 @@ export const GalleryManager = ({ userId }) => {
             <h3 className="text-xl font-bold text-white mb-4">Ajustar imagem</h3>
             <div className="space-y-4">
               <div
-                className="relative w-full max-w-sm aspect-square bg-black rounded-xl overflow-hidden pointer-events-auto mx-auto"
+                className="relative w-full max-w-sm aspect-square bg-transparent rounded-xl overflow-hidden pointer-events-auto mx-auto"
                 style={{ touchAction: 'none' }}
               >
                 <Cropper
@@ -312,7 +312,7 @@ export const GalleryManager = ({ userId }) => {
                   onCropComplete={onCropComplete}
                   cropShape="rect"
                   showGrid={true}
-                  objectFit="contain"
+                  objectFit="cover"
                   restrictPosition={false}
                 />
               </div>
