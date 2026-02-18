@@ -61,6 +61,15 @@ const DashboardFinance = () => {
           </div>
         </div>
 
+        <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+          <p className="text-sm text-yellow-200">
+            ⚠️ Todos os valores recebidos pelas vendas e shows são pagos primeiro na conta da produtora, 
+            que centraliza os recebimentos, confere contratos e comprovantes e só então faz os repasses 
+            para artistas e vendedores, conforme os percentuais combinados em cada contrato. 
+            A produtora retém uma parte do valor para manutenção da plataforma, impostos e custos operacionais.
+          </p>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="p-6 border-l-4 border-l-green-500">
             <h3 className="text-gray-400 text-sm font-medium uppercase mb-1">Total Recebido</h3>

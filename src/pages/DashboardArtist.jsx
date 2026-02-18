@@ -189,15 +189,6 @@ export const DashboardArtistHome = () => {
         </div>
       )}
       
-      {!isCompositor && (
-        <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-center">
-          <p className="text-sm text-yellow-200">
-            ⚠️ O dinheiro das vendas cai direto na conta da produtora e a produtora faz os repasses conforme é para cada um ganhar. 
-            A produtora retém uma porcentagem para a manutenção do site.
-          </p>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="col-span-1 md:col-span-2">
            <div className="flex items-center justify-between mb-4">

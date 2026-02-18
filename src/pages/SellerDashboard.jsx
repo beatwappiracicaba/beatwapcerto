@@ -79,13 +79,6 @@ const SellerDashboard = () => {
           </div>
         </div>
 
-        <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-center">
-          <p className="text-sm text-yellow-200">
-            ⚠️ O dinheiro das vendas cai direto na conta da produtora e a produtora faz os repasses conforme é para cada um ganhar. 
-            A produtora retém uma porcentagem para a manutenção do site.
-          </p>
-        </div>
-
         {/* Metas Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="p-6 relative overflow-hidden group hover:border-beatwap-gold/50 transition-colors">
