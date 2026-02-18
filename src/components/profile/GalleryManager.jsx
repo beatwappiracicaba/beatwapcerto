@@ -217,7 +217,7 @@ export const GalleryManager = ({ userId }) => {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 pointer-events-auto">
           <Card className="w-full max-w-md relative animate-in fade-in zoom-in duration-200 border border-white/10 shadow-2xl">
             <button 
               onClick={() => setShowModal(false)}
@@ -284,7 +284,7 @@ export const GalleryManager = ({ userId }) => {
       )}
 
       {imageSrc && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 pointer-events-auto">
           <Card className="w-full max-w-md relative border border-white/10 bg-[#121212]">
             <button
               onClick={() => {

@@ -43,3 +43,13 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #F5C542;
 }
+
+.reactEasyCrop_Container,
+.reactEasyCrop_CropArea {
+  pointer-events: auto !important;
+}
+
+.reactEasyCrop_Container {
+  position: relative !important;
+  z-index: 9999 !important;
+}

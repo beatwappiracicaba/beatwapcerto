@@ -402,7 +402,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
   const renderCoverCropModal = () => {
     if (!coverImageSrc) return null;
     return (
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 pointer-events-auto">
         <div className="bg-[#121212] rounded-2xl border border-white/10 w-full max-w-xl overflow-hidden">
           <div className="p-4 border-b border-white/10 flex justify-between items-center">
             <h3 className="text-white font-bold text-lg">Ajustar capa</h3>
