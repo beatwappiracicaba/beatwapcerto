@@ -227,11 +227,19 @@ const Pricing = () => {
             <ul className="space-y-3 mb-8 flex-grow">
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-beatwap-gold flex-shrink-0" />
-                <span>2 uploads/mês inclusos</span>
+                <span>
+                  {userType === 'artist'
+                    ? '2 uploads de músicas/mês inclusos'
+                    : '2 uploads de composições/mês inclusos'}
+                </span>
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-beatwap-gold flex-shrink-0" />
-                <span>Adicional: R$ {userType === 'artist' ? '40' : '10'}</span>
+                <span>
+                  {userType === 'artist'
+                    ? 'Upload extra de música: R$ 40'
+                    : 'Upload extra de composição: R$ 10'}
+                </span>
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-beatwap-gold flex-shrink-0" />
@@ -272,7 +280,11 @@ const Pricing = () => {
             <ul className="space-y-3 mb-8 flex-grow">
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-blue-400 flex-shrink-0" />
-                <span>24 uploads/ano (Total)</span>
+                <span>
+                  {userType === 'artist'
+                    ? '24 uploads de músicas/ano (total)'
+                    : '24 uploads de composições/ano (total)'}
+                </span>
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-blue-400 flex-shrink-0" />
