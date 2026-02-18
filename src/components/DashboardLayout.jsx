@@ -266,17 +266,30 @@ export const DashboardLayout = ({ children }) => {
                       </NavLink>
                     )}
                     {permissions.work !== false && !isCompositor && (
-                      <NavLink
-                        to="/dashboard/work"
-                        className={({ isActive }) =>
-                          `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
-                            isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
-                          }`
-                        }
-                      >
-                        <Calendar size={14} />
-                        <span>Agenda / Afazeres</span>
-                      </NavLink>
+                      <>
+                        <NavLink
+                          to="/dashboard/work"
+                          className={({ isActive }) =>
+                            `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
+                              isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
+                            }`
+                          }
+                        >
+                          <Calendar size={14} />
+                          <span>Agenda / Afazeres</span>
+                        </NavLink>
+                        <NavLink
+                          to="/dashboard/work?tab=compositions"
+                          className={({ isActive }) =>
+                            `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
+                              isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
+                            }`
+                          }
+                        >
+                          <Music size={14} />
+                          <span>Composições</span>
+                        </NavLink>
+                      </>
                     )}
                     {permissions.marketing !== false && (
                       <NavLink

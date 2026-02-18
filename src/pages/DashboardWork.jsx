@@ -6,6 +6,7 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabaseClient';
 import { ChevronLeft, ChevronRight, Music, Plus } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { CompositionsUploadModal } from '../components/artist/CompositionsUploadModal';
 
 const types = [
@@ -18,7 +19,9 @@ const types = [
 
 export const DashboardWork = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('work');
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') === 'compositions' ? 'compositions' : 'work';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [month, setMonth] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
