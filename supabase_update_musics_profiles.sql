@@ -29,6 +29,7 @@ add column if not exists tema text default 'dark', -- 'dark' ou 'light'
 add column if not exists instagram_url text,
 add column if not exists site_url text,
 add column if not exists genero_musical text,
+add column if not exists bio text,
 add column if not exists youtube_url text,
 add column if not exists spotify_url text,
 add column if not exists deezer_url text,

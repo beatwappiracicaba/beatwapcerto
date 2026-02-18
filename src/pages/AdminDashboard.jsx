@@ -447,7 +447,9 @@ export const AdminArtists = () => {
       let avatar_url = null;
       if (blob) {
         const fileName = `${selectedArtist}-${Date.now()}.jpg`;
-        const { data: uploadRes, error: uploadErr } = await supabase.storage.from('avatars').upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
+        const { data: uploadRes, error: uploadErr } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
         if (uploadErr) throw uploadErr;
         const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(uploadRes.path);
         avatar_url = publicUrl.publicUrl;
@@ -457,13 +459,34 @@ export const AdminArtists = () => {
       if (bio) updateData.bio = bio;
       if (avatar_url) updateData.avatar_url = avatar_url;
       if (Object.keys(updateData).length) {
+        let bioSkipped = false;
         const { error } = await supabase.from('profiles').update(updateData).eq('id', selectedArtist);
-        if (error) throw error;
+        if (error) {
+          const msg = String(error.message || error.details || '');
+          if (bio && (error.code === 'PGRST204' || msg.includes("bio"))) {
+            delete updateData.bio;
+            bioSkipped = true;
+            const { error: retryError } = await supabase
+              .from('profiles')
+              .update(updateData)
+              .eq('id', selectedArtist);
+            if (retryError) throw retryError;
+          } else {
+            throw error;
+          }
+        }
+        if (bioSkipped) {
+          addToast('Perfil atualizado (campo Bio não salvo; atualize o banco).', 'warning');
+        } else {
+          addToast('Perfil do artista atualizado', 'success');
+        }
+      } else {
+        addToast('Nada para atualizar no perfil.', 'warning');
       }
-      addToast('Perfil do artista atualizado', 'success');
       setIsProfileOpen(false);
       load();
-    } catch {
+    } catch (err) {
+      console.error('Erro ao atualizar perfil do artista:', err);
       addToast('Falha ao atualizar perfil do artista', 'error');
     }
   };
