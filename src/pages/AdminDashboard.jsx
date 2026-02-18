@@ -2282,6 +2282,8 @@ export const AdminSponsors = () => {
                 onZoomChange={setZoom}
                 cropShape="rect"
                 showGrid={false}
+                objectFit="contain"
+                restrictPosition={false}
               />
             </div>
             <div className="flex items-center gap-4">

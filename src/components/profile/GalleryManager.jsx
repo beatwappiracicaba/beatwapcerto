@@ -300,6 +300,8 @@ export const GalleryManager = ({ userId }) => {
                   onCropComplete={onCropComplete}
                   cropShape="rect"
                   showGrid={true}
+                  objectFit="contain"
+                  restrictPosition={false}
                 />
               </div>
               <div className="flex items-center gap-4">

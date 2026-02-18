@@ -129,6 +129,8 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
                 onCropComplete={handleCoverCropComplete}
                 cropShape="rect"
                 showGrid={true}
+                objectFit="contain"
+                restrictPosition={false}
               />
             </div>
             <div className="flex items-center gap-4">

@@ -419,6 +419,8 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                 onCropComplete={handleCoverCropComplete}
                 cropShape="rect"
                 showGrid={true}
+                objectFit="contain"
+                restrictPosition={false}
               />
             </div>
             <div className="flex items-center gap-4">

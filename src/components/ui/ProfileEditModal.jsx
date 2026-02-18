@@ -138,6 +138,8 @@ export const ProfileEditModal = ({
                     onZoomChange={setZoom}
                     cropShape="rect"
                     showGrid={true}
+                    objectFit="contain"
+                    restrictPosition={false}
                   />
                 </div>
                 <div className="flex items-center gap-4">
