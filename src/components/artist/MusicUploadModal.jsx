@@ -91,6 +91,15 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
   const [coverCroppedArea, setCoverCroppedArea] = useState(null);
   const [coverOriginalFile, setCoverOriginalFile] = useState(null);
 
+  React.useEffect(() => {
+    if (!coverImageSrc) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [coverImageSrc]);
+
   const handleCoverCropComplete = (_, pixels) => {
     setCoverCroppedArea(pixels);
   };
@@ -393,7 +402,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
   const renderCoverCropModal = () => {
     if (!coverImageSrc) return null;
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80">
         <div className="bg-[#121212] rounded-2xl border border-white/10 w-full max-w-xl overflow-hidden">
           <div className="p-4 border-b border-white/10 flex justify-between items-center">
             <h3 className="text-white font-bold text-lg">Ajustar capa</h3>

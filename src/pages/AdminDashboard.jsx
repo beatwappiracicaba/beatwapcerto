@@ -2159,6 +2159,14 @@ export const AdminSponsors = () => {
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [croppedBlob, setCroppedBlob] = useState(null);
+  useEffect(() => {
+    if (!imageSrc) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [imageSrc]);
   const loadSponsors = useCallback(async () => {
     try {
       setLoadingSponsors(true);
