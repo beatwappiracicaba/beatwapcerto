@@ -13,7 +13,7 @@ const Footer = () => {
       <div className="container mx-auto px-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16 md:justify-items-center">
           {/* Brand */}
-          <div className="md:flex md:flex-col md:items-center md:text-center">
+          <div className="flex flex-col items-center text-center">
             <div className="flex items-center gap-2 mb-6 md:justify-center">
               <div className="w-8 h-8 flex items-center justify-center">
                  <img src={logo} alt="BeatWap Logo" className="w-full h-full object-contain" />

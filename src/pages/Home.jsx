@@ -306,7 +306,15 @@ const Home = () => {
                 Você só envia suas informações ou músicas e nós assumimos o processo do início ao fim.
               </p>
               <div className="flex flex-wrap gap-3 pt-2">
-                <AnimatedButton onClick={() => navigate('/register')}>
+                <AnimatedButton
+                  onClick={() =>
+                    window.open(
+                      'https://wa.me/5519981083497?text=' +
+                        encodeURIComponent('Olá! Quero enviar minha música para a BeatWap sem complicação.'),
+                      '_blank'
+                    )
+                  }
+                >
                   Envie sua música sem complicação
                 </AnimatedButton>
                 <button

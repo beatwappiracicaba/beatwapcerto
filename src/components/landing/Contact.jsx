@@ -98,7 +98,10 @@ const Contact = () => {
                 disabled={loading}
               >
                 {loading ? 'Enviando...' : (
-                  <>Enviar Mensagem <Send size={18} className="ml-2" /></>
+                  <span className="flex flex-col items-center leading-tight">
+                    <span>Enviar Mensagem</span>
+                    <Send size={18} className="mt-1" />
+                  </span>
                 )}
               </AnimatedButton>
             </form>
