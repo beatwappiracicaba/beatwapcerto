@@ -92,3 +92,116 @@ create table if not exists proposals (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Notifications
+create table if not exists notifications (
+  id uuid default gen_random_uuid() primary key,
+  recipient_id uuid not null references users(id) on delete cascade,
+  title text,
+  message text,
+  type text,
+  link text,
+  read boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+-- Leads (simplified)
+create table if not exists leads (
+  id uuid default gen_random_uuid() primary key,
+  seller_id uuid references users(id) on delete set null,
+  contractor_name text,
+  event_name text,
+  budget numeric,
+  status text,
+  created_at timestamptz not null default now()
+);
+
+-- Commissions (simplified)
+create table if not exists commissions (
+  id uuid default gen_random_uuid() primary key,
+  seller_id uuid references users(id) on delete set null,
+  lead_id uuid,
+  amount numeric,
+  status text,
+  created_at timestamptz not null default now()
+);
+
+-- Producer projects (simplified)
+create table if not exists producer_projects (
+  id uuid default gen_random_uuid() primary key,
+  title text,
+  url text,
+  platform text,
+  created_at timestamptz not null default now()
+);
+
+-- Sponsors (simplified)
+create table if not exists sponsors (
+  id uuid default gen_random_uuid() primary key,
+  name text,
+  logo_url text,
+  instagram_url text,
+  site_url text,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+-- Musics (subset of columns used)
+create table if not exists musics (
+  id uuid default gen_random_uuid() primary key,
+  titulo text,
+  nome_artista text,
+  estilo text,
+  cover_url text,
+  preview_url text,
+  audio_url text,
+  presave_link text,
+  release_date timestamptz,
+  created_at timestamptz not null default now(),
+  artista_id uuid references users(id) on delete set null,
+  is_beatwap_produced boolean default false,
+  show_on_home boolean default false,
+  produced_by uuid,
+  album_id uuid,
+  album_title text,
+  status text,
+  feat_beatwap_artist_ids uuid[]
+);
+
+-- Compositions (subset of columns used)
+create table if not exists compositions (
+  id uuid default gen_random_uuid() primary key,
+  title text,
+  genre text,
+  cover_url text,
+  audio_url text,
+  created_at timestamptz not null default now(),
+  composer_id uuid references users(id) on delete set null,
+  status text
+);
+
+-- Artist work events (finance/events)
+create table if not exists artist_work_events (
+  id uuid default gen_random_uuid() primary key,
+  artista_id uuid references users(id) on delete set null,
+  seller_id uuid references users(id) on delete set null,
+  manager_id uuid references users(id) on delete set null,
+  title text,
+  date timestamptz,
+  type text,
+  notes text,
+  created_by uuid references users(id) on delete set null,
+  status text,
+  has_contract boolean not null default false,
+  contract_url text,
+  revenue numeric,
+  artist_share numeric,
+  seller_commission numeric,
+  house_cut numeric,
+  manager_cut numeric,
+  receipt_artist text,
+  receipt_seller text,
+  receipt_house text,
+  receipt_manager text,
+  created_at timestamptz not null default now()
+);
