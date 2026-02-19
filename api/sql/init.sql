@@ -1,3 +1,6 @@
+-- Required extension for gen_random_uuid()
+create extension if not exists pgcrypto;
+
 -- Users
 create table if not exists users (
   id uuid default gen_random_uuid() primary key,
