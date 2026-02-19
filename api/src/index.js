@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { authRouter } from './routes/auth.js';
+import { authRouter } from './auth/auth.routes.js';
 import { profileRouter } from './routes/profile.js';
 import { profilesRouter } from './routes/profiles.js';
 import { songsRouter } from './routes/songs.js';

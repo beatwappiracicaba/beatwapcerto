@@ -11,6 +11,23 @@ create table if not exists users (
   created_at timestamptz not null default now()
 );
 
+alter table if exists users add column if not exists nome text;
+alter table if exists users add column if not exists password_hash text;
+alter table if exists users add column if not exists refresh_token text;
+alter table if exists users add column if not exists failed_attempts integer not null default 0;
+alter table if exists users add column if not exists locked_until timestamptz;
+alter table if exists users add column if not exists last_login timestamptz;
+alter table if exists users add column if not exists last_ip text;
+alter table if exists users add column if not exists last_user_agent text;
+do $$ begin
+if not exists (select 1 from pg_indexes where tablename='users' and indexname='users_email_key') then
+  begin
+    alter table users add constraint users_email_key unique(email);
+  exception when others then null;
+  end;
+end if;
+end $$;
+
 -- Artists
 create table if not exists artists (
   id uuid default gen_random_uuid() primary key,
