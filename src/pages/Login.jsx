@@ -4,7 +4,7 @@ import { Mail, Lock, MessageCircle } from 'lucide-react';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Card } from '../components/ui/Card';
-import { supabase } from '../services/supabaseClient';
+import { authApi } from '../services/apiClient';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -23,23 +23,10 @@ const Login = () => {
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
-      });
-      if (error) throw error;
+      const { user } = await authApi.login(formData.email, formData.password);
       await refreshProfile();
-      const { data: userRes } = await supabase.auth.getUser();
-      const userId = userRes?.user?.id;
-      let cargo = null;
-      if (userId) {
-        const { data: prof } = await supabase
-          .from('profiles')
-          .select('cargo')
-          .eq('id', userId)
-          .maybeSingle();
-        cargo = prof?.cargo || null;
-      }
+      const userId = user?.id;
+      const cargo = user?.role || null;
       addToast('Login realizado com sucesso!', 'success');
       if (cargo === 'Artista') {
         navigate('/dashboard');

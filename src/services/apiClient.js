@@ -1,0 +1,52 @@
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+
+async function request(path, options = {}) {
+  const token = localStorage.getItem('token');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(options.headers || {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {})
+  };
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+  if (!res.ok) {
+    throw new Error((data && data.error) || res.statusText);
+  }
+  return data;
+}
+
+export const api = {
+  post: (path, body) => request(path, { method: 'POST', body: JSON.stringify(body) }),
+  get: (path) => request(path),
+};
+
+export const authApi = {
+  async login(email, password) {
+    const data = await api.post('/login', { email, password });
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    return data;
+  },
+  async register({ name, email, password, role }) {
+    return api.post('/register', { name, email, password, role });
+  },
+  async logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  },
+  getToken() {
+    return localStorage.getItem('token');
+  },
+  getUser() {
+    try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
+  }
+};
+
+export const homeApi = {
+  releases: () => api.get('/home/releases'),
+  compositions: () => api.get('/home/compositions'),
+  projects: () => api.get('/home/projects'),
+  sponsors: () => api.get('/home/sponsors'),
+};

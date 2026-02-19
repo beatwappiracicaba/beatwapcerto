@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { authApi } from '../services/apiClient';
 
 const AuthContext = createContext();
 
@@ -18,78 +18,31 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    // Get session on load
-    const getSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          fetchProfile(session.user.id);
-        } else {
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Session error:', error);
-        if (error.message?.includes('Refresh Token') || error.message?.includes('refresh_token')) {
-          await signOut();
-        }
-        setLoading(false);
-      }
-    };
-
-    getSession();
-
-    // Listen for changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setProfile(null);
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    const u = authApi.getUser();
+    if (u) {
+      setUser(u);
+      fetchProfile(u.id);
+    } else {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => {
-    let intervalId;
-    const heartbeat = async () => {
-      if (user?.id) {
-        await supabase
-          .from('online_status')
-          .upsert({ profile_id: user.id, online: true, updated_at: new Date().toISOString() }, { onConflict: 'profile_id' });
-      }
-    };
-    heartbeat();
-    intervalId = setInterval(heartbeat, 30000);
-    return () => {
-      clearInterval(intervalId);
-      if (user?.id) {
-        supabase
-          .from('online_status')
-          .upsert({ profile_id: user.id, online: false, updated_at: new Date().toISOString() }, { onConflict: 'profile_id' });
-      }
-    };
-  }, [user]);
+  useEffect(() => {}, [user]);
 
-  const fetchProfile = async (userId) => {
+  const fetchProfile = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-      
-      if (error) {
-        console.error('Error fetching profile:', error);
+      const res = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:4000') + '/profile', {
+        headers: { Authorization: `Bearer ${authApi.getToken()}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setProfile(data ? { ...data, cargo: normalizeCargo(data.cargo) } : data);
+      } else {
+        setProfile(null);
       }
-      setProfile(data ? { ...data, cargo: normalizeCargo(data.cargo) } : data);
     } catch (error) {
       console.error('Error in fetchProfile:', error);
+      setProfile(null);
     } finally {
       setLoading(false);
     }
@@ -102,12 +55,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signOut = async () => {
-    if (user?.id) {
-      await supabase
-        .from('online_status')
-        .upsert({ profile_id: user.id, online: false, updated_at: new Date().toISOString() }, { onConflict: 'profile_id' });
-    }
-    await supabase.auth.signOut();
+    await authApi.logout();
     setUser(null);
     setProfile(null);
   };

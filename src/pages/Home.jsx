@@ -11,7 +11,7 @@ import ShowProduction from '../components/landing/ShowProduction';
 import SpecialOffer from '../components/landing/SpecialOffer';
 import Contact from '../components/landing/Contact';
 import Footer from '../components/landing/Footer';
-import { supabase } from '../services/supabaseClient';
+import { homeApi } from '../services/apiClient';
 import { Play, Pause, BadgeCheck, Music, MessageCircle, ChevronLeft, ChevronRight, User, Info, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -115,14 +115,7 @@ const Home = () => {
 
   const fetchLatestReleases = async () => {
     try {
-      const { data, error } = await supabase
-        .from('musics')
-        .select('id,titulo,nome_artista,estilo,cover_url,preview_url,audio_url,presave_link,release_date,created_at,artista_id,is_beatwap_produced,show_on_home,produced_by,producer:profiles!produced_by(nome,nome_completo_razao_social),album_id,album_title')
-        .eq('status', 'aprovado')
-        .order('created_at', { ascending: false })
-        .limit(24);
-
-      if (error) throw error;
+      const data = await homeApi.releases();
       const today = new Date();
       const parsed = (data || []).map(r => {
         const rd = r.release_date ? new Date(r.release_date) : null;
@@ -150,19 +143,11 @@ const Home = () => {
  
   const fetchLatestCompositions = async () => {
     try {
-      const { data, error } = await supabase
-        .from('compositions')
-        .select('id, title, genre, cover_url, audio_url, created_at, composer_id, status, profiles:composer_id(nome, nome_completo_razao_social, celular)')
-        .eq('status', 'approved')
-        .order('created_at', { ascending: false })
-        .limit(8);
-
-      if (error) throw error;
-      
+      const data = await homeApi.compositions();
       const mapped = (data || []).map(c => ({
         ...c,
-        composer_name: c.profiles?.nome || c.profiles?.nome_completo_razao_social || 'Compositor',
-        composer_phone: c.profiles?.celular
+        composer_name: c.composer_name || 'Compositor',
+        composer_phone: c.composer_phone
       }));
       setLatestCompositions(mapped);
     } catch (error) {
@@ -190,13 +175,7 @@ const Home = () => {
 
   const fetchSponsors = async () => {
     try {
-      const { data, error } = await supabase
-        .from('sponsors')
-        .select('id,name,logo_url,instagram_url,site_url,created_at')
-        .eq('active', true)
-        .order('created_at', { ascending: false })
-        .limit(12);
-      if (error) throw error;
+      const data = await homeApi.sponsors();
       setSponsors(data || []);
     } catch (error) {
       console.error('Error fetching sponsors:', error);
@@ -205,13 +184,7 @@ const Home = () => {
 
   const fetchLatestProjects = async () => {
     try {
-      const { data, error } = await supabase
-        .from('producer_projects')
-        .select('id,title,url,platform,created_at')
-        .eq('platform', 'YouTube')
-        .order('created_at', { ascending: false })
-        .limit(6);
-      if (error) throw error;
+      const data = await homeApi.projects();
       setLatestProjects(data || []);
     } catch (error) {
       console.error('Error fetching producer projects:', error);
