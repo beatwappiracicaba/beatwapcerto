@@ -10,6 +10,9 @@ import { homeRouter } from './routes/home.js';
 import { workRouter } from './routes/work.js';
 import { financeRouter } from './routes/finance.js';
 import { notificationsRouter } from './routes/notifications.js';
+import { aiRouter } from './routes/ai.js';
+import { proposalsRouter } from './routes/proposals.js';
+import { compositionsRouter } from './routes/compositions.js';
 
 dotenv.config();
 
@@ -28,6 +31,9 @@ app.use('/', homeRouter);
 app.use('/', workRouter);
 app.use('/', financeRouter);
 app.use('/', notificationsRouter);
+app.use('/', compositionsRouter);
+app.use('/', proposalsRouter);
+app.use('/', aiRouter);
 
 const port = Number(process.env.PORT || 4000);
 app.listen(port, () => {

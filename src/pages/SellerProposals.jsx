@@ -3,7 +3,7 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
-import { supabase } from '../services/supabaseClient';
+import { api } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { FileText, Plus, ExternalLink, Check, X as XIcon, Clock, Edit2, Upload, Trash2 } from 'lucide-react';
@@ -37,10 +37,7 @@ const SellerProposals = () => {
 
   const fetchArtists = async () => {
     try {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, nome, nome_completo_razao_social')
-        .eq('cargo', 'Artista');
+      const data = await api.get('/artists');
       setArtists(data || []);
     } catch (error) {
       console.error('Error fetching artists:', error);
@@ -49,17 +46,7 @@ const SellerProposals = () => {
 
   const fetchProposals = async () => {
     try {
-      const { data, error } = await supabase
-        .from('proposals')
-        .select(`
-          *,
-          leads (contractor_name, event_name),
-          artist:artist_id (nome)
-        `)
-        .eq('seller_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await api.get('/seller/proposals');
       setProposals(data || []);
     } catch (error) {
       console.error('Error fetching proposals:', error);
@@ -102,25 +89,12 @@ const SellerProposals = () => {
 
   const handleFileUpload = async (file) => {
     if (!file) return null;
-    
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random()}.${fileExt}`;
-    const filePath = `proposals/${user.id}/${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('proposal_docs') // Ensure this bucket exists or use 'music_docs'
-      .upload(filePath, file);
-
-    if (uploadError) {
-      console.error('Error uploading file:', uploadError);
-      throw uploadError;
-    }
-
-    const { data } = supabase.storage
-      .from('proposal_docs')
-      .getPublicUrl(filePath);
-
-    return data.publicUrl;
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (e) => reject(e);
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleSaveProposal = async () => {
@@ -145,17 +119,10 @@ const SellerProposals = () => {
       };
 
       if (currentProposal) {
-        const { error } = await supabase
-          .from('proposals')
-          .update(payload)
-          .eq('id', currentProposal.id);
-        if (error) throw error;
+        await api.put(`/seller/proposals/${currentProposal.id}`, payload);
         addToast('Proposta atualizada com sucesso!', 'success');
       } else {
-        const { error } = await supabase
-          .from('proposals')
-          .insert([payload]);
-        if (error) throw error;
+        await api.post('/seller/proposals', payload);
         addToast('Proposta criada com sucesso!', 'success');
       }
 
@@ -172,12 +139,7 @@ const SellerProposals = () => {
   const handleDeleteProposal = async (id) => {
     if (!window.confirm('Tem certeza que deseja excluir esta proposta?')) return;
     try {
-      const { error } = await supabase
-        .from('proposals')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
+      await api.del(`/seller/proposals/${id}`);
       addToast('Proposta excluída!', 'success');
       fetchProposals();
     } catch (error) {

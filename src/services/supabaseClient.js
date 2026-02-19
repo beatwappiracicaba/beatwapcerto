@@ -17,6 +17,21 @@ export const supabase = {
       return { data: {}, error: null };
     }
   },
+  rpc() {
+    console.warn('supabase.rpc is not supported; migrate to backend API');
+    return Promise.resolve({ data: null, error: null });
+  },
+  channel() {
+    let handlers = [];
+    return {
+      on() { return this; },
+      subscribe(callback) {
+        if (callback) callback('SUBSCRIBED');
+        return this;
+      }
+    };
+  },
+  removeChannel() {},
   from() {
     console.warn('supabase.from is not supported; migrate to backend API');
     return {

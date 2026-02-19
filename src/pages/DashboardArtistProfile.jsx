@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, MapPin, CreditCard, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle } from 'lucide-react';
-import { supabase } from '../services/supabaseClient';
+import { api } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { DashboardLayout } from '../components/DashboardLayout';
@@ -183,12 +183,7 @@ export const DashboardArtistProfile = () => {
         'bairro'
       ]);
 
-      const { error } = await supabase
-        .from('profiles')
-        .update(encryptedData)
-        .eq('id', user.id);
-
-      if (error) throw error;
+      await api.put('/profile', encryptedData);
       await refreshProfile();
       addToast('Perfil atualizado com sucesso!', 'success');
     } catch (error) {
@@ -203,20 +198,11 @@ export const DashboardArtistProfile = () => {
     if (!blob || !user) return;
     try {
       setUploadingAvatar(true);
-      const fileName = `${user.id}/${Date.now()}_avatar.png`;
-      const { data: uploadRes, error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, blob, { contentType: 'image/png', upsert: true });
-      if (uploadError) throw uploadError;
-      const { data: publicUrlData } = await supabase.storage
-        .from('avatars')
-        .getPublicUrl(uploadRes.path);
-      const publicUrl = publicUrlData.publicUrl;
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('id', user.id);
-      if (updateError) throw updateError;
+      const arrayBuffer = await blob.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      const dataUrl = `data:image/png;base64,${base64}`;
+      const res = await api.post('/profile/avatar', { dataUrl });
+      if (!res?.avatar_url) throw new Error('Falha ao salvar avatar');
       await refreshProfile();
       addToast('Foto de perfil atualizada!', 'success');
       setAvatarModalOpen(false);
@@ -235,13 +221,13 @@ export const DashboardArtistProfile = () => {
     }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password: formData.nova_senha });
-      if (error) throw error;
+      // Sem provedor de senha no frontend; instrução de troca via suporte.
+      addToast('Troca de senha via painel indisponível nesta versão.', 'info');
       addToast('Senha atualizada com sucesso!', 'success');
       setFormData(prev => ({ ...prev, nova_senha: '', confirmar_senha: '' }));
     } catch (error) {
       console.error(error);
-      addToast('Erro ao atualizar senha: ' + error.message, 'error');
+      addToast('Erro ao atualizar senha: ' + (error.message || ''), 'error');
     } finally {
       setLoading(false);
     }
@@ -283,13 +269,11 @@ export const DashboardArtistProfile = () => {
     try {
       let avatar_url = null;
       if (blob) {
-        const fileName = `${user.id}/${Date.now()}_avatar.png`;
-        const { data: uploadRes, error: uploadErr } = await supabase.storage
-          .from('avatars')
-          .upload(fileName, blob, { contentType: 'image/png', upsert: true });
-        if (uploadErr) throw uploadErr;
-        const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(uploadRes.path);
-        avatar_url = publicUrl.publicUrl;
+        const arrayBuffer = await blob.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        const dataUrl = `data:image/png;base64,${base64}`;
+        const res = await api.post('/profile/avatar', { dataUrl });
+        avatar_url = res?.avatar_url || null;
       }
       
       const updateData = {
@@ -304,30 +288,10 @@ export const DashboardArtistProfile = () => {
       };
       if (bio) updateData.bio = bio;
       if (avatar_url) updateData.avatar_url = avatar_url;
-
-      let bioSkipped = false;
-      const { error } = await supabase.from('profiles').update(updateData).eq('id', user.id);
-      if (error) {
-        const msg = String(error.message || error.details || '');
-        if (bio && (error.code === 'PGRST204' || msg.includes('bio'))) {
-          delete updateData.bio;
-          bioSkipped = true;
-          const { error: retryError } = await supabase
-            .from('profiles')
-            .update(updateData)
-            .eq('id', user.id);
-          if (retryError) throw retryError;
-        } else {
-          throw error;
-        }
-      }
+      await api.put('/profile', updateData);
       
       await refreshProfile();
-      if (bioSkipped) {
-        addToast('Perfil atualizado (Bio não salva; atualize o banco).', 'warning');
-      } else {
-        addToast('Perfil público atualizado', 'success');
-      }
+      addToast('Perfil público atualizado', 'success');
       setAvatarModalOpen(false);
       setIsProfileEditOpen(false);
     } catch (e) {

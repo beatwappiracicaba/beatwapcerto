@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { supabase } from '../services/supabaseClient';
+import { api } from '../services/apiClient';
 import Header from '../components/landing/Header';
 import Footer from '../components/landing/Footer';
 import { User, Music, Instagram, Globe, MessageCircle, Play, Pause, ArrowLeft, Youtube, Target, DollarSign, Image, Link as LinkIcon, Video } from 'lucide-react';
@@ -28,15 +28,8 @@ const PublicProfile = () => {
 
   const fetchGalleryPosts = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profile_posts')
-        .select('*')
-        .eq('user_id', id)
-        .order('created_at', { ascending: false });
-      
-      if (!error) {
-        setGalleryPosts(data || []);
-      }
+      const data = await api.get(`/profiles/${id}/posts`);
+      setGalleryPosts(data || []);
     } catch (err) {
       console.error('Error fetching gallery:', err);
     }
@@ -56,10 +49,8 @@ const PublicProfile = () => {
 
   const recordEvent = async (payload) => {
     try {
-      // Remove profile_view type if it causes 400 errors or ensure backend supports it
       if (payload.type === 'profile_view') return; 
-      
-      await supabase.from('analytics_events').insert([{ ...payload, ip_hash: ipHash || 'unknown' }]);
+      await api.post('/analytics', { ...payload, ip_hash: ipHash || 'unknown' });
     } catch (e) { console.error('Analytics Error:', e); }
   };
 
@@ -98,13 +89,7 @@ const PublicProfile = () => {
       setLoading(true);
       
       // Fetch Profile
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (profileError) throw profileError;
+      const profileData = await api.get(`/profiles/${id}`);
       setProfile(profileData);
 
       // Determine what to fetch based on role
@@ -112,57 +97,24 @@ const PublicProfile = () => {
 
       if (cargo === 'vendedor') {
         try {
-          const { data: stats, error: statsError } = await supabase
-            .rpc('get_seller_stats', { target_seller_id: id });
-            
-          if (!statsError && stats) {
-            setSellerStats(stats);
-          }
+          const stats = await api.get(`/sellers/${id}/stats`);
+          if (stats) setSellerStats(stats);
         } catch (err) {
           console.error('Error fetching seller stats:', err);
         }
       } else if (cargo === 'artista') {
-        const { data: ownMusics, error: ownErr } = await supabase
-          .from('musics')
-          .select('*')
-          .eq('artista_id', profileData.id)
-          .eq('status', 'aprovado')
-          .order('created_at', { ascending: false });
-        if (ownErr) throw ownErr;
-        const { data: featMusics, error: featErr } = await supabase
-          .from('musics')
-          .select('*')
-          .contains('feat_beatwap_artist_ids', [profileData.id])
-          .eq('status', 'aprovado')
-          .order('created_at', { ascending: false });
-        if (featErr) throw featErr;
+        const ownMusics = await api.get(`/profiles/${id}/musics`);
+        const featMusics = await api.get(`/profiles/${id}/feats`);
         const map = {};
         (ownMusics || []).forEach(m => { map[m.id] = m; });
         (featMusics || []).forEach(m => { map[m.id] = m; });
         const merged = Object.values(map).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         setItems(merged);
       } else if (cargo === 'produtor') {
-        // Fetch Musics produced by this producer
-        const { data: producedData, error: producedError } = await supabase
-          .from('musics')
-          .select('*')
-          .eq('produced_by', profileData.id)
-          .eq('status', 'aprovado')
-          .order('created_at', { ascending: false });
-          
-          if (!producedError) {
-             setItems(producedData || []);
-          }
+        const producedData = await api.get(`/profiles/${id}/produced-musics`);
+        setItems(producedData || []);
       } else {
-        // Fetch Compositions for Compositors (default)
-        const { data: musicData, error: musicError } = await supabase
-          .from('compositions')
-          .select('*')
-          .eq('composer_id', id)
-          .eq('status', 'approved')
-          .order('created_at', { ascending: false });
-
-        if (musicError) throw musicError;
+        const musicData = await api.get(`/profiles/${id}/compositions`);
         setItems(musicData || []);
       }
 

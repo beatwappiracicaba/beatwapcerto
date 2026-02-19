@@ -11,7 +11,7 @@ import ShowProduction from '../components/landing/ShowProduction';
 import SpecialOffer from '../components/landing/SpecialOffer';
 import Contact from '../components/landing/Contact';
 import Footer from '../components/landing/Footer';
-import { homeApi } from '../services/apiClient';
+import { homeApi, api } from '../services/apiClient';
 import { Play, Pause, BadgeCheck, Music, MessageCircle, ChevronLeft, ChevronRight, User, Info, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -166,10 +166,9 @@ const Home = () => {
         t.startsWith('artist_click_') ||
         t === 'sponsor_click';
       if (!allowed) {
-        // Evita 400 por tipos/colunas não suportados (ex.: producer_project_play)
         return;
       }
-      await supabase.from('analytics_events').insert([{ ...payload, ip_hash: ipHash || 'unknown' }]);
+      await api.post('/analytics', { ...payload, ip_hash: ipHash || 'unknown' });
     } catch (e) { void 0; }
   };
 
@@ -234,13 +233,7 @@ const Home = () => {
 
   const fetchComposers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, nome, nome_completo_razao_social, avatar_url')
-        .eq('cargo', 'Compositor')
-        .order('created_at', { ascending: false })
-        .limit(8);
-      if (error) throw error;
+      const data = await homeApi.composers();
       const mapped = (data || []).map(s => ({ ...s, name: s.nome || s.nome_completo_razao_social || '' }));
       setComposers(mapped);
     } catch (error) {
