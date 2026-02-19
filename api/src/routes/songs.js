@@ -14,6 +14,34 @@ songsRouter.get('/songs', async (_req, res) => {
   }
 });
 
+songsRouter.get('/songs/mine', authMiddleware, async (req, res) => {
+  try {
+    const uid = req.user.id;
+    const r = await query(
+      `select id, titulo, cover_url, created_at, nome_artista, status, upc, presave_link, release_date, isrc, album_id, album_title
+       from musics
+       where artista_id=$1
+       order by created_at desc`,
+      [uid]
+    );
+    return res.json(r.rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: 'Server error' }); }
+});
+
+songsRouter.get('/songs/external-metrics', authMiddleware, async (req, res) => {
+  try {
+    const uid = req.user.id;
+    const r = await query(
+      `select em.*
+       from music_external_metrics em
+       join musics m on m.id = em.music_id
+       where m.artista_id=$1 and em.source='manual'`,
+      [uid]
+    );
+    return res.json(r.rows);
+  } catch (e) { console.error(e); return res.status(500).json({ error: 'Server error' }); }
+});
+
 songsRouter.post('/songs', authMiddleware, async (req, res) => {
   try {
     const { title, cover_url, audio_url } = req.body;

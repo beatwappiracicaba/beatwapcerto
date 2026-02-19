@@ -54,7 +54,7 @@ export const DashboardWork = () => {
     try {
       const data = await api.get('/artist/compositions'); // endpoint a ser adicionado
       setCompositions(data || []);
-    } catch {}
+    } catch (e) { console.error(e); }
     setCompositionsLoading(false);
   }, [user]);
 

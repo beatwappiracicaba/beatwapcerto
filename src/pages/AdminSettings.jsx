@@ -5,7 +5,7 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AdminLayout } from '../components/AdminLayout';
 import { useToast } from '../context/ToastContext';
 import { Mail, User, Settings, Shield, Search, Save, Check, Loader } from 'lucide-react';
-import { supabase } from '../services/supabaseClient';
+import { api } from '../services/apiClient';
 
 export const AdminSettings = () => {
   const { addToast } = useToast();
@@ -56,16 +56,10 @@ export const AdminSettings = () => {
   const fetchArtists = async () => {
     setLoadingArtists(true);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .in('cargo', ['Artista', 'Produtor', 'Compositor', 'Vendedor']) 
-        .order('created_at', { ascending: false });
-        
-      if (error) throw error;
-      
+      const data = await api.get('/profiles');
+      const filtered = (data || []).filter(a => ['Artista','Produtor','Compositor','Vendedor'].includes(a.cargo));
       // Normalize permissions
-      const formatted = (data || []).map(artist => ({
+      const formatted = filtered.map(artist => ({
         ...artist,
         access_control: artist.access_control || {
           chat: true,
@@ -100,10 +94,7 @@ export const AdminSettings = () => {
   };
 
   const checkSchema = async () => {
-    const { error } = await supabase.from('compositions').select('id').limit(1);
-    if (error && error.code === '42P01') { // undefined_table
-      addToast('ATENÇÃO: Tabela "compositions" não existe. Execute o script SQL!', 'error');
-    }
+    // verificação de schema agora deve ser feita via migrações do banco
   };
 
   useEffect(() => {
@@ -195,12 +186,7 @@ export const AdminSettings = () => {
   const savePermissions = async (artist) => {
     setSavingId(artist.id);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ access_control: artist.access_control })
-        .eq('id', artist.id);
-
-      if (error) throw error;
+      await api.put(`/profiles/${artist.id}/access-control`, { access_control: artist.access_control });
       addToast('Permissões atualizadas com sucesso!', 'success');
     } catch (error) {
       console.error('Error saving permissions:', error);

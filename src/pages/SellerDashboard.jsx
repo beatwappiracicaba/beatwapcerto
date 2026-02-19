@@ -3,7 +3,7 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../services/supabaseClient';
+import { api } from '../services/apiClient';
 import { TrendingUp, Calendar, Users, DollarSign, Target, Award } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -19,37 +19,8 @@ const SellerDashboard = () => {
 
   const fetchGoals = async () => {
     try {
-      const date = new Date();
-      const month = date.getMonth() + 1;
-      const year = date.getFullYear();
-
-      // Fetch goals
-      const { data: goalsData, error: goalsError } = await supabase
-        .from('seller_goals')
-        .select('*')
-        .eq('seller_id', user.id)
-        .eq('month', month)
-        .eq('year', year)
-        .maybeSingle();
-
-      if (goalsError) throw goalsError;
-
-      // Fetch actual revenue from distributed events
-      const { data: events, error: eventsError } = await supabase
-        .from('artist_work_events')
-        .select('seller_commission')
-        .eq('seller_id', user.id)
-        .eq('status', 'pago');
-
-      if (eventsError) throw eventsError;
-
-      const realizedRevenue = events?.reduce((acc, curr) => acc + (Number(curr.seller_commission) || 0), 0) || 0;
-
-      setGoals({
-        ...(goalsData || { shows_target: 10, current_shows: 0, revenue_target: 50000 }),
-        current_revenue: realizedRevenue
-      });
-      
+      const data = await api.get('/seller/dashboard');
+      setGoals(data || { shows_target: 10, current_shows: 0, revenue_target: 50000, current_revenue: 0 });
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {

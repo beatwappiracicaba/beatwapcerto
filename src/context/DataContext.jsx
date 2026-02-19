@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { api } from '../services/apiClient';
 
 const DataContext = createContext();
 
@@ -13,10 +13,7 @@ export const DataProvider = ({ children }) => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const { data: profilesData, error: profilesError } = await supabase
-          .from('profiles')
-          .select(`*`);
-        if (profilesError) throw profilesError;
+        const profilesData = await api.get('/profiles');
 
         const formattedArtists = (profilesData || []).map(artist => ({
           ...artist,
@@ -29,11 +26,11 @@ export const DataProvider = ({ children }) => {
           .map(a => a.id);
         let metricsMap = {};
         if (artistIds.length) {
-          const { data: metricsData } = await supabase
-            .from('artist_metrics')
-            .select('artista_id,total_plays,ouvintes_mensais,receita_estimada')
-            .in('artista_id', artistIds);
-          (metricsData || []).forEach(m => {
+          const metricsArray = await Promise.all(
+            artistIds.map(id => api.get(`/admin/artist/${id}/metrics`))
+          );
+          (metricsArray || []).forEach(m => {
+            if (!m || !m.artista_id) return;
             metricsMap[m.artista_id] = {
               plays: String(m.total_plays ?? '0'),
               listeners: String(m.ouvintes_mensais ?? '0'),
@@ -47,11 +44,7 @@ export const DataProvider = ({ children }) => {
           metrics: metricsMap[a.id] || a.metrics
         }));
 
-        const { data: musicData, error: musicError } = await supabase
-          .from('musics')
-          .select('*')
-          .order('created_at', { ascending: false });
-        if (musicError) throw musicError;
+        const musicData = await api.get('/admin/musics');
 
         setArtists(mergedArtists);
 
@@ -83,16 +76,6 @@ export const DataProvider = ({ children }) => {
 
     fetchData();
 
-    // Real-time updates for profiles and musics
-    const channel = supabase
-      .channel('public:data-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, fetchData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'musics' }, fetchData)
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
 
   const updateArtistMetrics = async (artistId, newMetrics) => {
@@ -104,35 +87,11 @@ export const DataProvider = ({ children }) => {
       ));
 
       const payload = {
-        artista_id: artistId,
         total_plays: Number(newMetrics.plays ?? 0),
         ouvintes_mensais: Number(newMetrics.listeners ?? 0),
         receita_estimada: Number(String(newMetrics.revenue ?? '0').replace(/[^\d.-]/g, '')) || 0
       };
-
-      const { data: existing, error: selectError } = await supabase
-        .from('artist_metrics')
-        .select('id')
-        .eq('artista_id', artistId)
-        .maybeSingle();
-      if (selectError) throw selectError;
-
-      if (existing?.id) {
-        const { error: updateError } = await supabase
-          .from('artist_metrics')
-          .update({
-            total_plays: payload.total_plays,
-            ouvintes_mensais: payload.ouvintes_mensais,
-            receita_estimada: payload.receita_estimada
-          })
-          .eq('artista_id', artistId);
-        if (updateError) throw updateError;
-      } else {
-        const { error: insertError } = await supabase
-          .from('artist_metrics')
-          .insert([payload]);
-        if (insertError) throw insertError;
-      }
+      await api.post(`/admin/artist/${artistId}/metrics`, payload);
     } catch (error) {
       console.error('Error updating metrics:', error);
       console.error('Error details:', error?.message, error?.details, error?.hint);
@@ -148,13 +107,7 @@ export const DataProvider = ({ children }) => {
           : m
       ));
 
-      // Database update
-      const { error } = await supabase
-        .from('musics')
-        .update({ status, ...additionalData })
-        .eq('id', musicId);
-
-      if (error) throw error;
+      await api.put(`/admin/musics/${musicId}`, { status, ...additionalData });
     } catch (error) {
       console.error('Error updating music status:', error);
     }
@@ -182,15 +135,7 @@ export const DataProvider = ({ children }) => {
         album_title: newMusicData.albumTitle || null
       };
 
-      const { data, error } = await supabase
-        .from('musics')
-        .insert([musicPayload])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Map back to frontend structure (Consistent with normalized fetch)
+      const data = await api.post('/admin/musics', musicPayload);
       const newMusic = {
         ...data,
         id: data.id,
@@ -213,7 +158,6 @@ export const DataProvider = ({ children }) => {
         albumId: data.album_id,
         albumTitle: data.album_title
       };
-
       setMusic(prev => [newMusic, ...prev]);
       return newMusic;
     } catch (error) {
@@ -244,12 +188,7 @@ export const DataProvider = ({ children }) => {
       if (updatedData.upc) dbData.upc = updatedData.upc;
     // coluna internal_note não existe no schema; omitida para evitar erro
 
-      const { error } = await supabase
-        .from('musics')
-        .update(dbData)
-        .eq('id', musicId);
-
-      if (error) throw error;
+      await api.put(`/admin/musics/${musicId}`, dbData);
     } catch (error) {
       console.error('Error editing music:', error);
     }
@@ -258,13 +197,7 @@ export const DataProvider = ({ children }) => {
   const deleteMusic = async (musicId) => {
     try {
       setMusic(prev => prev.filter(m => m.id !== musicId));
-      
-      const { error } = await supabase
-        .from('musics')
-        .delete()
-        .eq('id', musicId);
-
-      if (error) throw error;
+      await api.delete(`/admin/musics/${musicId}`);
     } catch (error) {
       console.error('Error deleting music:', error);
     }

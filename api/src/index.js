@@ -13,6 +13,8 @@ import { notificationsRouter } from './routes/notifications.js';
 import { aiRouter } from './routes/ai.js';
 import { proposalsRouter } from './routes/proposals.js';
 import { compositionsRouter } from './routes/compositions.js';
+import { adminSellersRouter } from './routes/adminSellers.js';
+import { sellerRouter } from './routes/seller.js';
 
 dotenv.config();
 
@@ -21,6 +23,15 @@ app.use(cors({ origin: '*', credentials: false }));
 app.use(express.json({ limit: '2mb' }));
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
+app.get('/health/db', async (_req, res) => {
+  try {
+    const r = await (await import('./db.js')).query('select 1 as ok', []);
+    return res.json({ db: r.rows[0]?.ok === 1 });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ db: false, error: 'DB connection failed' });
+  }
+});
 
 app.use('/', authRouter);
 app.use('/', profileRouter);
@@ -34,6 +45,8 @@ app.use('/', notificationsRouter);
 app.use('/', compositionsRouter);
 app.use('/', proposalsRouter);
 app.use('/', aiRouter);
+app.use('/', adminSellersRouter);
+app.use('/', sellerRouter);
 
 const port = Number(process.env.PORT || 4000);
 app.listen(port, () => {

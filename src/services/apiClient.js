@@ -53,4 +53,7 @@ export const homeApi = {
   projects: () => api.get('/home/projects'),
   sponsors: () => api.get('/home/sponsors'),
   composers: () => api.get('/home/composers'),
+  producers: () => api.get('/home/producers'),
+  sellers: () => api.get('/home/sellers'),
+  artists: () => api.get('/home/artists'),
 };

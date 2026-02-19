@@ -3,7 +3,7 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
-import { supabase } from '../services/supabaseClient';
+import { api } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useNotification } from '../context/NotificationContext';
@@ -67,12 +67,7 @@ const SellerLeads = () => {
 
   const fetchContractors = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, nome, nome_completo_razao_social, celular')
-        .order('nome', { ascending: true });
-      
-      if (error) throw error;
+      const data = await api.get('/seller/contractors');
       setContractors(data || []);
     } catch (error) {
       console.error('Error fetching contractors:', error);
@@ -81,13 +76,7 @@ const SellerLeads = () => {
 
   const fetchArtists = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, nome, nome_completo_razao_social, celular')
-        .eq('cargo', 'Artista')
-        .order('nome', { ascending: true });
-      
-      if (error) throw error;
+      const data = await api.get('/seller/artists');
       setArtists(data || []);
     } catch (error) {
       console.error('Error fetching artists:', error);
@@ -96,13 +85,7 @@ const SellerLeads = () => {
 
   const fetchLeads = async () => {
     try {
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*, artist:artist_id(nome, nome_completo_razao_social)')
-        .eq('seller_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await api.get('/seller/leads');
       setLeads(data || []);
     } catch (error) {
       console.error('Error fetching leads:', error);
@@ -112,11 +95,7 @@ const SellerLeads = () => {
   };
 
   const fetchHistory = async (leadId) => {
-    const { data } = await supabase
-      .from('negotiation_history')
-      .select('*')
-      .eq('lead_id', leadId)
-      .order('created_at', { ascending: false });
+    const data = await api.get(`/seller/leads/${leadId}/history`);
     setHistory(data || []);
   };
 
@@ -150,62 +129,12 @@ const SellerLeads = () => {
 
   const handleDeleteLead = async () => {
     if (!currentLead) return;
-    
-    // Check if there are linked events with contracts
-    try {
-      const { data: events } = await supabase
-        .from('artist_work_events')
-        .select('has_contract')
-        .eq('lead_id', currentLead.id);
-        
-      const hasContract = events?.some(e => e.has_contract);
-      
-      if (hasContract) {
-        addToast('Não é possível excluir lead com contrato. Apenas cancele o status.', 'error');
-        return;
-      }
-    } catch (err) {
-      console.error('Error checking contracts:', err);
-    }
 
     if (!window.confirm('Tem certeza que deseja excluir este lead? Esta ação não pode ser desfeita.')) return;
 
     setLoading(true);
     try {
-      // 1. Delete from agenda (if exists)
-      const { error: agendaError } = await supabase
-        .from('artist_work_events')
-        .delete()
-        .eq('lead_id', currentLead.id);
-      
-      if (agendaError) {
-        console.error('Error deleting agenda event:', agendaError);
-        throw new Error('Erro ao remover agendamentos vinculados.');
-      }
-
-      // 2. Delete from negotiation_history
-      const { error: historyError } = await supabase
-        .from('negotiation_history')
-        .delete()
-        .eq('lead_id', currentLead.id);
-
-      if (historyError) {
-        console.error('Error deleting history:', historyError);
-        // Não impede a deleção do lead se falhar o histórico, mas idealmente deveria
-      }
-
-      // 3. Delete lead
-      const { data, error } = await supabase
-        .from('leads')
-        .delete()
-        .eq('id', currentLead.id)
-        .select();
-
-      if (error) throw error;
-      
-      if (!data || data.length === 0) {
-        throw new Error('Lead não pôde ser excluído (verifique permissões).');
-      }
+      await api.delete(`/seller/leads/${currentLead.id}`);
 
       addToast('Lead excluído com sucesso!', 'success');
       setIsModalOpen(false);
@@ -239,106 +168,50 @@ const SellerLeads = () => {
       let leadId = currentLead?.id;
 
       if (currentLead) {
-        const { error } = await supabase
-          .from('leads')
-          .update(payload)
-          .eq('id', currentLead.id);
-        if (error) throw error;
+        const updated = await api.put(`/seller/leads/${currentLead.id}`, payload);
+        leadId = updated.id;
       } else {
-        const { data, error } = await supabase
-          .from('leads')
-          .insert([payload])
-          .select()
-          .single();
-        if (error) throw error;
-        leadId = data.id;
+        const created = await api.post('/seller/leads', payload);
+        leadId = created.id;
       }
       
-      // Update calendar based on lead status
       if (leadId) {
         try {
-          const { data: existingEvent } = await supabase
-            .from('artist_work_events')
-            .select('id, has_contract')
-            .eq('lead_id', leadId)
-            .maybeSingle();
+          await api.post(`/seller/leads/${leadId}/sync-agenda`, {
+            status: formData.status,
+            artist_id: formData.artist_id,
+            event_name: formData.event_name,
+            event_date: formData.event_date,
+            contractor_name: formData.contractor_name,
+            budget: formData.budget,
+            city: formData.city
+          });
 
           if (formData.status === 'perdido' || formData.status === 'cancelado') {
-            if (existingEvent) {
-              if (existingEvent.has_contract) {
-                // If has contract, keep the event but mark as canceled
-                await supabase
-                  .from('artist_work_events')
-                  .update({ status: 'cancelado' })
-                  .eq('id', existingEvent.id);
-              } else {
-                // If no contract, delete the event
-                await supabase
-                  .from('artist_work_events')
-                  .delete()
-                  .eq('id', existingEvent.id);
-              }
-              
-              // Send notification for canceled show
+            await addNotification({
+              recipientId: formData.artist_id,
+              title: 'Show Cancelado',
+              message: `O show ${formData.event_name} foi cancelado${formData.status === 'perdido' ? ' pois o lead foi perdido' : ''}.`,
+              type: 'warning'
+            });
+          } else {
+            if (!currentLead) {
+              await addNotification({
+                recipientId: formData.artist_id,
+                title: 'Novo Lead',
+                message: `Um novo lead foi aberto para você: ${formData.event_name}`,
+                type: 'info'
+              });
+            } else if (formData.status === 'cancelado' && currentLead.status !== 'cancelado') {
               await addNotification({
                 recipientId: formData.artist_id,
                 title: 'Show Cancelado',
-                message: `O show ${formData.event_name} foi cancelado${formData.status === 'perdido' ? ' pois o lead foi perdido' : ''}.`,
-                type: 'warning'
+                message: `O show ${formData.event_name} foi cancelado.`,
+                type: 'error'
               });
             }
-          } else {
-            // Map lead status to event status
-            let eventStatus = 'pendente';
-            if (formData.status === 'novo') eventStatus = 'proposta';
-            else if (formData.status === 'negociacao') eventStatus = 'negociacao';
-            else if (formData.status === 'fechado') eventStatus = 'fechado';
-
-            const eventPayload = {
-              artista_id: formData.artist_id,
-              title: formData.event_name || 'Show Confirmado',
-              date: formData.event_date ? new Date(formData.event_date).toISOString() : new Date().toISOString(),
-              type: 'show',
-              notes: `Lead ${formData.status} com ${formData.contractor_name}. Valor: R$ ${formData.budget}`,
-              revenue: parseFloat(formData.budget) || 0,
-              seller_id: user.id,
-              status: eventStatus,
-              lead_id: leadId,
-              city: formData.city
-            };
-
-            if (existingEvent) {
-              await supabase
-                .from('artist_work_events')
-                .update(eventPayload)
-                .eq('id', existingEvent.id);
-            } else {
-              await supabase
-                .from('artist_work_events')
-                .insert({
-                  ...eventPayload,
-                  created_by: user.id
-                });
-            }
-
-            // Send notification for new lead if it's new
-            if (!currentLead) {
-               await addNotification({
-                 recipientId: formData.artist_id, 
-                 title: 'Novo Lead', 
-                 message: `Um novo lead foi aberto para você: ${formData.event_name}`,
-                 type: 'info'
-               });
-            } else if (formData.status === 'cancelado' && currentLead.status !== 'cancelado') {
-               // Send notification for cancellation
-               await addNotification({
-                 recipientId: formData.artist_id, 
-                 title: 'Show Cancelado', 
-                 message: `O show ${formData.event_name} foi cancelado.`,
-                 type: 'error'
-               });
-            }
           }
+
           addToast('Lead salvo e agenda atualizada!', 'success');
         } catch (eventError) {
           console.error('Erro ao atualizar agenda:', eventError);
@@ -366,17 +239,10 @@ const SellerLeads = () => {
     if (!newHistoryNote.trim() || !currentLead) return;
 
     try {
-      const { error } = await supabase
-        .from('negotiation_history')
-        .insert([{
-          lead_id: currentLead.id,
-          seller_id: user.id,
-          notes: newHistoryNote,
-          contact_date: new Date().toISOString()
-        }]);
+      await api.post(`/seller/leads/${currentLead.id}/history`, {
+        notes: newHistoryNote
+      });
 
-      if (error) throw error;
-      
       setNewHistoryNote('');
       fetchHistory(currentLead.id);
     } catch (error) {

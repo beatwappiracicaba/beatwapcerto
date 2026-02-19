@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../services/supabaseClient';
+import { apiClient } from '../services/apiClient';
 import { AdminLayout } from '../components/AdminLayout';
 import { Play, Pause, Check, X, Music } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
@@ -28,28 +28,28 @@ export const AdminCompositions = () => {
   // Fetch composers for dropdown
   useEffect(() => {
     const fetchComposers = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, nome, nome_completo_razao_social')
-        .eq('cargo', 'Compositor')
-        .order('nome');
-      if (data) setComposers(data);
+      try {
+        const data = await apiClient.get('/composers');
+        if (data) setComposers(data);
+      } catch (error) {
+        console.error("Erro ao buscar compositores:", error);
+        addToast("Não foi possível carregar os compositores.", "error");
+      }
     };
     fetchComposers();
   }, []);
 
   const fetchCompositions = useCallback(async () => {
     setLoading(true);
-    // Join with profiles to get composer name
-    const { data, error } = await supabase
-      .from('compositions')
-      .select('*, profiles:composer_id(nome, nome_completo_razao_social)')
-      .order('created_at', { ascending: false });
-    
-    if (!error) {
-        setCompositions(data || []);
+    try {
+      const data = await apiClient.get('/admin/compositions');
+      setCompositions(data || []);
+    } catch (error) {
+      console.error("Erro ao buscar composições:", error);
+      addToast("Não foi possível carregar as composições.", "error");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -81,13 +81,7 @@ export const AdminCompositions = () => {
 
   const handleStatusChange = async (id, status, feedback = null) => {
     try {
-        const { error } = await supabase
-            .from('compositions')
-            .update({ status, admin_feedback: feedback })
-            .eq('id', id);
-        
-        if (error) throw error;
-        
+        await apiClient.put(`/admin/compositions/${id}/status`, { status, feedback });
         addToast(`Composição ${status === 'approved' ? 'aprovada' : 'recusada'}!`, 'success');
         fetchCompositions();
         setRejectingId(null);

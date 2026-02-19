@@ -3,7 +3,7 @@ import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../services/supabaseClient';
+import { api } from '../services/apiClient';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { MusicUploadModal } from '../components/artist/MusicUploadModal';
 import { Plus, DollarSign, Folder, ChevronDown, ChevronRight } from 'lucide-react';
@@ -17,34 +17,13 @@ export const DashboardArtistHome = () => {
 
   useEffect(() => {
     const fetchMetrics = async () => {
-      // Legacy metrics
-      const { data: legacy } = await supabase
-        .from('artist_metrics')
-        .select('*')
-        .eq('artista_id', user.id)
-        .maybeSingle();
+      const legacy = await api.get(`/admin/artist/${user.id}/metrics`);
+      const events = await api.get(`/analytics/artist/${user.id}/events`);
+      const shows = await api.get('/artist/finance/events');
+      const allMusics = await api.get('/songs/mine');
 
-      // Analytics events
-      const { data: events } = await supabase
-        .from('analytics_events')
-        .select('type, duration_seconds, ip_hash')
-        .eq('artist_id', user.id);
+      const showRevenue = (shows || []).reduce((acc, curr) => acc + (Number(curr.artist_share) || 0), 0) || 0;
 
-      // Show Revenue
-      const { data: shows } = await supabase
-        .from('artist_work_events')
-        .select('artist_share')
-        .eq('artista_id', user.id)
-        .eq('status', 'pago');
-
-      const showRevenue = shows?.reduce((acc, curr) => acc + (Number(curr.artist_share) || 0), 0) || 0;
-
-      // Load ALL musics for the artist to get music-specific external metrics and details
-      const { data: allMusics } = await supabase
-        .from('musics')
-        .select('id, titulo, cover_url')
-        .eq('artista_id', user.id);
-        
       const musicIds = (allMusics || []).map(m => m.id);
       const musicMap = (allMusics || []).reduce((acc, m) => {
         acc[m.id] = m;
@@ -56,11 +35,7 @@ export const DashboardArtistHome = () => {
       let totalExternalRevenue = 0;
       
       if (musicIds.length > 0) {
-        const { data: extMetrics } = await supabase
-          .from('music_external_metrics')
-          .select('plays, listeners, revenue')
-          .in('music_id', musicIds)
-          .eq('source', 'manual');
+        const extMetrics = await api.get('/songs/external-metrics');
           
         (extMetrics || []).forEach(em => {
           totalExternalPlays += Number(em.plays || 0);
@@ -108,20 +83,12 @@ export const DashboardArtistHome = () => {
         }
       });
       
-      // Merge External plays into per-music counts
-      if (musicIds.length > 0) {
-        const { data: extMetrics } = await supabase
-          .from('music_external_metrics')
-          .select('music_id, plays')
-          .in('music_id', musicIds)
-          .eq('source', 'manual');
-          
-        (extMetrics || []).forEach(em => {
-           if (em.music_id) {
-             playsPerMusic[em.music_id] = (playsPerMusic[em.music_id] || 0) + Number(em.plays || 0);
-           }
-        });
-      }
+      const extForTop = (await api.get('/songs/external-metrics')) || [];
+      extForTop.forEach(em => {
+        if (em.music_id) {
+          playsPerMusic[em.music_id] = (playsPerMusic[em.music_id] || 0) + Number(em.plays || 0);
+        }
+      });
 
       // Find Top Music
       let topMusic = null;
@@ -264,12 +231,8 @@ export const DashboardArtistMusics = () => {
 
   const fetchMusics = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('musics')
-      .select('id,titulo,status,motivo_recusa,created_at,cover_url,nome_artista,upc,presave_link,release_date,isrc,album_id,album_title')
-      .eq('artista_id', user.id)
-      .order('created_at', { ascending: false });
-    if (!error) setMusics(data || []);
+    const data = await api.get('/songs/mine');
+    setMusics(data || []);
     setLoading(false);
   }, [user]);
 
@@ -313,12 +276,7 @@ export const DashboardArtistMusics = () => {
     const loadMetrics = async () => {
       if (!user) return;
       
-      // 1. Internal Metrics
-      const { data: ev } = await supabase
-        .from('analytics_events')
-        .select('type,music_id,duration_seconds')
-        .eq('artist_id', user.id)
-        .in('type', ['music_play','music_click_presave']);
+      const ev = await api.get(`/analytics/artist/${user.id}/events`);
         
       const agg = {};
       
@@ -334,28 +292,13 @@ export const DashboardArtistMusics = () => {
         }
       });
 
-      // 2. External Metrics
-      const musicIds = musics.map(m => m.id);
-      if (musicIds.length > 0) {
-        const { data: extMetrics } = await supabase
-          .from('music_external_metrics')
-          .select('*')
-          .in('music_id', musicIds)
-          .eq('source', 'manual');
-
-        (extMetrics || []).forEach(em => {
-          const mid = em.music_id;
-          if (!agg[mid]) agg[mid] = { plays: 0, totalSeconds: 0, presaves: 0, revenue: 0 };
-          
-          // Merge logic: Add external plays to internal plays? Or just display external?
-          // Usually external stats (Spotify) are much larger and include internal plays if they are reported.
-          // But here "manual" implies specific external input.
-          // We will ADD them for the display in the list.
-          agg[mid].externalPlays = Number(em.plays || 0);
-          agg[mid].externalRevenue = Number(em.revenue || 0);
-          // Note: totalSeconds is only internal. Presaves only internal (unless we add manual presaves field).
-        });
-      }
+      const extMetrics = await api.get('/songs/external-metrics');
+      (extMetrics || []).forEach(em => {
+        const mid = em.music_id;
+        if (!agg[mid]) agg[mid] = { plays: 0, totalSeconds: 0, presaves: 0, revenue: 0 };
+        agg[mid].externalPlays = Number(em.plays || 0);
+        agg[mid].externalRevenue = Number(em.revenue || 0);
+      });
 
       setMusicMetrics(agg);
     };
@@ -447,7 +390,7 @@ export const DashboardArtistMusics = () => {
 
   const computeRemaining = useCallback(async () => {
     if (!user) return;
-    const { data: prof } = await supabase.from('profiles').select('plano, bonus_quota, plan_started_at').eq('id', user.id).maybeSingle();
+    const prof = await api.get('/profile');
     const plan = (prof?.plano || 'sem plano').toLowerCase();
     const bonus = Number(prof?.bonus_quota || 0);
     let base = 0;
@@ -478,14 +421,11 @@ export const DashboardArtistMusics = () => {
     } else {
       base = 0;
     }
-    let q = supabase
-      .from('musics')
-      .select('id', { count: 'exact', head: true })
-      .eq('artista_id', user.id);
-    if (start) q = q.gte('created_at', start);
-    if (end) q = q.lte('created_at', end);
-    const { count } = await q;
-    const used = Number(count || 0);
+    const params = new URLSearchParams();
+    if (start) params.set('start', start);
+    if (end) params.set('end', end);
+    const r = await api.get(`/me/uploads/count?${params.toString()}`);
+    const used = Number(r?.count || 0);
     const remaining = Math.max(0, base + bonus - used);
     setRemainingUploads(remaining);
   }, [user]);
@@ -605,78 +545,34 @@ export const DashboardArtistChat = () => {
   const [presence, setPresence] = useState([]);
   useEffect(() => {
     const init = async () => {
-      const { data: existing } = await supabase
-        .from('chats')
-        .select('id')
-        .contains('participant_ids', [user.id])
-        .limit(1)
-        .maybeSingle();
-      let cid = existing?.id;
-      if (!cid) {
-        const { data, error } = await supabase.from('chats').insert({ 
-          participant_ids: [user.id],
-          owner_id: user.id 
-        }).select('id').maybeSingle();
-        if (!error) cid = data?.id;
-      }
-      setChatId(cid || null);
-      if (cid) {
-        const { data } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('chat_id', cid)
-          .order('created_at', { ascending: true });
-        setMessages(data || []);
-        const channel = supabase
-          .channel('public:messages')
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${cid}` }, (payload) => {
-            setMessages((prev) => [...prev, payload.new]);
-          })
-          .subscribe();
-        return () => {
-          supabase.removeChannel(channel);
-        };
-      }
+      try {
+        const msgs = await api.get('/messages');
+        setMessages(msgs || []);
+        setChatId('inbox');
+      } catch (e) { console.error(e); }
     };
     if (user) init();
   }, [user]);
   useEffect(() => {
     const loadComposers = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, nome, avatar_url')
-        .eq('cargo', 'Compositor');
-      const ids = (data || []).map(d => d.id);
-      let pres = [];
-      if (ids.length) {
-        const { data: p } = await supabase
-          .from('online_status')
-          .select('profile_id, online, updated_at')
-          .in('profile_id', ids);
-        pres = p || [];
-      }
+      const data = await api.get('/composers');
       setComposers(data || []);
-      setPresence(pres);
+      setPresence([]);
     };
     loadComposers();
-    const channel = supabase
-      .channel('public:online_status')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'online_status' }, () => {
-        loadComposers();
-      })
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
   const send = async () => {
     if (!chatId || !input.trim()) return;
-    await supabase.from('messages').insert({ 
-      chat_id: chatId, 
-      sender_id: user.id, 
-      content: input.trim(),
-      metadata: { sender_cargo: 'Artista' }
-    });
+    let receiver_id = null;
+    for (const m of messages) {
+      if (m.sender_id && m.sender_id !== user?.id) { receiver_id = m.sender_id; break; }
+      if (m.receiver_id && m.receiver_id !== user?.id) { receiver_id = m.receiver_id; break; }
+    }
+    if (!receiver_id && composers.length) receiver_id = composers[0].id;
+    if (!receiver_id) return;
+    await api.post('/messages', { receiver_id, message: input.trim() });
+    const msgs = await api.get('/messages');
+    setMessages(msgs || []);
     setInput('');
   };
   return (

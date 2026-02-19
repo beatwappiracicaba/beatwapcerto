@@ -22,7 +22,6 @@ export const supabase = {
     return Promise.resolve({ data: null, error: null });
   },
   channel() {
-    let handlers = [];
     return {
       on() { return this; },
       subscribe(callback) {
@@ -34,17 +33,29 @@ export const supabase = {
   removeChannel() {},
   from() {
     console.warn('supabase.from is not supported; migrate to backend API');
-    return {
-      select() { return { data: [], error: null }; },
-      insert() { return { data: null, error: null }; },
-      update() { return { data: null, error: null }; },
-      upsert() { return { data: null, error: null }; },
-      eq() { return this; },
+    const chain = {
+      _rows: [],
+      _warned: false,
+      _touch() {
+        if (!this._warned) {
+          console.warn('Using supabase stub. Replace with backend API.');
+          this._warned = true;
+        }
+        return this;
+      },
+      select() { return this._touch(); },
+      insert() { return this._touch(); },
+      update() { return this._touch(); },
+      upsert() { return this._touch(); },
+      delete() { return this._touch(); },
+      eq() { return this._touch(); },
+      contains() { return this._touch(); },
+      order() { return { data: this._rows, error: null }; },
+      limit() { return this; },
       maybeSingle() { return { data: null, error: null }; },
-      single() { return { data: null, error: null }; },
-      order() { return this; },
-      limit() { return this; }
+      single() { return { data: null, error: null }; }
     };
+    return chain;
   },
   storage: {
     from() {

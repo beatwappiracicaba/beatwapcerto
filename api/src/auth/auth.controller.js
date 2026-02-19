@@ -106,3 +106,20 @@ export const logout = async (req, res) => {
     return res.status(500).json({ error: 'Server error' });
   }
 };
+
+export const changePassword = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { new_password } = req.body || {};
+    if (!new_password) return res.status(400).json({ error: 'Nova senha é obrigatória' });
+    if (!passwordIsStrong(new_password)) {
+      return res.status(400).json({ error: 'Senha fraca. Mín. 8, com número e símbolo.' });
+    }
+    const pwdHash = await hashPassword(new_password);
+    await query(`update users set password=$1, password_hash=$1 where id=$2`, [pwdHash, userId]);
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: 'Server error' });
+  }
+};

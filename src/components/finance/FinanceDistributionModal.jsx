@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Upload, Check, FileText, DollarSign, User, Briefcase, Building } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
-import { supabase } from '../../services/supabaseClient';
+import { api } from '../../services/apiClient';
 import { useToast } from '../../context/ToastContext';
 
 export const FinanceDistributionModal = ({ isOpen, onClose, event, onUpdate, userRole = 'artist' }) => {
@@ -46,81 +46,51 @@ export const FinanceDistributionModal = ({ isOpen, onClose, event, onUpdate, use
     }
   };
 
-  const uploadFile = async (file, path) => {
-    if (!file) return null;
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
-    const filePath = `${path}/${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('finance_receipts')
-      .upload(filePath, file);
-
-    if (uploadError) {
-      // Try fallback to 'proposal_docs' if finance_receipts doesn't exist
-      const { error: fallbackError } = await supabase.storage
-        .from('proposal_docs')
-        .upload(filePath, file);
-        
-      if (fallbackError) throw uploadError;
-      
-      const { data } = supabase.storage.from('proposal_docs').getPublicUrl(filePath);
-      return data.publicUrl;
-    }
-
-    const { data } = supabase.storage.from('finance_receipts').getPublicUrl(filePath);
-    return data.publicUrl;
-  };
+  const toDataUrl = (file) =>
+    new Promise((resolve, reject) => {
+      if (!file) return resolve(null);
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
 
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      const updates = {};
-      
-      // Upload files sequentially
-      if (files.receipt_artist) {
-        updates.receipt_artist = await uploadFile(files.receipt_artist, `artist/${event.id}`);
-      }
-      if (files.receipt_seller) {
-        updates.receipt_seller = await uploadFile(files.receipt_seller, `seller/${event.id}`);
-      }
-      if (files.receipt_house) {
-        updates.receipt_house = await uploadFile(files.receipt_house, `house/${event.id}`);
-      }
-      if (files.receipt_manager) {
-        updates.receipt_manager = await uploadFile(files.receipt_manager, `manager/${event.id}`);
-      }
-      if (files.contract_file) {
-        updates.contract_url = await uploadFile(files.contract_file, `contracts/${event.id}`);
-        updates.has_contract = true; // Auto-set if file uploaded
-      }
+      const payload = {
+        receipt_artist: await toDataUrl(files.receipt_artist),
+        receipt_seller: await toDataUrl(files.receipt_seller),
+        receipt_house: await toDataUrl(files.receipt_house),
+        receipt_manager: await toDataUrl(files.receipt_manager),
+        contract_file: await toDataUrl(files.contract_file),
+        markAsPaid,
+        hasContract
+      };
 
-      // Update database
-      if (Object.keys(updates).length > 0 || (markAsPaid && event.status !== 'pago') || (hasContract !== event.has_contract)) {
-        if (markAsPaid) {
-          updates.status = 'pago';
-        }
-        if (hasContract !== event.has_contract) {
-          updates.has_contract = hasContract;
-        }
+      const changed =
+        payload.receipt_artist ||
+        payload.receipt_seller ||
+        payload.receipt_house ||
+        payload.receipt_manager ||
+        payload.contract_file ||
+        markAsPaid !== (event.status === 'pago') ||
+        hasContract !== (event.has_contract || false);
 
-        const { error } = await supabase
-          .from('artist_work_events')
-          .update(updates)
-          .eq('id', event.id);
-
-        if (error) throw error;
-        
-        addToast('Atualização realizada com sucesso!', 'success');
-        onUpdate && onUpdate();
-        onClose();
-      } else {
+      if (!changed) {
         addToast('Nenhuma alteração para salvar.', 'info');
+        setLoading(false);
+        return;
       }
+
+      await api.post(`/artist/finance/events/${event.id}/receipts`, payload);
+      addToast('Atualização realizada com sucesso!', 'success');
+      onUpdate && onUpdate();
+      onClose();
 
     } catch (error) {
       console.error('Error uploading receipts:', error);
-      addToast('Erro ao enviar comprovantes. Verifique se o bucket "finance_receipts" existe.', 'error');
+      addToast('Erro ao atualizar informações financeiras.', 'error');
     } finally {
       setLoading(false);
     }

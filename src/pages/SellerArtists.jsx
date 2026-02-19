@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
-import { supabase } from '../services/supabaseClient';
+import { api } from '../services/apiClient';
 import { MapPin, Music, DollarSign, Phone, Eye, Calendar, Search, Edit2, Check, X, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -29,13 +29,7 @@ const SellerArtists = () => {
 
   const fetchArtists = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('cargo', 'Artista')
-        .order('nome', { ascending: true });
-
-      if (error) throw error;
+      const data = await api.get('/seller/artists');
       setArtists(data || []);
     } catch (error) {
       console.error('Error fetching artists:', error);
@@ -51,23 +45,7 @@ const SellerArtists = () => {
   const handleSaveCache = async () => {
     if (!editingCache.id) return;
     try {
-      // Try RPC first (safer for Vendedores)
-      let { error } = await supabase
-        .rpc('update_artist_cache', { 
-          artist_id: editingCache.id, 
-          new_cache: editingCache.value 
-        });
-
-      // Fallback to direct update if RPC not found/fails (e.g. for Admins/Producers who have RLS permission)
-      if (error && (error.code === '42883' || error.message?.includes('function'))) {
-         const direct = await supabase
-          .from('profiles')
-          .update({ cache_medio: editingCache.value })
-          .eq('id', editingCache.id);
-         error = direct.error;
-      }
-
-      if (error) throw error;
+      await api.patch(`/seller/artists/${editingCache.id}/cache`, { value: editingCache.value });
 
       setArtists(artists.map(a => 
         a.id === editingCache.id ? { ...a, cache_medio: editingCache.value } : a
@@ -75,7 +53,6 @@ const SellerArtists = () => {
       setEditingCache({ id: null, value: '' });
     } catch (error) {
       console.error('Error updating cache:', error);
-      alert('Erro ao atualizar cachê. Verifique se a função update_artist_cache existe no banco.');
     }
   };
 
@@ -92,18 +69,9 @@ const SellerArtists = () => {
 
   const fetchArtistEvents = async (artistId, date) => {
     try {
-      const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1).toISOString();
-      const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString();
-
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('artist_id', artistId)
-        .eq('status', 'fechado')
-        .gte('event_date', startOfMonth)
-        .lte('event_date', endOfMonth);
-
-      if (error) throw error;
+      const yyyy = String(date.getFullYear());
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const data = await api.get(`/seller/artists/${artistId}/events?month=${yyyy}-${mm}`);
       setAgendaModal(prev => ({ ...prev, events: data || [] }));
     } catch (error) {
       console.error('Error fetching events:', error);

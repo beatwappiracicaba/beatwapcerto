@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Star, Shield, Info, Briefcase, ChevronLeft, ChevronRight } from 'lucide-react';
-import { supabase } from '../../services/supabaseClient';
+import { homeApi } from '../../services/apiClient';
 
 const UserCard = ({ user, type, onSelect }) => {
   const getRoleLabel = () => {
@@ -66,32 +66,20 @@ const FeaturedUsers = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        if (data) {
-          const normalized = data.map(u => ({ ...u, name: u.nome || u.nome_completo_razao_social || u.name || '' }));
-          const admins = normalized.filter(u => u.cargo === 'Produtor');
-          const vendors = normalized.filter(u => (u.cargo || '').toLowerCase().includes('vendedor'));
-          const regular = normalized.filter(u => {
-            const cargo = (u.cargo || '').toLowerCase();
-            return cargo !== 'produtor' && cargo !== 'compositor' && !cargo.includes('vendedor');
-          });
-          setProducers(admins);
-          setSellers(vendors);
-          setArtists(regular);
-        }
+        const [prod, vend, arts] = await Promise.all([
+          homeApi.producers(),
+          homeApi.sellers(),
+          homeApi.artists()
+        ]);
+        setProducers((prod || []).map(u => ({ ...u, name: u.name || u.nome || u.nome_completo_razao_social || '' })));
+        setSellers((vend || []).map(u => ({ ...u, name: u.name || u.nome || u.nome_completo_razao_social || '' })));
+        setArtists((arts || []).map(u => ({ ...u, name: u.name || u.nome || u.nome_completo_razao_social || '' })));
       } catch (err) {
         console.error('Error fetching users:', err);
       } finally {
         setLoading(false);
       }
     };
-
     fetchUsers();
   }, []);
 

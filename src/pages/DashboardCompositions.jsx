@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../services/supabaseClient';
+import { api } from '../services/apiClient';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { CompositionsUploadModal } from '../components/artist/CompositionsUploadModal';
 import { Plus, Music } from 'lucide-react';
@@ -23,12 +23,8 @@ export const DashboardCompositions = () => {
 
   const fetchCompositions = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('compositions')
-      .select('*')
-      .eq('composer_id', user.id)
-      .order('created_at', { ascending: false });
-    if (!error) setCompositions(data || []);
+    const data = await api.get('/composer/compositions');
+    setCompositions(data || []);
     setLoading(false);
   }, [user]);
 
@@ -39,10 +35,7 @@ export const DashboardCompositions = () => {
   useEffect(() => {
     const loadMetrics = async () => {
       if (!user) return;
-      const { data: ev } = await supabase
-        .from('analytics_events')
-        .select('type,music_id,duration_seconds,ip_hash')
-        .eq('artist_id', user.id);
+      const ev = await api.get(`/analytics/artist/${user.id}/events`);
       
       const agg = {};
       const summary = {

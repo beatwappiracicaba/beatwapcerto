@@ -4,7 +4,7 @@ import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../services/supabaseClient';
+import { api } from '../services/apiClient';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, User, Plus, X } from 'lucide-react';
 
 const SellerAgenda = () => {
@@ -34,12 +34,8 @@ const SellerAgenda = () => {
 
   const fetchArtists = async () => {
     try {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, nome, nome_completo_razao_social')
-        .eq('cargo', 'Artista')
-        .order('nome');
-      setArtists(data || []);
+      const data = await api.get('/artists');
+      setArtists((data || []).map(a => ({ id: a.id, nome: a.nome || a.nome_completo_razao_social })));
     } catch (error) {
       console.error('Error fetching artists:', error);
     }
@@ -47,17 +43,9 @@ const SellerAgenda = () => {
 
   const fetchEvents = async () => {
     try {
-      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString();
-      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString();
-
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('status', 'fechado')
-        .gte('event_date', startOfMonth)
-        .lte('event_date', endOfMonth);
-
-      if (error) throw error;
+      const y = currentDate.getFullYear();
+      const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const data = await api.get(`/seller/calendar?month=${y}-${m}`);
       setEvents(data || []);
     } catch (error) {
       console.error('Error fetching events:', error);
@@ -68,31 +56,12 @@ const SellerAgenda = () => {
 
   const fetchArtistEvents = async () => {
     try {
-      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString();
-      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString();
-
-      // Tentativa de join para pegar nome do criador. Se falhar, pegamos sem join.
-      const { data, error } = await supabase
-        .from('artist_work_events')
-        .select('*, creator:created_by(nome)')
-        .eq('artista_id', selectedArtist)
-        .gte('date', startOfMonth)
-        .lte('date', endOfMonth)
-        .or('status.neq.cancelado,has_contract.eq.true');
-
-      if (error) throw error;
+      const y = currentDate.getFullYear();
+      const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const data = await api.get(`/seller/artist-events?artist_id=${selectedArtist}&month=${y}-${m}`);
       setArtistEvents(data || []);
     } catch (error) {
       console.error('Error fetching artist events:', error);
-      // Fallback sem join
-      const { data } = await supabase
-        .from('artist_work_events')
-        .select('*')
-        .eq('artista_id', selectedArtist)
-        .gte('date', new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString())
-        .lte('date', new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString())
-        .or('status.neq.cancelado,has_contract.eq.true');
-      setArtistEvents(data || []);
     }
   };
 
@@ -100,16 +69,13 @@ const SellerAgenda = () => {
     if (!newEvent.title || !newEvent.date || !selectedArtist) return;
 
     try {
-      const { error } = await supabase.from('artist_work_events').insert({
+      await api.post('/seller/artist-events', {
         artista_id: selectedArtist,
         title: newEvent.title,
         date: newEvent.date,
         type: newEvent.type,
-        notes: newEvent.notes,
-        created_by: user.id
+        notes: newEvent.notes
       });
-
-      if (error) throw error;
 
       setShowModal(false);
       setNewEvent({ title: '', date: '', type: 'show', notes: '' });

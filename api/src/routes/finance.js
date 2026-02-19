@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { requireAuth } from '../auth/auth.middleware.js';
 
 export const financeRouter = express.Router();
 
@@ -98,5 +99,39 @@ financeRouter.get('/sellers/:id/stats', async (req, res) => {
     const paidCommissions = Number(comms.find(c => c.status === 'pago')?.total || 0);
     const totalCommissions = pendingCommissions + paidCommissions;
     return res.json({ totalSold, totalCommissions, pendingCommissions, paidCommissions, totalLeads: leads[0]?.total_leads || 0 });
+  } catch (e) { console.error(e); return res.status(500).json({ error: 'Server error' }); }
+});
+
+financeRouter.get('/seller/dashboard', requireAuth, async (req, res) => {
+  try {
+    const uid = req.user.id;
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    const goalsRes = await query(
+      `select seller_id, month, year, shows_target, current_shows, revenue_target
+       from seller_goals
+       where seller_id=$1 and month=$2 and year=$3`,
+      [uid, month, year]
+    );
+    const goals = goalsRes.rows[0] || null;
+
+    const eventsRes = await query(
+      `select coalesce(sum(seller_commission),0)::numeric as realized
+       from artist_work_events
+       where seller_id=$1 and status='pago'`,
+      [uid]
+    );
+    const realized = Number(eventsRes.rows[0]?.realized || 0);
+
+    return res.json({
+      shows_target: goals?.shows_target || 10,
+      current_shows: goals?.current_shows || 0,
+      revenue_target: Number(goals?.revenue_target || 50000),
+      current_revenue: realized,
+      month,
+      year
+    });
   } catch (e) { console.error(e); return res.status(500).json({ error: 'Server error' }); }
 });

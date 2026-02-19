@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../services/supabaseClient';
 import { CheckCircle, AlertTriangle } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -13,33 +12,16 @@ const AuthCallback = () => {
   useEffect(() => {
     const handleAuth = async () => {
       try {
-        // O cliente Supabase processa automaticamente o hash da URL para obter a sessão.
-        // Apenas verificamos se a sessão foi estabelecida com sucesso.
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) throw error;
-
-        if (session) {
-          setStatus('success');
-          setMessage('Email confirmado com sucesso! Você será redirecionado para o login.');
-          
-          // Aguarda um pouco para o usuário ver a mensagem de sucesso
-          setTimeout(() => {
-            navigate('/dashboard');
-          }, 3000);
-        } else {
-          // Se não há sessão, verifica se há erro no hash da URL (ex: error_description)
-          const params = new URLSearchParams(window.location.hash.substring(1)); // Remove o #
-          const errorDescription = params.get('error_description');
-          
-          if (errorDescription) {
-            throw new Error(decodeURIComponent(errorDescription));
-          } else {
-             // Caso não tenha sessão nem erro explícito, mas caiu aqui
-             // Pode ser que o link expirou ou é inválido
-             throw new Error('Link de confirmação inválido ou expirado.');
-          }
+        const params = new URLSearchParams(window.location.hash.substring(1));
+        const errorDescription = params.get('error_description');
+        if (errorDescription) {
+          throw new Error(decodeURIComponent(errorDescription));
         }
+        setStatus('success');
+        setMessage('Email confirmado com sucesso! Você será redirecionado para o login.');
+        setTimeout(() => {
+          navigate('/login');
+        }, 3000);
       } catch (error) {
         console.error('Auth callback error:', error);
         setStatus('error');

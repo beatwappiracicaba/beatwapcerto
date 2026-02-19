@@ -126,22 +126,12 @@ export const DashboardArtistProfile = () => {
         setPeriodLabel('Sem Plano');
       }
 
-      let q;
-      if (profile.cargo === 'Compositor') {
-        q = supabase
-          .from('compositions')
-          .select('id', { count: 'exact', head: true })
-          .eq('composer_id', user.id);
-      } else {
-        q = supabase
-          .from('musics')
-          .select('id', { count: 'exact', head: true })
-          .eq('artista_id', user.id);
-      }
-
-      if (start) q = q.gte('created_at', start);
-      if (end) q = q.lte('created_at', end);
-      const { count } = await q;
+      const type = profile.cargo === 'Compositor' ? 'composition' : 'music';
+      const qs = new URLSearchParams();
+      qs.set('type', type);
+      if (start) qs.set('start', start);
+      if (end) qs.set('end', end);
+      const { count } = await api.get(`/me/uploads/count?${qs.toString()}`);
       const used = Number(count || 0);
       const remaining = Math.max(0, base + bonus - used);
       setRemainingUploads(remaining);

@@ -8,7 +8,7 @@ import { AdminLayout } from '../components/AdminLayout';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { useToast } from '../context/ToastContext';
-import { supabase } from '../services/supabaseClient';
+import { api } from '../services/apiClient';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../utils/cropImage';
 import logo from '../assets/images/beatwap-logo.png';
@@ -40,10 +40,8 @@ export const AdminHome = () => {
   // Upload de capa removido: thumbnail será carregada automaticamente do link (YouTube) ou usa logo
   useEffect(() => {
     const load = async () => {
-      const { count: artistsCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('cargo', 'Artista');
-      const { count: musicsCount } = await supabase.from('musics').select('*', { count: 'exact', head: true });
-      const { count: pendingCount } = await supabase.from('musics').select('*', { count: 'exact', head: true }).eq('status', 'pendente');
-      setCounts({ artists: artistsCount || 0, musics: musicsCount || 0, pending: pendingCount || 0 });
+      const stats = await api.get('/admin/stats');
+      setCounts({ artists: stats.artists || 0, musics: stats.musics || 0, pending: stats.pending || 0 });
     };
     load();
   }, []);
@@ -51,44 +49,20 @@ export const AdminHome = () => {
   useEffect(() => {
     const fetchMyMetrics = async () => {
       if (!user) return;
-      const { data: events } = await supabase
-        .from('analytics_events')
-        .select('type, duration_seconds, ip_hash')
-        .eq('artist_id', user.id);
-        
-      const agg = {
-        plays: 0,
-        listeners: new Set(),
-        time: 0,
-        profile_views: 0,
-        social_clicks: 0
-      };
-      
-      (events || []).forEach(e => {
-        if (e.type === 'music_play') {
-          agg.plays++;
-          agg.time += Number(e.duration_seconds || 0);
-          if (e.ip_hash) agg.listeners.add(e.ip_hash);
-        } else if (e.type === 'profile_view') {
-          agg.profile_views++;
-        } else if (e.type && e.type.startsWith('artist_click_')) {
-          agg.social_clicks++;
-        }
+      const data = await api.get(`/analytics/artist/${user.id}/summary`);
+      setMyMetrics({
+        plays: data?.plays || 0,
+        time: data?.time || 0,
+        profile_views: data?.profile_views || 0,
+        social_clicks: data?.social_clicks || 0
       });
-      
-      setMyMetrics(agg);
     };
     fetchMyMetrics();
   }, [user]);
   const loadProjects = useCallback(async () => {
     try {
       setLoadingProjects(true);
-      const { data, error } = await supabase
-        .from('producer_projects')
-        .select('id,title,url,platform,published,created_at')
-        .order('created_at', { ascending: false })
-        .limit(10);
-      if (error) throw error;
+      const data = await api.get('/producer-projects');
       setProjects(data || []);
     } catch (error) {
       console.error('Error loading producer projects:', error);
@@ -105,22 +79,8 @@ export const AdminHome = () => {
     if (!title || !url || !platform) { addToast('Informe título, link e plataforma', 'error'); return; }
     try {
       if (!user?.id) { addToast('Usuário inválido', 'error'); return; }
-      const { error: tableError } = await supabase
-        .from('producer_projects')
-        .select('id')
-        .limit(1);
-      if (tableError && /relation.*does not exist/i.test(String(tableError?.message || ''))) {
-        addToast('Tabela producer_projects ausente no banco. Aplique as migrações SQL.', 'error');
-        return;
-      }
       const payload = { producer_id: user.id, title, url, platform, published: true };
-      let { error } = await supabase.from('producer_projects').insert(payload);
-      if (error && /cover_url/i.test(String(error?.message || error?.details || ''))) {
-        const retry = await supabase.from('producer_projects').insert({ producer_id: user.id, title, url, platform, published: true });
-        if (retry.error) throw retry.error;
-      } else if (error) {
-        throw error;
-      }
+      await api.post('/producer-projects', payload);
       addToast('Projeto adicionado', 'success');
       setProjectForm({ title: '', url: '', platform: 'YouTube' });
       loadProjects();
@@ -132,8 +92,7 @@ export const AdminHome = () => {
   };
   const deleteProject = async (id) => {
     try {
-      const { error } = await supabase.from('producer_projects').delete().eq('id', id);
-      if (error) throw error;
+      await api.delete(`/producer-projects/${id}`);
       addToast('Projeto removido', 'success');
       loadProjects();
     } catch (error) {
@@ -251,11 +210,7 @@ export const AdminArtists = () => {
   const [manualMusicMetrics, setManualMusicMetrics] = useState({ plays: '', listeners: '', revenue: '' });
 
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, nome, nome_completo_razao_social, avatar_url, cargo')
-      .eq('cargo', 'Artista');
-      
+    const data = await api.get('/profiles');
     const decryptedArtists = (data || [])
       .filter(a => a.cargo === 'Artista')
       .map(artist => ({
@@ -272,12 +227,7 @@ export const AdminArtists = () => {
       setManualMusicMetrics({ plays: '', listeners: '', revenue: '' });
       return;
     }
-    const { data } = await supabase
-      .from('music_external_metrics')
-      .select('*')
-      .eq('music_id', musicId)
-      .eq('source', 'manual')
-      .maybeSingle();
+    const data = await api.get(`/musics/${musicId}/external-metrics?source=manual`);
       
     if (data) {
       setManualMusicMetrics({
@@ -308,11 +258,7 @@ export const AdminArtists = () => {
         updated_at: new Date()
       };
 
-      const { error } = await supabase
-        .from('music_external_metrics')
-        .upsert(payload, { onConflict: 'music_id,source' });
-
-      if (error) throw error;
+      await api.post(`/musics/${selectedMusicId}/external-metrics`, payload);
       addToast('Métricas da música atualizadas', 'success');
       loadArtistMusics(); // Refresh list to show updated values if needed
     } catch (err) {
@@ -340,43 +286,19 @@ export const AdminArtists = () => {
   }, [selectedArtist, getArtistById]);
   const loadWork = useCallback(async () => {
     if (!selectedArtist) { setWorkEvents([]); setWorkTodos([]); return; }
-    const { data: ev } = await supabase
-      .from('artist_work_events')
-      .select('id,title,date,type,notes,created_at')
-      .eq('artista_id', selectedArtist)
-      .order('date', { ascending: true });
+    const ev = await api.get(`/seller/artist-events?artist_id=${selectedArtist}`);
     setWorkEvents(ev || []);
-    const { data: td } = await supabase
-      .from('artist_todos')
-      .select('id,title,due_date,status,created_at,updated_at')
-      .eq('artista_id', selectedArtist)
-      .order('created_at', { ascending: false });
+    const td = await api.get(`/admin/artist/${selectedArtist}/todos`);
     setWorkTodos(td || []);
   }, [selectedArtist]);
   useEffect(() => { loadWork(); }, [loadWork]);
-  useEffect(() => {
-    if (!selectedArtist) return;
-    const channel = supabase
-      .channel(`realtime-artist-work-${selectedArtist}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'artist_work_events', filter: `artista_id=eq.${selectedArtist}` }, loadWork)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'artist_todos', filter: `artista_id=eq.${selectedArtist}` }, loadWork)
-      .subscribe();
-    return () => {
-      try { supabase.removeChannel(channel); } catch (e) { console.error(e); }
-    };
-  }, [selectedArtist]);
   useEffect(() => {
     loadArtistMusics();
   }, [selectedArtist]);
 
   const loadArtistMusics = async () => {
     if (!selectedArtist) { setApprovedMusics([]); setMusicMetrics({}); return; }
-    const { data: mus } = await supabase
-      .from('musics')
-      .select('id,titulo')
-      .eq('artista_id', selectedArtist)
-      .eq('status', 'aprovado')
-      .order('created_at', { ascending: false });
+    const mus = await api.get(`/admin/musics?artist_id=${selectedArtist}&status=aprovado`);
     setApprovedMusics(mus || []);
 
     // Load metrics for all musics (internal + external)
@@ -385,38 +307,13 @@ export const AdminArtists = () => {
 
     // 1. Internal Analytics
     if (musicIds.length > 0) {
-      const { data: ev } = await supabase
-        .from('analytics_events')
-        .select('type,music_id,duration_seconds')
-        .in('music_id', musicIds)
-        .in('type', ['music_play','music_click_presave']);
-      
-      (ev || []).forEach(e => {
-        const mid = e.music_id;
-        if (!metricsMap[mid]) metricsMap[mid] = { plays: 0, totalSeconds: 0, presaves: 0, revenue: 0, listeners: 0 };
-        if (e.type === 'music_play') {
-          metricsMap[mid].plays += 1;
-          metricsMap[mid].totalSeconds += Number(e.duration_seconds || 0);
-        } else if (e.type === 'music_click_presave') {
-          metricsMap[mid].presaves += 1;
-        }
-      });
-
-      // 2. External Manual Metrics
-      const { data: extMetrics } = await supabase
-        .from('music_external_metrics')
-        .select('*')
-        .in('music_id', musicIds)
-        .eq('source', 'manual');
+      const extMetrics = await Promise.all(
+        musicIds.map(id => api.get(`/musics/${id}/external-metrics?source=manual`))
+      );
         
-      (extMetrics || []).forEach(em => {
+      (extMetrics || []).filter(Boolean).forEach(em => {
         const mid = em.music_id;
         if (!metricsMap[mid]) metricsMap[mid] = { plays: 0, totalSeconds: 0, presaves: 0, revenue: 0, listeners: 0 };
-        // External metrics override or add to internal? 
-        // Request implies "colocar as métricas... manualmente". Usually this means TOTAL plays from external platforms.
-        // We will display external plays as the primary "Plays" metric if available, or maybe show both?
-        // The user said "colocoria manualmente... e assim aparece para o artista a musica com mais visualizações".
-        // So let's store them in the map. We'll decide how to display below.
         metricsMap[mid].externalPlays = em.plays || 0;
         metricsMap[mid].externalListeners = em.listeners || 0;
         metricsMap[mid].externalRevenue = em.revenue || 0;
@@ -428,11 +325,7 @@ export const AdminArtists = () => {
   useEffect(() => {
     const loadPlan = async () => {
       if (!selectedArtist) { setPlanForm({ plano: 'Gratuito', bonus_quota: 0, plan_started_at: '' }); return; }
-      const { data } = await supabase
-        .from('profiles')
-        .select('plano, bonus_quota, plan_started_at')
-        .eq('id', selectedArtist)
-        .maybeSingle();
+      const data = await api.get(`/profiles/${selectedArtist}`);
       setPlanForm({
         plano: data?.plano || 'Avulso',
         bonus_quota: Number(data?.bonus_quota || 0),
@@ -446,40 +339,22 @@ export const AdminArtists = () => {
       if (!selectedArtist) return;
       let avatar_url = null;
       if (blob) {
-        const fileName = `${selectedArtist}-${Date.now()}.jpg`;
-        const { data: uploadRes, error: uploadErr } = await supabase.storage
-          .from('avatars')
-          .upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
-        if (uploadErr) throw uploadErr;
-        const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(uploadRes.path);
-        avatar_url = publicUrl.publicUrl;
+        const reader = new FileReader();
+        const dataUrl = await new Promise((resolve, reject) => {
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        const resp = await api.post('/profile/avatar', { dataUrl });
+        avatar_url = resp?.avatar_url || null;
       }
       const updateData = {};
       if (name) updateData.nome = name;
       if (bio) updateData.bio = bio;
       if (avatar_url) updateData.avatar_url = avatar_url;
       if (Object.keys(updateData).length) {
-        let bioSkipped = false;
-        const { error } = await supabase.from('profiles').update(updateData).eq('id', selectedArtist);
-        if (error) {
-          const msg = String(error.message || error.details || '');
-          if (bio && (error.code === 'PGRST204' || msg.includes("bio"))) {
-            delete updateData.bio;
-            bioSkipped = true;
-            const { error: retryError } = await supabase
-              .from('profiles')
-              .update(updateData)
-              .eq('id', selectedArtist);
-            if (retryError) throw retryError;
-          } else {
-            throw error;
-          }
-        }
-        if (bioSkipped) {
-          addToast('Perfil atualizado (campo Bio não salvo; atualize o banco).', 'warning');
-        } else {
-          addToast('Perfil do artista atualizado', 'success');
-        }
+        await api.put('/profile', updateData);
+        addToast('Perfil do artista atualizado', 'success');
       } else {
         addToast('Nada para atualizar no perfil.', 'warning');
       }
@@ -514,11 +389,7 @@ export const AdminArtists = () => {
       if (planForm.plan_started_at) {
         update.plan_started_at = new Date(planForm.plan_started_at).toISOString();
       }
-      const { error } = await supabase
-        .from('profiles')
-        .update(update)
-        .eq('id', selectedArtist);
-      if (error) throw error;
+      await api.put('/profile', update);
       addToast('Plano do artista atualizado', 'success');
     } catch {
       addToast('Falha ao atualizar plano', 'error');
@@ -526,39 +397,43 @@ export const AdminArtists = () => {
   };
   const createWorkEvent = async () => {
     if (!selectedArtist || !workEventForm.title.trim() || !workEventForm.date) { addToast('Informe artista, título e data', 'error'); return; }
-    const { error } = await supabase
-      .from('artist_work_events')
-      .insert({
+    try {
+      await api.post('/seller/artist-events', {
         artista_id: selectedArtist,
         title: workEventForm.title.trim(),
         date: workEventForm.date,
-        type: workEventForm.type,
-        created_by: (await supabase.auth.getUser()).data.user?.id || null
+        type: workEventForm.type
       });
-    if (error) { addToast('Falha ao adicionar evento', 'error'); return; }
+    } catch {
+      addToast('Falha ao adicionar evento', 'error'); 
+      return;
+    }
     addToast('Evento adicionado', 'success');
     setWorkEventForm({ title: '', date: '', type: 'lançamento' });
     loadWork();
   };
   const createTodo = async () => {
     if (!selectedArtist || !todoForm.title.trim()) { addToast('Informe artista e tarefa', 'error'); return; }
-    const { error } = await supabase
-      .from('artist_todos')
-      .insert({
-        artista_id: selectedArtist,
+    try {
+      await api.post(`/admin/artist/${selectedArtist}/todos`, {
         title: todoForm.title.trim(),
-        due_date: todoForm.due_date || null,
-        status: 'pendente',
-        created_by: (await supabase.auth.getUser()).data.user?.id || null
+        due_date: todoForm.due_date || null
       });
-    if (error) { addToast('Falha ao adicionar tarefa', 'error'); return; }
+    } catch {
+      addToast('Falha ao adicionar tarefa', 'error'); 
+      return;
+    }
     addToast('Tarefa adicionada', 'success');
     setTodoForm({ title: '', due_date: '' });
     loadWork();
   };
   const updateTodoStatus = async (id, status) => {
-    const { error } = await supabase.from('artist_todos').update({ status }).eq('id', id);
-    if (error) { addToast('Falha ao atualizar tarefa', 'error'); return; }
+    try {
+      await api.post(`/admin/todos/${id}/status`, { status });
+    } catch {
+      addToast('Falha ao atualizar tarefa', 'error'); 
+      return;
+    }
     loadWork();
   };
   return (
@@ -866,26 +741,17 @@ export const AdminMusics = () => {
   };
 
   const load = useCallback(async () => {
-    let q = supabase
-      .from('musics')
-      .select('id,titulo,status,motivo_recusa,artista_id,upc,presave_link,release_date,created_at,cover_url,audio_url,authorization_url,is_beatwap_produced,show_on_home,album_id,album_title,isrc')
-      .order('created_at', { ascending: false });
-    if (statusFilter !== 'todos') q = q.eq('status', statusFilter);
-    if (artistFilter) q = q.eq('artista_id', artistFilter);
-    if (startDate) q = q.gte('created_at', new Date(startDate).toISOString());
-    if (endDate) q = q.lte('created_at', new Date(endDate).toISOString());
-    const { data } = await q;
+    const params = new URLSearchParams();
+    if (statusFilter !== 'todos') params.set('status', statusFilter);
+    if (artistFilter) params.set('artist_id', artistFilter);
+    const data = await api.get(`/admin/musics?${params.toString()}`);
     setMusics(data || []);
   }, [statusFilter, artistFilter, startDate, endDate]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     const fetchArtists = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, nome, nome_completo_razao_social')
-        .eq('cargo', 'Artista')
-        .order('nome', { ascending: true });
+      const data = await api.get('/artists');
       setArtists(data || []);
     };
     fetchArtists();
@@ -893,11 +759,7 @@ export const AdminMusics = () => {
 
   useEffect(() => {
     const fetchProducers = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, nome, nome_completo_razao_social')
-        .eq('cargo', 'Produtor')
-        .order('nome', { ascending: true });
+      const data = await api.get('/producers');
       setProducers(data || []);
     };
     fetchProducers();
@@ -922,19 +784,16 @@ export const AdminMusics = () => {
     if (!upcVal) { addToast('Informe o UPC', 'error'); return; }
     if (isProduced && !producedBy) { addToast('Selecione o produtor responsável', 'error'); return; }
 
-    await supabase
-      .from('musics')
-      .update({ 
-        status: 'aprovado', 
-        upc: upcVal, 
-        presave_link: presaveVal || null, 
-        release_date: releaseVal || null,
-        is_beatwap_produced: isProduced,
-        produced_by: isProduced ? producedBy : null,
-        show_on_home: showHome,
-        isrc: isrcVal || null
-      })
-      .eq('id', m.id);
+    await api.put(`/admin/musics/${m.id}`, {
+      status: 'aprovado',
+      upc: upcVal,
+      presave_link: presaveVal || null,
+      release_date: releaseVal || null,
+      is_beatwap_produced: isProduced,
+      produced_by: isProduced ? producedBy : null,
+      show_on_home: showHome,
+      isrc: isrcVal || null
+    });
     await addNotification({
       recipientId: m.artista_id,
       title: 'Música aprovada',
@@ -949,7 +808,7 @@ export const AdminMusics = () => {
   const reject = async (m) => {
     const reason = (localInputs[m.id]?.reject || '').trim();
     if (!reason) { addToast('Informe o motivo da reprovação', 'error'); return; }
-    await supabase.from('musics').update({ status: 'recusado', motivo_recusa: reason }).eq('id', m.id);
+    await api.put(`/admin/musics/${m.id}`, { status: 'recusado', motivo_recusa: reason });
     await addNotification({ recipientId: m.artista_id, title: 'Música reprovada', message: reason, type: 'error' });
     setLocalInputs((prev) => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), reject: '' } }));
     load();
@@ -995,14 +854,14 @@ export const AdminMusics = () => {
         const trackInputs = localInputs[m.id] || {};
         const isrcVal = trackInputs.isrc || m.isrc || null;
         
-        await supabase.from('musics').update({
+        await api.put(`/admin/musics/${m.id}`, {
             status: 'aprovado',
             upc: upcVal,
             presave_link: presaveVal || null,
             release_date: releaseVal || null,
             show_on_home: showHome,
             isrc: isrcVal || null
-        }).eq('id', m.id);
+        });
         approvedCount++;
     }
     
@@ -1025,15 +884,12 @@ export const AdminMusics = () => {
 
     try {
       const albumIds = group.tracks.map(t => t.id);
-      await supabase
-        .from('musics')
-        .update({
-          upc: upcVal,
-          presave_link: presaveVal || null,
-          release_date: releaseVal || null,
-          show_on_home: showHome
-        })
-        .in('id', albumIds);
+      await Promise.all(albumIds.map(id => api.put(`/admin/musics/${id}`, {
+        upc: upcVal,
+        presave_link: presaveVal || null,
+        release_date: releaseVal || null,
+        show_on_home: showHome
+      })));
       addToast('Informações do álbum atualizadas', 'success');
       load();
     } catch {
@@ -1472,11 +1328,7 @@ export const AdminComposers = () => {
   const [internalMetrics, setInternalMetrics] = useState({ plays: 0, listeners: 0, time: 0 });
   const { addToast } = useToast();
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id,nome,nome_completo_razao_social,avatar_url,cargo,plano,bonus_quota,plan_started_at')
-      .eq('cargo', 'Compositor')
-      .order('nome', { ascending: true });
+    const data = await api.get('/composers');
     const mapped = (data || []).map(p => ({
       ...p,
       nome: decryptData(p.nome),
@@ -1491,11 +1343,7 @@ export const AdminComposers = () => {
         setPlanForm({ plano: 'Avulso', bonus_quota: 0, plan_started_at: '' });
         return;
       }
-      const { data } = await supabase
-        .from('profiles')
-        .select('plano,bonus_quota,plan_started_at')
-        .eq('id', selectedComposer)
-        .maybeSingle();
+      const data = await api.get(`/profiles/${selectedComposer}`);
       setPlanForm({
         plano: data?.plano || 'Avulso',
         bonus_quota: Number(data?.bonus_quota || 0),
@@ -1507,22 +1355,8 @@ export const AdminComposers = () => {
   useEffect(() => {
     const loadMetrics = async () => {
       if (!selectedComposer) { setInternalMetrics({ plays: 0, listeners: 0, time: 0 }); return; }
-      const { data: ev } = await supabase
-        .from('analytics_events')
-        .select('type,duration_seconds,ip_hash')
-        .eq('artist_id', selectedComposer)
-        .in('type', ['music_play']);
-      let plays = 0;
-      let time = 0;
-      const ls = new Set();
-      (ev || []).forEach(e => {
-        if (e.type === 'music_play') {
-          plays += 1;
-          time += Number(e.duration_seconds || 0);
-          if (e.ip_hash) ls.add(e.ip_hash);
-        }
-      });
-      setInternalMetrics({ plays, listeners: ls.size, time });
+      const s = await api.get(`/analytics/artist/${selectedComposer}/summary`);
+      setInternalMetrics({ plays: s?.plays || 0, listeners: s?.listeners || 0, time: s?.time || 0 });
     };
     loadMetrics();
   }, [selectedComposer]);
@@ -1531,19 +1365,20 @@ export const AdminComposers = () => {
       if (!selectedComposer) return;
       let avatar_url = null;
       if (blob) {
-        const fileName = `${selectedComposer}-${Date.now()}.jpg`;
-        const { data: uploadRes, error: uploadErr } = await supabase.storage.from('avatars').upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
-        if (uploadErr) throw uploadErr;
-        const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(uploadRes.path);
-        avatar_url = publicUrl.publicUrl;
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        avatar_url = String(dataUrl);
       }
       const updateData = {};
       if (name) updateData.nome = name;
       if (bio) updateData.bio = bio;
       if (avatar_url) updateData.avatar_url = avatar_url;
       if (Object.keys(updateData).length) {
-        const { error } = await supabase.from('profiles').update(updateData).eq('id', selectedComposer);
-        if (error) throw error;
+        await api.put(`/profiles/${selectedComposer}`, updateData);
       }
       addToast('Perfil do compositor atualizado', 'success');
       setIsProfileOpen(false);
@@ -1560,8 +1395,7 @@ export const AdminComposers = () => {
         bonus_quota: Number(planForm.bonus_quota || 0),
       };
       if (planForm.plan_started_at) update.plan_started_at = new Date(planForm.plan_started_at).toISOString();
-      const { error } = await supabase.from('profiles').update(update).eq('id', selectedComposer);
-      if (error) throw error;
+      await api.put(`/profiles/${selectedComposer}`, update);
       addToast('Plano do compositor atualizado', 'success');
     } catch {
       addToast('Falha ao atualizar plano', 'error');
@@ -1681,36 +1515,25 @@ export const AdminChat = () => {
   const [input, setInput] = useState('');
   useEffect(() => {
     const init = async () => {
-      const { data } = await supabase
-        .from('chats')
-        .select('id')
-        .limit(1)
-        .maybeSingle();
-      const cid = data?.id || null;
-      setChatId(cid);
-      if (cid) {
-        const { data: msgs } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('chat_id', cid)
-          .order('created_at', { ascending: true });
+      try {
+        const msgs = await api.get('/messages');
         setMessages(msgs || []);
-        const channel = supabase
-          .channel('public:messages')
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${cid}` }, (payload) => {
-            setMessages((prev) => [...prev, payload.new]);
-          })
-          .subscribe();
-        return () => {
-          supabase.removeChannel(channel);
-        };
-      }
+        setChatId('inbox');
+      } catch (e) { console.error(e); }
     };
     init();
   }, []);
   const send = async () => {
     if (!chatId || !input.trim()) return;
-    await supabase.from('messages').insert({ chat_id: chatId, sender_cargo: 'Produtor', message: input.trim() });
+    let receiver_id = null;
+    for (const m of messages) {
+      if (m.sender_id && m.sender_id !== user?.id) { receiver_id = m.sender_id; break; }
+      if (m.receiver_id && m.receiver_id !== user?.id) { receiver_id = m.receiver_id; break; }
+    }
+    if (!receiver_id) return;
+    await api.post('/messages', { receiver_id, message: input.trim() });
+    const msgs = await api.get('/messages');
+    setMessages(msgs || []);
     setInput('');
   };
   return (
@@ -1800,25 +1623,21 @@ export const AdminProfile = () => {
   const handleSave = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          nome_completo_razao_social: formData.nome_completo_razao_social,
-          cpf_cnpj: encryptData(formData.cpf_cnpj),
-          celular: encryptData(formData.celular),
-          instagram_url: formData.instagram_url,
-          site_url: formData.site_url,
-          genero_musical: formData.genero_musical,
-          tema: formData.tema,
-          cep: encryptData(formData.cep),
-          logradouro: encryptData(formData.logradouro),
-          complemento: encryptData(formData.complemento),
-          bairro: encryptData(formData.bairro),
-          cidade: formData.cidade,
-          estado: formData.estado
-        })
-        .eq('id', user.id);
-      if (error) throw error;
+      await api.put('/profile', {
+        nome_completo_razao_social: formData.nome_completo_razao_social,
+        cpf_cnpj: encryptData(formData.cpf_cnpj),
+        celular: encryptData(formData.celular),
+        instagram_url: formData.instagram_url,
+        site_url: formData.site_url,
+        genero_musical: formData.genero_musical,
+        tema: formData.tema,
+        cep: encryptData(formData.cep),
+        logradouro: encryptData(formData.logradouro),
+        complemento: encryptData(formData.complemento),
+        bairro: encryptData(formData.bairro),
+        cidade: formData.cidade,
+        estado: formData.estado
+      });
       await refreshProfile();
       addToast('Perfil atualizado com sucesso!', 'success');
     } catch (error) {
@@ -1834,13 +1653,14 @@ export const AdminProfile = () => {
     try {
       let avatar_url = null;
       if (blob) {
-        const fileName = `${user.id}/${Date.now()}_avatar.png`;
-        const { data: uploadRes, error: uploadErr } = await supabase.storage
-          .from('avatars')
-          .upload(fileName, blob, { contentType: 'image/png', upsert: true });
-        if (uploadErr) throw uploadErr;
-        const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(uploadRes.path);
-        avatar_url = publicUrl.publicUrl;
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        const r = await api.post('/profile/avatar', { dataUrl });
+        avatar_url = r?.avatar_url || null;
       }
       
       const updateData = {
@@ -1856,29 +1676,10 @@ export const AdminProfile = () => {
       if (bio) updateData.bio = bio;
       if (avatar_url) updateData.avatar_url = avatar_url;
 
-      let bioSkipped = false;
-      const { error } = await supabase.from('profiles').update(updateData).eq('id', user.id);
-      if (error) {
-        const msg = String(error.message || error.details || '');
-        if (bio && (error.code === 'PGRST204' || msg.includes('bio'))) {
-          delete updateData.bio;
-          bioSkipped = true;
-          const { error: retryError } = await supabase
-            .from('profiles')
-            .update(updateData)
-            .eq('id', user.id);
-          if (retryError) throw retryError;
-        } else {
-          throw error;
-        }
-      }
+      await api.put('/profile', updateData);
       
       await refreshProfile();
-      if (bioSkipped) {
-        addToast('Perfil atualizado (Bio não salva; atualize o banco).', 'warning');
-      } else {
-        addToast('Perfil público atualizado', 'success');
-      }
+      addToast('Perfil público atualizado', 'success');
       setIsArtistProfileOpen(false);
     } catch (e) {
       console.error(e);
@@ -1890,20 +1691,13 @@ export const AdminProfile = () => {
     if (!blob || !user) return;
     try {
       setUploadingAvatar(true);
-      const fileName = `${user.id}/${Date.now()}_avatar.png`;
-      const { data: uploadRes, error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, blob, { contentType: 'image/png', upsert: true });
-      if (uploadError) throw uploadError;
-      const { data: publicUrlData } = await supabase.storage
-        .from('avatars')
-        .getPublicUrl(uploadRes.path);
-      const publicUrl = publicUrlData.publicUrl;
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('id', user.id);
-      if (updateError) throw updateError;
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      await api.post('/profile/avatar', { dataUrl });
       await refreshProfile();
       addToast('Foto de perfil atualizada!', 'success');
       setAvatarModalOpen(false);
@@ -1922,13 +1716,12 @@ export const AdminProfile = () => {
     }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password: formData.nova_senha });
-      if (error) throw error;
+      await api.post('/auth/change-password', { new_password: formData.nova_senha });
       addToast('Senha atualizada com sucesso!', 'success');
       setFormData(prev => ({ ...prev, nova_senha: '', confirmar_senha: '' }));
     } catch (error) {
       console.error(error);
-      addToast('Erro ao atualizar senha: ' + error.message, 'error');
+      addToast('Erro ao atualizar senha', 'error');
     } finally {
       setLoading(false);
     }
@@ -2214,11 +2007,7 @@ export const AdminSponsors = () => {
   const loadSponsors = useCallback(async () => {
     try {
       setLoadingSponsors(true);
-      const { data, error } = await supabase
-        .from('sponsors')
-        .select('id,name,logo_url,instagram_url,site_url,active,created_at')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
+      const data = await api.get('/sponsors');
       setSponsors(data || []);
     } catch {
       addToast('Falha ao carregar patrocinadores', 'error');
@@ -2250,27 +2039,26 @@ export const AdminSponsors = () => {
   const uploadLogo = async () => {
     const blobToUpload = croppedBlob || logoFile;
     if (!blobToUpload) return null;
-    const namePart = (logoFile?.name || 'logo').replace(/\s+/g,'_');
-    const fileName = `logo-${Date.now()}-${namePart}`;
-    const { data: uploadRes, error: uploadErr } = await supabase.storage.from('sponsor_logos').upload(fileName, blobToUpload, { upsert: true });
-    if (uploadErr) throw uploadErr;
-    const { data: publicUrl } = supabase.storage.from('sponsor_logos').getPublicUrl(uploadRes.path);
-    return publicUrl.publicUrl;
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blobToUpload);
+    });
+    return String(dataUrl);
   };
   const createSponsor = async () => {
     const name = form.name.trim();
     if (!name) { addToast('Informe o nome da marca', 'error'); return; }
     try {
-      const logo_url = logoFile ? await uploadLogo() : null;
-      const { error } = await supabase.from('sponsors').insert({
+      const logo_data = logoFile ? await uploadLogo() : null;
+      await api.post('/sponsors', {
         name,
         instagram_url: form.instagram_url || null,
         site_url: form.site_url || null,
-        logo_url,
-        active: true,
+        logo_data,
         created_by: user?.id || null
       });
-      if (error) throw error;
       addToast('Patrocinador/Parceria adicionada', 'success');
       setForm({ name: '', instagram_url: '', site_url: '' });
       setLogoFile(null);
@@ -2284,8 +2072,7 @@ export const AdminSponsors = () => {
   };
   const toggleActive = async (id, active) => {
     try {
-      const { error } = await supabase.from('sponsors').update({ active }).eq('id', id);
-      if (error) throw error;
+      await api.put(`/sponsors/${id}`, { active });
       loadSponsors();
     } catch {
       addToast('Falha ao atualizar status', 'error');
@@ -2293,8 +2080,7 @@ export const AdminSponsors = () => {
   };
   const deleteSponsor = async (id) => {
     try {
-      const { error } = await supabase.from('sponsors').delete().eq('id', id);
-      if (error) throw error;
+      await api.delete(`/sponsors/${id}`);
       addToast('Patrocinador/Parceria removida', 'success');
       loadSponsors();
     } catch {

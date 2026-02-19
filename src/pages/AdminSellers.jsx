@@ -3,7 +3,7 @@ import { AdminLayout } from '../components/AdminLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
-import { supabase } from '../services/supabaseClient';
+import { api } from '../services/apiClient';
 import { User, Target, DollarSign, Calendar, FileText, Check, X as XIcon } from 'lucide-react';
 
 export const AdminSellers = () => {
@@ -31,11 +31,7 @@ export const AdminSellers = () => {
 
   const fetchSellers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('cargo', 'Vendedor');
-      if (error) throw error;
+      const data = await api.get('/admin/sellers');
       setSellers(data || []);
     } catch (error) {
       console.error('Error fetching sellers:', error);
@@ -45,16 +41,13 @@ export const AdminSellers = () => {
   const fetchSellerData = async (sellerId) => {
     setLoading(true);
     try {
-      // Fetch Goals
-      const { data: goalsData } = await supabase.from('seller_goals').select('*').eq('seller_id', sellerId).order('year', { ascending: false }).order('month', { ascending: false });
+      const goalsData = await api.get(`/admin/sellers/${sellerId}/goals`);
       setGoals(goalsData || []);
 
-      // Fetch Commissions
-      const { data: commsData } = await supabase.from('commissions').select('*, leads(contractor_name)').eq('seller_id', sellerId).order('created_at', { ascending: false });
+      const commsData = await api.get(`/admin/sellers/${sellerId}/commissions`);
       setCommissions(commsData || []);
 
-      // Fetch Leads
-      const { data: leadsData } = await supabase.from('leads').select('*').eq('seller_id', sellerId).order('created_at', { ascending: false });
+      const leadsData = await api.get(`/admin/sellers/${sellerId}/leads`);
       setLeads(leadsData || []);
 
     } catch (error) {
@@ -70,15 +63,12 @@ export const AdminSellers = () => {
     const [year, month] = goalForm.month_year.split('-').map(Number);
 
     try {
-      const { error } = await supabase.from('seller_goals').upsert({
-        seller_id: selectedSeller.id,
+      await api.post(`/admin/sellers/${selectedSeller.id}/goals`, {
         month,
         year,
         shows_target: parseInt(goalForm.shows_target),
         revenue_target: parseFloat(goalForm.revenue_target)
-      }, { onConflict: 'seller_id,month,year' });
-      
-      if (error) throw error;
+      });
       fetchSellerData(selectedSeller.id);
       setGoalForm({ month_year: '', shows_target: 0, revenue_target: 0 });
     } catch (error) {
@@ -88,7 +78,7 @@ export const AdminSellers = () => {
 
   const updateCommissionStatus = async (id, status) => {
     try {
-      await supabase.from('commissions').update({ status }).eq('id', id);
+      await api.patch(`/admin/commissions/${id}/status`, { status });
       fetchSellerData(selectedSeller.id);
     } catch (error) {
       console.error('Error updating commission:', error);
