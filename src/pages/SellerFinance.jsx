@@ -42,6 +42,8 @@ const SellerFinance = () => {
       setLoading(false);
     }
 
+  };
+
   const handleOpenDistribution = (event) => {
     setSelectedEvent(event);
     setIsModalOpen(true);
