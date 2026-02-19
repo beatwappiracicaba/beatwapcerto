@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
-import { supabase } from '../services/supabaseClient';
+import { api } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { DollarSign, Calendar, Clock, CheckCircle, AlertTriangle, FileText, FolderOpen, ExternalLink, User } from 'lucide-react';
 import { FinanceDistributionModal } from '../components/finance/FinanceDistributionModal';
@@ -22,17 +22,7 @@ const DashboardFinance = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('artist_work_events')
-        .select(`
-          *,
-          seller:profiles!seller_id(nome)
-        `)
-        .eq('artista_id', user.id)
-        .or('status.neq.cancelado,has_contract.eq.true')
-        .order('date', { ascending: false });
-
-      if (error) throw error;
+      const data = await api.get('/artist/finance/events');
       setEvents(data || []);
     } catch (error) {
       console.error('Error fetching events:', error);

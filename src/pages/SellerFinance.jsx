@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
-import { supabase } from '../services/supabaseClient';
+import { api } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { DollarSign, TrendingUp, AlertCircle, CheckCircle, FileText, Calendar, User, FolderOpen, ExternalLink } from 'lucide-react';
 import { FinanceDistributionModal } from '../components/finance/FinanceDistributionModal';
@@ -27,47 +27,13 @@ const SellerFinance = () => {
 
   const fetchFinanceData = async () => {
     try {
-      // Fetch Leads for Total Sold
-      const { data: leadsData } = await supabase
-        .from('leads')
-        .select('budget')
-        .eq('seller_id', user.id)
-        .eq('status', 'fechado');
-      
-      const totalSold = leadsData?.reduce((acc, curr) => acc + (curr.budget || 0), 0) || 0;
-
-      // Fetch Commissions
-      const { data: commData, error } = await supabase
-        .from('commissions')
-        .select('*')
-        .eq('seller_id', user.id)
-        .order('created_at', { ascending: false });
-
-      // Fetch Events (Shows with commission)
-      const { data: eventsData } = await supabase
-        .from('artist_work_events')
-        .select(`
-          *,
-          artist:profiles!artist_work_events_artista_id_fkey(nome)
-        `)
-        .eq('seller_id', user.id)
-        .or('status.neq.cancelado,has_contract.eq.true')
-        .order('date', { ascending: false });
-
-      if (error) throw error;
-      
-      const comms = commData || [];
-      const totalCommissions = comms.reduce((acc, curr) => acc + (curr.amount || 0), 0);
-      const pendingCommissions = comms.filter(c => c.status === 'pendente').reduce((acc, curr) => acc + (curr.amount || 0), 0);
-      const paidCommissions = comms.filter(c => c.status === 'pago').reduce((acc, curr) => acc + (curr.amount || 0), 0);
-
-      setCommissions(comms);
-      setEvents(eventsData || []);
+      const data = await api.get('/seller/finance/summary');
+      setEvents(data.events || []);
       setStats({
-        totalSold,
-        totalCommissions,
-        pendingCommissions,
-        paidCommissions
+        totalSold: data.totalSold || 0,
+        totalCommissions: data.totalCommissions || 0,
+        pendingCommissions: data.pendingCommissions || 0,
+        paidCommissions: data.paidCommissions || 0
       });
 
     } catch (error) {
@@ -75,7 +41,6 @@ const SellerFinance = () => {
     } finally {
       setLoading(false);
     }
-  };
 
   const handleOpenDistribution = (event) => {
     setSelectedEvent(event);

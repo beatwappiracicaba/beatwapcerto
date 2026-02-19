@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { api } from '../services/apiClient';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 
@@ -13,13 +13,7 @@ export const NotificationProvider = ({ children }) => {
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
     try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('recipient_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await api.get('/notifications'); // endpoint a ser adicionado
       setNotifications(data || []);
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -30,23 +24,8 @@ export const NotificationProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       fetchNotifications();
-      
-      const channel = supabase
-        .channel('public:notifications')
-        .on('postgres_changes', { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'notifications',
-          filter: `recipient_id=eq.${user.id}`
-        }, (payload) => {
-          setNotifications(prev => [payload.new, ...prev]);
-          addToast(payload.new.title, payload.new.type || 'info');
-        })
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      const id = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(id);
     } else {
       setNotifications([]);
     }
