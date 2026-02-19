@@ -279,7 +279,7 @@ export const DashboardLayout = ({ children }) => {
                           <span>Agenda / Afazeres</span>
                         </NavLink>
                         <NavLink
-                          to="/dashboard/work?tab=compositions"
+                          to="/dashboard/compositions"
                           className={({ isActive }) =>
                             `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
                               isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
