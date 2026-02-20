@@ -22,13 +22,6 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 19931;
 
-// Configurar para aceitar conexões externas
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
-  console.log(`🌐 Acessível via IP: http://108.181.197.180:${PORT}`);
-  console.log(`📡 Conectado ao PostgreSQL CloudClusters`);
-});
-
 // CORS configuration for Cloudflare Pages and HTTPS domain
 app.use(cors({
   origin: ['https://beatwapproducoes.pages.dev', 'https://api.beatwapproducoes.pages.dev', 'http://localhost:5173'],
@@ -37,15 +30,40 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
+// Additional CORS headers middleware
+app.use((req, res, next) => {
+  const allowedOrigins = ['https://beatwapproducoes.pages.dev', 'https://api.beatwapproducoes.pages.dev', 'http://localhost:5173'];
+  const origin = req.headers.origin;
+  
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  
+  next();
+});
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Static files for uploads
+// Serve static files from uploads directory
 app.use('/uploads', express.static(join(__dirname, 'uploads')));
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', message: 'Backend is running!' });
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/profiles', profileRoutes);
+app.use('/api/profile', profileRoutes);
 app.use('/api/musics', musicRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/events', eventRoutes);
@@ -55,18 +73,9 @@ app.use('/api/releases', releaseRoutes);
 app.use('/api/sponsors', sponsorRoutes);
 app.use('/api/upload', uploadRoutes);
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'BeatWap Backend is running!' });
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Algo deu errado!' });
-});
-
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ error: 'Rota não encontrada' });
+// Configurar para aceitar conexões externas
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  console.log(`🌐 Acessível via IP: http://108.181.197.180:${PORT}`);
+  console.log(`📡 Conectado ao PostgreSQL CloudClusters`);
 });
