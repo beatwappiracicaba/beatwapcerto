@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, Music, Image as ImageIcon, FileText } from 'lucide-react';
-import { supabase } from '../../services/supabaseClient';
+import { apiClient } from '../../services/apiClient';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../../utils/cropImage';
 import { AnimatedButton } from '../ui/AnimatedButton';
@@ -182,13 +182,19 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
 
   const uploadFile = async (file, bucket) => {
     const fileExt = file.name.split('.').pop();
-    const ownerId = composerId || user.id;
-    const fileName = `compositions/${ownerId}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-    const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, file, { upsert: true });
-    if (uploadError) throw uploadError;
+    const fileName = `${(composerId || user.id)}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
     
-    const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
-    return data.publicUrl;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('fileName', fileName);
+    formData.append('bucket', bucket);
+    
+    const response = await apiClient.post('/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    
+    if (response.error) throw new Error(response.error);
+    return response.url;
   };
   
   const handleSubmit = async () => {
@@ -212,7 +218,7 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
       const [coverUrl, audioUrl] = await Promise.all(uploads);
 
       const ownerId = composerId || user.id;
-      const { error } = await supabase.from('compositions').insert({
+      await apiClient.post('/compositions', {
         composer_id: ownerId,
         title: formData.title,
         genre: formData.genre,
@@ -222,8 +228,6 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
         audio_url: audioUrl,
         status: 'pending'
       });
-
-      if (error) throw error;
 
       if (onSuccess) onSuccess();
       onClose();

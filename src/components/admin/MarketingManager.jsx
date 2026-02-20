@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '../../services/supabaseClient';
+import { apiClient } from '../../services/apiClient';
 import { useToast } from '../../context/ToastContext';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
@@ -38,31 +38,9 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName, artist
   const loadData = async () => {
     setLoading(true);
     try {
-      const { data: existingData, error } = await supabase
-        .from('artist_marketing')
-        .select('*')
-        .eq('artist_id', artistId)
-        .maybeSingle();
-
-      if (error) throw error;
-
+      const existingData = await apiClient.get(`/marketing/${artistId}`);
       if (existingData) {
-        setData({
-          instagram_metrics: existingData.instagram_metrics || {},
-          tiktok_metrics: existingData.tiktok_metrics || {},
-          youtube_metrics: existingData.youtube_metrics || {},
-          diagnosis: existingData.diagnosis || {},
-          action_plan: existingData.action_plan || [],
-          suggestions: existingData.suggestions || [],
-          mentorship_content: existingData.mentorship_content || [],
-          composer_diagnosis: existingData.composer_diagnosis || { level: '', style: '', strengths: '', improvements: '', interpretation: '' },
-          composer_catalog: existingData.composer_catalog || { registered: '', unpublished: '', recorded: '', negotiating: '', highlights: [] },
-          composer_positioning: existingData.composer_positioning || { target_audience: '', differential: '', bio: '' },
-          composer_pitch: existingData.composer_pitch || { audio_url: '', presentation_text: '', common_errors: '' },
-          composer_opportunities: existingData.composer_opportunities || [],
-          composer_rights: existingData.composer_rights || { registered: 'Não', coauthors: '', percentages: '', observations: '' },
-          composer_plan: existingData.composer_plan || []
-        });
+        setData(existingData);
       } else {
         // Defaults
         const defaultMentorship = isComposer ? [
@@ -90,15 +68,10 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName, artist
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('artist_marketing')
-        .upsert({
-          artist_id: artistId,
-          ...data,
-          updated_at: new Date()
-        }, { onConflict: 'artist_id' });
-
-      if (error) throw error;
+      await apiClient.put(`/marketing/${artistId}`, {
+        ...data,
+        updated_at: new Date()
+      });
       addToast('Dados salvos com sucesso!', 'success');
       onClose();
     } catch (error) {

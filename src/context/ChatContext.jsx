@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { supabase } from '../services/supabaseClient';
 import { useAuth } from './AuthContext';
+import { apiClient } from '../services/apiClient';
 
 const ChatContext = createContext();
 
@@ -22,150 +22,14 @@ export const ChatProvider = ({ children }) => {
       fetchQueue();
       fetchAdmins(); // Fetch admins for header display
       
-      const channel = supabase
-        .channel('public:chat-realtime')
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chats' }, (payload) => {
-          const updated = payload.new;
-          setChats(prev => {
-            const exists = prev.find(c => c.id === updated.id);
-            if (exists) {
-              return prev.map(c => c.id === updated.id ? { 
-                ...c, 
-                assignedTo: updated.assigned_to ?? c.assignedTo,
-                status: updated.status ?? c.status
-              } : c);
-            } else {
-              // New chat updated (maybe we missed insert), refetch to be safe
-              fetchChats();
-              return prev;
-            }
-          });
-        })
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chats' }, (payload) => {
-           // New chat created. Check if relevant to me.
-           const newChat = payload.new;
-           const myId = user.id;
-           const participants = newChat.participant_ids || [];
-           const amIParticipant = participants.includes(myId);
-           const myRole = profile?.cargo || '';
-           
-           // If I am participant, OR I am provider (Produtor/Vendedor) and should see it
-           // Produtores see all support chats? Or just assigned?
-           // The fetchChats logic says: "Vendedores e Produtores veem todos os chats (ou atribuídos)"
-           // Actually fetchChats logic:
-           // if (!isAdmin && !isCompositor && !isVendedor) { query = query.contains('participant_ids', [user.id]); }
-           // So Admins/Sellers see ALL chats?
-           // If so, we should refetch or add it.
-           
-           const isAdmin = myRole === 'Produtor';
-           const isVendedor = myRole === 'Vendedor';
-           const isCompositor = myRole === 'Compositor';
-           
-           if (amIParticipant || isAdmin || isVendedor || isCompositor) {
-             fetchChats(); // Simplest way to get full data (artist names etc)
-           }
-        })
-        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chats' }, (payload) => {
-          const deletedId = payload.old.id;
-          setChats(prev => prev.filter(c => c.id !== deletedId));
-          if (activeChatId === deletedId) {
-            setActiveChatId(null);
-            setIsOpen(false);
-          }
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'support_queue' }, (payload) => {
-          fetchQueue();
-          if (payload.eventType === 'INSERT') {
-             // Check if I am a provider who should see this
-             const myRole = profile?.cargo || '';
-             const needed = payload.new.role_needed; // 'produtor', 'vendedor', etc.
-             // Simple check: if I am a Produtor, I see everything.
-             // If I am Vendedor, I see 'vendedor' requests.
-             let shouldNotify = false;
-             if (myRole === 'Produtor') shouldNotify = true;
-             else if (myRole === 'Vendedor' && needed === 'vendedor') shouldNotify = true;
-             else if (myRole === 'Compositor' && needed === 'compositor') shouldNotify = true;
-
-             if (shouldNotify && payload.new.requester_id !== user.id) {
-               // Play sound or show toast?
-               // For now, we rely on the UI updating, but we can log it or set a flag
-               console.log('New support request!', payload.new);
-             }
-          }
-        })
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-          try {
-            const m = payload.new;
-            if (!m) return;
-            const metaRole = m.metadata?.sender_cargo || '';
-            const roleStr = String(m.sender_role || m.sender_cargo || metaRole || '').toLowerCase();
-            const sender = m.sender_id === user.id ? 'me' : (
-              roleStr.includes('artist') || roleStr.includes('artista') ? 'artist' : 'admin'
-            );
-            const text = m.content ?? m.message ?? '';
-            const timestamp = m.created_at;
-            
-            setChats(prev => {
-              const idx = prev.findIndex(c => c.id === m.chat_id);
-              if (idx === -1) {
-                fetchChats();
-                return prev;
-              }
-              const msgExists = prev[idx].messages.some(msg => msg.id === m.id);
-              if (msgExists) return prev;
-  
-              const updatedChat = {
-                ...prev[idx],
-                messages: [...prev[idx].messages, { ...m, sender, text, timestamp }],
-                lastMessage: text,
-                lastMessageTime: timestamp,
-                unreadCount: (sender !== 'me' && !m.read) ? (prev[idx].unreadCount || 0) + 1 : (prev[idx].unreadCount || 0)
-              };
-              const next = [...prev];
-              next[idx] = updatedChat;
-              return next;
-            });
-          } catch (e) {
-            console.error('Error handling realtime message insert:', e);
-          }
-        })
-        .on('broadcast', { event: 'typing' }, (payload) => {
-          const data = payload.payload || {};
-          const chatId = data.chatId;
-          const senderId = data.userId;
-          const isTyping = !!data.isTyping;
-          if (!chatId || !senderId || senderId === user.id) return;
-          if (isTyping) {
-            setTypingState(prev => ({ ...prev, [chatId]: true }));
-            const timeouts = typingTimeoutsRef.current || {};
-            if (timeouts[chatId]) {
-              clearTimeout(timeouts[chatId]);
-            }
-            timeouts[chatId] = setTimeout(() => {
-              setTypingState(prev => ({ ...prev, [chatId]: false }));
-            }, 3000);
-            typingTimeoutsRef.current = timeouts;
-          } else {
-            setTypingState(prev => ({ ...prev, [chatId]: false }));
-            const timeouts = typingTimeoutsRef.current || {};
-            if (timeouts[chatId]) {
-              clearTimeout(timeouts[chatId]);
-              delete timeouts[chatId];
-              typingTimeoutsRef.current = timeouts;
-            }
-          }
-        })
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            console.log('Chat realtime subscribed');
-          }
-        });
-
-      channelRef.current = channel;
+      // Sistema de polling para substituir realtime
+      const pollInterval = setInterval(() => {
+        fetchChats();
+        fetchQueue();
+      }, 5000); // Atualizar a cada 5 segundos
 
       return () => {
-        supabase.removeChannel(channel);
-        channelRef.current = null;
+        clearInterval(pollInterval);
         const timeouts = typingTimeoutsRef.current || {};
         Object.values(timeouts).forEach(t => clearTimeout(t));
         typingTimeoutsRef.current = {};
@@ -178,19 +42,8 @@ export const ChatProvider = ({ children }) => {
 
   const fetchQueue = async () => {
     try {
-      const { data, error } = await supabase
-        .from('support_queue')
-        .select(`
-          *,
-          requester:requester_id (
-            id, nome, nome_completo_razao_social, avatar_url, genero_musical, cidade, estado
-          )
-        `)
-        .eq('active', true);
-        
-      if (!error) {
-        setSupportQueue(data || []);
-      }
+      const data = await apiClient.get('/support-queue');
+      setSupportQueue(data || []);
     } catch (error) {
       console.error('Error fetching queue:', error);
     }
@@ -198,15 +51,10 @@ export const ChatProvider = ({ children }) => {
 
   const requestSupport = async (roleNeeded, metadata = {}) => {
     try {
-      const { error } = await supabase
-        .from('support_queue')
-        .insert({
-          requester_id: user.id,
-          role_needed: roleNeeded,
-          metadata
-        });
-      
-      if (error) throw error;
+      await apiClient.post('/support-queue', {
+        role_needed: roleNeeded,
+        metadata
+      });
       await fetchQueue();
       return true;
     } catch (error) {
@@ -234,83 +82,52 @@ export const ChatProvider = ({ children }) => {
         return existing.id;
       }
 
-      const { data: existingDb } = await supabase
-        .from('chats')
-        .select('id')
-        .contains('participant_ids', [user.id])
-        .contains('participant_ids', [requesterId])
-        .order('created_at', { ascending: false })
-        .maybeSingle();
+      // Verificar se já existe chat com esses participantes
+      const existingChats = await apiClient.get('/chats');
+      const existingDb = existingChats.find(c => 
+        c.participant_ids.includes(user.id) && c.participant_ids.includes(requesterId)
+      );
 
       let chatId;
 
       if (existingDb) {
         chatId = existingDb.id;
       } else {
-        const { data, error } = await supabase
-          .from('chats')
-          .insert({
-            participant_ids,
-            owner_id: requesterId,
-            type: 'support',
-            metadata: { original_request_id: request.id, ...request.metadata }
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        chatId = data.id;
+        // Criar novo chat
+        const newChat = await apiClient.post('/chats', {
+          participant_ids,
+          type: 'support',
+          metadata: { original_request_id: request.id, ...request.metadata }
+        });
+        chatId = newChat.id;
       }
 
-      // Avoid duplicates: check existing system messages
-      let systemMsgs = [];
-      try {
-        const { data: sysData } = await supabase
-          .from('messages')
-          .select('id, metadata')
-          .eq('chat_id', chatId);
-        systemMsgs = (sysData || []).filter(m => ['initial_request','assignment_notice'].includes(m?.metadata?.type));
-      } catch (e) {
-        void e;
-      }
-
-      const hasInitial = systemMsgs.some(m => m?.metadata?.type === 'initial_request');
-      const hasAssign = systemMsgs.some(m => m?.metadata?.type === 'assignment_notice');
-
-      if (request.metadata?.summary && !hasInitial) {
-        await supabase.from('messages').insert({
+      // Criar mensagens do sistema
+      if (request.metadata?.summary) {
+        await apiClient.post('/messages', {
           chat_id: chatId,
           sender_id: user.id,
           receiver_id: requesterId,
-          content: request.metadata.summary,
+          message: request.metadata.summary,
           metadata: { type: 'initial_request', ...request.metadata, sender_cargo: profile?.cargo || null }
         });
       }
 
-      if (!hasAssign) {
-        await supabase.from('messages').insert({
-          chat_id: chatId,
-          sender_id: user.id,
-          receiver_id: requesterId,
-          content: `${myName} iniciou seu atendimento.`,
-          metadata: { type: 'assignment_notice', sender_cargo: profile?.cargo || null }
-        });
-      }
+      await apiClient.post('/messages', {
+        chat_id: chatId,
+        sender_id: user.id,
+        receiver_id: requesterId,
+        message: `${myName} iniciou seu atendimento.`,
+        metadata: { type: 'assignment_notice', sender_cargo: profile?.cargo || null }
+      });
 
       await fetchChats();
       setActiveChatId(chatId);
       setIsOpen(true);
 
-      const { error: deleteError } = await supabase
-        .from('support_queue')
-        .delete()
-        .eq('id', request.id);
-        
-      if (deleteError) {
-        console.error('Error deleting request from queue (first attempt):', deleteError);
-      } else {
-        setSupportQueue(prev => prev.filter(r => r.id !== request.id));
-      }
+      // Deletar da fila
+      await apiClient.delete(`/support-queue/${request.id}`);
+      setSupportQueue(prev => prev.filter(r => r.id !== request.id));
       
       fetchQueue();
 
@@ -324,32 +141,14 @@ export const ChatProvider = ({ children }) => {
 
   const fetchAdmins = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, nome, avatar_url, cargo')
-        .eq('cargo', 'Produtor');
-
-      if (error) throw error;
-      const ids = (data || []).map(p => p.id);
-      let presence = [];
-      if (ids.length) {
-        const { data: pres } = await supabase
-          .from('online_status')
-          .select('profile_id, online, updated_at')
-          .in('profile_id', ids);
-        presence = pres || [];
-      }
-      const mapped = (data || []).map(p => {
-        const st = presence.find(s => s.profile_id === p.id);
-        const fresh = st?.updated_at ? (Date.now() - new Date(st.updated_at).getTime()) < 120000 : false;
-        return {
+      const data = await apiClient.get('/admins');
+      const mapped = (data || []).map(p => ({
         id: p.id,
-        name: p.nome || 'Produtor',
+        name: p.nome || p.nome_completo_razao_social || 'Produtor',
         avatar_url: p.avatar_url,
-          online: st ? (!!st.online && fresh) : false,
-        online_updated_at: st?.updated_at
-      };
-      });
+        online: p.online,
+        online_updated_at: p.online_updated_at
+      }));
       setAdmins(mapped);
     } catch (error) {
       console.error('Error fetching admins:', error);
@@ -359,89 +158,15 @@ export const ChatProvider = ({ children }) => {
   const fetchChats = async () => {
     try {
       setLoading(true);
-      let query = supabase
-        .from('chats')
-        .select(`*`)
-        .order('created_at', { ascending: false });
-
-      const cargo = profile?.cargo;
-      const isAdmin = cargo === 'Produtor';
-      const isVendedor = cargo === 'Vendedor';
-      const isCompositor = cargo === 'Compositor';
-      
-      // Vendedores e Produtores veem todos os chats (ou atribuídos)
-      if (!isAdmin && !isCompositor && !isVendedor) {
-        query = query.contains('participant_ids', [user.id]);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      // Fetch artist names and avatars in batch
-      const artistIds = new Set();
-      (data || []).forEach(c => {
-        if (c.participant_ids) {
-           c.participant_ids.forEach(pid => {
-             if (pid !== user.id) artistIds.add(pid);
-           });
-        }
-      });
-      const uniqueArtistIds = Array.from(artistIds);
-
-      let artistNameMap = {};
-      let artistAvatarMap = {};
-      if (uniqueArtistIds.length) {
-        const { data: profilesData } = await supabase
-          .from('profiles')
-          .select('id, nome, nome_completo_razao_social, avatar_url')
-          .in('id', uniqueArtistIds);
-        (profilesData || []).forEach(p => {
-          artistNameMap[p.id] = p.nome || p.nome_completo_razao_social || 'Usuário';
-          artistAvatarMap[p.id] = p.avatar_url || null;
-        });
-      }
-
-      // Fetch messages in batch
-      const chatIds = (data || []).map(c => c.id);
-      let messagesByChat = {};
-      const allSenderIds = new Set();
-      
-      if (chatIds.length) {
-        const { data: msgsData, error: msgsErr } = await supabase
-          .from('messages')
-          .select('*')
-          .in('chat_id', chatIds);
-        if (!msgsErr) {
-          (msgsData || []).forEach(m => {
-            messagesByChat[m.chat_id] = messagesByChat[m.chat_id] || [];
-            messagesByChat[m.chat_id].push(m);
-            if (m.sender_id) allSenderIds.add(m.sender_id);
-          });
-          // sort messages per chat
-          Object.keys(messagesByChat).forEach(cid => {
-            messagesByChat[cid].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-          });
-        }
-      }
-
-      // Fetch all sender profiles (admins, artists, etc.)
-      let senderNameMap = {};
-      const uniqueSenderIds = Array.from(allSenderIds);
-      if (uniqueSenderIds.length) {
-         const { data: senderProfiles } = await supabase
-           .from('profiles')
-           .select('id, nome, nome_completo_razao_social')
-           .in('id', uniqueSenderIds);
-         (senderProfiles || []).forEach(p => {
-            senderNameMap[p.id] = p.nome || p.nome_completo_razao_social || 'Usuário';
-         });
-      }
+      const data = await apiClient.get('/chats');
 
       // Process data to match mockChats structure
-      const formattedChats = data.map(chat => {
-        const sortedMessages = messagesByChat[chat.id] || [];
+      const formattedChats = (data || []).map(chat => {
+        // Buscar mensagens para este chat
+        const messages = chat.messages || [];
+        const sortedMessages = messages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
         const lastMsg = sortedMessages[sortedMessages.length - 1];
+        
         const messagesWithSender = sortedMessages.map(m => {
           const roleStr = String(m.sender_role || m.sender_cargo || '').toLowerCase();
           // Simplified sender logic - improves handling for multi-role chats
@@ -452,7 +177,7 @@ export const ChatProvider = ({ children }) => {
           return {
             ...m,
             sender,
-            senderName: senderNameMap[m.sender_id] || 'Usuário',
+            senderName: m.nome || m.nome_completo_razao_social || 'Usuário',
             timestamp: m.created_at,
             text: m.content ?? m.message ?? ''
           };
@@ -476,8 +201,13 @@ export const ChatProvider = ({ children }) => {
           otherId = participantIds.find(id => id !== user.id) || chat.owner_id || participantIds[0];
         }
 
-        const artistName = artistNameMap[otherId] || `Usuário #${String(otherId || '').slice(0,4)}...`;
-        const artistAvatarUrl = artistAvatarMap[otherId] || null;
+        const artistName = chat.participant_names?.find((name, idx) => 
+          chat.participant_ids[idx] === otherId
+        ) || `Usuário #${String(otherId || '').slice(0,4)}...`;
+        
+        const artistAvatarUrl = chat.participant_avatars?.find((avatar, idx) => 
+          chat.participant_ids[idx] === otherId
+        ) || null;
 
         return {
           id: chat.id,
@@ -512,12 +242,7 @@ export const ChatProvider = ({ children }) => {
 
   const fetchArtistsForSeller = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, nome, nome_completo_razao_social, avatar_url, cidade, estado, genero_musical')
-        .or('cargo.eq.Artista,cargo.eq.Artist');
-        
-      if (error) throw error;
+      const data = await apiClient.get('/artists-for-seller');
       return data || [];
     } catch (error) {
       console.error('Error fetching artists for seller:', error);
@@ -530,12 +255,7 @@ export const ChatProvider = ({ children }) => {
       // Optimistic update
       setChats(prev => prev.map(c => c.id === chatId ? { ...c, status } : c));
       
-      const { error } = await supabase
-        .from('chats')
-        .update({ status })
-        .eq('id', chatId);
-        
-      if (error) throw error;
+      await apiClient.put(`/chats/${chatId}/status`, { status });
       return true;
     } catch (error) {
       console.error('Error updating chat status:', error);
@@ -547,17 +267,8 @@ export const ChatProvider = ({ children }) => {
 
   const assignChat = async (chatId) => {
     try {
-      const { error } = await supabase
-        .from('chats')
-        .update({ assigned_to: user.id })
-        .eq('id', chatId);
-
-      if (error) {
-        // Fallback local assignment if column missing
-        setChats(prev => prev.map(c => c.id === chatId ? { ...c, assignedTo: user.id } : c));
-        return;
-      }
-      // local state will be updated by realtime handler
+      await apiClient.put(`/chats/${chatId}/assign`);
+      // local state will be updated by next poll
     } catch (error) {
       // Fallback local assignment
       setChats(prev => prev.map(c => c.id === chatId ? { ...c, assignedTo: user.id } : c));
@@ -609,33 +320,15 @@ export const ChatProvider = ({ children }) => {
     });
 
     try {
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          id: tempId, 
-          chat_id: chatId,
-          sender_id: user.id,
-          receiver_id: receiverId,
-          content: text,
-          metadata: { sender_cargo: profile?.cargo || null }
-        });
+      await apiClient.post('/messages', {
+        chat_id: chatId,
+        sender_id: user.id,
+        receiver_id: receiverId,
+        message: text,
+        metadata: { sender_cargo: profile?.cargo || null }
+      });
 
-      if (error) {
-        // Rollback on error
-        setChats(prev => {
-            const idx = prev.findIndex(c => c.id === chatId);
-            if (idx === -1) return prev;
-            
-            const updatedChat = {
-              ...prev[idx],
-              messages: prev[idx].messages.filter(m => m.id !== tempId)
-            };
-            const next = [...prev];
-            next[idx] = updatedChat;
-            return next;
-        });
-        throw error;
-      }
+      // Subscription will handle the rest (ignoring duplicate ID)
 
       // Subscription will handle the rest (ignoring duplicate ID)
     } catch (error) {
@@ -649,64 +342,27 @@ export const ChatProvider = ({ children }) => {
     if (existing) return existing.id;
 
     try {
-      // Validate artist exists and is an artist
-      const { data: artistProfile } = await supabase
-        .from('profiles')
-        .select('id, cargo')
-        .eq('id', artistId)
-        .maybeSingle();
-      const roleStr = String(artistProfile?.cargo || '').toLowerCase();
-      if (!artistProfile || !['artist','artista'].includes(roleStr)) {
-        return null;
-      }
-
-      // Check if exists in DB to avoid 409
-      const { data: existingDb } = await supabase
-        .from('chats')
-        .select('id')
-        .contains('participant_ids', [artistId])
-        .contains('participant_ids', [user.id])
-        .order('created_at', { ascending: false })
-        .maybeSingle();
-
-      if (existingDb) return existingDb.id;
-
-      // Create new chat
-      // If creator is admin, participants = [me, artist]
-      // If creator is artist, participants = [me] (and admin joins later or sees it via role)
-      // But typically we want explicit participants.
-      const participants = Array.from(new Set([artistId, user.id]));
-
-      // Determine status based on who creates it
-      // If Vendedor creates it for an artist, it starts as 'pending'
+      // Create new chat via API
       const creatorRole = String(profile?.cargo || '').toLowerCase();
       const initialStatus = (creatorRole === 'vendedor' && artistId !== user.id) ? 'pending' : 'active';
-
-      const { data, error } = await supabase
-        .from('chats')
-        .insert({
-          participant_ids: participants,
-          owner_id: user.id,
-          status: initialStatus,
-          metadata: { initiated_by: user.id, creator_role: creatorRole }
-        })
-        .select()
-        .single();
-
-      if (error) {
-        // Handle race condition (concurrent creation)
-        if (error.code === '23505' || error.status === 409) {
-           const { data: retryData } = await supabase
-             .from('chats')
-             .select('id')
-              .contains('participant_ids', [artistId])
-             .maybeSingle();
-           return retryData?.id;
-        }
-        throw error;
-      }
+      
+      const data = await apiClient.post('/chats', {
+        participant_ids: Array.from(new Set([artistId, user.id])),
+        status: initialStatus,
+        metadata: { initiated_by: user.id, creator_role: creatorRole }
+      });
+      
       return data.id;
     } catch (error) {
+      // Handle race condition (concurrent creation)
+      if (error.response?.status === 409) {
+        // Try to find existing chat
+        const existingChats = await apiClient.get('/chats');
+        const existingChat = existingChats.find(c => 
+          c.participant_ids.includes(artistId) && c.participant_ids.includes(user.id)
+        );
+        return existingChat?.id;
+      }
       console.error('Error creating chat:', error);
       return null;
     }
@@ -742,46 +398,7 @@ export const ChatProvider = ({ children }) => {
 
   const deleteChat = async (chatId) => {
     try {
-      // Find chat to get request ID
-      let chat = chats.find(c => c.id === chatId);
-      let requestId = chat?.metadata?.original_request_id;
-
-      // If not found in state or metadata missing, try fetching from DB
-      if (!requestId) {
-        const { data: dbChat } = await supabase
-          .from('chats')
-          .select('metadata')
-          .eq('id', chatId)
-          .maybeSingle();
-        requestId = dbChat?.metadata?.original_request_id;
-      }
-      
-      // Direct deletion - Messages first, then Chat
-      // This avoids reliance on RPCs that might not exist or have permission issues
-      const { error: msgError } = await supabase
-        .from('messages')
-        .delete()
-        .eq('chat_id', chatId);
-      
-      if (msgError) {
-        console.error('Error deleting messages:', msgError);
-        // Continue trying to delete chat even if messages fail (cascade might handle it)
-      }
-      
-      const { error: chatError } = await supabase
-        .from('chats')
-        .delete()
-        .eq('id', chatId);
-        
-      if (chatError) throw chatError;
-      
-      // Delete associated support request if it exists
-      if (requestId) {
-          await supabase
-            .from('support_queue')
-            .delete()
-            .eq('id', requestId);
-      }
+      await apiClient.delete(`/chats/${chatId}`);
 
       // Update local state
       setChats(prev => prev.filter(c => c.id !== chatId));
@@ -798,13 +415,12 @@ export const ChatProvider = ({ children }) => {
 
   const sendNotification = async (recipientId, title, message, link = null) => {
     try {
-      const { error } = await supabase.rpc('send_notification', {
-        p_recipient_id: recipientId,
-        p_title: title,
-        p_message: message,
-        p_link: link
+      await apiClient.post('/notifications', {
+        recipient_id: recipientId,
+        title,
+        message,
+        link
       });
-      if (error) throw error;
       return true;
     } catch (error) {
       console.error('Error sending notification:', error);
@@ -814,13 +430,12 @@ export const ChatProvider = ({ children }) => {
 
   const sendBroadcast = async (title, message, targetRole = null, link = null) => {
     try {
-      const { error } = await supabase.rpc('send_broadcast_notification', {
-        p_title: title,
-        p_message: message,
-        p_target_role: targetRole === 'all' ? null : targetRole,
-        p_link: link
+      await apiClient.post('/broadcast-notifications', {
+        title,
+        message,
+        target_role: targetRole === 'all' ? null : targetRole,
+        link
       });
-      if (error) throw error;
       return true;
     } catch (error) {
       console.error('Error sending broadcast:', error);
@@ -830,14 +445,7 @@ export const ChatProvider = ({ children }) => {
 
   const markChatRead = async (chatId) => {
      try {
-       const { error } = await supabase
-         .from('messages')
-         .update({ read: true })
-         .eq('chat_id', chatId)
-         .eq('read', false);
-       if (error) {
-         console.error('Error marking messages read:', error);
-       }
+       await apiClient.put(`/chats/${chatId}/mark-read`);
      } catch (e) {
        console.error('Error marking messages read:', e);
      } finally {

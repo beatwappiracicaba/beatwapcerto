@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/Card';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
-import { supabase } from '../../services/supabaseClient';
+import { apiClient } from '../../services/apiClient';
 import { DollarSign, Check, X, Calendar, User, AlertTriangle, FileText } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { FinanceDistributionModal } from '../finance/FinanceDistributionModal';
@@ -27,57 +27,13 @@ export const ShowRevenueDistributor = () => {
   const fetchEvents = async () => {
     setLoading(true);
     try {
-      // Fetch events with artist info
-      // Using maybeSingle logic or explicit join if FK exists.
-      // Assuming 'artist_work_events.artista_id' references 'profiles.id'
-      const { data, error } = await supabase
-        .from('artist_work_events')
-        .select(`
-          *,
-          artist:profiles!artist_work_events_artista_id_fkey(nome, avatar_url),
-          seller:profiles!seller_id(nome)
-        `)
-        .or('status.neq.cancelado,has_contract.eq.true')
-        .order('date', { ascending: false });
-
-      // Fallback if FK name is different or relation needs inference
-      if (error) {
-        // Try simple select and manual join if complex query fails
-        console.warn('Complex select failed, trying simple', error);
-        const { data: simpleData, error: simpleError } = await supabase
-          .from('artist_work_events')
-          .select('*')
-          .or('status.neq.cancelado,has_contract.eq.true')
-          .order('date', { ascending: false });
-          
-        if (simpleError) throw simpleError;
-        
-        // Manual join (less efficient but safer if FK names are unknown)
-        const userIds = [...new Set(simpleData.map(e => e.artista_id).filter(Boolean))];
-        const sellerIds = [...new Set(simpleData.map(e => e.seller_id).filter(Boolean))];
-        const allIds = [...new Set([...userIds, ...sellerIds])];
-        
-        if (allIds.length > 0) {
-            const { data: profiles } = await supabase.from('profiles').select('id, nome, avatar_url').in('id', allIds);
-            const profileMap = {};
-            profiles?.forEach(p => profileMap[p.id] = p);
-            
-            const enriched = simpleData.map(e => ({
-                ...e,
-                artist: profileMap[e.artista_id],
-                seller: profileMap[e.seller_id]
-            }));
-            setEvents(enriched);
-            setLoading(false);
-            return;
-        }
-        setEvents(simpleData || []);
-      } else {
-        setEvents(data || []);
+      const data = await apiClient.get('/events');
+      if (data) {
+        setEvents(data);
       }
     } catch (error) {
       console.error('Error fetching events:', error);
-      // addToast('Erro ao buscar eventos', 'error');
+      addToast('Erro ao buscar eventos.', 'error');
     } finally {
       setLoading(false);
     }
@@ -102,18 +58,13 @@ export const ShowRevenueDistributor = () => {
     const seller_commission = parseFloat(distributeForm.seller_commission) || 0;
 
     try {
-      const { error } = await supabase
-        .from('artist_work_events')
-        .update({
-          revenue,
-          artist_share,
-          house_cut,
-          seller_commission,
-          status: 'pago'
-        })
-        .eq('id', selectedEvent.id);
-
-      if (error) throw error;
+      await apiClient.put(`/events/${selectedEvent.id}`, {
+        revenue,
+        artist_share,
+        house_cut,
+        seller_commission,
+        status: 'pago'
+      });
 
       addToast('Distribuição salva com sucesso!', 'success');
       setSelectedEvent(null);

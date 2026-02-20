@@ -3,7 +3,7 @@ import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../../utils/cropImage';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, Music, Image as ImageIcon, FileText, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
-import { supabase } from '../../services/supabaseClient';
+import { apiClient } from '../../services/apiClient';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
 import { useAuth } from '../../context/AuthContext';
@@ -46,11 +46,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
 
   React.useEffect(() => {
     const loadArtists = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id,nome,nome_completo_razao_social')
-        .eq('cargo', 'Artista')
-        .order('nome', { ascending: true });
+      const data = await apiClient.get('/artists');
       setArtistOptions(data || []);
     };
     loadArtists();
@@ -154,11 +150,18 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
   const uploadFile = async (file, bucket) => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${activeUser.id}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-    const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, file, { upsert: true });
-    if (uploadError) throw uploadError;
     
-    const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
-    return data.publicUrl;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('fileName', fileName);
+    formData.append('bucket', bucket);
+    
+    const response = await apiClient.post('/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    
+    if (response.error) throw new Error(response.error);
+    return response.url;
   };
   
   const addTrack = () => {
@@ -239,7 +242,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
 
     try {
       // Quota check
-      const { data: prof } = await supabase.from('profiles').select('plano, bonus_quota, plan_started_at').eq('id', activeUser.id).maybeSingle();
+      const prof = await apiClient.get(`/users/${activeUser.id}/quota`);
       const plan = (prof?.plano || 'sem plano').toLowerCase();
       const bonus = Number(prof?.bonus_quota || 0);
       let base = 0;
@@ -265,13 +268,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       } else {
         base = 0;
       }
-      let q = supabase
-        .from('musics')
-        .select('id', { count: 'exact', head: true })
-        .eq('artista_id', activeUser.id);
-      if (start) q = q.gte('created_at', start);
-      if (end) q = q.lte('created_at', end);
-      const { count } = await q;
+      const count = await apiClient.get(`/users/${activeUser.id}/music-count?start=${start}&end=${end}`);
       const used = Number(count || 0);
       const remaining = Math.max(0, base + bonus - used);
       const needed = formData.is_album ? (formData.tracks ? formData.tracks.length : 0) : 1;
@@ -334,15 +331,9 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
           album_id: albumId,
           album_title: formData.titulo
         }));
-        let { error: errBatch } = await supabase.from('musics').insert(rows);
-        if (errBatch && (String(errBatch.message || '').includes('feat_beatwap_artist_ids') || String(errBatch.message || '').includes('is_beatwap_composer_partner'))) {
-          const rowsFallback = rows.map(({ feat_beatwap_artist_ids, is_beatwap_composer_partner, ...rest }) => rest);
-          const r2 = await supabase.from('musics').insert(rowsFallback);
-          errBatch = r2.error || null;
-        }
-        if (errBatch) throw errBatch;
+        await apiClient.post('/musics/batch', { musics: rows });
       } else {
-        let { error } = await supabase.from('musics').insert({
+        await apiClient.post('/musics', {
           artista_id: activeUser.id,
           titulo: formData.titulo,
           nome_artista: formData.nome_artista,
@@ -360,26 +351,6 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
           feat_beatwap_artist_ids: formData.beatwap_feat_artist_ids || [],
           is_beatwap_composer_partner: !!formData.is_beatwap_composer_partner
         });
-        if (error && (String(error.message || '').includes('feat_beatwap_artist_ids') || String(error.message || '').includes('is_beatwap_composer_partner'))) {
-          const { error: err2 } = await supabase.from('musics').insert({
-            artista_id: activeUser.id,
-            titulo: formData.titulo,
-            nome_artista: formData.nome_artista,
-            estilo: formData.estilo,
-            cover_url: coverUrl,
-            audio_url: audioUrl,
-            authorization_url: authUrl,
-            plataformas: formData.plataformas.includes('Todas') ? ['Todas'] : formData.plataformas_selecionadas,
-            status: 'pendente',
-            isrc: (formData.isrc || '').trim() || null,
-            has_feat: formData.has_feat || false,
-            feat_name: formData.feat_name || null,
-            composer: ((formData.composer || '').split(',').map(s => s.trim()).filter(Boolean).join(', ')) || null,
-            producer: formData.producer || null
-          });
-          error = err2 || null;
-        }
-        if (error) throw error;
       }
 
       if (onSuccess) onSuccess();

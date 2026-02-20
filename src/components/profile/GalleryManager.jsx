@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../../utils/cropImage';
-import { supabase } from '../../services/supabaseClient';
+import { apiClient } from '../../services/apiClient';
 import { Card } from '../ui/Card';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
@@ -41,13 +41,9 @@ export const GalleryManager = ({ userId }) => {
 
   const fetchPosts = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profile_posts')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+      const data = await apiClient.get(`/users/${userId}/posts`);
         
-      if (error) throw error;
+      if (!data) throw new Error('No data returned');
       setPosts(data || []);
     } catch (error) {
       console.error('Error fetching posts:', error);
@@ -108,27 +104,25 @@ export const GalleryManager = ({ userId }) => {
       const fileExt = fileToUpload.name.split('.').pop();
       const fileName = `${userId}/${Date.now()}.${fileExt}`;
       
-      const { error: uploadError } = await supabase.storage
-        .from('posts')
-        .upload(fileName, fileToUpload);
+      // Upload via API
+      const formData = new FormData();
+      formData.append('file', fileToUpload);
+      formData.append('fileName', fileName);
+      
+      const uploadResponse = await apiClient.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      if (uploadResponse.error) throw new Error(uploadResponse.error);
 
-      if (uploadError) throw uploadError;
-
-      const { data: publicUrlData } = supabase.storage
-        .from('posts')
-        .getPublicUrl(fileName);
-
-      const { error: dbError } = await supabase
-        .from('profile_posts')
-        .insert([{
-          user_id: userId,
-          media_url: publicUrlData.publicUrl,
-          media_type: newPost.type,
-          caption: newPost.caption,
-          link_url: newPost.link_url
-        }]);
-
-      if (dbError) throw dbError;
+      // Criar post no banco
+      await apiClient.post('/posts', {
+        user_id: userId,
+        media_url: uploadResponse.url,
+        media_type: newPost.type,
+        caption: newPost.caption,
+        link_url: newPost.link_url
+      });
 
       setShowModal(false);
       setNewPost({ file: null, caption: '', link_url: '', type: 'image' });
@@ -151,16 +145,11 @@ export const GalleryManager = ({ userId }) => {
         // Extract path from URL if needed for storage delete
         // URL: .../posts/USER_ID/FILENAME
         const path = post.media_url.split('/posts/')[1];
-        if (path) {
-            await supabase.storage.from('posts').remove([path]);
-        }
-
-        const { error } = await supabase
-            .from('profile_posts')
-            .delete()
-            .eq('id', post.id);
-
-        if (error) throw error;
+        
+        // Delete via API
+        await apiClient.delete(`/posts/${post.id}`, {
+          data: { filePath: path }
+        });
         
         setPosts(posts.filter(p => p.id !== post.id));
     } catch (error) {

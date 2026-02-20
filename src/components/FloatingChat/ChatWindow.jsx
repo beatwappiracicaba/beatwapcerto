@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../../services/supabaseClient';
+import { apiClient } from '../../services/apiClient';
 import { motion } from 'framer-motion';
 import { MessageCircle, X, Send, ArrowLeft, Search, User, UserCheck, Trash2, Plus, Users, Music, Briefcase, Bell, ChevronLeft, Bot, Sparkles } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
@@ -275,16 +275,12 @@ export const ChatWindow = ({ currentUserId }) => {
   useEffect(() => {
     if ((mode === 'new' || mode === 'notifications' || mode === 'users_list') && (userRole === 'Produtor' || userRole === 'admin')) {
       const fetchAll = async () => {
-         const { data, error } = await supabase
-           .from('profiles')
-           .select('id, nome, nome_completo_razao_social, cargo, avatar_url') // Removed email/cidade/estado to avoid 400 error
-           .order('nome', { ascending: true });
-         
-         if (error) {
+         try {
+           const data = await apiClient.get('/users');
+           if (data) setAllUsers(data);
+         } catch (error) {
            console.error('Error fetching profiles:', error);
-           return;
          }
-         if (data) setAllUsers(data);
       };
       fetchAll();
     }

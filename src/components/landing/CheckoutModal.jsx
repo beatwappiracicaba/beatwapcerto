@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check, FileText, Lock, Loader } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { supabase } from '../../services/supabaseClient';
+import { apiClient } from '../../services/apiClient';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
 import { encryptData, decryptData } from '../../utils/security';
@@ -151,16 +151,12 @@ Data: ${new Date().toLocaleDateString()}
           // city and state are kept unencrypted for search/filter purposes
         };
 
-        const { error } = await supabase.auth.updateUser({
-          data: {
-            full_name: formData.fullName,
-            cpf_cnpj: encryptData(formData.cpfCnpj),
-            phone: encryptData(formData.phone),
-            address: encryptedAddress
-          }
+        await apiClient.put('/profile', {
+          full_name: formData.fullName,
+          cpf_cnpj: encryptData(formData.cpfCnpj),
+          phone: encryptData(formData.phone),
+          address: encryptedAddress
         });
-
-        if (error) throw error;
       }
 
       // 2. Log purchase attempt (optional, create a table if needed)

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Check, Calendar, Link as LinkIcon, Barcode } from 'lucide-react';
-import { supabase } from '../../services/supabaseClient';
+import { apiClient } from '../../services/apiClient';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
 import { useToast } from '../../context/ToastContext';
@@ -22,11 +22,7 @@ export const MusicEditModal = ({ isOpen, onClose, music, onSuccess }) => {
 
   useEffect(() => {
     const fetchProducers = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, nome, nome_completo_razao_social')
-        .eq('cargo', 'Produtor')
-        .order('nome', { ascending: true });
+      const data = await apiClient.get('/producers');
       setProducers(data || []);
     };
     fetchProducers();
@@ -54,20 +50,15 @@ export const MusicEditModal = ({ isOpen, onClose, music, onSuccess }) => {
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('musics')
-        .update({
-          upc: formData.upc,
-          isrc: formData.isrc || null,
-          presave_link: formData.presave_link || null,
-          release_date: formData.release_date || null,
-          is_beatwap_produced: formData.is_beatwap_produced,
-          show_on_home: formData.show_on_home,
-          produced_by: formData.produced_by || null
-        })
-        .eq('id', music.id);
-
-      if (error) throw error;
+      await apiClient.put(`/musics/${music.id}`, {
+        upc: formData.upc,
+        isrc: formData.isrc || null,
+        presave_link: formData.presave_link || null,
+        release_date: formData.release_date || null,
+        is_beatwap_produced: formData.is_beatwap_produced,
+        show_on_home: formData.show_on_home,
+        produced_by: formData.produced_by || null
+      });
 
       addToast('Informações atualizadas com sucesso!', 'success');
       onSuccess();
