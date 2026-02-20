@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchProfile = async () => {
     try {
-      const res = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:4000') + '/profile', {
+      const res = await fetch((import.meta.env.VITE_API_URL || 'http://108.181.197.180:19931') + '/profile', {
         headers: { Authorization: `Bearer ${authApi.getToken()}` }
       });
       if (res.ok) {
