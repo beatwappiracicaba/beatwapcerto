@@ -58,16 +58,16 @@ app.get('/health', (req, res) => {
 });
 
 // Usa todas as rotas com o prefixo /api
-app.use('/api', profilesRoutes);
-app.use('/api', producersRoutes);
-app.use('/api', releasesRoutes);
-app.use('/api', compositionsRoutes);
-app.use('/api', usersRoutes);
-app.use('/api', artistsRoutes);
-app.use('/api', projectsRoutes);
-app.use('/api', composersRoutes);
-app.use('/api', sponsorsRoutes);
-app.use('/api', authRoutes);
+app.use('/api/profiles', profilesRoutes);
+app.use('/api/producers', producersRoutes);
+app.use('/api/releases', releasesRoutes);
+app.use('/api/compositions', compositionsRoutes);
+app.use('/api/users', usersRoutes);
+app.use('/api/artists', artistsRoutes);
+app.use('/api/projects', projectsRoutes);
+app.use('/api/composers', composersRoutes);
+app.use('/api/sponsors', sponsorsRoutes);
+app.use('/api/auth', authRoutes);
 
 // --- Tratamento de Erros ---
 app.use((req, res, next) => {
