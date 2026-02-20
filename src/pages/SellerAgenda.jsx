@@ -4,7 +4,7 @@ import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, User, Plus, X } from 'lucide-react';
 
 const SellerAgenda = () => {
@@ -34,7 +34,7 @@ const SellerAgenda = () => {
 
   const fetchArtists = async () => {
     try {
-      const data = await api.get('/artists');
+      const data = await apiClient.get('/artists');
       setArtists((data || []).map(a => ({ id: a.id, nome: a.nome || a.nome_completo_razao_social })));
     } catch (error) {
       console.error('Error fetching artists:', error);
@@ -45,7 +45,7 @@ const SellerAgenda = () => {
     try {
       const y = currentDate.getFullYear();
       const m = String(currentDate.getMonth() + 1).padStart(2, '0');
-      const data = await api.get(`/seller/calendar?month=${y}-${m}`);
+      const data = await apiClient.get(`/seller/calendar?month=${y}-${m}`);
       setEvents(data || []);
     } catch (error) {
       console.error('Error fetching events:', error);
@@ -58,7 +58,7 @@ const SellerAgenda = () => {
     try {
       const y = currentDate.getFullYear();
       const m = String(currentDate.getMonth() + 1).padStart(2, '0');
-      const data = await api.get(`/seller/artist-events?artist_id=${selectedArtist}&month=${y}-${m}`);
+      const data = await apiClient.get(`/seller/artist-events?artist_id=${selectedArtist}&month=${y}-${m}`);
       setArtistEvents(data || []);
     } catch (error) {
       console.error('Error fetching artist events:', error);
@@ -69,7 +69,7 @@ const SellerAgenda = () => {
     if (!newEvent.title || !newEvent.date || !selectedArtist) return;
 
     try {
-      await api.post('/seller/artist-events', {
+      await apiClient.post('/seller/artist-events', {
         artista_id: selectedArtist,
         title: newEvent.title,
         date: newEvent.date,

@@ -4,7 +4,7 @@ import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import { ChevronLeft, ChevronRight, Music, Plus } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { CompositionsUploadModal } from '../components/artist/CompositionsUploadModal';
@@ -41,9 +41,9 @@ export const DashboardWork = () => {
   const fetchData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const ev = await api.get('/artist/events');
+    const ev = await apiClient.get('/artist/events');
     setEvents(ev || []);
-    const td = await api.get('/artist/todos');
+    const td = await apiClient.get('/artist/todos');
     setTodos(td || []);
     setLoading(false);
   }, [user, startOfMonth, endOfMonth]);
@@ -52,7 +52,7 @@ export const DashboardWork = () => {
     if (!user) return;
     setCompositionsLoading(true);
     try {
-      const data = await api.get('/artist/compositions'); // endpoint a ser adicionado
+      const data = await apiClient.get('/artist/compositions'); // endpoint a ser adicionado
       setCompositions(data || []);
     } catch (e) { console.error(e); }
     setCompositionsLoading(false);
@@ -68,7 +68,7 @@ export const DashboardWork = () => {
 
   const createEvent = async () => {
     if (!eventForm.title.trim() || !eventForm.date) return;
-    await api.post('/artist/events', {
+    await apiClient.post('/artist/events', {
       title: eventForm.title.trim(),
       date: eventForm.date,
       type: eventForm.type,
@@ -80,7 +80,7 @@ export const DashboardWork = () => {
 
   const createTodo = async () => {
     if (!todoForm.title.trim()) return;
-    await api.post('/artist/todos', {
+    await apiClient.post('/artist/todos', {
       title: todoForm.title.trim(),
       due_date: todoForm.due_date || null
     });
@@ -89,7 +89,7 @@ export const DashboardWork = () => {
   };
 
   const updateTodoStatus = async (id, status) => {
-    await api.post(`/artist/todos/${id}`, { status }); // patch via post
+    await apiClient.post(`/artist/todos/${id}`, { status }); // patch via post
     fetchData();
   };
 

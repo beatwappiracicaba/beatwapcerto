@@ -8,7 +8,7 @@ import { AdminLayout } from '../components/AdminLayout';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { useToast } from '../context/ToastContext';
-import { api } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../utils/cropImage';
 import logo from '../assets/images/beatwap-logo.png';
@@ -40,7 +40,7 @@ export const AdminHome = () => {
   // Upload de capa removido: thumbnail será carregada automaticamente do link (YouTube) ou usa logo
   useEffect(() => {
     const load = async () => {
-      const stats = await api.get('/admin/stats');
+      const stats = await apiClient.get('/admin/stats');
       setCounts({ artists: stats.artists || 0, musics: stats.musics || 0, pending: stats.pending || 0 });
     };
     load();
@@ -49,7 +49,7 @@ export const AdminHome = () => {
   useEffect(() => {
     const fetchMyMetrics = async () => {
       if (!user) return;
-      const data = await api.get(`/analytics/artist/${user.id}/summary`);
+      const data = await apiClient.get(`/analytics/artist/${user.id}/summary`);
       setMyMetrics({
         plays: data?.plays || 0,
         time: data?.time || 0,
@@ -62,7 +62,7 @@ export const AdminHome = () => {
   const loadProjects = useCallback(async () => {
     try {
       setLoadingProjects(true);
-      const data = await api.get('/producer-projects');
+      const data = await apiClient.get('/producer-projects');
       setProjects(data || []);
     } catch (error) {
       console.error('Error loading producer projects:', error);
@@ -80,7 +80,7 @@ export const AdminHome = () => {
     try {
       if (!user?.id) { addToast('Usuário inválido', 'error'); return; }
       const payload = { producer_id: user.id, title, url, platform, published: true };
-      await api.post('/producer-projects', payload);
+      await apiClient.post('/producer-projects', payload);
       addToast('Projeto adicionado', 'success');
       setProjectForm({ title: '', url: '', platform: 'YouTube' });
       loadProjects();
@@ -92,7 +92,7 @@ export const AdminHome = () => {
   };
   const deleteProject = async (id) => {
     try {
-      await api.delete(`/producer-projects/${id}`);
+      await apiClient.delete(`/producer-projects/${id}`);
       addToast('Projeto removido', 'success');
       loadProjects();
     } catch (error) {
@@ -210,7 +210,7 @@ export const AdminArtists = () => {
   const [manualMusicMetrics, setManualMusicMetrics] = useState({ plays: '', listeners: '', revenue: '' });
 
   const load = useCallback(async () => {
-    const data = await api.get('/profiles');
+    const data = await apiClient.get('/profiles');
     const decryptedArtists = (data || [])
       .filter(a => a.cargo === 'Artista')
       .map(artist => ({
@@ -227,7 +227,7 @@ export const AdminArtists = () => {
       setManualMusicMetrics({ plays: '', listeners: '', revenue: '' });
       return;
     }
-    const data = await api.get(`/musics/${musicId}/external-metrics?source=manual`);
+    const data = await apiClient.get(`/musics/${musicId}/external-metrics?source=manual`);
       
     if (data) {
       setManualMusicMetrics({
@@ -258,7 +258,7 @@ export const AdminArtists = () => {
         updated_at: new Date()
       };
 
-      await api.post(`/musics/${selectedMusicId}/external-metrics`, payload);
+      await apiClient.post(`/musics/${selectedMusicId}/external-metrics`, payload);
       addToast('Métricas da música atualizadas', 'success');
       loadArtistMusics(); // Refresh list to show updated values if needed
     } catch (err) {
@@ -286,9 +286,9 @@ export const AdminArtists = () => {
   }, [selectedArtist, getArtistById]);
   const loadWork = useCallback(async () => {
     if (!selectedArtist) { setWorkEvents([]); setWorkTodos([]); return; }
-    const ev = await api.get(`/seller/artist-events?artist_id=${selectedArtist}`);
+    const ev = await apiClient.get(`/seller/artist-events?artist_id=${selectedArtist}`);
     setWorkEvents(ev || []);
-    const td = await api.get(`/admin/artist/${selectedArtist}/todos`);
+    const td = await apiClient.get(`/admin/artist/${selectedArtist}/todos`);
     setWorkTodos(td || []);
   }, [selectedArtist]);
   useEffect(() => { loadWork(); }, [loadWork]);
@@ -298,7 +298,7 @@ export const AdminArtists = () => {
 
   const loadArtistMusics = async () => {
     if (!selectedArtist) { setApprovedMusics([]); setMusicMetrics({}); return; }
-    const mus = await api.get(`/admin/musics?artist_id=${selectedArtist}&status=aprovado`);
+    const mus = await apiClient.get(`/admin/musics?artist_id=${selectedArtist}&status=aprovado`);
     setApprovedMusics(mus || []);
 
     // Load metrics for all musics (internal + external)
@@ -308,7 +308,7 @@ export const AdminArtists = () => {
     // 1. Internal Analytics
     if (musicIds.length > 0) {
       const extMetrics = await Promise.all(
-        musicIds.map(id => api.get(`/musics/${id}/external-metrics?source=manual`))
+        musicIds.map(id => apiClient.get(`/musics/${id}/external-metrics?source=manual`))
       );
         
       (extMetrics || []).filter(Boolean).forEach(em => {
@@ -325,7 +325,7 @@ export const AdminArtists = () => {
   useEffect(() => {
     const loadPlan = async () => {
       if (!selectedArtist) { setPlanForm({ plano: 'Gratuito', bonus_quota: 0, plan_started_at: '' }); return; }
-      const data = await api.get(`/profiles/${selectedArtist}`);
+      const data = await apiClient.get(`/profiles/${selectedArtist}`);
       setPlanForm({
         plano: data?.plano || 'Avulso',
         bonus_quota: Number(data?.bonus_quota || 0),
@@ -345,7 +345,7 @@ export const AdminArtists = () => {
           reader.onerror = reject;
           reader.readAsDataURL(blob);
         });
-        const resp = await api.post('/profile/avatar', { dataUrl });
+        const resp = await apiClient.post('/profile/avatar', { dataUrl });
         avatar_url = resp?.avatar_url || null;
       }
       const updateData = {};
@@ -353,7 +353,7 @@ export const AdminArtists = () => {
       if (bio) updateData.bio = bio;
       if (avatar_url) updateData.avatar_url = avatar_url;
       if (Object.keys(updateData).length) {
-        await api.put('/profile', updateData);
+        await apiClient.put('/profile', updateData);
         addToast('Perfil do artista atualizado', 'success');
       } else {
         addToast('Nada para atualizar no perfil.', 'warning');
@@ -389,7 +389,7 @@ export const AdminArtists = () => {
       if (planForm.plan_started_at) {
         update.plan_started_at = new Date(planForm.plan_started_at).toISOString();
       }
-      await api.put('/profile', update);
+      await apiClient.put('/profile', update);
       addToast('Plano do artista atualizado', 'success');
     } catch {
       addToast('Falha ao atualizar plano', 'error');
@@ -398,7 +398,7 @@ export const AdminArtists = () => {
   const createWorkEvent = async () => {
     if (!selectedArtist || !workEventForm.title.trim() || !workEventForm.date) { addToast('Informe artista, título e data', 'error'); return; }
     try {
-      await api.post('/seller/artist-events', {
+      await apiClient.post('/seller/artist-events', {
         artista_id: selectedArtist,
         title: workEventForm.title.trim(),
         date: workEventForm.date,
@@ -415,7 +415,7 @@ export const AdminArtists = () => {
   const createTodo = async () => {
     if (!selectedArtist || !todoForm.title.trim()) { addToast('Informe artista e tarefa', 'error'); return; }
     try {
-      await api.post(`/admin/artist/${selectedArtist}/todos`, {
+      await apiClient.post(`/admin/artist/${selectedArtist}/todos`, {
         title: todoForm.title.trim(),
         due_date: todoForm.due_date || null
       });
@@ -429,7 +429,7 @@ export const AdminArtists = () => {
   };
   const updateTodoStatus = async (id, status) => {
     try {
-      await api.post(`/admin/todos/${id}/status`, { status });
+      await apiClient.post(`/admin/todos/${id}/status`, { status });
     } catch {
       addToast('Falha ao atualizar tarefa', 'error'); 
       return;
@@ -744,14 +744,14 @@ export const AdminMusics = () => {
     const params = new URLSearchParams();
     if (statusFilter !== 'todos') params.set('status', statusFilter);
     if (artistFilter) params.set('artist_id', artistFilter);
-    const data = await api.get(`/admin/musics?${params.toString()}`);
+    const data = await apiClient.get(`/admin/musics?${params.toString()}`);
     setMusics(data || []);
   }, [statusFilter, artistFilter, startDate, endDate]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     const fetchArtists = async () => {
-      const data = await api.get('/artists');
+      const data = await apiClient.get('/artists');
       setArtists(data || []);
     };
     fetchArtists();
@@ -759,7 +759,7 @@ export const AdminMusics = () => {
 
   useEffect(() => {
     const fetchProducers = async () => {
-      const data = await api.get('/producers');
+      const data = await apiClient.get('/producers');
       setProducers(data || []);
     };
     fetchProducers();
@@ -784,7 +784,7 @@ export const AdminMusics = () => {
     if (!upcVal) { addToast('Informe o UPC', 'error'); return; }
     if (isProduced && !producedBy) { addToast('Selecione o produtor responsável', 'error'); return; }
 
-    await api.put(`/admin/musics/${m.id}`, {
+    await apiClient.put(`/admin/musics/${m.id}`, {
       status: 'aprovado',
       upc: upcVal,
       presave_link: presaveVal || null,
@@ -808,7 +808,7 @@ export const AdminMusics = () => {
   const reject = async (m) => {
     const reason = (localInputs[m.id]?.reject || '').trim();
     if (!reason) { addToast('Informe o motivo da reprovação', 'error'); return; }
-    await api.put(`/admin/musics/${m.id}`, { status: 'recusado', motivo_recusa: reason });
+    await apiClient.put(`/admin/musics/${m.id}`, { status: 'recusado', motivo_recusa: reason });
     await addNotification({ recipientId: m.artista_id, title: 'Música reprovada', message: reason, type: 'error' });
     setLocalInputs((prev) => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), reject: '' } }));
     load();
@@ -854,7 +854,7 @@ export const AdminMusics = () => {
         const trackInputs = localInputs[m.id] || {};
         const isrcVal = trackInputs.isrc || m.isrc || null;
         
-        await api.put(`/admin/musics/${m.id}`, {
+        await apiClient.put(`/admin/musics/${m.id}`, {
             status: 'aprovado',
             upc: upcVal,
             presave_link: presaveVal || null,
@@ -884,7 +884,7 @@ export const AdminMusics = () => {
 
     try {
       const albumIds = group.tracks.map(t => t.id);
-      await Promise.all(albumIds.map(id => api.put(`/admin/musics/${id}`, {
+      await Promise.all(albumIds.map(id => apiClient.put(`/admin/musics/${id}`, {
         upc: upcVal,
         presave_link: presaveVal || null,
         release_date: releaseVal || null,
@@ -1328,7 +1328,7 @@ export const AdminComposers = () => {
   const [internalMetrics, setInternalMetrics] = useState({ plays: 0, listeners: 0, time: 0 });
   const { addToast } = useToast();
   const load = useCallback(async () => {
-    const data = await api.get('/composers');
+    const data = await apiClient.get('/composers');
     const mapped = (data || []).map(p => ({
       ...p,
       nome: decryptData(p.nome),
@@ -1343,7 +1343,7 @@ export const AdminComposers = () => {
         setPlanForm({ plano: 'Avulso', bonus_quota: 0, plan_started_at: '' });
         return;
       }
-      const data = await api.get(`/profiles/${selectedComposer}`);
+      const data = await apiClient.get(`/profiles/${selectedComposer}`);
       setPlanForm({
         plano: data?.plano || 'Avulso',
         bonus_quota: Number(data?.bonus_quota || 0),
@@ -1355,7 +1355,7 @@ export const AdminComposers = () => {
   useEffect(() => {
     const loadMetrics = async () => {
       if (!selectedComposer) { setInternalMetrics({ plays: 0, listeners: 0, time: 0 }); return; }
-      const s = await api.get(`/analytics/artist/${selectedComposer}/summary`);
+      const s = await apiClient.get(`/analytics/artist/${selectedComposer}/summary`);
       setInternalMetrics({ plays: s?.plays || 0, listeners: s?.listeners || 0, time: s?.time || 0 });
     };
     loadMetrics();
@@ -1378,7 +1378,7 @@ export const AdminComposers = () => {
       if (bio) updateData.bio = bio;
       if (avatar_url) updateData.avatar_url = avatar_url;
       if (Object.keys(updateData).length) {
-        await api.put(`/profiles/${selectedComposer}`, updateData);
+        await apiClient.put(`/profiles/${selectedComposer}`, updateData);
       }
       addToast('Perfil do compositor atualizado', 'success');
       setIsProfileOpen(false);
@@ -1395,7 +1395,7 @@ export const AdminComposers = () => {
         bonus_quota: Number(planForm.bonus_quota || 0),
       };
       if (planForm.plan_started_at) update.plan_started_at = new Date(planForm.plan_started_at).toISOString();
-      await api.put(`/profiles/${selectedComposer}`, update);
+      await apiClient.put(`/profiles/${selectedComposer}`, update);
       addToast('Plano do compositor atualizado', 'success');
     } catch {
       addToast('Falha ao atualizar plano', 'error');
@@ -1516,7 +1516,7 @@ export const AdminChat = () => {
   useEffect(() => {
     const init = async () => {
       try {
-        const msgs = await api.get('/messages');
+        const msgs = await apiClient.get('/messages');
         setMessages(msgs || []);
         setChatId('inbox');
       } catch (e) { console.error(e); }
@@ -1531,8 +1531,8 @@ export const AdminChat = () => {
       if (m.receiver_id && m.receiver_id !== user?.id) { receiver_id = m.receiver_id; break; }
     }
     if (!receiver_id) return;
-    await api.post('/messages', { receiver_id, message: input.trim() });
-    const msgs = await api.get('/messages');
+    await apiClient.post('/messages', { receiver_id, message: input.trim() });
+    const msgs = await apiClient.get('/messages');
     setMessages(msgs || []);
     setInput('');
   };
@@ -1623,7 +1623,7 @@ export const AdminProfile = () => {
   const handleSave = async () => {
     setLoading(true);
     try {
-      await api.put('/profile', {
+      await apiClient.put('/profile', {
         nome_completo_razao_social: formData.nome_completo_razao_social,
         cpf_cnpj: encryptData(formData.cpf_cnpj),
         celular: encryptData(formData.celular),
@@ -1659,7 +1659,7 @@ export const AdminProfile = () => {
           reader.onerror = reject;
           reader.readAsDataURL(blob);
         });
-        const r = await api.post('/profile/avatar', { dataUrl });
+        const r = await apiClient.post('/profile/avatar', { dataUrl });
         avatar_url = r?.avatar_url || null;
       }
       
@@ -1676,7 +1676,7 @@ export const AdminProfile = () => {
       if (bio) updateData.bio = bio;
       if (avatar_url) updateData.avatar_url = avatar_url;
 
-      await api.put('/profile', updateData);
+      await apiClient.put('/profile', updateData);
       
       await refreshProfile();
       addToast('Perfil público atualizado', 'success');
@@ -1697,7 +1697,7 @@ export const AdminProfile = () => {
         reader.onerror = reject;
         reader.readAsDataURL(blob);
       });
-      await api.post('/profile/avatar', { dataUrl });
+      await apiClient.post('/profile/avatar', { dataUrl });
       await refreshProfile();
       addToast('Foto de perfil atualizada!', 'success');
       setAvatarModalOpen(false);
@@ -1716,7 +1716,7 @@ export const AdminProfile = () => {
     }
     setLoading(true);
     try {
-      await api.post('/auth/change-password', { new_password: formData.nova_senha });
+      await apiClient.post('/auth/change-password', { new_password: formData.nova_senha });
       addToast('Senha atualizada com sucesso!', 'success');
       setFormData(prev => ({ ...prev, nova_senha: '', confirmar_senha: '' }));
     } catch (error) {
@@ -2007,7 +2007,7 @@ export const AdminSponsors = () => {
   const loadSponsors = useCallback(async () => {
     try {
       setLoadingSponsors(true);
-      const data = await api.get('/sponsors');
+      const data = await apiClient.get('/sponsors');
       setSponsors(data || []);
     } catch {
       addToast('Falha ao carregar patrocinadores', 'error');
@@ -2052,7 +2052,7 @@ export const AdminSponsors = () => {
     if (!name) { addToast('Informe o nome da marca', 'error'); return; }
     try {
       const logo_data = logoFile ? await uploadLogo() : null;
-      await api.post('/sponsors', {
+      await apiClient.post('/sponsors', {
         name,
         instagram_url: form.instagram_url || null,
         site_url: form.site_url || null,
@@ -2072,7 +2072,7 @@ export const AdminSponsors = () => {
   };
   const toggleActive = async (id, active) => {
     try {
-      await api.put(`/sponsors/${id}`, { active });
+      await apiClient.put(`/sponsors/${id}`, { active });
       loadSponsors();
     } catch {
       addToast('Falha ao atualizar status', 'error');
@@ -2080,7 +2080,7 @@ export const AdminSponsors = () => {
   };
   const deleteSponsor = async (id) => {
     try {
-      await api.delete(`/sponsors/${id}`);
+      await apiClient.delete(`/sponsors/${id}`);
       addToast('Patrocinador/Parceria removida', 'success');
       loadSponsors();
     } catch {

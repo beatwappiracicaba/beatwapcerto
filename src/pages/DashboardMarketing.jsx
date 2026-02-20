@@ -11,7 +11,7 @@ import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import { useToast } from '../context/ToastContext';
 
 export const DashboardMarketing = () => {
@@ -25,7 +25,7 @@ export const DashboardMarketing = () => {
   const loadData = async () => {
     if (!user) return;
     try {
-      const marketingData = await api.get(`/artist/marketing/${user.id}`);
+      const marketingData = await apiClient.get(`/artist/marketing/${user.id}`);
       setData(marketingData || {});
     } catch (error) {
       console.error('Error loading marketing data:', error);
@@ -48,7 +48,7 @@ export const DashboardMarketing = () => {
     setData(prev => ({ ...prev, composer_plan: newPlan }));
 
     try {
-      await api.put(`/artist/marketing/${user.id}`, { composer_plan: newPlan });
+      await apiClient.put(`/artist/marketing/${user.id}`, { composer_plan: newPlan });
     } catch (error) {
       console.error('Error updating task:', error);
       addToast('Erro ao atualizar tarefa', 'error');

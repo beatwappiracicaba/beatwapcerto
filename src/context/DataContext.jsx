@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { api } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 
 const DataContext = createContext();
 
@@ -13,7 +13,7 @@ export const DataProvider = ({ children }) => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const profilesData = await api.get('/profiles');
+        const profilesData = await apiClient.get('/profiles');
 
         const formattedArtists = (profilesData || []).map(artist => ({
           ...artist,
@@ -27,7 +27,7 @@ export const DataProvider = ({ children }) => {
         let metricsMap = {};
         if (artistIds.length) {
           const metricsArray = await Promise.all(
-            artistIds.map(id => api.get(`/admin/artist/${id}/metrics`))
+            artistIds.map(id => apiClient.get(`/admin/artist/${id}/metrics`))
           );
           (metricsArray || []).forEach(m => {
             if (!m || !m.artista_id) return;
@@ -44,7 +44,7 @@ export const DataProvider = ({ children }) => {
           metrics: metricsMap[a.id] || a.metrics
         }));
 
-        const musicData = await api.get('/admin/musics');
+        const musicData = await apiClient.get('/admin/musics');
 
         setArtists(mergedArtists);
 
@@ -91,7 +91,7 @@ export const DataProvider = ({ children }) => {
         ouvintes_mensais: Number(newMetrics.listeners ?? 0),
         receita_estimada: Number(String(newMetrics.revenue ?? '0').replace(/[^\d.-]/g, '')) || 0
       };
-      await api.post(`/admin/artist/${artistId}/metrics`, payload);
+      await apiClient.post(`/admin/artist/${artistId}/metrics`, payload);
     } catch (error) {
       console.error('Error updating metrics:', error);
       console.error('Error details:', error?.message, error?.details, error?.hint);
@@ -107,7 +107,7 @@ export const DataProvider = ({ children }) => {
           : m
       ));
 
-      await api.put(`/admin/musics/${musicId}`, { status, ...additionalData });
+      await apiClient.put(`/admin/musics/${musicId}`, { status, ...additionalData });
     } catch (error) {
       console.error('Error updating music status:', error);
     }
@@ -135,7 +135,7 @@ export const DataProvider = ({ children }) => {
         album_title: newMusicData.albumTitle || null
       };
 
-      const data = await api.post('/admin/musics', musicPayload);
+      const data = await apiClient.post('/admin/musics', musicPayload);
       const newMusic = {
         ...data,
         id: data.id,
@@ -188,7 +188,7 @@ export const DataProvider = ({ children }) => {
       if (updatedData.upc) dbData.upc = updatedData.upc;
     // coluna internal_note não existe no schema; omitida para evitar erro
 
-      await api.put(`/admin/musics/${musicId}`, dbData);
+      await apiClient.put(`/admin/musics/${musicId}`, dbData);
     } catch (error) {
       console.error('Error editing music:', error);
     }
@@ -197,7 +197,7 @@ export const DataProvider = ({ children }) => {
   const deleteMusic = async (musicId) => {
     try {
       setMusic(prev => prev.filter(m => m.id !== musicId));
-      await api.delete(`/admin/musics/${musicId}`);
+      await apiClient.delete(`/admin/musics/${musicId}`);
     } catch (error) {
       console.error('Error deleting music:', error);
     }

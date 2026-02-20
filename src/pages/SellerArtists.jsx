@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
-import { api } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import { MapPin, Music, DollarSign, Phone, Eye, Calendar, Search, Edit2, Check, X, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -29,7 +29,7 @@ const SellerArtists = () => {
 
   const fetchArtists = async () => {
     try {
-      const data = await api.get('/seller/artists');
+      const data = await apiClient.get('/seller/artists');
       setArtists(data || []);
     } catch (error) {
       console.error('Error fetching artists:', error);
@@ -45,7 +45,7 @@ const SellerArtists = () => {
   const handleSaveCache = async () => {
     if (!editingCache.id) return;
     try {
-      await api.patch(`/seller/artists/${editingCache.id}/cache`, { value: editingCache.value });
+      await apiClient.patch(`/seller/artists/${editingCache.id}/cache`, { value: editingCache.value });
 
       setArtists(artists.map(a => 
         a.id === editingCache.id ? { ...a, cache_medio: editingCache.value } : a
@@ -71,7 +71,7 @@ const SellerArtists = () => {
     try {
       const yyyy = String(date.getFullYear());
       const mm = String(date.getMonth() + 1).padStart(2, '0');
-      const data = await api.get(`/seller/artists/${artistId}/events?month=${yyyy}-${mm}`);
+      const data = await apiClient.get(`/seller/artists/${artistId}/events?month=${yyyy}-${mm}`);
       setAgendaModal(prev => ({ ...prev, events: data || [] }));
     } catch (error) {
       console.error('Error fetching events:', error);

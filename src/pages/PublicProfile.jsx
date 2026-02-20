@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { api } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import Header from '../components/landing/Header';
 import Footer from '../components/landing/Footer';
 import { User, Music, Instagram, Globe, MessageCircle, Play, Pause, ArrowLeft, Youtube, Target, DollarSign, Image, Link as LinkIcon, Video } from 'lucide-react';
@@ -28,7 +28,7 @@ const PublicProfile = () => {
 
   const fetchGalleryPosts = async () => {
     try {
-      const data = await api.get(`/profiles/${id}/posts`);
+      const data = await apiClient.get(`/profiles/${id}/posts`);
       setGalleryPosts(data || []);
     } catch (err) {
       console.error('Error fetching gallery:', err);
@@ -38,7 +38,7 @@ const PublicProfile = () => {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('https://api.ipify.org?format=json');
+        const res = await fetch('https://apiClient.ipify.org?format=json');
         const json = await res.json();
         setIpHash(json?.ip || null);
       } catch {
@@ -50,7 +50,7 @@ const PublicProfile = () => {
   const recordEvent = async (payload) => {
     try {
       if (payload.type === 'profile_view') return; 
-      await api.post('/analytics', { ...payload, ip_hash: ipHash || 'unknown' });
+      await apiClient.post('/analytics', { ...payload, ip_hash: ipHash || 'unknown' });
     } catch (e) { console.error('Analytics Error:', e); }
   };
 
@@ -89,7 +89,7 @@ const PublicProfile = () => {
       setLoading(true);
       
       // Fetch Profile
-      const profileData = await api.get(`/profiles/${id}`);
+      const profileData = await apiClient.get(`/profiles/${id}`);
       setProfile(profileData);
 
       // Determine what to fetch based on role
@@ -97,24 +97,24 @@ const PublicProfile = () => {
 
       if (cargo === 'vendedor') {
         try {
-          const stats = await api.get(`/sellers/${id}/stats`);
+          const stats = await apiClient.get(`/sellers/${id}/stats`);
           if (stats) setSellerStats(stats);
         } catch (err) {
           console.error('Error fetching seller stats:', err);
         }
       } else if (cargo === 'artista') {
-        const ownMusics = await api.get(`/profiles/${id}/musics`);
-        const featMusics = await api.get(`/profiles/${id}/feats`);
+        const ownMusics = await apiClient.get(`/profiles/${id}/musics`);
+        const featMusics = await apiClient.get(`/profiles/${id}/feats`);
         const map = {};
         (ownMusics || []).forEach(m => { map[m.id] = m; });
         (featMusics || []).forEach(m => { map[m.id] = m; });
         const merged = Object.values(map).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         setItems(merged);
       } else if (cargo === 'produtor') {
-        const producedData = await api.get(`/profiles/${id}/produced-musics`);
+        const producedData = await apiClient.get(`/profiles/${id}/produced-musics`);
         setItems(producedData || []);
       } else {
-        const musicData = await api.get(`/profiles/${id}/compositions`);
+        const musicData = await apiClient.get(`/profiles/${id}/compositions`);
         setItems(musicData || []);
       }
 

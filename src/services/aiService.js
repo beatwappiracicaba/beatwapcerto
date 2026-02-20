@@ -1,9 +1,9 @@
-import { api } from './apiClient';
+import { apiClient } from './apiClient';
 
 export const aiService = {
   async saveMessage(role, content) {
     try {
-      await api.post('/ai/history', { role, content });
+      await apiClient.post('/ai/history', { role, content });
       return null;
     } catch (error) {
       console.warn('Error saving message:', error);

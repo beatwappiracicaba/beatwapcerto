@@ -3,7 +3,7 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
-import { api } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useNotification } from '../context/NotificationContext';
@@ -67,7 +67,7 @@ const SellerLeads = () => {
 
   const fetchContractors = async () => {
     try {
-      const data = await api.get('/seller/contractors');
+      const data = await apiClient.get('/seller/contractors');
       setContractors(data || []);
     } catch (error) {
       console.error('Error fetching contractors:', error);
@@ -76,7 +76,7 @@ const SellerLeads = () => {
 
   const fetchArtists = async () => {
     try {
-      const data = await api.get('/seller/artists');
+      const data = await apiClient.get('/seller/artists');
       setArtists(data || []);
     } catch (error) {
       console.error('Error fetching artists:', error);
@@ -85,7 +85,7 @@ const SellerLeads = () => {
 
   const fetchLeads = async () => {
     try {
-      const data = await api.get('/seller/leads');
+      const data = await apiClient.get('/seller/leads');
       setLeads(data || []);
     } catch (error) {
       console.error('Error fetching leads:', error);
@@ -95,7 +95,7 @@ const SellerLeads = () => {
   };
 
   const fetchHistory = async (leadId) => {
-    const data = await api.get(`/seller/leads/${leadId}/history`);
+    const data = await apiClient.get(`/seller/leads/${leadId}/history`);
     setHistory(data || []);
   };
 
@@ -134,7 +134,7 @@ const SellerLeads = () => {
 
     setLoading(true);
     try {
-      await api.delete(`/seller/leads/${currentLead.id}`);
+      await apiClient.delete(`/seller/leads/${currentLead.id}`);
 
       addToast('Lead excluído com sucesso!', 'success');
       setIsModalOpen(false);
@@ -168,16 +168,16 @@ const SellerLeads = () => {
       let leadId = currentLead?.id;
 
       if (currentLead) {
-        const updated = await api.put(`/seller/leads/${currentLead.id}`, payload);
+        const updated = await apiClient.put(`/seller/leads/${currentLead.id}`, payload);
         leadId = updated.id;
       } else {
-        const created = await api.post('/seller/leads', payload);
+        const created = await apiClient.post('/seller/leads', payload);
         leadId = created.id;
       }
       
       if (leadId) {
         try {
-          await api.post(`/seller/leads/${leadId}/sync-agenda`, {
+          await apiClient.post(`/seller/leads/${leadId}/sync-agenda`, {
             status: formData.status,
             artist_id: formData.artist_id,
             event_name: formData.event_name,
@@ -239,7 +239,7 @@ const SellerLeads = () => {
     if (!newHistoryNote.trim() || !currentLead) return;
 
     try {
-      await api.post(`/seller/leads/${currentLead.id}/history`, {
+      await apiClient.post(`/seller/leads/${currentLead.id}/history`, {
         notes: newHistoryNote
       });
 

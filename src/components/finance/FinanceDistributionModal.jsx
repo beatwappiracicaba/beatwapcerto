@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Upload, Check, FileText, DollarSign, User, Briefcase, Building } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
-import { api } from '../../services/apiClient';
+import { apiClient } from '../../services/apiClient';
 import { useToast } from '../../context/ToastContext';
 
 export const FinanceDistributionModal = ({ isOpen, onClose, event, onUpdate, userRole = 'artist' }) => {
@@ -83,7 +83,7 @@ export const FinanceDistributionModal = ({ isOpen, onClose, event, onUpdate, use
         return;
       }
 
-      await api.post(`/artist/finance/events/${event.id}/receipts`, payload);
+      await apiClient.post(`/artist/finance/events/${event.id}/receipts`, payload);
       addToast('Atualização realizada com sucesso!', 'success');
       onUpdate && onUpdate();
       onClose();

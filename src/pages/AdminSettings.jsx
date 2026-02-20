@@ -5,7 +5,7 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AdminLayout } from '../components/AdminLayout';
 import { useToast } from '../context/ToastContext';
 import { Mail, User, Settings, Shield, Search, Save, Check, Loader } from 'lucide-react';
-import { api } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 
 export const AdminSettings = () => {
   const { addToast } = useToast();
@@ -56,7 +56,7 @@ export const AdminSettings = () => {
   const fetchArtists = async () => {
     setLoadingArtists(true);
     try {
-      const data = await api.get('/profiles');
+      const data = await apiClient.get('/profiles');
       const filtered = (data || []).filter(a => ['Artista','Produtor','Compositor','Vendedor'].includes(a.cargo));
       // Normalize permissions
       const formatted = filtered.map(artist => ({
@@ -186,7 +186,7 @@ export const AdminSettings = () => {
   const savePermissions = async (artist) => {
     setSavingId(artist.id);
     try {
-      await api.put(`/profiles/${artist.id}/access-control`, { access_control: artist.access_control });
+      await apiClient.put(`/profiles/${artist.id}/access-control`, { access_control: artist.access_control });
       addToast('Permissões atualizadas com sucesso!', 'success');
     } catch (error) {
       console.error('Error saving permissions:', error);

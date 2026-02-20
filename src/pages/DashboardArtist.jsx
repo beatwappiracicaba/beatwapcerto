@@ -3,7 +3,7 @@ import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { MusicUploadModal } from '../components/artist/MusicUploadModal';
 import { Plus, DollarSign, Folder, ChevronDown, ChevronRight } from 'lucide-react';
@@ -17,10 +17,10 @@ export const DashboardArtistHome = () => {
 
   useEffect(() => {
     const fetchMetrics = async () => {
-      const legacy = await api.get(`/admin/artist/${user.id}/metrics`);
-      const events = await api.get(`/analytics/artist/${user.id}/events`);
-      const shows = await api.get('/artist/finance/events');
-      const allMusics = await api.get('/songs/mine');
+      const legacy = await apiClient.get(`/admin/artist/${user.id}/metrics`);
+      const events = await apiClient.get(`/analytics/artist/${user.id}/events`);
+      const shows = await apiClient.get('/artist/finance/events');
+      const allMusics = await apiClient.get('/songs/mine');
 
       const showRevenue = (shows || []).reduce((acc, curr) => acc + (Number(curr.artist_share) || 0), 0) || 0;
 
@@ -35,7 +35,7 @@ export const DashboardArtistHome = () => {
       let totalExternalRevenue = 0;
       
       if (musicIds.length > 0) {
-        const extMetrics = await api.get('/songs/external-metrics');
+        const extMetrics = await apiClient.get('/songs/external-metrics');
           
         (extMetrics || []).forEach(em => {
           totalExternalPlays += Number(em.plays || 0);
@@ -83,7 +83,7 @@ export const DashboardArtistHome = () => {
         }
       });
       
-      const extForTop = (await api.get('/songs/external-metrics')) || [];
+      const extForTop = (await apiClient.get('/songs/external-metrics')) || [];
       extForTop.forEach(em => {
         if (em.music_id) {
           playsPerMusic[em.music_id] = (playsPerMusic[em.music_id] || 0) + Number(em.plays || 0);
@@ -231,7 +231,7 @@ export const DashboardArtistMusics = () => {
 
   const fetchMusics = useCallback(async () => {
     setLoading(true);
-    const data = await api.get('/songs/mine');
+    const data = await apiClient.get('/songs/mine');
     setMusics(data || []);
     setLoading(false);
   }, [user]);
@@ -276,7 +276,7 @@ export const DashboardArtistMusics = () => {
     const loadMetrics = async () => {
       if (!user) return;
       
-      const ev = await api.get(`/analytics/artist/${user.id}/events`);
+      const ev = await apiClient.get(`/analytics/artist/${user.id}/events`);
         
       const agg = {};
       
@@ -292,7 +292,7 @@ export const DashboardArtistMusics = () => {
         }
       });
 
-      const extMetrics = await api.get('/songs/external-metrics');
+      const extMetrics = await apiClient.get('/songs/external-metrics');
       (extMetrics || []).forEach(em => {
         const mid = em.music_id;
         if (!agg[mid]) agg[mid] = { plays: 0, totalSeconds: 0, presaves: 0, revenue: 0 };
@@ -390,7 +390,7 @@ export const DashboardArtistMusics = () => {
 
   const computeRemaining = useCallback(async () => {
     if (!user) return;
-    const prof = await api.get('/profile');
+    const prof = await apiClient.get('/profile');
     const plan = (prof?.plano || 'sem plano').toLowerCase();
     const bonus = Number(prof?.bonus_quota || 0);
     let base = 0;
@@ -424,7 +424,7 @@ export const DashboardArtistMusics = () => {
     const params = new URLSearchParams();
     if (start) params.set('start', start);
     if (end) params.set('end', end);
-    const r = await api.get(`/me/uploads/count?${params.toString()}`);
+    const r = await apiClient.get(`/me/uploads/count?${params.toString()}`);
     const used = Number(r?.count || 0);
     const remaining = Math.max(0, base + bonus - used);
     setRemainingUploads(remaining);
@@ -546,7 +546,7 @@ export const DashboardArtistChat = () => {
   useEffect(() => {
     const init = async () => {
       try {
-        const msgs = await api.get('/messages');
+        const msgs = await apiClient.get('/messages');
         setMessages(msgs || []);
         setChatId('inbox');
       } catch (e) { console.error(e); }
@@ -555,7 +555,7 @@ export const DashboardArtistChat = () => {
   }, [user]);
   useEffect(() => {
     const loadComposers = async () => {
-      const data = await api.get('/composers');
+      const data = await apiClient.get('/composers');
       setComposers(data || []);
       setPresence([]);
     };
@@ -570,8 +570,8 @@ export const DashboardArtistChat = () => {
     }
     if (!receiver_id && composers.length) receiver_id = composers[0].id;
     if (!receiver_id) return;
-    await api.post('/messages', { receiver_id, message: input.trim() });
-    const msgs = await api.get('/messages');
+    await apiClient.post('/messages', { receiver_id, message: input.trim() });
+    const msgs = await apiClient.get('/messages');
     setMessages(msgs || []);
     setInput('');
   };

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, MapPin, CreditCard, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle } from 'lucide-react';
-import { api } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { DashboardLayout } from '../components/DashboardLayout';
@@ -131,7 +131,7 @@ export const DashboardArtistProfile = () => {
       qs.set('type', type);
       if (start) qs.set('start', start);
       if (end) qs.set('end', end);
-      const { count } = await api.get(`/me/uploads/count?${qs.toString()}`);
+      const { count } = await apiClient.get(`/me/uploads/count?${qs.toString()}`);
       const used = Number(count || 0);
       const remaining = Math.max(0, base + bonus - used);
       setRemainingUploads(remaining);
@@ -173,7 +173,7 @@ export const DashboardArtistProfile = () => {
         'bairro'
       ]);
 
-      await api.put('/profile', encryptedData);
+      await apiClient.put('/profile', encryptedData);
       await refreshProfile();
       addToast('Perfil atualizado com sucesso!', 'success');
     } catch (error) {
@@ -191,7 +191,7 @@ export const DashboardArtistProfile = () => {
       const arrayBuffer = await blob.arrayBuffer();
       const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
       const dataUrl = `data:image/png;base64,${base64}`;
-      const res = await api.post('/profile/avatar', { dataUrl });
+      const res = await apiClient.post('/profile/avatar', { dataUrl });
       if (!res?.avatar_url) throw new Error('Falha ao salvar avatar');
       await refreshProfile();
       addToast('Foto de perfil atualizada!', 'success');
@@ -262,7 +262,7 @@ export const DashboardArtistProfile = () => {
         const arrayBuffer = await blob.arrayBuffer();
         const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
         const dataUrl = `data:image/png;base64,${base64}`;
-        const res = await api.post('/profile/avatar', { dataUrl });
+        const res = await apiClient.post('/profile/avatar', { dataUrl });
         avatar_url = res?.avatar_url || null;
       }
       
@@ -278,7 +278,7 @@ export const DashboardArtistProfile = () => {
       };
       if (bio) updateData.bio = bio;
       if (avatar_url) updateData.avatar_url = avatar_url;
-      await api.put('/profile', updateData);
+      await apiClient.put('/profile', updateData);
       
       await refreshProfile();
       addToast('Perfil público atualizado', 'success');

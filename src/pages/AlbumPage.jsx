@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { api } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import Header from '../components/landing/Header';
 import Footer from '../components/landing/Footer';
 import { Play, Pause, ArrowLeft, Music } from 'lucide-react';
@@ -32,7 +32,7 @@ const AlbumPage = () => {
   const fetchAlbum = async () => {
     try {
       setLoading(true);
-      const list = await api.get(`/albums/${id}/tracks`);
+      const list = await apiClient.get(`/albums/${id}/tracks`);
       setTracks(list);
       if (list.length > 0) {
         const first = list[0];
@@ -55,7 +55,7 @@ const AlbumPage = () => {
 
   const recordEvent = async (payload) => {
     try {
-      await api.post('/analytics', { ...payload, ip_hash: 'album_page' });
+      await apiClient.post('/analytics', { ...payload, ip_hash: 'album_page' });
     } catch (e) {
       void e;
     }

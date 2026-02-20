@@ -3,7 +3,7 @@ import { AdminLayout } from '../components/AdminLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
-import { api } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import { User, Target, DollarSign, Calendar, FileText, Check, X as XIcon } from 'lucide-react';
 
 export const AdminSellers = () => {
@@ -31,7 +31,7 @@ export const AdminSellers = () => {
 
   const fetchSellers = async () => {
     try {
-      const data = await api.get('/admin/sellers');
+      const data = await apiClient.get('/admin/sellers');
       setSellers(data || []);
     } catch (error) {
       console.error('Error fetching sellers:', error);
@@ -41,13 +41,13 @@ export const AdminSellers = () => {
   const fetchSellerData = async (sellerId) => {
     setLoading(true);
     try {
-      const goalsData = await api.get(`/admin/sellers/${sellerId}/goals`);
+      const goalsData = await apiClient.get(`/admin/sellers/${sellerId}/goals`);
       setGoals(goalsData || []);
 
-      const commsData = await api.get(`/admin/sellers/${sellerId}/commissions`);
+      const commsData = await apiClient.get(`/admin/sellers/${sellerId}/commissions`);
       setCommissions(commsData || []);
 
-      const leadsData = await api.get(`/admin/sellers/${sellerId}/leads`);
+      const leadsData = await apiClient.get(`/admin/sellers/${sellerId}/leads`);
       setLeads(leadsData || []);
 
     } catch (error) {
@@ -63,7 +63,7 @@ export const AdminSellers = () => {
     const [year, month] = goalForm.month_year.split('-').map(Number);
 
     try {
-      await api.post(`/admin/sellers/${selectedSeller.id}/goals`, {
+      await apiClient.post(`/admin/sellers/${selectedSeller.id}/goals`, {
         month,
         year,
         shows_target: parseInt(goalForm.shows_target),
@@ -78,7 +78,7 @@ export const AdminSellers = () => {
 
   const updateCommissionStatus = async (id, status) => {
     try {
-      await api.patch(`/admin/commissions/${id}/status`, { status });
+      await apiClient.patch(`/admin/commissions/${id}/status`, { status });
       fetchSellerData(selectedSeller.id);
     } catch (error) {
       console.error('Error updating commission:', error);

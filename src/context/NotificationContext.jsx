@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { api } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 
@@ -13,7 +13,7 @@ export const NotificationProvider = ({ children }) => {
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
     try {
-      const data = await api.get('/notifications'); // endpoint a ser adicionado
+      const data = await apiClient.get('/notifications'); // endpoint a ser adicionado
       setNotifications(data || []);
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -41,7 +41,7 @@ export const NotificationProvider = ({ children }) => {
 
   const addNotification = async (notification) => {
     try {
-      await api.post('/notifications', {
+      await apiClient.post('/notifications', {
         recipientId: notification.recipientId,
         title: notification.title,
         message: notification.message,
@@ -57,7 +57,7 @@ export const NotificationProvider = ({ children }) => {
 
   const markAsRead = async (id) => {
     try {
-      await api.post(`/notifications/${id}/read`, {});
+      await apiClient.post(`/notifications/${id}/read`, {});
       setNotifications(prev => prev.map(n => 
         n.id === id ? { ...n, read: true } : n
       ));
@@ -68,7 +68,7 @@ export const NotificationProvider = ({ children }) => {
 
   const markAllAsRead = async () => {
     try {
-      await api.post('/notifications/read-all', {});
+      await apiClient.post('/notifications/read-all', {});
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch (error) {
       console.error('Error marking all as read:', error);

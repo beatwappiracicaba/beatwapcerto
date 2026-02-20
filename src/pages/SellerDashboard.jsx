@@ -3,7 +3,7 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import { TrendingUp, Calendar, Users, DollarSign, Target, Award } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -19,7 +19,7 @@ const SellerDashboard = () => {
 
   const fetchGoals = async () => {
     try {
-      const data = await api.get('/seller/dashboard');
+      const data = await apiClient.get('/seller/dashboard');
       setGoals(data || { shows_target: 10, current_shows: 0, revenue_target: 50000, current_revenue: 0 });
     } catch (error) {
       console.error('Error fetching data:', error);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
-import { api } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { DollarSign, TrendingUp, AlertCircle, CheckCircle, FileText, Calendar, User, FolderOpen, ExternalLink } from 'lucide-react';
 import { FinanceDistributionModal } from '../components/finance/FinanceDistributionModal';
@@ -27,7 +27,7 @@ const SellerFinance = () => {
 
   const fetchFinanceData = async () => {
     try {
-      const data = await api.get('/seller/finance/summary');
+      const data = await apiClient.get('/seller/finance/summary');
       setEvents(data.events || []);
       setStats({
         totalSold: data.totalSold || 0,

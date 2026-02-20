@@ -11,7 +11,7 @@ import ShowProduction from '../components/landing/ShowProduction';
 import SpecialOffer from '../components/landing/SpecialOffer';
 import Contact from '../components/landing/Contact';
 import Footer from '../components/landing/Footer';
-import { homeApi, api } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import { Play, Pause, BadgeCheck, Music, MessageCircle, ChevronLeft, ChevronRight, User, Info, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -115,7 +115,7 @@ const Home = () => {
 
   const fetchLatestReleases = async () => {
     try {
-      const data = await homeApi.releases();
+      const data = await apiClient.get('/releases');
       const today = new Date();
       const parsed = (data || []).map(r => {
         const rd = r.release_date ? new Date(r.release_date) : null;
@@ -143,7 +143,7 @@ const Home = () => {
  
   const fetchLatestCompositions = async () => {
     try {
-      const data = await homeApi.compositions();
+      const data = await apiClient.get('/compositions');
       const mapped = (data || []).map(c => ({
         ...c,
         composer_name: c.composer_name || 'Compositor',
@@ -168,13 +168,13 @@ const Home = () => {
       if (!allowed) {
         return;
       }
-      await api.post('/analytics', { ...payload, ip_hash: ipHash || 'unknown' });
+      await apiClient.post('/analytics', { ...payload, ip_hash: ipHash || 'unknown' });
     } catch (e) { void 0; }
   };
 
   const fetchSponsors = async () => {
     try {
-      const data = await homeApi.sponsors();
+      const data = await apiClient.get('/sponsors');
       setSponsors(data || []);
     } catch (error) {
       console.error('Error fetching sponsors:', error);
@@ -183,7 +183,7 @@ const Home = () => {
 
   const fetchLatestProjects = async () => {
     try {
-      const data = await homeApi.projects();
+      const data = await apiClient.get('/projects');
       setLatestProjects(data || []);
     } catch (error) {
       console.error('Error fetching producer projects:', error);
@@ -233,7 +233,7 @@ const Home = () => {
 
   const fetchComposers = async () => {
     try {
-      const data = await homeApi.composers();
+      const data = await apiClient.get('/composers');
       const mapped = (data || []).map(s => ({ ...s, name: s.nome || s.nome_completo_razao_social || '' }));
       setComposers(mapped);
     } catch (error) {

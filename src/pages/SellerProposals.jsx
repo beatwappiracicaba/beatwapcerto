@@ -3,7 +3,7 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
-import { api } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { FileText, Plus, ExternalLink, Check, X as XIcon, Clock, Edit2, Upload, Trash2 } from 'lucide-react';
@@ -37,7 +37,7 @@ const SellerProposals = () => {
 
   const fetchArtists = async () => {
     try {
-      const data = await api.get('/artists');
+      const data = await apiClient.get('/artists');
       setArtists(data || []);
     } catch (error) {
       console.error('Error fetching artists:', error);
@@ -46,7 +46,7 @@ const SellerProposals = () => {
 
   const fetchProposals = async () => {
     try {
-      const data = await api.get('/seller/proposals');
+      const data = await apiClient.get('/seller/proposals');
       setProposals(data || []);
     } catch (error) {
       console.error('Error fetching proposals:', error);
@@ -119,10 +119,10 @@ const SellerProposals = () => {
       };
 
       if (currentProposal) {
-        await api.put(`/seller/proposals/${currentProposal.id}`, payload);
+        await apiClient.put(`/seller/proposals/${currentProposal.id}`, payload);
         addToast('Proposta atualizada com sucesso!', 'success');
       } else {
-        await api.post('/seller/proposals', payload);
+        await apiClient.post('/seller/proposals', payload);
         addToast('Proposta criada com sucesso!', 'success');
       }
 
@@ -139,7 +139,7 @@ const SellerProposals = () => {
   const handleDeleteProposal = async (id) => {
     if (!window.confirm('Tem certeza que deseja excluir esta proposta?')) return;
     try {
-      await api.del(`/seller/proposals/${id}`);
+      await apiClient.del(`/seller/proposals/${id}`);
       addToast('Proposta excluída!', 'success');
       fetchProposals();
     } catch (error) {
