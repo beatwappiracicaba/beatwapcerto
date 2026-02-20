@@ -5,7 +5,7 @@ require('dotenv').config();
 const app = express();
 
 app.use(cors({
-  origin: ['https://beatwapproducoes.pages.dev', 'http://localhost:5173'],
+  origin: true, // Aceita qualquer origem temporariamente
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -14,6 +14,7 @@ app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
 const authRoutes = require('./routes/auth.routes');
+const homeRoutes = require('./routes/home.routes');
 // const uploadRoutes = require('./routes/upload.routes');
 const eventRoutes = require('./routes/events.routes');
 const producerRoutes = require('./routes/producers.routes');
@@ -28,6 +29,8 @@ const sponsorsRoutes = require('./routes/sponsors.routes');
 
 app.use('/auth', authRoutes);
 console.log('Auth routes registradas');
+app.use('/home', homeRoutes);
+console.log('Home routes registradas');
 // app.use('/upload', uploadRoutes);
 app.use('/events', eventRoutes);
 console.log('Event routes registradas');
