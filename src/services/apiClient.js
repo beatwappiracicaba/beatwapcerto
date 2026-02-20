@@ -48,12 +48,67 @@ export const authApi = {
 };
 
 export const homeApi = {
-  releases: () => apiClient.get('/home/releases'),
-  compositions: () => apiClient.get('/home/compositions'),
-  projects: () => apiClient.get('/home/projects'),
-  sponsors: () => apiClient.get('/home/sponsors'),
-  composers: () => apiClient.get('/home/composers'),
-  producers: () => apiClient.get('/home/producers'),
-  sellers: () => apiClient.get('/home/sellers'),
-  artists: () => apiClient.get('/home/artists'),
+  releases: () => apiClient.get('/releases'),
+  compositions: () => apiClient.get('/compositions'),
+  projects: () => apiClient.get('/projects'),
+  sponsors: () => apiClient.get('/sponsors'),
+  composers: () => apiClient.get('/compositions'),
+  producers: () => apiClient.get('/producers'),
+  sellers: () => apiClient.get('/users?role=Vendedor'),
+  artists: () => apiClient.get('/profiles/artists/all'),
+};
+
+export const musicApi = {
+  getAll: () => apiClient.get('/musics'),
+  getById: (id) => apiClient.get(`/musics/${id}`),
+  create: (data) => apiClient.post('/musics', data),
+  update: (id, data) => apiClient.put(`/musics/${id}`, data),
+  delete: (id) => apiClient.del(`/musics/${id}`),
+};
+
+export const profileApi = {
+  getById: (userId) => apiClient.get(`/profiles/${userId}`),
+  update: (data) => apiClient.put('/profiles', data),
+  getArtists: () => apiClient.get('/profiles/artists/all'),
+};
+
+export const projectApi = {
+  getAll: () => apiClient.get('/projects'),
+  getById: (id) => apiClient.get(`/projects/${id}`),
+  create: (data) => apiClient.post('/projects', data),
+  update: (id, data) => apiClient.put(`/projects/${id}`, data),
+  delete: (id) => apiClient.del(`/projects/${id}`),
+};
+
+export const eventApi = {
+  getAll: () => apiClient.get('/events'),
+  getById: (id) => apiClient.get(`/events/${id}`),
+  create: (data) => apiClient.post('/events', data),
+  update: (id, data) => apiClient.put(`/events/${id}`, data),
+  delete: (id) => apiClient.del(`/events/${id}`),
+};
+
+export const uploadApi = {
+  uploadFile: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return fetch(`${API_BASE}/upload/single`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    }).then(res => res.json());
+  },
+  uploadMultiple: (files) => {
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+    return fetch(`${API_BASE}/upload/multiple`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    }).then(res => res.json());
+  }
 };
