@@ -138,7 +138,7 @@ Data: ${new Date().toLocaleDateString()}
     setLoading(true);
 
     try {
-      // 1. Update User Profile in Supabase
+      // 1. Update User Profile
       if (user) {
         // Encrypt sensitive data
         const encryptedAddress = {
@@ -160,7 +160,7 @@ Data: ${new Date().toLocaleDateString()}
       }
 
       // 2. Log purchase attempt (optional, create a table if needed)
-      // await supabase.from('purchase_attempts').insert({...})
+      // await apiClient.post('/purchase_attempts', {...})
 
       // 3. Open WhatsApp
       const plan = selectedPlan;
