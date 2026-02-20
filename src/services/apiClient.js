@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://108.181.197.180:19931';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.beatwapproducoes.pages.dev';
 
 async function request(path, options = {}) {
   const token = localStorage.getItem('token');

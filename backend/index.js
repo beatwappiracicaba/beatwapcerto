@@ -29,9 +29,9 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`📡 Conectado ao PostgreSQL CloudClusters`);
 });
 
-// CORS configuration for Cloudflare Pages and CloudClusters IP
+// CORS configuration for Cloudflare Pages and HTTPS domain
 app.use(cors({
-  origin: ['https://beatwapproducoes.pages.dev', 'http://localhost:5173', 'http://108.181.197.180:19931'],
+  origin: ['https://beatwapproducoes.pages.dev', 'https://api.beatwapproducoes.pages.dev', 'http://localhost:5173'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']

@@ -1,0 +1,23 @@
+# Cloudflare Tunnel Configuration
+# Salve este arquivo como cloudflare-tunnel.yml
+
+# Instale o cloudflared primeiro:
+# https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation/
+
+# Comando para criar o tunnel:
+# cloudflared tunnel create beatwap-api
+
+# Comando para rodar o tunnel:
+# cloudflared tunnel --config cloudflare-tunnel.yml run beatwap-api
+
+tunnel: beatwap-api
+credentials-file: /root/.cloudflared/beatwap-api.json
+
+ingress:
+  - hostname: api.beatwapproducoes.pages.dev
+    service: http://localhost:19931
+  - service: http_status:404
+
+# Configure no Cloudflare:
+# 1. Criar CNAME: api.beatwapproducoes.pages.dev → [tunnel-id].cfargotunnel.com
+# 2. Configurar SSL/TLS em "Full"
