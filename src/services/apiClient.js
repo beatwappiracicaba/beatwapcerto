@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_BACKEND_URL || 'https://beatwapproducoes.onrender.com';
+const API_BASE = 'https://beatwapproducoes.onrender.com/api';
 
 async function request(path, options = {}) {
   const token = localStorage.getItem('token');
@@ -92,7 +92,7 @@ export const uploadApi = {
   uploadFile: (file) => {
     const formData = new FormData();
     formData.append('file', file);
-    return fetch(`${API_BASE}/upload/single`, {
+    return fetch(`https://beatwapproducoes.onrender.com/api/upload/single`, {
       method: 'POST',
       body: formData,
       headers: {
@@ -103,7 +103,7 @@ export const uploadApi = {
   uploadMultiple: (files) => {
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
-    return fetch(`${API_BASE}/upload/multiple`, {
+    return fetch(`https://beatwapproducoes.onrender.com/api/upload/multiple`, {
       method: 'POST',
       body: formData,
       headers: {
