@@ -13,7 +13,7 @@ export const aiService = {
 
   async getHistory() {
     try {
-      const rows = await api.get('/ai/history');
+      const rows = await apiClient.get('/ai/history');
       return rows || [];
     } catch (error) {
       console.error('Error fetching history:', error);
@@ -23,7 +23,7 @@ export const aiService = {
 
   async clearHistory() {
     try {
-      await api.post('/ai/history/clear', {});
+      await apiClient.post('/ai/history/clear', {});
       return true;
     } catch (error) {
       console.error('Error clearing history:', error);
@@ -34,7 +34,7 @@ export const aiService = {
 
   async sendMessage(messages) {
     try {
-      const data = await api.post('/ai/chat', { messages });
+      const data = await apiClient.post('/ai/chat', { messages });
       return data.reply;
     } catch (error) {
       console.error('AI Service Error:', error);

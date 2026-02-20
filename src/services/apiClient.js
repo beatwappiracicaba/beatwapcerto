@@ -27,13 +27,13 @@ export const apiClient = {
 
 export const authApi = {
   async login(email, password) {
-    const data = await api.post('/login', { email, password });
+    const data = await apiClient.post('/login', { email, password });
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
     return data;
   },
   async register({ name, email, password, role }) {
-    return api.post('/register', { name, email, password, role });
+    return apiClient.post('/register', { name, email, password, role });
   },
   async logout() {
     localStorage.removeItem('token');
@@ -48,12 +48,12 @@ export const authApi = {
 };
 
 export const homeApi = {
-  releases: () => api.get('/home/releases'),
-  compositions: () => api.get('/home/compositions'),
-  projects: () => api.get('/home/projects'),
-  sponsors: () => api.get('/home/sponsors'),
-  composers: () => api.get('/home/composers'),
-  producers: () => api.get('/home/producers'),
-  sellers: () => api.get('/home/sellers'),
-  artists: () => api.get('/home/artists'),
+  releases: () => apiClient.get('/home/releases'),
+  compositions: () => apiClient.get('/home/compositions'),
+  projects: () => apiClient.get('/home/projects'),
+  sponsors: () => apiClient.get('/home/sponsors'),
+  composers: () => apiClient.get('/home/composers'),
+  producers: () => apiClient.get('/home/producers'),
+  sellers: () => apiClient.get('/home/sellers'),
+  artists: () => apiClient.get('/home/artists'),
 };
