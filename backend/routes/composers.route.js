@@ -3,6 +3,6 @@ import { getComposers } from '../controllers/composers.controller.js';
 
 const router = Router();
 
-router.get('/composers', getComposers);
+router.get('/', getComposers);
 
 export default router;

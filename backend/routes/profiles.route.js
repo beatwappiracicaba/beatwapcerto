@@ -3,6 +3,6 @@ import { getArtists } from '../controllers/profiles.controller.js';
 
 const router = Router();
 
-router.get('/profiles', getArtists);
+router.get('/', getArtists);
 
 export default router;

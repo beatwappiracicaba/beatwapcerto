@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.beatwapproducoes.pages.dev';
+const API_BASE = import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_BACKEND_URL || 'https://beatwapproducoes.onrender.com';
 
 async function request(path, options = {}) {
   const token = localStorage.getItem('token');

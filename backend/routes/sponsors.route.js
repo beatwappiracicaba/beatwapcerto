@@ -3,6 +3,6 @@ import { getSponsors } from '../controllers/sponsors.controller.js';
 
 const router = Router();
 
-router.get('/sponsors', getSponsors);
+router.get('/', getSponsors);
 
 export default router;

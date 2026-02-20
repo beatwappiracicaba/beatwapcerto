@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchProfile = async () => {
     try {
-      const res = await fetch((import.meta.env.VITE_API_URL || 'https://api.beatwapproducoes.pages.dev') + '/profile', {
+      const res = await fetch((import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_BACKEND_URL || 'https://beatwapproducoes.onrender.com') + '/profile', {
         headers: { Authorization: `Bearer ${authApi.getToken()}` }
       });
       if (res.ok) {

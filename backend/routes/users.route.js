@@ -3,6 +3,6 @@ import { getUsersByRole } from '../controllers/users.controller.js';
 
 const router = Router();
 
-router.get('/users', getUsersByRole);
+router.get('/', getUsersByRole);
 
 export default router;
