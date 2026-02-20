@@ -27,6 +27,6 @@ const uploadFile = (req, res) => {
 };
 
 module.exports = {
-  upload,
+  upload: upload.single('file'),
   uploadFile,
 };
