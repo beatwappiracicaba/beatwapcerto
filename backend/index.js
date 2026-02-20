@@ -20,11 +20,18 @@ const __dirname = dirname(__filename);
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 19931;
 
-// CORS configuration for Cloudflare Pages
+// Configurar para aceitar conexões externas
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  console.log(`🌐 Acessível via IP: http://108.181.197.180:${PORT}`);
+  console.log(`📡 Conectado ao PostgreSQL CloudClusters`);
+});
+
+// CORS configuration for Cloudflare Pages and CloudClusters IP
 app.use(cors({
-  origin: ['https://beatwapproducoes.pages.dev', 'http://localhost:5173'],
+  origin: ['https://beatwapproducoes.pages.dev', 'http://localhost:5173', 'http://108.181.197.180:19931'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -62,9 +69,4 @@ app.use((err, req, res, next) => {
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({ error: 'Rota não encontrada' });
-});
-
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
-  console.log(`📡 Conectado ao PostgreSQL CloudClusters`);
 });
