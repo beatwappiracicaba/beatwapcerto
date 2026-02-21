@@ -12,18 +12,21 @@ router.get('/mine', async (req, res) => {
     
     const result = await pool.query(`
       SELECT 
-        m.*,
-        p.nome as artist_name
+        m.id,
+        m.titulo as title,
+        m.nome_artista as artist_name,
+        m.estilo as genre,
+        m.created_at
       FROM public.musics m
-      JOIN public.profiles p ON m.artist_id = p.id
-      WHERE m.artist_id = $1
+      WHERE m.artista_id = $1
       ORDER BY m.created_at DESC
     `, [artistId]);
 
     res.json(result.rows);
   } catch (error) {
-    console.error('Erro ao buscar músicas do artista:', error);
-    res.status(500).json({ message: 'Erro interno do servidor ao buscar músicas.' });
+    console.error('Erro ao buscar músicas do artista:', error.message);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ message: 'Erro interno do servidor ao buscar músicas.', error: error.message });
   }
 });
 

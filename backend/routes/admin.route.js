@@ -12,11 +12,11 @@ router.get('/artist/:id/metrics', async (req, res) => {
     const metricsResult = await pool.query(`
       SELECT 
         COUNT(DISTINCT m.id) as total_musicas,
-        COALESCE(SUM(m.plays), 0) as total_plays,
-        COALESCE(SUM(m.listeners), 0) as total_listeners,
-        COALESCE(SUM(m.revenue), 0) as total_revenue
+        COALESCE(SUM(0), 0) as total_plays,
+        COALESCE(SUM(0), 0) as total_listeners,
+        COALESCE(SUM(0), 0) as total_revenue
       FROM public.musics m
-      WHERE m.artist_id = $1
+      WHERE m.artista_id = $1
     `, [id]);
 
     // Buscar eventos do artista
