@@ -13,6 +13,9 @@ import projectsRoutes from './routes/projects.route.js';
 import composersRoutes from './routes/composers.route.js';
 import sponsorsRoutes from './routes/sponsors.route.js';
 import authRoutes from './routes/auth.route.js';
+import adminRoutes from './routes/admin.route.js';
+import analyticsRoutes from './routes/analytics.route.js';
+import songsRoutes from './routes/songs.route.js';
 
 // Carrega as variáveis de ambiente do arquivo .env
 dotenv.config();
@@ -84,6 +87,9 @@ app.use('/api/projects', projectsRoutes);
 app.use('/api/composers', composersRoutes);
 app.use('/api/sponsors', sponsorsRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/songs', songsRoutes);
 
 // --- Tratamento de Erros ---
 app.use((req, res, next) => {
