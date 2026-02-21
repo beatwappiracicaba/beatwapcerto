@@ -1,4 +1,4 @@
-// Queries para login
+// Queries para login (usando profiles)
 export const getUserByEmailQuery = `
-  SELECT * FROM users WHERE email = $1;
+  SELECT * FROM public.profiles WHERE email = $1;
 `;

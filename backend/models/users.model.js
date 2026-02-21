@@ -1,6 +1,6 @@
-// Queries para a tabela users
+// Queries para a tabela profiles (usuários por cargo)
 export const getUsersByRoleQuery = `
-  SELECT * FROM users WHERE role = $1;
+  SELECT * FROM public.profiles WHERE cargo = $1;
 `;
 
 export const createUsersTableQuery = `

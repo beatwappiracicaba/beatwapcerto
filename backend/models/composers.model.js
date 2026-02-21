@@ -1,6 +1,6 @@
-// Queries para a tabela composers
+// Queries para a tabela profiles (compositores)
 export const getAllComposersQuery = `
-  SELECT * FROM composers;
+  SELECT * FROM public.profiles WHERE cargo = 'Compositor';
 `;
 
 export const createComposersTableQuery = `

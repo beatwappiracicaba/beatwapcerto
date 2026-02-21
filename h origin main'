@@ -1,0 +1,25 @@
+warning: in the working copy of 'backend/index.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/models/artists.model.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/models/auth.model.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/models/composers.model.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/models/producers.model.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/models/profiles.model.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/models/projects.model.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/models/releases.model.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/models/users.model.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/package-lock.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/package.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/apiClient.js', LF will be replaced by CRLF the next time Git touches it
+ backend/index.js                  | 16 [32m++++++++++++++++[m
+ backend/models/artists.model.js   |  4 [32m++[m[31m--[m
+ backend/models/auth.model.js      |  4 [32m++[m[31m--[m
+ backend/models/composers.model.js |  4 [32m++[m[31m--[m
+ backend/models/producers.model.js |  4 [32m++[m[31m--[m
+ backend/models/profiles.model.js  |  4 [32m++[m[31m--[m
+ backend/models/projects.model.js  |  4 [32m++[m[31m--[m
+ backend/models/releases.model.js  |  4 [32m++[m[31m--[m
+ backend/models/users.model.js     |  4 [32m++[m[31m--[m
+ backend/package-lock.json         | 10 [32m++++++++++[m
+ backend/package.json              |  1 [32m+[m
+ src/services/apiClient.js         |  4 [32m++[m[31m--[m
+ 12 files changed, 45 insertions(+), 18 deletions(-)

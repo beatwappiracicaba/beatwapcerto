@@ -1,6 +1,6 @@
-// Queries para a tabela releases
+// Queries para a tabela musics (lançamentos)
 export const getAllReleasesQuery = `
-  SELECT * FROM releases;
+  SELECT * FROM public.musics WHERE status = 'aprovado';
 `;
 
 export const createReleasesTableQuery = `

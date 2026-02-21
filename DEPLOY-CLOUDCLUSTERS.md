@@ -1,6 +1,6 @@
 # 🚀 Guia Completo de Deploy - Backend BeatWap na VPS CloudClusters
 
-## ✅ PASSO 1 — Entrar na VPS (CloudClusters)
+## ✅ PASSO 1 — postgresql-208539-0.cloudclusters.net
 
 No seu computador, abra o terminal e conecte via SSH:
 

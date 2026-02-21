@@ -1,6 +1,6 @@
-// Queries para a tabela projects
+// Queries para a tabela producer_projects (projetos)
 export const getAllProjectsQuery = `
-  SELECT * FROM projects;
+  SELECT * FROM public.producer_projects WHERE published = true;
 `;
 
 export const createProjectsTableQuery = `

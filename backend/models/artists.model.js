@@ -1,6 +1,6 @@
-// Queries para a tabela artists (todos os artistas)
+// Queries para a tabela profiles (todos os artistas)
 export const getAllArtistsQuery = `
-  SELECT * FROM artists;
+  SELECT * FROM public.profiles WHERE cargo = 'Artista';
 `;
 
 export const createArtistsTableQuery = `

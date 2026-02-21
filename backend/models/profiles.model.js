@@ -1,11 +1,11 @@
 // models/profiles.model.js
 
 /**
- * Query SQL para buscar todos os artistas na tabela 'artists'.
+ * Query SQL para buscar todos os artistas na tabela 'profiles'.
  * Esta query seleciona todas as colunas da tabela.
  */
 export const getAllArtistsQuery = `
-  SELECT * FROM artists;
+  SELECT * FROM public.profiles WHERE cargo = 'Artista';
 `;
 
 /**

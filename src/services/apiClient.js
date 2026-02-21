@@ -52,10 +52,10 @@ export const homeApi = {
   compositions: () => apiClient.get('/compositions'),
   projects: () => apiClient.get('/projects'),
   sponsors: () => apiClient.get('/sponsors'),
-  composers: () => apiClient.get('/compositions'),
+  composers: () => apiClient.get('/composers'),
   producers: () => apiClient.get('/producers'),
   sellers: () => apiClient.get('/users?role=Vendedor'),
-  artists: () => apiClient.get('/profiles/artists/all'),
+  artists: () => apiClient.get('/artists'),
 };
 
 export const musicApi = {

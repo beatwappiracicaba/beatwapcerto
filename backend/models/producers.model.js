@@ -1,6 +1,6 @@
-// Queries para a tabela producers
+// Queries para a tabela profiles (produtores)
 export const getAllProducersQuery = `
-  SELECT * FROM producers;
+  SELECT * FROM public.profiles WHERE cargo = 'Produtor';
 `;
 
 export const createProducersTableQuery = `

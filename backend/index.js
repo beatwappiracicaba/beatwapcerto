@@ -57,6 +57,22 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'UP', timestamp: new Date() });
 });
 
+// Rota de teste para verificar tabelas
+app.get('/api/test-tables', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      ORDER BY table_name;
+    `);
+    res.json({ tables: result.rows });
+  } catch (error) {
+    console.error('Erro ao verificar tabelas:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Usa todas as rotas com o prefixo /api
 app.use('/api/profiles', profilesRoutes);
 app.use('/api/producers', producersRoutes);
