@@ -1,0 +1,47 @@
+name = "beatwap-api-worker"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+# Configuração de variáveis de ambiente
+[env.production.vars]
+# Frontend URL (seu domínio no Cloudflare Pages)
+FRONTEND_URL = "https://beatwapproducoes.pages.dev"
+
+# PostgreSQL Connection (CloudClusters)
+DATABASE_URL = "https://api.cloudclusters.net/db/query"
+DB_HOST = "postgres-XXXXX.cloudclusters.net"
+DB_PORT = "10001"
+DB_NAME = "beatwap_db"
+DB_USER = "beatwap_user"
+DB_PASSWORD = "sua-senha-aqui"
+DB_TOKEN = "seu-token-cloudclusters"
+
+# JWT Secret
+JWT_SECRET = "sua-chave-secreta-super-segura-minimo-32-caracteres"
+
+# CORS Origins
+ALLOWED_ORIGINS = "https://beatwapproducoes.pages.dev,https://www.beatwap.com.br"
+
+# Configurações de segurança
+[env.production]
+account_id = "seu-account-id"
+workers_dev = true
+route = ""
+zone_id = ""
+
+# Build settings (não precisa de build para Workers)
+[build]
+command = ""
+
+# Configurações de desenvolvimento
+[env.development.vars]
+FRONTEND_URL = "http://localhost:3000"
+DATABASE_URL = "https://api.cloudclusters.net/db/query"
+DB_HOST = "postgres-XXXXX.cloudclusters.net"
+DB_PORT = "10001"
+DB_NAME = "beatwap_db"
+DB_USER = "beatwap_user"
+DB_PASSWORD = "sua-senha-aqui"
+DB_TOKEN = "seu-token-cloudclusters"
+JWT_SECRET = "dev-secret-key"
+ALLOWED_ORIGINS = "http://localhost:3000,http://localhost:5173"

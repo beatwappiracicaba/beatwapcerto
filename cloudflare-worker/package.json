@@ -1,0 +1,29 @@
+{
+  "name": "beatwap-api-worker",
+  "version": "1.0.0",
+  "description": "BeatWap API on Cloudflare Workers - Serverless Backend",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "logs": "wrangler tail"
+  },
+  "dependencies": {
+    "jose": "^5.2.0",
+    "bcryptjs": "^2.4.3"
+  },
+  "devDependencies": {
+    "wrangler": "^3.28.2"
+  },
+  "keywords": [
+    "cloudflare-workers",
+    "serverless",
+    "api",
+    "postgresql",
+    "jwt"
+  ],
+  "author": "BeatWap",
+  "license": "MIT"
+}

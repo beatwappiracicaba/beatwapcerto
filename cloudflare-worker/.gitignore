@@ -1,0 +1,7 @@
+# Cloudflare Workers - BeatWap API
+
+node_modules/
+.env
+.dev.vars
+dist/
+.wrangler/
