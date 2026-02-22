@@ -16,6 +16,7 @@ import authRoutes from './routes/auth.route.js';
 import adminRoutes from './routes/admin.route.js';
 import analyticsRoutes from './routes/analytics.route.js';
 import songsRoutes from './routes/songs.route.js';
+import { createDatabaseProxy } from './middleware/databaseProxy.js';
 
 // Carrega as variáveis de ambiente do arquivo .env
 dotenv.config();
@@ -75,6 +76,16 @@ app.get('/api/test-tables', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Adicionar proxy de banco de dados para o Worker
+app.use('/api/db', (req, res, next) => {
+  if (req.path === '/query' || req.path === '/health') {
+    next();
+  } else {
+    res.status(404).json({ error: 'Rota não encontrada' });
+  }
+});
+createDatabaseProxy(app);
 
 // Usa todas as rotas com o prefixo /api
 app.use('/api/profiles', profilesRoutes);
