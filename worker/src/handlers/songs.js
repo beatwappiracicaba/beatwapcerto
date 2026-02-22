@@ -1,6 +1,6 @@
 // src/handlers/songs.js - Handler de músicas
 import { Database } from '../utils/database.js';
-import { successResponse, errorResponse } from '../utils/response.js';
+import { jsonResponse, errorResponse } from '../utils/response.js';
 
 export const songsHandler = {
   async getMine(request, env) {
@@ -29,7 +29,7 @@ export const songsHandler = {
         ORDER BY m.created_at DESC
       `, ['alangodoygtr@gmail.com']); // Temporário - usar JWT depois
 
-      return successResponse(result.rows, 'Músicas encontradas', 200, env);
+      return jsonResponse(result.rows, 200, env);
 
     } catch (error) {
       console.error('Get my songs error:', error);

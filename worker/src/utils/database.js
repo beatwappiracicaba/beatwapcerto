@@ -1,40 +1,42 @@
-// src/utils/database.js - Conexão PostgreSQL serverless
+// src/utils/database.js - Conexão PostgreSQL via Hyperdrive
+import { Pool } from 'pg';
+
+let pool;
+
 export class Database {
   constructor(env) {
     this.env = env;
+    
+    // Criar pool de conexões se ainda não existir
+    if (!pool) {
+      pool = new Pool({
+        connectionString: env.DB?.connectionString || env.DATABASE_URL
+      });
+    }
+    
+    this.pool = pool;
   }
 
   async query(sql, params = []) {
     try {
-      const response = await fetch(this.env.DATABASE_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.env.DATABASE_TOKEN || ''}`
-        },
-        body: JSON.stringify({
-          query: sql,
-          params: params
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Database error: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      return result;
+      const result = await this.pool.query(sql, params);
+      return {
+        rows: result.rows,
+        rowCount: result.rowCount,
+        success: true
+      };
     } catch (error) {
       console.error('Database query error:', error);
-      throw error;
+      return {
+        rows: [],
+        rowCount: 0,
+        success: false,
+        error: error.message
+      };
     }
   }
 
   async queryWithReturn(sql, params = []) {
-    const result = await this.query(sql, params);
-    return {
-      rows: result.rows || [],
-      rowCount: result.rowCount || 0
-    };
+    return await this.query(sql, params);
   }
 }

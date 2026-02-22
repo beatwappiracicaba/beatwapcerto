@@ -11,8 +11,10 @@
     "logs": "wrangler tail"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "jose": "^5.2.0",
-    "bcryptjs": "^2.4.3"
+    "node-fetch": "^3.3.2",
+    "pg": "^8.18.0"
   },
   "devDependencies": {
     "wrangler": "^3.28.2"

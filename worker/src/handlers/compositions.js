@@ -1,24 +1,95 @@
-// src/handlers/compositions.js - Handler de composições
-import { Database } from '../utils/database.js';
-import { successResponse, errorResponse } from '../utils/response.js';
+import { createArrayResponse } from '../response.js';
 
-export const compositionsHandler = {
-  async getAll(env) {
-    try {
-      const db = new Database(env);
-      
-      const result = await db.queryWithReturn(`
-        SELECT c.*, perfil.nome as compositor_nome
-        FROM public.compositions c
-        INNER JOIN public.profiles perfil ON c.compositor_id = perfil.id
-        ORDER BY c.created_at DESC
-      `);
-
-      return successResponse(result.rows, 'Composições encontradas', 200, env);
-
-    } catch (error) {
-      console.error('Get compositions error:', error);
-      return errorResponse('Erro ao buscar composições', 500, env);
-    }
+export async function getAllCompositions(pool) {
+  try {
+    const query = `
+      SELECT 
+        c.id,
+        c.title,
+        c.audio_url,
+        c.cover_url,
+        c.genre,
+        c.description,
+        c.price,
+        c.status,
+        c.admin_feedback,
+        c.created_at,
+        p.nome as composer_name,
+        p.avatar_url as composer_avatar
+      FROM compositions c
+      LEFT JOIN profiles p ON c.composer_id = p.id
+      WHERE c.status = 'approved'
+      ORDER BY c.created_at DESC
+      LIMIT 50
+    `;
+    
+    const result = await pool.query(query);
+    return createArrayResponse(result.rows);
+  } catch (error) {
+    console.error('Erro ao buscar composições:', error);
+    return createArrayResponse([]);
   }
-};
+}
+
+export async function getCompositionById(pool, id) {
+  try {
+    const query = `
+      SELECT 
+        c.id,
+        c.title,
+        c.audio_url,
+        c.cover_url,
+        c.genre,
+        c.description,
+        c.price,
+        c.status,
+        c.admin_feedback,
+        c.created_at,
+        p.nome as composer_name,
+        p.avatar_url as composer_avatar
+      FROM compositions c
+      LEFT JOIN profiles p ON c.composer_id = p.id
+      WHERE c.id = $1
+      LIMIT 1
+    `;
+    
+    const result = await pool.query(query, [id]);
+    
+    if (result.rows.length === 0) {
+      return createArrayResponse([]);
+    }
+    
+    return createArrayResponse([result.rows[0]]);
+  } catch (error) {
+    console.error('Erro ao buscar composição por ID:', error);
+    return createArrayResponse([]);
+  }
+}
+
+export async function getCompositionsByComposer(pool, composerId) {
+  try {
+    const query = `
+      SELECT 
+        c.id,
+        c.title,
+        c.audio_url,
+        c.cover_url,
+        c.genre,
+        c.description,
+        c.price,
+        c.status,
+        c.admin_feedback,
+        c.created_at
+      FROM compositions c
+      WHERE c.composer_id = $1
+      ORDER BY c.created_at DESC
+      LIMIT 50
+    `;
+    
+    const result = await pool.query(query, [composerId]);
+    return createArrayResponse(result.rows);
+  } catch (error) {
+    console.error('Erro ao buscar composições do compositor:', error);
+    return createArrayResponse([]);
+  }
+}

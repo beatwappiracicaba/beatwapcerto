@@ -1,98 +1,118 @@
-// src/router.js - Sistema de roteamento
-import { profilesHandler } from './handlers/profiles.js';
-import { authHandler } from './handlers/auth.js';
-import { adminHandler } from './handlers/admin.js';
-import { analyticsHandler } from './handlers/analytics.js';
-import { songsHandler } from './handlers/songs.js';
-import { compositionsHandler } from './handlers/compositions.js';
-import { sponsorsHandler } from './handlers/sponsors.js';
+import { getAllProfiles, getProfileById, getByRole } from './handlers/profiles.js';
+import { getAllArtists, getArtistById } from './handlers/artists.js';
+import { getAllProducers, getProducerById } from './handlers/producers.js';
+import { getAllComposers, getComposerById } from './handlers/composers.js';
+import { getAllCompositions, getCompositionById } from './handlers/compositions.js';
+import { getAllSponsors, getSponsorById } from './handlers/sponsors.js';
+import { getAllMusics, getMusicById, getReleases } from './handlers/musics.js';
+import { getAllUsers, getUserById } from './handlers/users.js';
 
-export async function router(request, env) {
-  const url = new URL(request.url);
-  const path = url.pathname;
-  const method = request.method;
-
-  console.log(`[${method}] ${path}`);
-
-  // Auth routes
-  if (path === '/api/login' && method === 'POST') {
-    return await authHandler.login(request, env);
-  }
-
-  // Profiles routes
-  if (path.match(/^\/api\/profiles\/([^\/]+)$/)) {
-    const id = path.split('/')[3];
-    if (method === 'GET') {
-      return await profilesHandler.getById(id, env);
-    }
-  }
-
-  if (path.match(/^\/api\/profiles\/([^\/]+)\/posts$/)) {
-    const id = path.split('/')[3];
-    if (method === 'GET') {
-      return await profilesHandler.getPosts(id, env);
-    }
-  }
-
-  // Admin routes
-  if (path.match(/^\/api\/admin\/artist\/([^\/]+)\/metrics$/)) {
-    const id = path.split('/')[4];
-    if (method === 'GET') {
-      return await adminHandler.getArtistMetrics(id, env);
-    }
-  }
-
-  // Analytics routes
-  if (path.match(/^\/api\/analytics\/artist\/([^\/]+)\/events$/)) {
-    const id = path.split('/')[4];
-    if (method === 'GET') {
-      return await analyticsHandler.getArtistEvents(id, env);
-    }
-  }
-
-  // Songs routes
-  if (path === '/api/songs/mine') {
-    if (method === 'GET') {
-      return await songsHandler.getMine(request, env);
-    }
-  }
-
-  // Compositions routes
-  if (path === '/api/compositions') {
-    if (method === 'GET') {
-      return await compositionsHandler.getAll(env);
-    }
-  }
-
-  // Sponsors routes
-  if (path === '/api/sponsors') {
-    if (method === 'GET') {
-      return await sponsorsHandler.getAll(env);
-    }
-  }
-
+export async function handleRequest(path, pool, env) {
+  const url = new URL(path, 'http://localhost');
+  const pathname = url.pathname;
+  
   // Health check
-  if (path === '/api/health') {
-    return new Response(
-      JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }),
-      { 
-        headers: { 
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': env.FRONTEND_URL || '*'
-        }
-      }
-    );
+  if (pathname === '/health') {
+    return { success: true, data: { status: 'ok', timestamp: new Date().toISOString() } };
   }
-
-  // 404 para rotas não encontradas
-  return new Response(
-    JSON.stringify({ message: 'Rota não encontrada' }),
-    { 
-      status: 404,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': env.FRONTEND_URL || '*'
-      }
-    }
-  );
+  
+  // Profiles endpoints
+  if (pathname === '/api/profiles') {
+    return await getAllProfiles(pool);
+  }
+  
+  if (pathname.match(/^\/api\/profiles\/(.*)$/)) {
+    const id = pathname.split('/')[3];
+    return await getProfileById(pool, id);
+  }
+  
+  // Artists endpoints
+  if (pathname === '/api/artists') {
+    return await getAllArtists(pool);
+  }
+  
+  if (pathname.match(/^\/api\/artists\/(.*)$/)) {
+    const id = pathname.split('/')[3];
+    return await getArtistById(pool, id);
+  }
+  
+  // Producers endpoints
+  if (pathname === '/api/producers') {
+    return await getAllProducers(pool);
+  }
+  
+  if (pathname.match(/^\/api\/producers\/(.*)$/)) {
+    const id = pathname.split('/')[3];
+    return await getProducerById(pool, id);
+  }
+  
+  // Composers endpoints
+  if (pathname === '/api/composers') {
+    return await getAllComposers(pool);
+  }
+  
+  if (pathname.match(/^\/api\/composers\/(.*)$/)) {
+    const id = pathname.split('/')[3];
+    return await getComposerById(pool, id);
+  }
+  
+  // Compositions endpoints
+  if (pathname === '/api/compositions') {
+    return await getAllCompositions(pool);
+  }
+  
+  if (pathname.match(/^\/api\/compositions\/(.*)$/)) {
+    const id = pathname.split('/')[3];
+    return await getCompositionById(pool, id);
+  }
+  
+  // Sponsors endpoints
+  if (pathname === '/api/sponsors') {
+    return await getAllSponsors(pool);
+  }
+  
+  if (pathname.match(/^\/api\/sponsors\/(.*)$/)) {
+    const id = pathname.split('/')[3];
+    return await getSponsorById(pool, id);
+  }
+  
+  // Musics endpoints
+  if (pathname === '/api/musics') {
+    return await getAllMusics(pool);
+  }
+  
+  if (pathname.match(/^\/api\/musics\/(.*)$/)) {
+    const id = pathname.split('/')[3];
+    return await getMusicById(pool, id);
+  }
+  
+  // Releases endpoints (músicas com release_date)
+  if (pathname === '/api/releases') {
+    return await getReleases(pool);
+  }
+  
+  // Users endpoints
+  if (pathname === '/api/users') {
+    return await getAllUsers(pool);
+  }
+  
+  if (pathname.match(/^\/api\/users\/(.*)$/)) {
+    const id = pathname.split('/')[3];
+    return await getUserById(pool, id);
+  }
+  
+  // Role-based endpoints
+  if (pathname === '/api/artists') {
+    return await getByRole(pool, 'Artista');
+  }
+  
+  if (pathname === '/api/producers') {
+    return await getByRole(pool, 'Produtor');
+  }
+  
+  if (pathname === '/api/composers') {
+    return await getByRole(pool, 'Compositor');
+  }
+  
+  return { success: false, error: 'Endpoint não encontrado' };
 }
