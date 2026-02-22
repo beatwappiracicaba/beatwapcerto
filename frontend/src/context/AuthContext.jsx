@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authApi } from '../services/apiClient';
+import { API_BASE_URL } from '../config/apiConfig.js';
 
 const AuthContext = createContext();
 
@@ -31,7 +32,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchProfile = async () => {
     try {
-      const res = await fetch('https://beatwapproducoes.onrender.com/api/profile', {
+      const res = await fetch(`${API_BASE_URL}/api/profile`, {
         headers: { Authorization: `Bearer ${authApi.getToken()}` }
       });
       if (res.ok) {

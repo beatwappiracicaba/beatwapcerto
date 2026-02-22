@@ -1,4 +1,6 @@
-const API_BASE = 'https://beatwapproducoes.onrender.com/api';
+import { API_BASE_URL } from '../config/apiConfig.js';
+
+const API_BASE = `${API_BASE_URL}/api`;
 
 async function request(path, options = {}) {
   const token = localStorage.getItem('token');
@@ -92,7 +94,7 @@ export const uploadApi = {
   uploadFile: (file) => {
     const formData = new FormData();
     formData.append('file', file);
-    return fetch(`https://beatwapproducoes.onrender.com/api/upload/single`, {
+    return fetch(`${API_BASE}/upload/single`, {
       method: 'POST',
       body: formData,
       headers: {
@@ -103,7 +105,7 @@ export const uploadApi = {
   uploadMultiple: (files) => {
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
-    return fetch(`https://beatwapproducoes.onrender.com/api/upload/multiple`, {
+    return fetch(`${API_BASE}/upload/multiple`, {
       method: 'POST',
       body: formData,
       headers: {
