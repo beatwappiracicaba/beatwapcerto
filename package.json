@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "BeatWap Produções - Root configuration for Cloudflare Pages",
   "scripts": {
-    "build": "cd frontend && npm install && npm run build && cd .. && npm run copy-dist",
+    "build": "powershell -ExecutionPolicy Bypass -File build.ps1",
     "copy-dist": "cd frontend && npm run copy-dist",
     "dev": "cd frontend && npm run dev",
     "preview": "cd frontend && npm run preview"
