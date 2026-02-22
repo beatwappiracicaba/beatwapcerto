@@ -1,0 +1,13 @@
+{
+  "name": "beatwapproducoes-root",
+  "version": "1.0.0",
+  "description": "BeatWap Produções - Root configuration for Cloudflare Pages",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build",
+    "dev": "cd frontend && npm run dev",
+    "preview": "cd frontend && npm run preview"
+  },
+  "keywords": ["music", "production", "cloudflare", "pages"],
+  "author": "BeatWap Produções",
+  "license": "MIT"
+}

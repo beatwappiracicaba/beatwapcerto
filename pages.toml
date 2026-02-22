@@ -1,0 +1,24 @@
+# Cloudflare Pages Configuration
+# Este arquivo configura o build do frontend no Cloudflare Pages
+
+[build]
+# Diretório do frontend
+root = "frontend"
+# Comando de build para o frontend
+build_command = "npm run build"
+# Diretório de saída do build
+build_output_dir = "dist"
+
+# Configurações de deploy
+[deployment]
+# Branch principal
+git_branch = "master"
+# Ambiente de produção
+environment = "production"
+
+# Configurações de build
+[build.environment]
+# Versão do Node.js
+NODE_VERSION = "18"
+# Variáveis de ambiente para o build
+VITE_API_BASE_URL = "https://beatwap-api-worker.beatwappiracicaba.workers.dev"
