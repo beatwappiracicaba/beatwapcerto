@@ -48,18 +48,18 @@ export default {
       // ===== ROTAS DE AUTENTICAÇÃO =====
 
       // Login
-      if (pathname === '/api/login' && method === 'POST') {
-        return await handleLogin(request, pool);
+      if (pathname === '/api/auth/login' && method === 'POST') {
+        return await handleLogin(request, pool, corsHeaders(request));
       }
 
       // Registro
-      if (pathname === '/api/register' && method === 'POST') {
-        return await handleRegister(request, pool);
+      if (pathname === '/api/auth/register' && method === 'POST') {
+        return await handleRegister(request, pool, corsHeaders(request));
       }
 
       // Verificar token
       if (pathname === '/api/auth/verify' && method === 'GET') {
-        return await handleVerifyToken(request);
+        return await handleVerifyToken(request, corsHeaders(request));
       }
 
       // ===== ROTAS PÚBLICAS (SEM AUTENTICAÇÃO) =====
@@ -205,7 +205,7 @@ export default {
 
 // ===== FUNÇÕES DE AUTENTICAÇÃO =====
 
-async function handleLogin(request, pool) {
+async function handleLogin(request, pool, corsHeaders) {
   try {
     const { email, password } = await request.json();
     
@@ -298,7 +298,7 @@ async function handleLogin(request, pool) {
   }
 }
 
-async function handleRegister(request, pool) {
+async function handleRegister(request, pool, corsHeaders) {
   try {
     const { nome, email, password, role = 'user' } = await request.json();
     
@@ -379,7 +379,7 @@ async function handleRegister(request, pool) {
   }
 }
 
-async function handleVerifyToken(request) {
+async function handleVerifyToken(request, corsHeaders) {
   try {
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
