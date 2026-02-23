@@ -3,6 +3,7 @@ export const CONFIG = {
   CORS: {
     ALLOWED_ORIGINS: [
       'https://beatwapproducoes.pages.dev',
+      'https://www.beatwap.com.br',
       'http://localhost:5173',
       'http://127.0.0.1:5173'
     ],
