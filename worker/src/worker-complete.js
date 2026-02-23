@@ -470,11 +470,11 @@ async function getCompositions(pool) {
     const result = await queryWithRetry(pool, `
       SELECT 
         c.id,
-        c.titulo,
+        c.title,
         c.descricao,
         c.data_criacao,
         c.duracao,
-        c.estilo,
+        c.genre,
         p.nome as autor_nome,
         p.id as autor_id
       FROM compositions c
@@ -523,7 +523,7 @@ async function getSponsors(pool) {
       SELECT 
         s.id,
         s.name,
-        s.descricao,
+        s.type,
         s.logo_url,
         s.website,
         s.tipo,
@@ -644,9 +644,9 @@ async function createUser(request, pool, user) {
 
 async function createComposition(request, pool, user) {
   try {
-    const { titulo, descricao, duracao, estilo, artist_id } = await request.json();
+    const { title, descricao, duracao, genre, artist_id } = await request.json();
     
-    if (!titulo) {
+    if (!title) {
       return new Response(JSON.stringify({
         success: false,
         error: 'Título é obrigatório'
@@ -660,10 +660,10 @@ async function createComposition(request, pool, user) {
     }
     
     const result = await queryWithRetry(pool, `
-      INSERT INTO compositions (titulo, descricao, duracao, estilo, artist_id)
+      INSERT INTO compositions (title, descricao, duracao, genre, artist_id)
       VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, titulo, descricao, data_criacao, duracao, estilo
-    `, [titulo, descricao, duracao, estilo, artist_id || user.id]);
+      RETURNING id, title, descricao, data_criacao, duracao, genre
+    `, [title, descricao, duracao, genre, artist_id || user.id]);
     
     return new Response(JSON.stringify({
       success: true,
@@ -692,7 +692,7 @@ async function createComposition(request, pool, user) {
 
 async function createSponsor(request, pool, user) {
   try {
-    const { name, descricao, logo_url, website, tipo } = await request.json();
+    const { name, type, logo_url, website } = await request.json();
     
     if (!name) {
       return new Response(JSON.stringify({
@@ -708,10 +708,10 @@ async function createSponsor(request, pool, user) {
     }
     
     const result = await queryWithRetry(pool, `
-      INSERT INTO sponsors (name, descricao, logo_url, website, tipo)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, name, descricao, logo_url, website, tipo, created_at
-    `, [name, descricao, logo_url, website, tipo]);
+      INSERT INTO sponsors (name, type, logo_url, website)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id, name, type, logo_url, website, created_at
+    `, [name, type, logo_url, website]);
     
     return new Response(JSON.stringify({
       success: true,

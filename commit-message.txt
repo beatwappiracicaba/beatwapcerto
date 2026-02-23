@@ -1,0 +1,1 @@
+Fix Cloudflare Worker connection pool and schema issues
