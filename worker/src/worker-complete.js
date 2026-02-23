@@ -2,6 +2,7 @@ import { corsHeaders, handleCors } from './cors.js';
 import { createPool } from './database.js';
 import { createArrayResponse } from './response.js';
 import { queryWithRetry, testConnection } from './database-utils.js';
+import { getAdminStats, getAdminMusics, getAdminCompositions, getAdminSellers } from './handlers/admin.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
@@ -128,6 +129,28 @@ export default {
         return await authenticateAndExecute(request, pool, createSponsor);
       }
 
+      // ===== ROTAS ADMIN =====
+      
+      // Stats admin
+      if (pathname === '/api/admin/stats') {
+        return await getAdminStats(pool);
+      }
+      
+      // Músicas admin
+      if (pathname === '/api/admin/musics') {
+        return await getAdminMusics(pool, url.searchParams);
+      }
+      
+      // Composições admin
+      if (pathname === '/api/admin/compositions') {
+        return await getAdminCompositions(pool, url.searchParams);
+      }
+      
+      // Vendedores admin
+      if (pathname === '/api/admin/sellers') {
+        return await getAdminSellers(pool, url.searchParams);
+      }
+
       // 404 para rotas não encontradas
       return new Response(JSON.stringify({
         success: false,
@@ -146,6 +169,10 @@ export default {
           '/api/sponsors',
           '/api/users',
           '/api/projects',
+          '/api/admin/stats',
+          '/api/admin/musics',
+          '/api/admin/compositions',
+          '/api/admin/sellers',
           '/health'
         ]
       }), {
