@@ -32,13 +32,13 @@ export const apiClient = {
 
 export const authApi = {
   async login(email, password) {
-    const data = await apiClient.post('/login', { email, password });
+    const data = await apiClient.post('/auth/login', { email, password });
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
     return data;
   },
   async register({ name, email, password, role }) {
-    return apiClient.post('/register', { name, email, password, role });
+    return apiClient.post('/auth/register', { name, email, password, role });
   },
   async logout() {
     localStorage.removeItem('token');
