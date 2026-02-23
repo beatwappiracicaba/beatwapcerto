@@ -16,6 +16,9 @@ async function request(path, options = {}) {
   if (!res.ok) {
     throw new Error((data && data.error) || res.statusText);
   }
+  if (data && typeof data === 'object' && 'success' in data && 'data' in data) {
+    return data.data ?? null;
+  }
   return data;
 }
 

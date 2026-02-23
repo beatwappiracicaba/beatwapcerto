@@ -25,6 +25,9 @@ const Home = () => {
   const [latestProjects, setLatestProjects] = useState([]);
   const [composers, setComposers] = useState([]);
   const [sponsors, setSponsors] = useState([]);
+  const [artists, setArtists] = useState([]);
+  const [producers, setProducers] = useState([]);
+  const [sellers, setSellers] = useState([]);
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
   const [activeSponsorMenu, setActiveSponsorMenu] = useState(null);
@@ -52,6 +55,9 @@ const Home = () => {
     fetchLatestProjects();
     fetchComposers();
     fetchSponsors();
+    fetchArtists();
+    fetchProducers();
+    fetchSellers();
     (async () => {
       try {
         const res = await fetch('https://api.ipify.org?format=json');
@@ -170,6 +176,34 @@ const Home = () => {
       }
       await apiClient.post('/analytics', { ...payload, ip_hash: ipHash || 'unknown' });
     } catch (e) { void 0; }
+  };
+
+
+  const fetchArtists = async () => {
+    try {
+      const data = await apiClient.get('/profiles?role=artist');
+      setArtists(data || []);
+    } catch (error) {
+      console.error('Error fetching artists:', error);
+    }
+  };
+
+  const fetchProducers = async () => {
+    try {
+      const data = await apiClient.get('/profiles?role=producer');
+      setProducers(data || []);
+    } catch (error) {
+      console.error('Error fetching producers:', error);
+    }
+  };
+
+  const fetchSellers = async () => {
+    try {
+      const data = await apiClient.get('/profiles?role=seller');
+      setSellers(data || []);
+    } catch (error) {
+      console.error('Error fetching sellers:', error);
+    }
   };
 
   const fetchSponsors = async () => {
@@ -1010,7 +1044,7 @@ const Home = () => {
           </section>
         )}
 
-        <FeaturedUsers />
+        <FeaturedUsers artists={artists} producers={producers} sellers={sellers} />
         <HowItWorks />
         <Benefits />
         <ShowProduction />

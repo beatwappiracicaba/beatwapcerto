@@ -47,12 +47,8 @@ const UserCard = ({ user, type, onSelect }) => {
   );
 };
 
-const FeaturedUsers = () => {
+const FeaturedUsers = ({ artists, producers, sellers }) => {
   const navigate = useNavigate();
-  const [artists, setArtists] = useState([]);
-  const [producers, setProducers] = useState([]);
-  const [sellers, setSellers] = useState([]);
-  const [loading, setLoading] = useState(true);
   const producersRef = useRef(null);
   const sellersRef = useRef(null);
   const artistsRef = useRef(null);
@@ -63,31 +59,11 @@ const FeaturedUsers = () => {
     el.scrollBy({ left: dir * delta, behavior: 'smooth' });
   };
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const [prod, vend, arts] = await Promise.all([
-          homeApi.producers(),
-          homeApi.sellers(),
-          homeApi.artists()
-        ]);
-        setProducers((prod || []).map(u => ({ ...u, name: u.name || u.nome || u.nome_completo_razao_social || '' })));
-        setSellers((vend || []).map(u => ({ ...u, name: u.name || u.nome || u.nome_completo_razao_social || '' })));
-        setArtists((arts || []).map(u => ({ ...u, name: u.name || u.nome || u.nome_completo_razao_social || '' })));
-      } catch (err) {
-        console.error('Error fetching users:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUsers();
-  }, []);
-
   const handleUserClick = (user) => {
     navigate(`/profile/${user.id}`);
   };
 
-  if (loading) return null;
+  if (!artists?.length && !producers?.length && !sellers?.length) return null;
 
   return (
     <section className="py-20 px-6 relative overflow-hidden">

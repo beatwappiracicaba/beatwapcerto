@@ -16,7 +16,7 @@ export default {
 
     // Handle CORS preflight requests IMEDIATAMENTE
     if (method === 'OPTIONS') {
-      return handleCors();
+      return handleCors(request);
     }
 
     let pool;
@@ -33,7 +33,7 @@ export default {
         }), {
           status: 503,
           headers: {
-            ...corsHeaders,
+            ...corsHeaders(request),
             'Content-Type': 'application/json',
           },
         });
@@ -47,12 +47,12 @@ export default {
       // ===== ROTAS DE AUTENTICAÇÃO =====
 
       // Login
-      if (pathname === '/api/auth/login' && method === 'POST') {
+      if (pathname === '/api/login' && method === 'POST') {
         return await handleLogin(request, pool);
       }
 
       // Registro
-      if (pathname === '/api/auth/register' && method === 'POST') {
+      if (pathname === '/api/register' && method === 'POST') {
         return await handleRegister(request, pool);
       }
 
@@ -72,7 +72,7 @@ export default {
           version: 'v4.0.0-real-db'
         }), {
           headers: {
-            ...corsHeaders,
+            ...corsHeaders(request),
             'Content-Type': 'application/json',
           },
         });
@@ -145,7 +145,7 @@ export default {
       }), {
         status: 404,
         headers: {
-          ...corsHeaders,
+          ...corsHeaders(request),
           'Content-Type': 'application/json',
         },
       });
@@ -161,7 +161,7 @@ export default {
       }), {
         status: 500,
         headers: {
-          ...corsHeaders,
+          ...corsHeaders(request),
           'Content-Type': 'application/json',
         },
       });

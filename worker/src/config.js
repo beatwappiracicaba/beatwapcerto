@@ -1,7 +1,11 @@
 export const CONFIG = {
   // CORS Configuration
   CORS: {
-    ALLOWED_ORIGINS: ['https://beatwapproducoes.pages.dev'],
+    ALLOWED_ORIGINS: [
+      'https://beatwapproducoes.pages.dev',
+      'http://localhost:5173',
+      'http://127.0.0.1:5173'
+    ],
     ALLOWED_METHODS: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     ALLOWED_HEADERS: ['Content-Type', 'Authorization', 'X-Requested-With'],
     ALLOW_CREDENTIALS: true,
