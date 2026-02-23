@@ -106,6 +106,11 @@ export default {
         return await getSponsors(pool);
       }
 
+      // Listar projetos
+      if (pathname === '/api/projects') {
+        return await getProjects(pool);
+      }
+
       // ===== ROTAS COM AUTENTICAÇÃO =====
 
       // Criar novo usuário (requer auth)
@@ -140,6 +145,7 @@ export default {
           '/api/musics',
           '/api/sponsors',
           '/api/users',
+          '/api/projects',
           '/health'
         ]
       }), {
@@ -581,6 +587,31 @@ async function getAllUsers(pool) {
     
   } catch (error) {
     console.error('All profiles error:', error);
+    return createArrayResponse([]);
+  }
+}
+
+async function getProjects(pool) {
+  try {
+    const result = await queryWithRetry(pool, `
+      SELECT 
+        p.id,
+        p.title,
+        p.description,
+        p.created_at,
+        p.status,
+        u.nome as author_name,
+        u.id as author_id
+      FROM projects p
+      LEFT JOIN profiles u ON p.author_id = u.id
+      ORDER BY p.created_at DESC
+      LIMIT 50
+    `);
+    
+    return createArrayResponse(result.rows);
+    
+  } catch (error) {
+    console.error('Projects error:', error);
     return createArrayResponse([]);
   }
 }
