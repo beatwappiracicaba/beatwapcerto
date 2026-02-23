@@ -1,54 +1,68 @@
 import { Pool } from 'pg';
 
-let pool = null;
-
 export function createPool(env) {
-  if (!pool) {
-    try {
-      // Usar Hyperdrive diretamente
-      const connectionString = env.DB?.connectionString;
+  try {
+    // Tentar primeiro com DATABASE_URL direta (mais confiável)
+    if (env.DATABASE_URL) {
+      console.log('🔄 Tentando conexão com DATABASE_URL direta...');
       
-      if (!connectionString) {
-        console.warn('⚠️ Hyperdrive connection string not found, using fallback');
-        // Fallback para DATABASE_URL direto se Hyperdrive falhar
-        const fallbackUrl = env.DATABASE_URL || env.DB_HOST ? 
-          `postgres://${env.DB_USER}:${env.DB_PASSWORD}@${env.DB_HOST}:${env.DB_PORT}/${env.DB_NAME}` : null;
+      // Parse da URL para verificar componentes
+      const urlMatch = env.DATABASE_URL.match(/postgres:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
+      
+      if (urlMatch) {
+        const [, user, password, host, port, database] = urlMatch;
+        console.log(`📡 Conectando ao banco: ${host}:${port}/${database} (user: ${user})`);
         
-        if (fallbackUrl) {
-          pool = new Pool({
-            connectionString: fallbackUrl,
-            ssl: { rejectUnauthorized: false },
-            max: 5,
-            idleTimeoutMillis: 30000,
-            connectionTimeoutMillis: 10000,
-          });
-          console.log('✅ Using fallback database connection');
-        } else {
-          throw new Error('No database connection available');
-        }
-      } else {
-        // Usar Hyperdrive
-        pool = new Pool({
-          connectionString,
-          ssl: connectionString.includes('localhost') ? false : { rejectUnauthorized: false },
-          max: 5,
-          idleTimeoutMillis: 30000,
+        const pool = new Pool({
+          host,
+          port: parseInt(port),
+          database,
+          user,
+          password,
+          ssl: { rejectUnauthorized: false },
+          max: 3,
+          idleTimeoutMillis: 10000,
           connectionTimeoutMillis: 10000,
         });
-        console.log('✅ Using Hyperdrive connection');
+        
+        console.log('✅ Conexão com DATABASE_URL estabelecida');
+        return pool;
       }
-    } catch (error) {
-      console.error('❌ Failed to create database pool:', error.message);
-      return null;
     }
-  }
-  return pool;
-}
-
-export function closePool() {
-  if (pool) {
-    pool.end();
-    pool = null;
-    console.log('🔒 Database pool closed');
+    
+    // Segunda tentativa: Hyperdrive
+    if (env.DB?.connectionString) {
+      console.log('🔄 Tentando conexão com Hyperdrive...');
+      const pool = new Pool({
+        connectionString: env.DB.connectionString,
+        ssl: { rejectUnauthorized: false },
+        max: 3,
+        idleTimeoutMillis: 10000,
+        connectionTimeoutMillis: 10000,
+      });
+      console.log('✅ Conexão com Hyperdrive estabelecida');
+      return pool;
+    }
+    
+    // Terceira tentativa: construir URL com componentes
+    if (env.DB_HOST && env.DB_USER && env.DB_PASSWORD && env.DB_NAME) {
+      console.log('🔄 Tentando conexão com componentes...');
+      const connectionString = `postgres://${env.DB_USER}:${env.DB_PASSWORD}@${env.DB_HOST}:${env.DB_PORT || 5432}/${env.DB_NAME}`;
+      const pool = new Pool({
+        connectionString,
+        ssl: { rejectUnauthorized: false },
+        max: 3,
+        idleTimeoutMillis: 10000,
+        connectionTimeoutMillis: 10000,
+      });
+      console.log('✅ Conexão com componentes estabelecida');
+      return pool;
+    }
+    
+    throw new Error('Nenhuma configuração de banco de dados disponível');
+    
+  } catch (error) {
+    console.error('❌ Erro ao criar pool de conexão:', error.message);
+    return null;
   }
 }

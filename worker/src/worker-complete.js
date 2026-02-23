@@ -41,6 +41,8 @@ export default {
 
       // Rotas da API
       const pathname = url.pathname;
+      
+      console.log(`[Worker] Requisição recebida: ${method} ${pathname}`);
 
       // ===== ROTAS DE AUTENTICAÇÃO =====
 
@@ -78,6 +80,14 @@ export default {
 
       // Listar perfis/profissionais
       if (pathname === '/api/profiles' || pathname === '/api/producers' || pathname === '/api/artists' || pathname === '/api/composers') {
+        console.log(`[Worker] Processando rota de perfis: ${pathname}`);
+        // Verificar se tem parâmetro role na URL
+        const roleParam = url.searchParams.get('role');
+        if (roleParam && pathname === '/api/profiles') {
+          console.log(`[Worker] Chamando getUsersByRole com role: ${roleParam}`);
+          return await getUsersByRole(roleParam, pool);
+        }
+        console.log(`[Worker] Chamando getProfilesByRole`);
         return await getProfilesByRole(pathname, pool);
       }
 
@@ -94,15 +104,6 @@ export default {
       // Listar patrocinadores
       if (pathname === '/api/sponsors') {
         return await getSponsors(pool);
-      }
-
-      // Listar usuários por role
-      if (pathname === '/api/profiles') {
-        const role = url.searchParams.get('role');
-        if (role) {
-          return await getUsersByRole(role, pool);
-        }
-        return await getAllUsers(pool);
       }
 
       // ===== ROTAS COM AUTENTICAÇÃO =====
@@ -429,11 +430,15 @@ async function authenticateAndExecute(request, pool, executeFunction) {
 
 async function getProfilesByRole(pathname, pool) {
   try {
+    console.log(`[getProfilesByRole] Iniciando para pathname: ${pathname}`);
+    
     let role;
     if (pathname === '/api/producers') role = 'Produtor';
     else if (pathname === '/api/artists') role = 'Artista';
     else if (pathname === '/api/composers') role = 'Compositor';
     else role = null; // /api/profiles - todos os perfis
+    
+    console.log(`[getProfilesByRole] Role identificado: ${role}`);
     
     let query;
     let params = [];
@@ -456,7 +461,11 @@ async function getProfilesByRole(pathname, pool) {
       `;
     }
     
+    console.log(`[getProfilesByRole] Executando query: ${query.substring(0, 50)}...`);
+    
     const result = await queryWithRetry(pool, query, params);
+    console.log(`[getProfilesByRole] Query executada com sucesso, ${result.rows.length} linhas retornadas`);
+    
     return createArrayResponse(result.rows);
     
   } catch (error) {
