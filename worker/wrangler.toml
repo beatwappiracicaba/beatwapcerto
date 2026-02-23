@@ -1,5 +1,5 @@
 name = "beatwap-api-worker"
-main = "src/worker-ultra-minimal.js"
+main = "src/worker-complete.js"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
