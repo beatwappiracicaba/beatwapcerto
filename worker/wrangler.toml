@@ -21,7 +21,7 @@ DB_TOKEN = ""
 JWT_SECRET = "sua-chave-secreta-super-segura-minimo-32-caracteres"
 
 # CORS Origins
-ALLOWED_ORIGINS = "https://beatwapproducoes.pages.dev"
+ALLOWED_ORIGINS = "https://beatwapproducoes.pages.dev,https://www.beatwap.com.br"
 
 # Configuração do Hyperdrive para PostgreSQL (comentado temporariamente)
 # [[hyperdrive]]
@@ -50,7 +50,7 @@ DB_USER = "beatwap_user"
 DB_PASSWORD = "sua-senha-aqui"
 DB_TOKEN = "seu-token-cloudclusters"
 JWT_SECRET = "dev-secret-key"
-ALLOWED_ORIGINS = "http://localhost:3000,http://localhost:5173"
+ALLOWED_ORIGINS = "http://localhost:3000,http://localhost:5173,https://www.beatwap.com.br"
 
 [observability]
 [observability.logs]

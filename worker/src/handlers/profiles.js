@@ -1,6 +1,6 @@
 import { createArrayResponse } from '../response.js';
 
-export async function getAllProfiles(pool) {
+export async function getAllProfiles(pool, request = null) {
   try {
     const query = `
       SELECT 
@@ -29,14 +29,14 @@ export async function getAllProfiles(pool) {
     `;
     
     const result = await pool.query(query);
-    return createArrayResponse(result.rows);
+    return createArrayResponse(result.rows, request);
   } catch (error) {
     console.error('Erro ao buscar profiles:', error);
-    return createArrayResponse([]);
+    return createArrayResponse([], request);
   }
 }
 
-export async function getProfileById(pool, id) {
+export async function getProfileById(pool, id, request = null) {
   try {
     const query = `
       SELECT 
@@ -67,22 +67,22 @@ export async function getProfileById(pool, id) {
     const result = await pool.query(query, [id]);
     
     if (result.rows.length === 0) {
-      return createArrayResponse([]);
+      return createArrayResponse([], request);
     }
     
-    return createArrayResponse([result.rows[0]]);
+    return createArrayResponse([result.rows[0]], request);
   } catch (error) {
     console.error('Erro ao buscar profile por ID:', error);
-    return createArrayResponse([]);
+    return createArrayResponse([], request);
   }
 }
 
-export async function getByRole(pool, role) {
+export async function getByRole(pool, role, request = null) {
   try {
     const validRoles = ['Artista', 'Produtor', 'Vendedor', 'Compositor'];
     
     if (!validRoles.includes(role)) {
-      return createArrayResponse([]);
+      return createArrayResponse([], request);
     }
     
     const query = `
@@ -113,9 +113,9 @@ export async function getByRole(pool, role) {
     `;
     
     const result = await pool.query(query, [role]);
-    return createArrayResponse(result.rows);
+    return createArrayResponse(result.rows, request);
   } catch (error) {
     console.error('Erro ao buscar profiles por role:', error);
-    return createArrayResponse([]);
+    return createArrayResponse([], request);
   }
 }

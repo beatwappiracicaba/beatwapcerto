@@ -82,7 +82,7 @@ export default {
       }
       
       // Processar requisição SEM testar conexão primeiro
-      return await handleRequest(request, databasePool, env);
+      return await handleRequest(request.url.pathname, databasePool, env, request);
       
     } catch (error) {
       console.error('❌ Worker error:', error.message);

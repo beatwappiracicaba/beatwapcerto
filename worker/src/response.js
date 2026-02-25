@@ -1,4 +1,6 @@
-export function createSuccessResponse(data = []) {
+import { corsHeaders } from './cors.js';
+
+export function createSuccessResponse(data = [], request = null) {
   return new Response(JSON.stringify({
     success: true,
     data: Array.isArray(data) ? data : [data],
@@ -6,10 +8,7 @@ export function createSuccessResponse(data = []) {
   }), {
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': 'https://beatwapproducoes.pages.dev',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Allow-Credentials': 'true'
+      ...(request ? corsHeaders(request) : {})
     }
   });
 }
@@ -23,13 +22,13 @@ export function createErrorResponse(error, statusCode = 500, headers = {}) {
   };
 }
 
-export function createArrayResponse(data = []) {
+export function createArrayResponse(data = [], request = null) {
   // Garante que sempre retorna um array, mesmo que vazio
   const arrayData = Array.isArray(data) ? data : (data ? [data] : []);
-  return createSuccessResponse(arrayData);
+  return createSuccessResponse(arrayData, request);
 }
 
-export function createResponse(success, data, error, statusCode = 200) {
+export function createResponse(success, data, error, statusCode = 200, request = null) {
   const response = {
     success,
     timestamp: new Date().toISOString()
@@ -45,10 +44,7 @@ export function createResponse(success, data, error, statusCode = 200) {
     status: statusCode,
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': 'https://beatwapproducoes.pages.dev',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Allow-Credentials': 'true'
+      ...(request ? corsHeaders(request) : {})
     }
   });
 }

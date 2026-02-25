@@ -55,7 +55,7 @@ export default {
       }
       
       const url = new URL(request.url);
-      const response = await handleRequest(url.pathname, databasePool, env);
+      const response = await handleRequest(url.pathname, databasePool, env, request);
       
       // Ensure response has proper structure
       if (!response || typeof response !== 'object') {
