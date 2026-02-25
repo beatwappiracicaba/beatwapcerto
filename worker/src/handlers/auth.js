@@ -7,9 +7,10 @@ import bcrypt from 'bcryptjs';
 export const authHandler = {
   async login(request, env) {
     try {
-      const { email, senha } = await request.json();
+      const { email, senha, password } = await request.json();
+      const pwd = senha ?? password;
 
-      if (!email || !senha) {
+      if (!email || !pwd) {
         return errorResponse('Email e senha são obrigatórios', 400, env);
       }
 
@@ -28,7 +29,7 @@ export const authHandler = {
       const user = result.rows[0];
 
       // Verificar senha
-      const isPasswordValid = await bcrypt.compare(senha, user.password_hash);
+      const isPasswordValid = await bcrypt.compare(pwd, user.password_hash);
       
       if (!isPasswordValid) {
         return errorResponse('Credenciais inválidas', 401, env);

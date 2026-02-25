@@ -47,6 +47,50 @@ async function testAPI() {
     }
   }
   
+  // Teste de login
+  try {
+    console.log('🔐 Testando: /api/auth/login');
+    const loginResponse = await fetch(`${API_BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: 'alan@example.com',
+        password: 'test123'
+      })
+    });
+    console.log(`📊 Status (login): ${loginResponse.status}`);
+    const loginText = await loginResponse.text();
+    console.log(`📦 Resposta (login): ${loginText}`);
+    console.log('---\n');
+  } catch (error) {
+    console.error('❌ Erro no login:', error.message);
+    console.log('---\n');
+  }
+  
+  // Teste de login (admin@beatwapp.com)
+  try {
+    console.log('🔐 Testando: /api/auth/login (admin)');
+    const loginResponse = await fetch(`${API_BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: 'admin@beatwapp.com',
+        password: 'admin123'
+      })
+    });
+    console.log(`📊 Status (login admin): ${loginResponse.status}`);
+    const loginText = await loginResponse.text();
+    console.log(`📦 Resposta (login admin): ${loginText}`);
+    console.log('---\n');
+  } catch (error) {
+    console.error('❌ Erro no login (admin):', error.message);
+    console.log('---\n');
+  }
+  
   console.log('✅ Testes concluídos!');
 }
 

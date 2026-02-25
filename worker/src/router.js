@@ -6,6 +6,7 @@ import { getAllCompositions, getCompositionById } from './handlers/compositions.
 import { getAllSponsors, getSponsorById } from './handlers/sponsors.js';
 import { getAllMusics, getMusicById, getReleases } from './handlers/musics.js';
 import { getAllUsers, getUserById } from './handlers/users.js';
+import { authHandler } from './handlers/auth.js';
 
 export async function handleRequest(path, pool, env) {
   const url = new URL(path, 'http://localhost');
@@ -14,6 +15,11 @@ export async function handleRequest(path, pool, env) {
   // Health check
   if (pathname === '/health') {
     return { success: true, data: { status: 'ok', timestamp: new Date().toISOString() } };
+  }
+  
+  // Auth endpoints
+  if (pathname === '/api/auth/login') {
+    return await authHandler.login(env.request, env);
   }
   
   // Profiles endpoints
