@@ -949,9 +949,10 @@ async function updateMyProfile(pool, request, decoded) {
       },
     });
   } catch (error) {
+    console.error('Update profile error:', error);
     return new Response(JSON.stringify({
       success: false,
-      error: 'Erro ao atualizar perfil'
+      error: 'Erro ao atualizar perfil: ' + (error.message || error.toString())
     }), {
       status: 500,
       headers: {

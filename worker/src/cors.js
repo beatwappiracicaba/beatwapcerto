@@ -5,7 +5,19 @@ export function corsHeaders(request) {
     (request && (request.headers.get('Origin') || request.headers.get('origin'))) ||
     null;
   const allowed = CONFIG.CORS.ALLOWED_ORIGINS || [];
-  const allowOrigin = reqOrigin && allowed.includes(reqOrigin) ? reqOrigin : allowed[0];
+  
+  // Check if origin is allowed or if it's a preview deployment
+  let allowOrigin = allowed[0];
+  
+  if (reqOrigin) {
+    if (allowed.includes(reqOrigin)) {
+      allowOrigin = reqOrigin;
+    } else if (reqOrigin.endsWith('.pages.dev') || reqOrigin.includes('localhost') || reqOrigin.includes('127.0.0.1')) {
+      // Allow preview deployments and local development dynamically
+      allowOrigin = reqOrigin;
+    }
+  }
+
   return {
     'Access-Control-Allow-Origin': allowOrigin,
     'Access-Control-Allow-Methods': CONFIG.CORS.ALLOWED_METHODS.join(', '),

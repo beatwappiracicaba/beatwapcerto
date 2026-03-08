@@ -6,16 +6,7 @@ export async function getNotifications(pool, request, decoded) {
   try {
     const userId = decoded?.id || decoded?.userId;
     if (!userId) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Usuário não identificado'
-      }), {
-        status: 401,
-        headers: {
-          ...createResponse().headers,
-          'Content-Type': 'application/json',
-        },
-      });
+      return createResponse(false, null, 'Usuário não identificado', 401, request);
     }
 
     const result = await queryWithRetry(pool, `
