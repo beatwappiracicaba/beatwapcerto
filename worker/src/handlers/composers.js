@@ -1,6 +1,6 @@
 import { createArrayResponse } from '../response.js';
 
-export async function getAllComposers(pool) {
+export async function getAllComposers(pool, request = null) {
   try {
     const query = `
       SELECT 
@@ -30,14 +30,14 @@ export async function getAllComposers(pool) {
     `;
     
     const result = await pool.query(query);
-    return createArrayResponse(result.rows);
+    return createArrayResponse(result.rows, request);
   } catch (error) {
     console.error('Erro ao buscar compositores:', error);
-    return createArrayResponse([]);
+    return createArrayResponse([], request);
   }
 }
 
-export async function getComposerById(pool, id) {
+export async function getComposerById(pool, id, request = null) {
   try {
     const query = `
       SELECT 
@@ -68,12 +68,12 @@ export async function getComposerById(pool, id) {
     const result = await pool.query(query, [id]);
     
     if (result.rows.length === 0) {
-      return createArrayResponse([]);
+      return createArrayResponse([], request);
     }
     
-    return createArrayResponse([result.rows[0]]);
+    return createArrayResponse([result.rows[0]], request);
   } catch (error) {
     console.error('Erro ao buscar compositor por ID:', error);
-    return createArrayResponse([]);
+    return createArrayResponse([], request);
   }
 }

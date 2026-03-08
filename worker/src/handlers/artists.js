@@ -1,6 +1,6 @@
 import { createArrayResponse } from '../response.js';
 
-export async function getAllArtists(pool) {
+export async function getAllArtists(pool, request = null) {
   try {
     const query = `
       SELECT 
@@ -30,14 +30,14 @@ export async function getAllArtists(pool) {
     `;
     
     const result = await pool.query(query);
-    return createArrayResponse(result.rows);
+    return createArrayResponse(result.rows, request);
   } catch (error) {
     console.error('Erro ao buscar artistas:', error);
-    return createArrayResponse([]);
+    return createArrayResponse([], request);
   }
 }
 
-export async function getArtistById(pool, id) {
+export async function getArtistById(pool, id, request = null) {
   try {
     const query = `
       SELECT 
@@ -68,12 +68,12 @@ export async function getArtistById(pool, id) {
     const result = await pool.query(query, [id]);
     
     if (result.rows.length === 0) {
-      return createArrayResponse([]);
+      return createArrayResponse([], request);
     }
     
-    return createArrayResponse([result.rows[0]]);
+    return createArrayResponse([result.rows[0]], request);
   } catch (error) {
     console.error('Erro ao buscar artista por ID:', error);
-    return createArrayResponse([]);
+    return createArrayResponse([], request);
   }
 }

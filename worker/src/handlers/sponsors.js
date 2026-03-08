@@ -1,6 +1,6 @@
 import { createArrayResponse } from '../response.js';
 
-export async function getAllSponsors(pool) {
+export async function getAllSponsors(pool, request = null) {
   try {
     const query = `
       SELECT 
@@ -15,14 +15,14 @@ export async function getAllSponsors(pool) {
     `;
     
     const result = await pool.query(query);
-    return createArrayResponse(result.rows);
+    return createArrayResponse(result.rows, request);
   } catch (error) {
     console.error('Erro ao buscar sponsors:', error);
-    return createArrayResponse([]);
+    return createArrayResponse([], request);
   }
 }
 
-export async function getSponsorById(pool, id) {
+export async function getSponsorById(pool, id, request = null) {
   try {
     const query = `
       SELECT 
@@ -39,12 +39,12 @@ export async function getSponsorById(pool, id) {
     const result = await pool.query(query, [id]);
     
     if (result.rows.length === 0) {
-      return createArrayResponse([]);
+      return createArrayResponse([], request);
     }
     
-    return createArrayResponse([result.rows[0]]);
+    return createArrayResponse([result.rows[0]], request);
   } catch (error) {
     console.error('Erro ao buscar sponsor por ID:', error);
-    return createArrayResponse([]);
+    return createArrayResponse([], request);
   }
 }

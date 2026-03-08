@@ -147,7 +147,7 @@ export const GalleryManager = ({ userId }) => {
         const path = post.media_url.split('/posts/')[1];
         
         // Delete via API
-        await apiClient.delete(`/posts/${post.id}`, {
+        await apiClient.del(`/posts/${post.id}`, {
           data: { filePath: path }
         });
         

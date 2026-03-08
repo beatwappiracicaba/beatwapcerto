@@ -17,7 +17,7 @@ export const adminHandler = {
           COUNT(DISTINCT s.id) as total_composicoes
         FROM public.profiles perfil
         LEFT JOIN public.musics m ON perfil.id = m.artista_id
-        LEFT JOIN public.projects p ON perfil.id = p.artista_id
+        LEFT JOIN public.projects p ON perfil.id = p.author_id
         LEFT JOIN public.compositions s ON perfil.id = s.compositor_id
         WHERE perfil.id = $1
         GROUP BY perfil.id
@@ -37,7 +37,7 @@ export const adminHandler = {
 };
 
 // Funções adicionais para rotas admin
-export async function getAdminStats(pool) {
+export async function getAdminStats(pool, request) {
   try {
     const result = await queryWithRetry(pool, `
       SELECT 
@@ -53,14 +53,14 @@ export async function getAdminStats(pool) {
       LEFT JOIN projects proj ON 1=1
     `);
     
-    return createArrayResponse(result.rows);
+    return createArrayResponse(result.rows, request);
   } catch (error) {
     console.error('Admin stats error:', error);
-    return createArrayResponse([]);
+    return createArrayResponse([], request);
   }
 }
 
-export async function getAdminMusics(pool, searchParams) {
+export async function getAdminMusics(pool, searchParams, request) {
   try {
     const artistId = searchParams.get('artist_id');
     const status = searchParams.get('status');
@@ -96,14 +96,14 @@ export async function getAdminMusics(pool, searchParams) {
     query += ` ORDER BY m.created_at DESC LIMIT 100`;
     
     const result = await queryWithRetry(pool, query, params);
-    return createArrayResponse(result.rows);
+    return createArrayResponse(result.rows, request);
   } catch (error) {
     console.error('Admin musics error:', error);
-    return createArrayResponse([]);
+    return createArrayResponse([], request);
   }
 }
 
-export async function getAdminCompositions(pool, searchParams) {
+export async function getAdminCompositions(pool, searchParams, request) {
   try {
     const status = searchParams.get('status');
     
@@ -132,14 +132,14 @@ export async function getAdminCompositions(pool, searchParams) {
     query += ` ORDER BY c.created_at DESC LIMIT 100`;
     
     const result = await queryWithRetry(pool, query, params);
-    return createArrayResponse(result.rows);
+    return createArrayResponse(result.rows, request);
   } catch (error) {
     console.error('Admin compositions error:', error);
-    return createArrayResponse([]);
+    return createArrayResponse([], request);
   }
 }
 
-export async function getAdminSellers(pool, searchParams) {
+export async function getAdminSellers(pool, searchParams, request) {
   try {
     const result = await queryWithRetry(pool, `
       SELECT 
@@ -158,9 +158,9 @@ export async function getAdminSellers(pool, searchParams) {
       LIMIT 50
     `);
     
-    return createArrayResponse(result.rows);
+    return createArrayResponse(result.rows, request);
   } catch (error) {
     console.error('Admin sellers error:', error);
-    return createArrayResponse([]);
+    return createArrayResponse([], request);
   }
 }

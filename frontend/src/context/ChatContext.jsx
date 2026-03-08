@@ -42,7 +42,7 @@ export const ChatProvider = ({ children }) => {
 
   const fetchQueue = async () => {
     try {
-      const data = await apiClient.get('/support-queue');
+      const data = await apiClient.get('/queue');
       setSupportQueue(data || []);
     } catch (error) {
       console.error('Error fetching queue:', error);
@@ -51,7 +51,7 @@ export const ChatProvider = ({ children }) => {
 
   const requestSupport = async (roleNeeded, metadata = {}) => {
     try {
-      await apiClient.post('/support-queue', {
+      await apiClient.post('/queue', {
         role_needed: roleNeeded,
         metadata
       });
@@ -126,7 +126,7 @@ export const ChatProvider = ({ children }) => {
       setIsOpen(true);
 
       // Deletar da fila
-      await apiClient.delete(`/support-queue/${request.id}`);
+      await apiClient.del(`/queue/${request.id}`);
       setSupportQueue(prev => prev.filter(r => r.id !== request.id));
       
       fetchQueue();
@@ -398,7 +398,7 @@ export const ChatProvider = ({ children }) => {
 
   const deleteChat = async (chatId) => {
     try {
-      await apiClient.delete(`/chats/${chatId}`);
+      await apiClient.del(`/chats/${chatId}`);
 
       // Update local state
       setChats(prev => prev.filter(c => c.id !== chatId));

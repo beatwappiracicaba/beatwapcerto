@@ -197,7 +197,7 @@ export const DataProvider = ({ children }) => {
   const deleteMusic = async (musicId) => {
     try {
       setMusic(prev => prev.filter(m => m.id !== musicId));
-      await apiClient.delete(`/admin/musics/${musicId}`);
+      await apiClient.del(`/admin/musics/${musicId}`);
     } catch (error) {
       console.error('Error deleting music:', error);
     }

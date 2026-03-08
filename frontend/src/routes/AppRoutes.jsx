@@ -49,6 +49,38 @@ export const AppRoutes = () => {
   const [showSplash, setShowSplash] = useState(true);
   const { profile, loading } = useAuth();
 
+  const normalizeRole = (r) => {
+    if (!r) return r;
+    const s = String(r).trim();
+    if (s === 'Produtor') return 'Produtor';
+    if (s === 'Vendedor') return 'Vendedor';
+    if (s === 'Artista') return 'Artista';
+    if (s === 'Compositor') return 'Compositor';
+    return s;
+  };
+
+  const routeForRole = (role) => {
+    const r = normalizeRole(role);
+    if (r === 'Produtor') return '/dashboard-produtor';
+    if (r === 'Vendedor') return '/dashboard-vendedor';
+    if (r === 'Artista') return '/dashboard-artista';
+    if (r === 'Compositor') return '/dashboard-compositor';
+    return '/';
+  };
+
+  const ProtectedRoute = ({ element }) => {
+    if (loading) return <SplashScreen onComplete={() => {}} />;
+    if (!profile) return <Navigate to="/login" replace />;
+    return element;
+  };
+
+  const RoleBasedRoute = ({ roles, element }) => {
+    if (loading) return <SplashScreen onComplete={() => {}} />;
+    const userRole = normalizeRole(profile?.cargo);
+    if (!profile) return <Navigate to="/login" replace />;
+    if (!roles.includes(userRole)) return <Navigate to={routeForRole(userRole)} replace />;
+    return element;
+  };
   if (showSplash) {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
   }
@@ -61,7 +93,7 @@ export const AppRoutes = () => {
   return (
       <Routes location={location}>
         {/* Public Route - Landing Page */}
-        <Route path="/" element={loading ? <SplashScreen onComplete={() => {}} /> : (isProdutor ? <Navigate to="/admin" replace /> : (isVendedor ? <Navigate to="/dashboard" replace /> : ((isArtista || isCompositor) ? <Navigate to="/dashboard" replace /> : <Home />)))} />
+        <Route path="/" element={loading ? <SplashScreen onComplete={() => {}} /> : (profile ? <Navigate to={routeForRole(profile?.cargo)} replace /> : <Home />)} />
         <Route path="/profile/:id" element={<PublicProfile />} />
         <Route path="/album/:id" element={<AlbumPage />} />
         
@@ -74,7 +106,7 @@ export const AppRoutes = () => {
         {/* Rota de Callback para Confirmação de Email */}
         <Route path="/auth/callback" element={<AuthCallback />} />
 
-        <Route path="/dashboard" element={isVendedor ? <SellerDashboard /> : (isArtista || isCompositor) ? <DashboardArtistHome /> : <Navigate to="/" replace />} />
+        <Route path="/dashboard" element={<ProtectedRoute element={<Navigate to={routeForRole(profile?.cargo)} replace />} />} />
         <Route path="/dashboard/musics" element={isArtista ? <DashboardArtistMusics /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/compositions" element={(isArtista || isCompositor) ? <DashboardCompositions /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/profile" element={(isArtista || isCompositor || isVendedor) ? <DashboardArtistProfile /> : <Navigate to="/" replace />} />
@@ -91,7 +123,7 @@ export const AppRoutes = () => {
         <Route path="/seller/proposals" element={isVendedor ? <SellerProposals /> : <Navigate to="/" replace />} />
         <Route path="/seller/communications" element={isVendedor ? <SellerCommunications /> : <Navigate to="/" replace />} />
 
-        <Route path="/admin" element={isProdutor ? <AdminHome /> : (loading ? <SplashScreen onComplete={() => {}} /> : <Navigate to="/" replace />)} />
+        <Route path="/admin" element={<ProtectedRoute element={<Navigate to={routeForRole(profile?.cargo)} replace />} />} />
         <Route path="/admin/profile" element={isProdutor ? <AdminProfile /> : <Navigate to="/" replace />} />
         <Route path="/admin/artists" element={isProdutor ? <AdminArtists /> : <Navigate to="/" replace />} />
         <Route path="/admin/composers" element={isProdutor ? <AdminComposers /> : <Navigate to="/" replace />} />
@@ -108,6 +140,11 @@ export const AppRoutes = () => {
         <Route path="/legal/todos" element={<LegalAll />} />
         
         <Route path="/notifications/:id" element={profile ? <NotificationDetails /> : <Navigate to="/" replace />} />
+
+        <Route path="/dashboard-produtor" element={<RoleBasedRoute roles={['Produtor']} element={<AdminHome />} />} />
+        <Route path="/dashboard-vendedor" element={<RoleBasedRoute roles={['Vendedor']} element={<SellerDashboard />} />} />
+        <Route path="/dashboard-artista" element={<RoleBasedRoute roles={['Artista']} element={<DashboardArtistHome />} />} />
+        <Route path="/dashboard-compositor" element={<RoleBasedRoute roles={['Compositor']} element={<DashboardCompositions />} />} />
 
         {/* Fallback - Redirect to Home */}
         <Route path="*" element={<Navigate to="/" replace />} />

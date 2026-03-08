@@ -92,7 +92,7 @@ export const AdminHome = () => {
   };
   const deleteProject = async (id) => {
     try {
-      await apiClient.delete(`/producer-projects/${id}`);
+      await apiClient.del(`/producer-projects/${id}`);
       addToast('Projeto removido', 'success');
       loadProjects();
     } catch (error) {
@@ -2080,7 +2080,7 @@ export const AdminSponsors = () => {
   };
   const deleteSponsor = async (id) => {
     try {
-      await apiClient.delete(`/sponsors/${id}`);
+      await apiClient.del(`/sponsors/${id}`);
       addToast('Patrocinador/Parceria removida', 'success');
       loadSponsors();
     } catch {

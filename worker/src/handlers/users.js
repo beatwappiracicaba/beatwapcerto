@@ -1,6 +1,6 @@
 import { createArrayResponse } from '../response.js';
 
-export async function getAllUsers(pool) {
+export async function getAllUsers(pool, request = null) {
   try {
     const query = `
       SELECT 
@@ -29,14 +29,14 @@ export async function getAllUsers(pool) {
     `;
     
     const result = await pool.query(query);
-    return createArrayResponse(result.rows);
+    return createArrayResponse(result.rows, request);
   } catch (error) {
     console.error('Erro ao buscar usuários:', error);
-    return createArrayResponse([]);
+    return createArrayResponse([], request);
   }
 }
 
-export async function getUserById(pool, id) {
+export async function getUserById(pool, id, request = null) {
   try {
     const query = `
       SELECT 
@@ -67,12 +67,12 @@ export async function getUserById(pool, id) {
     const result = await pool.query(query, [id]);
     
     if (result.rows.length === 0) {
-      return createArrayResponse([]);
+      return createArrayResponse([], request);
     }
     
-    return createArrayResponse([result.rows[0]]);
+    return createArrayResponse([result.rows[0]], request);
   } catch (error) {
     console.error('Erro ao buscar usuário por ID:', error);
-    return createArrayResponse([]);
+    return createArrayResponse([], request);
   }
 }

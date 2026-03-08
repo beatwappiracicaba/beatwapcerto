@@ -38,7 +38,7 @@ const PublicProfile = () => {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('https://apiClient.ipify.org?format=json');
+        const res = await fetch('https://api.ipify.org?format=json');
         const json = await res.json();
         setIpHash(json?.ip || null);
       } catch {

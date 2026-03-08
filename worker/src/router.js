@@ -1,4 +1,5 @@
 import { getAllProfiles, getProfileById, getByRole } from './handlers/profiles.js';
+import { getAdminStats, getAdminMusics, getAdminCompositions, getAdminSellers } from './handlers/admin.js';
 import { getAllArtists, getArtistById } from './handlers/artists.js';
 import { getAllProducers, getProducerById } from './handlers/producers.js';
 import { getAllComposers, getComposerById } from './handlers/composers.js';
@@ -20,6 +21,45 @@ export async function handleRequest(path, pool, env, request = null) {
   // Auth endpoints
   if (pathname === '/api/auth/login') {
     return await authHandler.login(env.request, env);
+  }
+  
+  // Admin endpoints
+  if (pathname === '/api/admin/stats') {
+    return await getAdminStats(pool, url.searchParams);
+  }
+  
+  if (pathname === '/api/admin/musics') {
+    return await getAdminMusics(pool, url.searchParams);
+  }
+  
+  if (pathname === '/api/admin/compositions') {
+    return await getAdminCompositions(pool, url.searchParams);
+  }
+  
+  if (pathname === '/api/admin/sellers') {
+    return await getAdminSellers(pool, url.searchParams);
+  }
+  
+  // Profile endpoint for current user
+  if (pathname === '/api/profile') {
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return { success: false, error: 'Token não fornecido' };
+    }
+    
+    try {
+      const token = authHeader.split(' ')[1];
+      const jwt = await import('./utils/jwt.js');
+      const decoded = jwt.verifyToken(token, env.JWT_SECRET);
+      
+      if (decoded && decoded.id) {
+        return await getProfileById(pool, decoded.id, request);
+      } else {
+        return { success: false, error: 'Token inválido' };
+      }
+    } catch (error) {
+      return { success: false, error: 'Erro ao verificar token' };
+    }
   }
   
   // Profiles endpoints

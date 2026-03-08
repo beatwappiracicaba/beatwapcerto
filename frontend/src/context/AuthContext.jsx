@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authApi } from '../services/apiClient';
-import { API_BASE_URL } from '../config/apiConfig.js';
+import { authApi, apiClient } from '../services/apiClient';
 
 const AuthContext = createContext();
 
@@ -19,10 +18,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    const u = authApi.getUser();
-    if (u) {
-      setUser(u);
-      fetchProfile(u.id);
+    const stored = authApi.getUser();
+    if (stored) {
+      setUser(stored);
+      fetchProfile();
     } else {
       setLoading(false);
     }
@@ -32,17 +31,9 @@ export const AuthProvider = ({ children }) => {
 
   const fetchProfile = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/profile`, {
-        headers: { Authorization: `Bearer ${authApi.getToken()}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setProfile(data ? { ...data, cargo: normalizeCargo(data.cargo) } : data);
-      } else {
-        setProfile(null);
-      }
+      const data = await apiClient.get('/profile');
+      setProfile(data ? { ...data, cargo: normalizeCargo(data.cargo) } : data);
     } catch (error) {
-      console.error('Error in fetchProfile:', error);
       setProfile(null);
     } finally {
       setLoading(false);
@@ -50,8 +41,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const refreshProfile = async () => {
-    if (user) {
-      await fetchProfile(user.id);
+    const stored = authApi.getUser();
+    if (stored && !user) {
+      setUser(stored);
+    }
+    if (stored) {
+      await fetchProfile();
     }
   };
 

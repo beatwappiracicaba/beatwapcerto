@@ -134,7 +134,7 @@ const SellerLeads = () => {
 
     setLoading(true);
     try {
-      await apiClient.delete(`/seller/leads/${currentLead.id}`);
+      await apiClient.del(`/seller/leads/${currentLead.id}`);
 
       addToast('Lead excluído com sucesso!', 'success');
       setIsModalOpen(false);

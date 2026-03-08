@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BeatWap - Test React Loading</title>
+    <link rel="stylesheet" href="/assets/index-C5sZCW6_.css" />
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module">
+        console.log('Testing React application loading...');
+        
+        // Monitor for React initialization
+        const checkReact = setInterval(() => {
+            const root = document.getElementById('root');
+            if (root && root.innerHTML && root.innerHTML !== '') {
+                console.log('✅ React application loaded successfully!');
+                console.log('Root content:', root.innerHTML.substring(0, 200));
+                clearInterval(checkReact);
+            }
+        }, 1000);
+        
+        // Timeout after 10 seconds
+        setTimeout(() => {
+            clearInterval(checkReact);
+            const root = document.getElementById('root');
+            if (root && root.innerHTML === '') {
+                console.log('❌ React application failed to load');
+                root.innerHTML = '<h1>BeatWap</h1><p>Application loading failed. Check console for errors.</p>';
+            }
+        }, 10000);
+    </script>
+    <script type="module" src="/assets/index-j3w_R8XB.js"></script>
+</body>
+</html>

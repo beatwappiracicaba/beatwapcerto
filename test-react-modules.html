@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Módulos React - BeatWap</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #121212;
+            color: white;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .log {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success { color: #4ade80; }
+        .error { color: #f87171; }
+        .warning { color: #fbbf24; }
+        .info { color: #60a5fa; }
+        .test-container {
+            background: #1e1e1e;
+            border: 2px solid #444;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+        }
+        #root {
+            background: #0a0a0a;
+            border: 2px solid #666;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            min-height: 200px;
+        }
+        .loading {
+            text-align: center;
+            color: #888;
+        }
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s infinite;
+        }
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste de Módulos React - BeatWap</h1>
+    <p>Este teste verifica se os módulos React estão carregando corretamente.</p>
+    
+    <div class="test-container">
+        <h3>📊 Status dos Módulos:</h3>
+        <div id="module-status" class="log info">Aguardando carregamento...</div>
+    </div>
+
+    <div class="test-container">
+        <h3>🎯 Teste de Renderização:</h3>
+        <div id="render-status" class="log info">Aguardando teste...</div>
+        <div id="root" class="loading">Preparando para renderizar...</div>
+    </div>
+
+    <div class="test-container">
+        <h3>📋 Logs Detalhados:</h3>
+        <div id="logs"></div>
+    </div>
+
+    <script type="module">
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log ${type}`;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logs.appendChild(logEntry);
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        function updateModuleStatus(message, type = 'info') {
+            const status = document.getElementById('module-status');
+            status.textContent = message;
+            status.className = `log ${type}`;
+        }
+
+        function updateRenderStatus(message, type = 'info') {
+            const status = document.getElementById('render-status');
+            status.textContent = message;
+            status.className = `log ${type}`;
+        }
+
+        async function testModules() {
+            log('🚀 Iniciando teste de módulos...', 'info');
+            
+            try {
+                log('📁 Verificando arquivos principais...', 'info');
+                
+                const filesToCheck = [
+                    '/assets/index-j3w_R8XB.js',
+                    '/assets/vendor-BIzT66jz.js',
+                    '/assets/ui-I6eHks9W.js',
+                    '/assets/index-C5sZCW6_.css'
+                ];
+
+                for (const file of filesToCheck) {
+                    try {
+                        const response = await fetch(file);
+                        if (response.ok) {
+                            log(`✅ ${file} - Carregado com sucesso (${response.status})`, 'success');
+                        } else {
+                            log(`❌ ${file} - Erro ${response.status}`, 'error');
+                        }
+                    } catch (error) {
+                        log(`❌ ${file} - Falha no carregamento: ${error.message}`, 'error');
+                    }
+                }
+
+                log('⏳ Aguardando carregamento dos módulos...', 'info');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                log('🔍 Importando módulos ES...', 'info');
+                const vendorModule = await import('/assets/vendor-BIzT66jz.js');
+                const uiModule = await import('/assets/ui-I6eHks9W.js');
+                const indexModule = await import('/assets/index-j3w_R8XB.js');
+                log(`🔑 vendor exports: ${Object.keys(vendorModule).join(', ') || '(none)'}`, 'info');
+                log(`🔑 ui exports: ${Object.keys(uiModule).join(', ') || '(none)'}`, 'info');
+                log(`🔑 index exports: ${Object.keys(indexModule).join(', ') || '(none)'}`, 'info');
+
+                updateModuleStatus('✅ Bundles ES importados com sucesso (sem globais)', 'success');
+                return true;
+
+            } catch (error) {
+                log(`❌ Erro durante o teste: ${error.message}`, 'error');
+                updateModuleStatus(`❌ Erro: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function testReactRender() {
+            log('🎨 Iniciando teste de renderização...', 'info');
+            updateRenderStatus('🔄 Tentando renderizar com React...', 'info');
+
+            try {
+                await import('/assets/index-j3w_R8XB.js');
+                await new Promise(resolve => setTimeout(resolve, 500));
+                const rootEl = document.getElementById('root');
+                const rendered = !!rootEl && !!rootEl.innerHTML && rootEl.innerHTML.trim() !== '';
+                if (!rendered) {
+                    throw new Error('Aplicação não montou no elemento #root');
+                }
+
+                log('✅ Renderização React bem-sucedida!', 'success');
+                updateRenderStatus('✅ React renderizou com sucesso!', 'success');
+
+                setTimeout(() => {
+                    document.getElementById('root').style.transform = 'scale(1.02)';
+                    document.getElementById('root').style.transition = 'transform 0.3s ease';
+                    setTimeout(() => {
+                        document.getElementById('root').style.transform = 'scale(1)';
+                    }, 300);
+                }, 100);
+
+            } catch (error) {
+                log(`❌ Erro na renderização: ${error.message}`, 'error');
+                updateRenderStatus(`❌ Erro: ${error.message}`, 'error');
+                
+                document.getElementById('root').innerHTML = `
+                    <div style="text-align: center; color: #f87171;">
+                        <h2>❌ Erro ao Renderizar</h2>
+                        <p>${error.message}</p>
+                        <p style="font-size: 0.9em; color: #888;">Verifique o console para mais detalhes</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Iniciar o teste quando a página carregar
+        window.addEventListener('load', async () => {
+            log('🧪 Iniciando teste completo...', 'info');
+            
+            try {
+                const modulesLoaded = await testModules();
+                
+                if (modulesLoaded) {
+                    await testReactRender();
+                    log('🎉 Teste concluído com sucesso!', 'success');
+                } else {
+                    log('⚠️ Módulos não carregados, pulando teste de renderização', 'warning');
+                    updateRenderStatus('⚠️ Módulos React não disponíveis', 'warning');
+                }
+                
+            } catch (error) {
+                log(`❌ Erro geral: ${error.message}`, 'error');
+            }
+        });
+
+        // Capturar erros globais
+        window.addEventListener('error', (event) => {
+            log(`❌ Erro global: ${event.message} em ${event.filename}:${event.lineno}`, 'error');
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            log(`❌ Promessa rejeitada: ${event.reason}`, 'error');
+        });
+    </script>
+</body>
+</html>

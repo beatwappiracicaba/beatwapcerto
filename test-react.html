@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BeatWap - Test</title>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module">
+        // Simple test to see if React loads
+        console.log('Testing React initialization...');
+        
+        // Try to initialize React manually
+        import('./assets/index-j3w_R8XB.js').then(module => {
+            console.log('JavaScript module loaded:', module);
+            
+            // Check if Js.createRoot is available
+            if (window.Js && window.Js.createRoot) {
+                console.log('Js.createRoot found');
+                const container = document.getElementById('root');
+                if (container) {
+                    const root = window.Js.createRoot(container);
+                    console.log('React root created successfully');
+                } else {
+                    console.error('Root element not found');
+                }
+            } else {
+                console.error('Js.createRoot not found');
+            }
+        }).catch(error => {
+            console.error('Error loading module:', error);
+        });
+    </script>
+</body>
+</html>

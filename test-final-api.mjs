@@ -56,8 +56,8 @@ async function testAPI() {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        email: 'alan@example.com',
-        password: 'test123'
+        email: 'alangodoygtr@gmail.com',
+        password: '@Aggtr4907'
       })
     });
     console.log(`📊 Status (login): ${loginResponse.status}`);
@@ -78,8 +78,8 @@ async function testAPI() {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        email: 'admin@beatwapp.com',
-        password: 'admin123'
+        email: 'alangodoygtr@gmail.com',
+        password: '@Aggtr4907'
       })
     });
     console.log(`📊 Status (login admin): ${loginResponse.status}`);

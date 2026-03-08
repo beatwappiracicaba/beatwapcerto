@@ -15,6 +15,16 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ email: '', password: '' });
 
+  const routeForRole = (role) => {
+    if (!role) return '/';
+    const s = String(role).toLowerCase();
+    if (s === 'produtor' || s === 'admin') return '/dashboard-produtor';
+    if (s === 'vendedor' || s === 'seller') return '/dashboard-vendedor';
+    if (s === 'artista' || s === 'artist') return '/dashboard-artista';
+    if (s === 'compositor' || s === 'composer') return '/dashboard-compositor';
+    return '/';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.email || !formData.password) {
@@ -25,15 +35,10 @@ const Login = () => {
     try {
       const { user } = await authApi.login(formData.email, formData.password);
       await refreshProfile();
-      const userId = user?.id;
-      const cargo = user?.role || null;
+      const cargo = user?.role ?? user?.cargo ?? null;
       addToast('Login realizado com sucesso!', 'success');
-      if (cargo === 'Artista') {
-        navigate('/dashboard');
-      } else {
-        addToast('Seu painel correspondente será liberado em breve.', 'info');
-        navigate('/');
-      }
+      const target = routeForRole(cargo);
+      navigate(target, { replace: true });
     } catch (err) {
       addToast(err.message || 'Credenciais inválidas.', 'error');
     } finally {
