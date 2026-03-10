@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 
 // UI
 import { SplashScreen } from '../components/ui/SplashScreen';
+import { LoadingScreen } from '../components/LoadingScreen';
 
 // DashboardLayout removido durante reconstrução
 
@@ -69,13 +70,13 @@ export const AppRoutes = () => {
   };
 
   const ProtectedRoute = ({ element }) => {
-    if (loading) return <SplashScreen onComplete={() => {}} />;
+    if (loading) return <LoadingScreen />;
     if (!profile) return <Navigate to="/login" replace />;
     return element;
   };
 
   const RoleBasedRoute = ({ roles, element }) => {
-    if (loading) return <SplashScreen onComplete={() => {}} />;
+    if (loading) return <LoadingScreen />;
     const userRole = normalizeRole(profile?.cargo);
     if (!profile) return <Navigate to="/login" replace />;
     if (!roles.includes(userRole)) return <Navigate to={routeForRole(userRole)} replace />;
@@ -93,7 +94,7 @@ export const AppRoutes = () => {
   return (
       <Routes location={location}>
         {/* Public Route - Landing Page */}
-        <Route path="/" element={loading ? <SplashScreen onComplete={() => {}} /> : (profile ? <Navigate to={routeForRole(profile?.cargo)} replace /> : <Home />)} />
+        <Route path="/" element={loading ? <LoadingScreen /> : (profile ? <Navigate to={routeForRole(profile?.cargo)} replace /> : <Home />)} />
         <Route path="/profile/:id" element={<PublicProfile />} />
         <Route path="/album/:id" element={<AlbumPage />} />
         

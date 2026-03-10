@@ -13,6 +13,18 @@ const UserCard = ({ user, type, onSelect }) => {
 
   const roleLabel = getRoleLabel();
 
+  const getAvatarUrl = (user) => {
+    if (!user.avatar_url) return null;
+    // Adicionar timestamp de atualização ou atual para cache busting se disponível
+    if (user.updated_at) {
+      const timestamp = new Date(user.updated_at).getTime();
+      return `${user.avatar_url}${user.avatar_url.includes('?') ? '&' : '?'}v=${timestamp}`;
+    }
+    return user.avatar_url;
+  };
+
+  const avatarUrl = getAvatarUrl(user);
+
   return (
     <motion.div
       whileHover={{ y: -5 }}
@@ -20,10 +32,10 @@ const UserCard = ({ user, type, onSelect }) => {
       onClick={() => onSelect(user)}
     >
       <div className="aspect-square bg-gray-800 relative overflow-hidden">
-        {user.avatar_url ? (
+        {avatarUrl ? (
           <img 
-            src={user.avatar_url} 
-            alt={user.name || roleLabel} 
+            src={avatarUrl} 
+            alt={user.nome || user.name || roleLabel} 
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
@@ -33,7 +45,7 @@ const UserCard = ({ user, type, onSelect }) => {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3 sm:p-4">
           <div className="w-full">
-            <div className="text-white text-base sm:text-sm font-bold leading-snug">{user.name || roleLabel}</div>
+            <div className="text-white text-base sm:text-sm font-bold leading-snug">{user.nome || user.name || roleLabel}</div>
             <div className="text-xs sm:text-[11px] text-gray-300 flex items-center gap-2">
               <span>{roleLabel}</span>
               <span className="hidden sm:flex items-center gap-1 text-beatwap-gold">

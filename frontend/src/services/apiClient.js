@@ -1,6 +1,7 @@
 import { API_BASE_URL } from '../config/apiConfig.js';
 
 const API_BASE = `${API_BASE_URL}/api`;
+const DEFAULT_TIMEOUT_MS = 15000;
 
 async function request(path, options = {}) {
   const token = localStorage.getItem('token');
@@ -9,8 +10,27 @@ async function request(path, options = {}) {
     ...(options.headers || {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {})
   };
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  const text = await res.text();
+  const controller = new AbortController();
+  const timeoutMs = Number(options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const timeoutId = Number.isFinite(timeoutMs) && timeoutMs > 0
+    ? setTimeout(() => controller.abort(), timeoutMs)
+    : null;
+
+  let res;
+  let text = '';
+  try {
+    res = await fetch(`${API_BASE}${path}`, { ...options, headers, signal: controller.signal });
+    text = await res.text();
+  } catch (err) {
+    if (timeoutId) clearTimeout(timeoutId);
+    if (err?.name === 'AbortError') {
+      throw new Error('Tempo esgotado ao conectar na API');
+    }
+    throw err;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = null; }
   if (!res.ok) {

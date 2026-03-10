@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Music, Heart, Instagram, Youtube, Video } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import logo from '../../assets/images/beatwap-logo.png';
 import { Link } from 'react-router-dom';
@@ -50,9 +50,14 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-500">
-          <p>&copy; 2026 BeatWap. Todos os direitos reservados.</p>
-          <p className="flex items-center gap-1">
+        <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-500 text-center md:text-left">
+          <div className="flex flex-col gap-1">
+            <p className="font-semibold text-gray-400">BeatWap Produções - Produção Musical e Marketing Digital</p>
+            <p>CNPJ: 53.206.273/0001-53 | Razão Social: Paulo Alan de Godoy Roncato Junior</p>
+            <p>Piracicaba - SP | Brasil</p>
+            <p className="mt-2">&copy; {new Date().getFullYear()} Todos os direitos reservados</p>
+          </div>
+          <p className="flex items-center gap-1 mt-4 md:mt-0">
             Feito com <Heart size={14} className="text-red-500 fill-red-500" /> para a música.
           </p>
         </div>

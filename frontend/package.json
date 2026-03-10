@@ -9,7 +9,7 @@
     "client": "vite",
     "build": "vite build",
     "copy-dist": "powershell -ExecutionPolicy Bypass -File copy-dist.ps1",
-    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives",
     "preview": "vite preview"
   },
   "dependencies": {

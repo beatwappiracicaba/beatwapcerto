@@ -181,7 +181,7 @@ const Home = () => {
 
   const fetchArtists = async () => {
     try {
-      const data = await apiClient.get('/profiles?role=artist');
+      const data = await apiClient.get(`/profiles?role=artist&t=${Date.now()}`);
       setArtists(data || []);
     } catch (error) {
       console.error('Error fetching artists:', error);
@@ -190,7 +190,7 @@ const Home = () => {
 
   const fetchProducers = async () => {
     try {
-      const data = await apiClient.get('/profiles?role=producer');
+      const data = await apiClient.get(`/profiles?role=producer&t=${Date.now()}`);
       setProducers(data || []);
     } catch (error) {
       console.error('Error fetching producers:', error);
@@ -199,7 +199,7 @@ const Home = () => {
 
   const fetchSellers = async () => {
     try {
-      const data = await apiClient.get('/profiles?role=seller');
+      const data = await apiClient.get(`/profiles?role=seller&t=${Date.now()}`);
       setSellers(data || []);
     } catch (error) {
       console.error('Error fetching sellers:', error);

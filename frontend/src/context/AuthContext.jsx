@@ -34,6 +34,8 @@ export const AuthProvider = ({ children }) => {
       const data = await apiClient.get('/profile');
       setProfile(data ? { ...data, cargo: normalizeCargo(data.cargo) } : data);
     } catch (error) {
+      await authApi.logout();
+      setUser(null);
       setProfile(null);
     } finally {
       setLoading(false);

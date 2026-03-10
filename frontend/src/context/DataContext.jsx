@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { apiClient } from '../services/apiClient';
+import { useAuth } from './AuthContext';
 
 const DataContext = createContext();
 
@@ -7,10 +8,17 @@ export const DataProvider = ({ children }) => {
   const [artists, setArtists] = useState([]);
   const [music, setMusic] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { profile } = useAuth();
 
   // Fetch initial data
   useEffect(() => {
     const fetchData = async () => {
+      if (profile?.cargo !== 'Produtor') {
+        setArtists([]);
+        setMusic([]);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
         const profilesData = await apiClient.get('/profiles');
@@ -76,7 +84,7 @@ export const DataProvider = ({ children }) => {
 
     fetchData();
 
-  }, []);
+  }, [profile?.cargo]);
 
   const updateArtistMetrics = async (artistId, newMetrics) => {
     try {
