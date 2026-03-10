@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 // Layouts
@@ -7,7 +7,6 @@ import { useAuth } from '../context/AuthContext';
 
 // UI
 import { SplashScreen } from '../components/ui/SplashScreen';
-import { LoadingScreen } from '../components/LoadingScreen';
 
 // DashboardLayout removido durante reconstrução
 
@@ -47,8 +46,14 @@ import NotificationDetails from '../pages/NotificationDetails';
 
 export const AppRoutes = () => {
   const location = useLocation();
-  const [showSplash, setShowSplash] = useState(true);
+  const [splashMounted, setSplashMounted] = useState(true);
+  const [splashMinDone, setSplashMinDone] = useState(false);
   const { profile, loading } = useAuth();
+  
+  useEffect(() => {
+    const id = setTimeout(() => setSplashMinDone(true), 3500);
+    return () => clearTimeout(id);
+  }, []);
 
   const normalizeRole = (r) => {
     if (!r) return r;
@@ -70,20 +75,22 @@ export const AppRoutes = () => {
   };
 
   const ProtectedRoute = ({ element }) => {
-    if (loading) return <LoadingScreen />;
+    if (loading) return null;
     if (!profile) return <Navigate to="/login" replace />;
     return element;
   };
 
   const RoleBasedRoute = ({ roles, element }) => {
-    if (loading) return <LoadingScreen />;
+    if (loading) return null;
     const userRole = normalizeRole(profile?.cargo);
     if (!profile) return <Navigate to="/login" replace />;
     if (!roles.includes(userRole)) return <Navigate to={routeForRole(userRole)} replace />;
     return element;
   };
-  if (showSplash) {
-    return <SplashScreen onComplete={() => setShowSplash(false)} />;
+  
+  const splashActive = !splashMinDone || loading;
+  if (splashMounted) {
+    return <SplashScreen active={splashActive} onComplete={() => setSplashMounted(false)} />;
   }
 
   const isArtista = profile?.cargo === 'Artista';
@@ -94,7 +101,7 @@ export const AppRoutes = () => {
   return (
       <Routes location={location}>
         {/* Public Route - Landing Page */}
-        <Route path="/" element={loading ? <LoadingScreen /> : (profile ? <Navigate to={routeForRole(profile?.cargo)} replace /> : <Home />)} />
+        <Route path="/" element={profile ? <Navigate to={routeForRole(profile?.cargo)} replace /> : <Home />} />
         <Route path="/profile/:id" element={<PublicProfile />} />
         <Route path="/album/:id" element={<AlbumPage />} />
         

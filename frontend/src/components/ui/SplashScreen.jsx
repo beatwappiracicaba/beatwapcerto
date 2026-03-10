@@ -1,26 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import logo from '../../assets/images/beatwap-logo.png';
 
-export const SplashScreen = ({ onComplete }) => {
-  const [exit, setExit] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setExit(true);
-    }, 3500); // Tempo total de exibição antes do fade-out
-
-    return () => clearTimeout(timer);
-  }, []);
-
+export const SplashScreen = ({ active = true, onComplete }) => {
   return (
     <motion.div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black"
       initial={{ opacity: 1 }}
-      animate={{ opacity: exit ? 0 : 1 }}
+      animate={{ opacity: active ? 1 : 0 }}
       transition={{ duration: 0.8, ease: "easeInOut" }}
       onAnimationComplete={() => {
-        if (exit) onComplete();
+        if (!active) onComplete?.();
       }}
     >
       <div className="relative flex flex-col items-center justify-center">
