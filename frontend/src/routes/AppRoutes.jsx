@@ -89,6 +89,14 @@ export const AppRoutes = () => {
   };
   
   const splashActive = !splashMinDone || loading;
+
+  useEffect(() => {
+    if (!splashActive) {
+      const id = setTimeout(() => setSplashMounted(false), 900);
+      return () => clearTimeout(id);
+    }
+  }, [splashActive]);
+
   if (splashMounted) {
     return <SplashScreen active={splashActive} onComplete={() => setSplashMounted(false)} />;
   }
