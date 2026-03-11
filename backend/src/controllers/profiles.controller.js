@@ -1,4 +1,4 @@
-import { getProfileById, listProfiles, updateProfileAvatar } from '../models/profiles.model.js';
+import { getProfileById, getPublicProfileById, listProfiles, updateProfileAvatar, updateProfileById } from '../models/profiles.model.js';
 import { pool } from '../db.js';
 
 export async function getProfiles(req, res, next) {
@@ -29,6 +29,52 @@ export async function getMyProfile(req, res, next) {
     const profile = await getProfileById(pool, id);
     if (!profile) return res.status(404).json({ error: 'Perfil não encontrado' });
     res.json(profile);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getProfile(req, res, next) {
+  try {
+    const id = req.params && req.params.id ? String(req.params.id) : '';
+    if (!id) return res.status(400).json({ error: 'id é obrigatório' });
+    const profile = await getPublicProfileById(pool, id);
+    if (!profile) return res.status(404).json({ error: 'Perfil não encontrado' });
+    res.json(profile);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateMyProfile(req, res, next) {
+  try {
+    const id = req.user && req.user.id ? String(req.user.id) : '';
+    if (!id) return res.status(401).json({ error: 'Autenticação necessária' });
+    const updated = await updateProfileById(pool, { id, patch: req.body, includeEmail: true });
+    if (!updated) return res.status(404).json({ error: 'Perfil não encontrado' });
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateProfile(req, res, next) {
+  try {
+    const targetId = req.params && req.params.id ? String(req.params.id) : '';
+    const userId = req.user && req.user.id ? String(req.user.id) : '';
+    const userCargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+    if (!userId) return res.status(401).json({ error: 'Autenticação necessária' });
+    if (!targetId) return res.status(400).json({ error: 'id é obrigatório' });
+
+    const canEditOther = userCargo === 'Produtor';
+    if (!canEditOther && targetId !== userId) {
+      return res.status(403).json({ error: 'Sem permissão' });
+    }
+
+    const includeEmail = targetId === userId;
+    const updated = await updateProfileById(pool, { id: targetId, patch: req.body, includeEmail });
+    if (!updated) return res.status(404).json({ error: 'Perfil não encontrado' });
+    res.json(updated);
   } catch (err) {
     next(err);
   }

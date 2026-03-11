@@ -30,6 +30,27 @@ export async function listProfiles(pool, { cargo = null, limit = 100 } = {}) {
   return rows;
 }
 
+let profilesColumnsCache = { at: 0, columns: null };
+
+async function getProfilesColumns(pool) {
+  const now = Date.now();
+  if (profilesColumnsCache.columns && now - profilesColumnsCache.at < 60_000) {
+    return profilesColumnsCache.columns;
+  }
+  const { rows } = await pool.query(
+    `SELECT column_name
+     FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'profiles'`
+  );
+  const set = new Set(rows.map((r) => String(r.column_name)));
+  profilesColumnsCache = { at: now, columns: set };
+  return set;
+}
+
+function pickColumns(available, desired) {
+  return desired.filter((c) => available.has(c));
+}
+
 export async function getProfileByEmail(pool, email) {
   const { rows } = await pool.query(
     `SELECT
@@ -48,15 +69,72 @@ export async function getProfileByEmail(pool, email) {
 }
 
 export async function getProfileById(pool, id) {
+  const columns = await getProfilesColumns(pool);
+  const desired = [
+    'id',
+    'nome',
+    'email',
+    'cargo',
+    'avatar_url',
+    'bio',
+    'genero_musical',
+    'instagram_url',
+    'site_url',
+    'youtube_url',
+    'spotify_url',
+    'deezer_url',
+    'tiktok_url',
+    'tema',
+    'plano',
+    'bonus_quota',
+    'plan_started_at',
+    'access_control',
+    'nome_completo_razao_social',
+    'cpf_cnpj',
+    'celular',
+    'cep',
+    'logradouro',
+    'complemento',
+    'bairro',
+    'cidade',
+    'estado',
+    'created_at',
+  ];
+  const cols = pickColumns(columns, desired);
+  const selectSql = cols.length ? cols.join(', ') : 'id';
   const { rows } = await pool.query(
-    `SELECT
-      id,
-      nome,
-      email,
-      cargo,
-      avatar_url,
-      bio,
-      created_at
+    `SELECT ${selectSql}
+     FROM public.profiles
+     WHERE id = $1
+     LIMIT 1`,
+    [id]
+  );
+  return rows[0] || null;
+}
+
+export async function getPublicProfileById(pool, id) {
+  const columns = await getProfilesColumns(pool);
+  const desired = [
+    'id',
+    'nome',
+    'cargo',
+    'avatar_url',
+    'bio',
+    'genero_musical',
+    'instagram_url',
+    'site_url',
+    'youtube_url',
+    'spotify_url',
+    'deezer_url',
+    'tiktok_url',
+    'cidade',
+    'estado',
+    'created_at',
+  ];
+  const cols = pickColumns(columns, desired);
+  const selectSql = cols.length ? cols.join(', ') : 'id';
+  const { rows } = await pool.query(
+    `SELECT ${selectSql}
      FROM public.profiles
      WHERE id = $1
      LIMIT 1`,
@@ -84,4 +162,38 @@ export async function updateProfileAvatar(pool, { id, avatarUrl }) {
     [id, avatarUrl]
   );
   return rows[0] || null;
+}
+
+export async function updateProfileById(pool, { id, patch, includeEmail = true }) {
+  const columns = await getProfilesColumns(pool);
+  const forbidden = new Set(['id', 'password_hash', 'created_at']);
+  if (!includeEmail) forbidden.add('email');
+
+  const patchObj = patch && typeof patch === 'object' ? patch : {};
+  const keys = Object.keys(patchObj).filter((k) => columns.has(k) && !forbidden.has(k));
+  const filtered = keys
+    .map((k) => {
+      const v = patchObj[k];
+      if (v === null) return [k, null];
+      const t = typeof v;
+      if (t === 'string' || t === 'number' || t === 'boolean') return [k, v];
+      return null;
+    })
+    .filter(Boolean);
+
+  if (filtered.length === 0) {
+    return getProfileById(pool, id);
+  }
+
+  const setSql = filtered.map(([k], i) => `${k} = $${i + 2}`).join(', ');
+  const values = [id, ...filtered.map(([, v]) => v)];
+
+  await pool.query(
+    `UPDATE public.profiles
+     SET ${setSql}
+     WHERE id = $1`,
+    values
+  );
+
+  return getProfileById(pool, id);
 }
