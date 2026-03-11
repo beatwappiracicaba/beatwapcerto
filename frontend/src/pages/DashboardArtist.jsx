@@ -33,9 +33,10 @@ export const DashboardArtistHome = () => {
       let totalExternalPlays = 0;
       let totalExternalListeners = 0;
       let totalExternalRevenue = 0;
+      let extMetrics = [];
       
       if (musicIds.length > 0) {
-        const extMetrics = await apiClient.get('/songs/external-metrics');
+        extMetrics = (await apiClient.get('/songs/external-metrics')) || [];
           
         (extMetrics || []).forEach(em => {
           totalExternalPlays += Number(em.plays || 0);
@@ -83,7 +84,7 @@ export const DashboardArtistHome = () => {
         }
       });
       
-      const extForTop = (await apiClient.get('/songs/external-metrics')) || [];
+      const extForTop = extMetrics || [];
       extForTop.forEach(em => {
         if (em.music_id) {
           playsPerMusic[em.music_id] = (playsPerMusic[em.music_id] || 0) + Number(em.plays || 0);
@@ -107,8 +108,10 @@ export const DashboardArtistHome = () => {
       }
 
       // Merge Internal + External totals
-      const finalPlays = agg.plays + totalExternalPlays;
-      const finalListeners = agg.listeners.size + totalExternalListeners; 
+      const basePlays = Number(legacy?.total_plays || 0);
+      const baseListeners = Number(legacy?.ouvintes_mensais || 0);
+      const finalPlays = basePlays + totalExternalPlays;
+      const finalListeners = baseListeners + totalExternalListeners; 
       const finalStreamingRevenue = (Number(legacy?.receita_estimada || 0)) + totalExternalRevenue;
 
       setMetrics({ 

@@ -32,6 +32,10 @@ if (!Array.isArray(memory.musicExternalMetrics)) memory.musicExternalMetrics = [
 if (!Array.isArray(memory.todos)) memory.todos = [];
 if (!Array.isArray(memory.compositions)) memory.compositions = [];
 if (!Array.isArray(memory.sponsors)) memory.sponsors = [];
+if (!Array.isArray(memory.sellerGoals)) memory.sellerGoals = [];
+if (!Array.isArray(memory.sellerCommissions)) memory.sellerCommissions = [];
+if (!Array.isArray(memory.sellerLeads)) memory.sellerLeads = [];
+if (!Array.isArray(memory.artistEvents)) memory.artistEvents = [];
 
 const roleMap = {
   artist: 'Artista',
@@ -530,6 +534,97 @@ router.put('/artist/marketing/:artistId', authRequired, (req, res) => {
   res.json(next);
 });
 
+router.get('/artist/events', authRequired, (req, res) => {
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!requesterId || !isUuidLike(requesterId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const rows = (Array.isArray(memory.artistEvents) ? memory.artistEvents : [])
+    .filter((e) => e && typeof e === 'object')
+    .filter((e) => String(e.artist_id || '') === requesterId)
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+  res.set('Cache-Control', 'no-store');
+  res.json(rows);
+});
+
+router.post('/artist/events', authRequired, (req, res) => {
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!requesterId || !isUuidLike(requesterId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const title = req.body && req.body.title ? String(req.body.title).trim() : '';
+  const date = req.body && req.body.date ? String(req.body.date).trim() : '';
+  const type = req.body && req.body.type ? String(req.body.type).trim() : '';
+  const notes = req.body && req.body.notes ? String(req.body.notes) : '';
+  if (!title || !date) return res.status(400).json({ error: 'title e date são obrigatórios' });
+  const event = {
+    id: randomUUID(),
+    artist_id: requesterId,
+    title,
+    date,
+    type: type || 'outro',
+    notes,
+    created_at: new Date().toISOString(),
+  };
+  memory.artistEvents.unshift(event);
+  res.status(201).json(event);
+});
+
+router.get('/artist/todos', authRequired, (req, res) => {
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!requesterId || !isUuidLike(requesterId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const rows = (Array.isArray(memory.todos) ? memory.todos : [])
+    .filter((t) => t && typeof t === 'object')
+    .filter((t) => String(t.artist_id || '') === requesterId)
+    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+  res.set('Cache-Control', 'no-store');
+  res.json(rows);
+});
+
+router.post('/artist/todos', authRequired, (req, res) => {
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!requesterId || !isUuidLike(requesterId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const title = req.body && req.body.title ? String(req.body.title).trim() : '';
+  const due_date = req.body && req.body.due_date ? String(req.body.due_date) : null;
+  if (!title) return res.status(400).json({ error: 'title é obrigatório' });
+  const now = new Date().toISOString();
+  const todo = {
+    id: randomUUID(),
+    artist_id: requesterId,
+    title,
+    due_date: due_date || null,
+    status: 'pendente',
+    created_at: now,
+    updated_at: now,
+  };
+  memory.todos.unshift(todo);
+  res.status(201).json(todo);
+});
+
+router.post('/artist/todos/:id', authRequired, (req, res) => {
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!requesterId || !isUuidLike(requesterId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const id = req.params && req.params.id ? String(req.params.id) : '';
+  if (!id || !isUuidLike(id)) return res.status(400).json({ error: 'id inválido' });
+  const status = req.body && req.body.status ? String(req.body.status).trim() : '';
+  if (!status || (status !== 'pendente' && status !== 'concluido')) return res.status(400).json({ error: 'status inválido' });
+  const store = Array.isArray(memory.todos) ? memory.todos : (memory.todos = []);
+  const idx = store.findIndex((t) => t && typeof t === 'object' && String(t.id || '') === id);
+  if (idx < 0) return res.status(404).json({ error: 'Todo não encontrado' });
+  const prev = store[idx];
+  if (String(prev.artist_id || '') !== requesterId) return res.status(403).json({ error: 'Sem permissão' });
+  const next = { ...prev, status, updated_at: new Date().toISOString() };
+  store[idx] = next;
+  res.json(next);
+});
+
+router.get('/artist/compositions', authRequired, (req, res) => {
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!requesterId || !isUuidLike(requesterId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const rows = (Array.isArray(memory.compositions) ? memory.compositions : [])
+    .filter((c) => c && typeof c === 'object')
+    .filter((c) => String(c.composer_id || '') === requesterId)
+    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+  res.set('Cache-Control', 'no-store');
+  res.json(rows);
+});
+
 router.get('/analytics/artist/:artistId/summary', authRequired, async (req, res, next) => {
   try {
     const artistId = req.params && req.params.artistId ? String(req.params.artistId) : '';
@@ -651,6 +746,137 @@ router.post('/admin/todos/:id/status', authRequired, (req, res) => {
 
   const next = { ...memory.todos[idx], status, updated_at: new Date().toISOString() };
   memory.todos[idx] = next;
+  res.json(next);
+});
+
+router.get('/admin/sellers', authRequired, async (req, res, next) => {
+  try {
+    const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+    if (cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+
+    const rows = await listProfiles(pool, { cargo: 'Vendedor', limit: 500 });
+    res.set('Cache-Control', 'no-store');
+    res.json(rows);
+  } catch (err) {
+    if (isMissingTableError(err)) {
+      res.set('Cache-Control', 'no-store');
+      return res.json([]);
+    }
+    next(err);
+  }
+});
+
+router.get('/admin/sellers/:sellerId/goals', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+
+  const sellerId = req.params && req.params.sellerId ? String(req.params.sellerId) : '';
+  if (!sellerId || !isUuidLike(sellerId)) return res.status(400).json({ error: 'sellerId inválido' });
+
+  const rows = (Array.isArray(memory.sellerGoals) ? memory.sellerGoals : [])
+    .filter((g) => g && typeof g === 'object')
+    .filter((g) => String(g.seller_id || '') === sellerId)
+    .sort((a, b) => {
+      const ak = `${String(a.year || '').padStart(4, '0')}-${String(a.month || '').padStart(2, '0')}`;
+      const bk = `${String(b.year || '').padStart(4, '0')}-${String(b.month || '').padStart(2, '0')}`;
+      return bk.localeCompare(ak);
+    });
+
+  res.set('Cache-Control', 'no-store');
+  res.json(rows);
+});
+
+router.post('/admin/sellers/:sellerId/goals', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+
+  const sellerId = req.params && req.params.sellerId ? String(req.params.sellerId) : '';
+  if (!sellerId || !isUuidLike(sellerId)) return res.status(400).json({ error: 'sellerId inválido' });
+
+  const month = Number(req.body && req.body.month ? req.body.month : 0) || 0;
+  const year = Number(req.body && req.body.year ? req.body.year : 0) || 0;
+  const shows_target = Number(req.body && req.body.shows_target ? req.body.shows_target : 0) || 0;
+  const revenue_target = Number(req.body && req.body.revenue_target ? req.body.revenue_target : 0) || 0;
+
+  if (month < 1 || month > 12) return res.status(400).json({ error: 'month inválido' });
+  if (year < 2000 || year > 2100) return res.status(400).json({ error: 'year inválido' });
+
+  const store = Array.isArray(memory.sellerGoals) ? memory.sellerGoals : (memory.sellerGoals = []);
+  const idx = store.findIndex((g) => g && typeof g === 'object' && String(g.seller_id || '') === sellerId && Number(g.month || 0) === month && Number(g.year || 0) === year);
+  const now = new Date().toISOString();
+
+  if (idx >= 0) {
+    const next = { ...store[idx], shows_target, revenue_target, updated_at: now };
+    store[idx] = next;
+    res.status(200).json(next);
+    return;
+  }
+
+  const row = {
+    id: randomUUID(),
+    seller_id: sellerId,
+    month,
+    year,
+    shows_target,
+    revenue_target,
+    created_at: now,
+    updated_at: now,
+  };
+  store.unshift(row);
+  res.status(201).json(row);
+});
+
+router.get('/admin/sellers/:sellerId/commissions', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+
+  const sellerId = req.params && req.params.sellerId ? String(req.params.sellerId) : '';
+  if (!sellerId || !isUuidLike(sellerId)) return res.status(400).json({ error: 'sellerId inválido' });
+
+  const rows = (Array.isArray(memory.sellerCommissions) ? memory.sellerCommissions : [])
+    .filter((c) => c && typeof c === 'object')
+    .filter((c) => String(c.seller_id || '') === sellerId)
+    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+    .slice(0, 5000);
+
+  res.set('Cache-Control', 'no-store');
+  res.json(rows);
+});
+
+router.get('/admin/sellers/:sellerId/leads', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+
+  const sellerId = req.params && req.params.sellerId ? String(req.params.sellerId) : '';
+  if (!sellerId || !isUuidLike(sellerId)) return res.status(400).json({ error: 'sellerId inválido' });
+
+  const rows = (Array.isArray(memory.sellerLeads) ? memory.sellerLeads : [])
+    .filter((l) => l && typeof l === 'object')
+    .filter((l) => String(l.seller_id || '') === sellerId)
+    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+    .slice(0, 2000);
+
+  res.set('Cache-Control', 'no-store');
+  res.json(rows);
+});
+
+router.patch('/admin/commissions/:id/status', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+
+  const id = req.params && req.params.id ? String(req.params.id) : '';
+  if (!id || !isUuidLike(id)) return res.status(400).json({ error: 'id inválido' });
+
+  const status = req.body && req.body.status ? String(req.body.status).trim() : '';
+  if (!status) return res.status(400).json({ error: 'status é obrigatório' });
+
+  const store = Array.isArray(memory.sellerCommissions) ? memory.sellerCommissions : (memory.sellerCommissions = []);
+  const idx = store.findIndex((c) => c && typeof c === 'object' && String(c.id || '') === id);
+  if (idx < 0) return res.status(404).json({ error: 'Comissão não encontrada' });
+
+  const prev = store[idx];
+  const next = { ...prev, status, updated_at: new Date().toISOString() };
+  store[idx] = next;
   res.json(next);
 });
 
@@ -1408,52 +1634,63 @@ router.post('/messages', authRequired, (req, res) => {
   res.status(201).json(msg);
 });
 
-router.get('/admin/artist/:artistId/metrics', authRequired, (req, res) => {
-  Promise.resolve()
-    .then(async () => {
+router.get('/admin/artist/:artistId/metrics', authRequired, async (req, res, next) => {
+  try {
+    const artistId = req.params && req.params.artistId ? String(req.params.artistId) : '';
+    if (!artistId || !isUuidLike(artistId)) return res.json({ total_plays: 0, ouvintes_mensais: 0, receita_estimada: 0 });
+    const { rows } = await pool.query(
+      `SELECT total_plays, ouvintes_mensais, receita_estimada
+       FROM public.artist_metrics
+       WHERE artist_id = $1
+       LIMIT 1`,
+      [artistId]
+    );
+    res.json(rows[0] || { total_plays: 0, ouvintes_mensais: 0, receita_estimada: 0 });
+  } catch (err) {
+    if (isMissingTableError(err)) {
       const artistId = req.params && req.params.artistId ? String(req.params.artistId) : '';
-      if (!artistId || !isUuidLike(artistId)) return { total_plays: 0, ouvintes_mensais: 0, receita_estimada: 0 };
-      const { rows } = await pool.query(
-        `SELECT total_plays, ouvintes_mensais, receita_estimada
-         FROM public.artist_metrics
-         WHERE artist_id = $1
-         LIMIT 1`,
-        [artistId]
-      );
-      return rows[0] || { total_plays: 0, ouvintes_mensais: 0, receita_estimada: 0 };
-    })
-    .then((m) => res.json(m))
-    .catch(() => res.json({ total_plays: 0, ouvintes_mensais: 0, receita_estimada: 0 }));
+      const fallback = (artistId && isUuidLike(artistId) && memory.artistMetrics instanceof Map)
+        ? (memory.artistMetrics.get(artistId) || { total_plays: 0, ouvintes_mensais: 0, receita_estimada: 0 })
+        : { total_plays: 0, ouvintes_mensais: 0, receita_estimada: 0 };
+      return res.json(fallback);
+    }
+    next(err);
+  }
 });
 
-router.post('/admin/artist/:artistId/metrics', authRequired, (req, res) => {
-  Promise.resolve()
-    .then(async () => {
+router.post('/admin/artist/:artistId/metrics', authRequired, async (req, res, next) => {
+  try {
+    const artistId = req.params && req.params.artistId ? String(req.params.artistId) : '';
+    if (!artistId || !isUuidLike(artistId)) return res.status(400).json({ error: 'artistId inválido' });
+
+    const total_plays = Number(req.body && req.body.total_plays ? req.body.total_plays : 0) || 0;
+    const ouvintes_mensais = Number(req.body && req.body.ouvintes_mensais ? req.body.ouvintes_mensais : 0) || 0;
+    const receita_estimada = Number(req.body && req.body.receita_estimada ? req.body.receita_estimada : 0) || 0;
+
+    const { rows } = await pool.query(
+      `INSERT INTO public.artist_metrics (artist_id, total_plays, ouvintes_mensais, receita_estimada, updated_at)
+       VALUES ($1, $2, $3, $4, now())
+       ON CONFLICT (artist_id)
+       DO UPDATE SET total_plays = EXCLUDED.total_plays,
+                     ouvintes_mensais = EXCLUDED.ouvintes_mensais,
+                     receita_estimada = EXCLUDED.receita_estimada,
+                     updated_at = now()
+       RETURNING total_plays, ouvintes_mensais, receita_estimada, updated_at`,
+      [artistId, total_plays, ouvintes_mensais, receita_estimada]
+    );
+
+    res.json(rows[0] || { total_plays, ouvintes_mensais, receita_estimada, updated_at: new Date().toISOString() });
+  } catch (err) {
+    if (isMissingTableError(err)) {
       const artistId = req.params && req.params.artistId ? String(req.params.artistId) : '';
-      if (!artistId || !isUuidLike(artistId)) return { error: 'artistId inválido' };
-
-      const total_plays = Number(req.body && req.body.total_plays ? req.body.total_plays : 0) || 0;
-      const ouvintes_mensais = Number(req.body && req.body.ouvintes_mensais ? req.body.ouvintes_mensais : 0) || 0;
-      const receita_estimada = Number(req.body && req.body.receita_estimada ? req.body.receita_estimada : 0) || 0;
-
-      const { rows } = await pool.query(
-        `INSERT INTO public.artist_metrics (artist_id, total_plays, ouvintes_mensais, receita_estimada, updated_at)
-         VALUES ($1, $2, $3, $4, now())
-         ON CONFLICT (artist_id)
-         DO UPDATE SET total_plays = EXCLUDED.total_plays,
-                       ouvintes_mensais = EXCLUDED.ouvintes_mensais,
-                       receita_estimada = EXCLUDED.receita_estimada,
-                       updated_at = now()
-         RETURNING total_plays, ouvintes_mensais, receita_estimada, updated_at`,
-        [artistId, total_plays, ouvintes_mensais, receita_estimada]
-      );
-      return rows[0] || { total_plays, ouvintes_mensais, receita_estimada, updated_at: new Date().toISOString() };
-    })
-    .then((m) => {
-      if (m && m.error) return res.status(400).json(m);
-      res.json(m);
-    })
-    .catch(() => res.status(500).json({ error: 'Falha ao salvar métricas' }));
+      if (!artistId || !isUuidLike(artistId)) return res.status(400).json({ error: 'artistId inválido' });
+      if (!(memory.artistMetrics instanceof Map)) memory.artistMetrics = new Map();
+      const row = { total_plays: Number(req.body?.total_plays || 0) || 0, ouvintes_mensais: Number(req.body?.ouvintes_mensais || 0) || 0, receita_estimada: Number(req.body?.receita_estimada || 0) || 0, updated_at: new Date().toISOString() };
+      memory.artistMetrics.set(artistId, row);
+      return res.json(row);
+    }
+    next(err);
+  }
 });
 
 export default router;

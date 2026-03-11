@@ -18,7 +18,10 @@ export const DashboardLayout = ({ children }) => {
   const [openSections, setOpenSections] = useState({ trabalhos: false, trabalhoSeller: false, financeiroSeller: false });
 
   // Default permissions (all enabled) if not set
-  const permissions = profile?.access_control || { 
+  const plan = String(profile?.plano || '');
+  const normalizedPlan = plan.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const isLifetime = normalizedPlan.includes('vitalicio') || normalizedPlan.includes('lifetime');
+  const defaultPermissions = { 
     musics: !isCompositor, 
     compositions: isCompositor,
     work: !isCompositor, 
@@ -26,6 +29,8 @@ export const DashboardLayout = ({ children }) => {
     chat: true,
     finance: true
   };
+  const mergedPermissions = { ...defaultPermissions, ...(profile?.access_control || {}) };
+  const permissions = isLifetime ? { ...mergedPermissions, musics: true, compositions: true, work: true, marketing: true, chat: true, finance: true } : mergedPermissions;
 
   const location = useLocation();
 

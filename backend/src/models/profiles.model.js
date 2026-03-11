@@ -7,7 +7,7 @@ export async function listProfiles(pool, { cargo = null, limit = 100 } = {}) {
 
   if (normalizedCargo) {
     values.push(normalizedCargo);
-    whereSql = `WHERE cargo = $${values.length}`;
+    whereSql = `WHERE lower(trim(cargo)) = lower(trim($${values.length}))`;
   }
 
   values.push(lim);
