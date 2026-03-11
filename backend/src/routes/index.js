@@ -28,6 +28,7 @@ const memory = globalThis.__beatwapMemory || (globalThis.__beatwapMemory = {
 });
 if (!Array.isArray(memory.sellerArtistEvents)) memory.sellerArtistEvents = [];
 if (!Array.isArray(memory.musicExternalMetrics)) memory.musicExternalMetrics = [];
+if (!Array.isArray(memory.todos)) memory.todos = [];
 
 const roleMap = {
   artist: 'Artista',
@@ -266,6 +267,64 @@ router.get('/admin/stats', authRequired, (req, res) => {
       res.json({ artists: artists.length, musics, pending });
     })
     .catch(() => res.json({ artists: 0, musics: memory.musics.length, pending: 0 }));
+});
+
+router.get('/admin/artist/:artistId/todos', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+
+  const artistId = req.params && req.params.artistId ? String(req.params.artistId) : '';
+  if (!artistId || !isUuidLike(artistId)) return res.status(400).json({ error: 'artistId inválido' });
+
+  const rows = (Array.isArray(memory.todos) ? memory.todos : [])
+    .filter((t) => t && typeof t === 'object')
+    .filter((t) => String(t.artist_id || '') === artistId)
+    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+
+  res.json(rows);
+});
+
+router.post('/admin/artist/:artistId/todos', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+
+  const artistId = req.params && req.params.artistId ? String(req.params.artistId) : '';
+  if (!artistId || !isUuidLike(artistId)) return res.status(400).json({ error: 'artistId inválido' });
+
+  const title = req.body && req.body.title ? String(req.body.title).trim() : '';
+  const due_date = req.body && req.body.due_date ? String(req.body.due_date) : null;
+  if (!title) return res.status(400).json({ error: 'title é obrigatório' });
+
+  const todo = {
+    id: randomUUID(),
+    artist_id: artistId,
+    title,
+    due_date: due_date || null,
+    status: 'pendente',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  memory.todos.unshift(todo);
+  res.status(201).json(todo);
+});
+
+router.post('/admin/todos/:id/status', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+
+  const id = req.params && req.params.id ? String(req.params.id) : '';
+  if (!id || !isUuidLike(id)) return res.status(400).json({ error: 'id inválido' });
+
+  const status = req.body && req.body.status ? String(req.body.status).trim() : '';
+  if (!status) return res.status(400).json({ error: 'status é obrigatório' });
+
+  const idx = (Array.isArray(memory.todos) ? memory.todos : []).findIndex((t) => t && typeof t === 'object' && String(t.id || '') === id);
+  if (idx < 0) return res.status(404).json({ error: 'Tarefa não encontrada' });
+
+  const next = { ...memory.todos[idx], status, updated_at: new Date().toISOString() };
+  memory.todos[idx] = next;
+  res.json(next);
 });
 
 router.get('/users', authRequired, async (req, res, next) => {
