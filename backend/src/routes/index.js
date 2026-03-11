@@ -157,11 +157,20 @@ router.post('/analytics', async (req, res, next) => {
 });
 
 router.get('/compositions', (req, res) => res.json([]));
-router.get('/projects', (req, res) => {
-  const rows = (Array.isArray(memory.producerProjects) ? memory.producerProjects : [])
-    .filter((p) => (!p || typeof p !== 'object') ? false : (typeof p.published === 'boolean' ? p.published : true))
-    .slice(0, 50);
-  res.json(rows);
+router.get('/projects', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, producer_id, title, url, platform, published, created_at
+       FROM public.producer_projects
+       WHERE published = true
+       ORDER BY created_at DESC
+       LIMIT 50`
+    );
+    res.set('Cache-Control', 'no-store');
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
 });
 router.get('/composers', (req, res) => res.json([]));
 router.get('/sponsors', (req, res) => res.json([]));
@@ -366,38 +375,78 @@ router.get('/artists-for-seller', authRequired, async (req, res, next) => {
   }
 });
 
-router.get('/producer-projects', authRequired, (req, res) => {
-  res.json(memory.producerProjects);
-});
+router.get('/producer-projects', authRequired, async (req, res, next) => {
+  try {
+    const producerId = req.user && req.user.id ? String(req.user.id) : '';
+    if (!producerId || !isUuidLike(producerId)) return res.status(401).json({ error: 'Autenticação necessária' });
 
-router.post('/producer-projects', authRequired, (req, res) => {
-  const producer_id = req.body && req.body.producer_id ? String(req.body.producer_id) : (req.user && req.user.id ? String(req.user.id) : '');
-  const title = req.body && req.body.title ? String(req.body.title) : '';
-  const url = req.body && req.body.url ? String(req.body.url) : '';
-  const platform = req.body && req.body.platform ? String(req.body.platform) : '';
-  const published = req.body && typeof req.body.published === 'boolean' ? req.body.published : true;
-
-  if (!producer_id || !title || !url || !platform) {
-    return res.status(400).json({ error: 'producer_id, title, url e platform são obrigatórios' });
+    const { rows } = await pool.query(
+      `SELECT id, producer_id, title, url, platform, published, created_at
+       FROM public.producer_projects
+       WHERE producer_id = $1
+       ORDER BY created_at DESC
+       LIMIT 200`,
+      [producerId]
+    );
+    res.set('Cache-Control', 'no-store');
+    res.json(rows);
+  } catch (err) {
+    next(err);
   }
-
-  const project = {
-    id: randomUUID(),
-    producer_id,
-    title,
-    url,
-    platform,
-    published,
-    created_at: new Date().toISOString(),
-  };
-  memory.producerProjects.unshift(project);
-  res.status(201).json(project);
 });
 
-router.delete('/producer-projects/:id', authRequired, (req, res) => {
-  const id = req.params && req.params.id ? String(req.params.id) : '';
-  memory.producerProjects = memory.producerProjects.filter((p) => p.id !== id);
-  res.json({ ok: true });
+router.post('/producer-projects', authRequired, async (req, res, next) => {
+  try {
+    const producerId = req.user && req.user.id ? String(req.user.id) : '';
+    if (!producerId || !isUuidLike(producerId)) return res.status(401).json({ error: 'Autenticação necessária' });
+
+    const title = req.body && req.body.title ? String(req.body.title).trim() : '';
+    const url = req.body && req.body.url ? String(req.body.url).trim() : '';
+    const platform = req.body && req.body.platform ? String(req.body.platform).trim() : '';
+    const published = req.body && typeof req.body.published === 'boolean' ? req.body.published : true;
+
+    if (!title || !url || !platform) {
+      return res.status(400).json({ error: 'title, url e platform são obrigatórios' });
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO public.producer_projects
+        (id, producer_id, title, url, platform, published)
+       VALUES
+        (gen_random_uuid(), $1, $2, $3, $4, $5)
+       RETURNING id, producer_id, title, url, platform, published, created_at`,
+      [producerId, title, url, platform, published]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/producer-projects/:id', authRequired, async (req, res, next) => {
+  try {
+    const producerId = req.user && req.user.id ? String(req.user.id) : '';
+    if (!producerId || !isUuidLike(producerId)) return res.status(401).json({ error: 'Autenticação necessária' });
+
+    const id = req.params && req.params.id ? String(req.params.id) : '';
+    if (!id || !isUuidLike(id)) return res.status(400).json({ error: 'id inválido' });
+
+    const { rows } = await pool.query(
+      `SELECT id, producer_id
+       FROM public.producer_projects
+       WHERE id = $1
+       LIMIT 1`,
+      [id]
+    );
+    const project = rows[0] || null;
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado' });
+    if (String(project.producer_id) !== producerId) return res.status(403).json({ error: 'Sem permissão' });
+
+    await pool.query('DELETE FROM public.producer_projects WHERE id = $1', [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.get('/admin/musics', authRequired, (req, res) => {

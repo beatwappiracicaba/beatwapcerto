@@ -1,5 +1,6 @@
 import { getProfileById, getPublicProfileById, listProfiles, updateProfileAvatar, updateProfileById } from '../models/profiles.model.js';
 import { pool } from '../db.js';
+import { createHash } from 'node:crypto';
 
 export async function getProfiles(req, res, next) {
   try {
@@ -38,8 +39,28 @@ export async function getProfile(req, res, next) {
   try {
     const id = req.params && req.params.id ? String(req.params.id) : '';
     if (!id) return res.status(400).json({ error: 'id é obrigatório' });
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) return res.status(400).json({ error: 'id inválido' });
     const profile = await getPublicProfileById(pool, id);
     if (!profile) return res.status(404).json({ error: 'Perfil não encontrado' });
+
+    try {
+      const xf = req.headers && req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']) : '';
+      const ip = (xf.split(',')[0] || '').trim() || String(req.ip || '');
+      const ipHash = ip ? createHash('sha256').update(ip).digest('hex') : null;
+      const ua = req.headers && req.headers['user-agent'] ? String(req.headers['user-agent']) : '';
+      const ref = req.headers && req.headers['referer'] ? String(req.headers['referer']) : '';
+      await pool.query(
+        `INSERT INTO public.analytics_events
+          (id, type, artist_id, ip_hash, metadata)
+         VALUES
+          (gen_random_uuid(), 'profile_view', $1, $2, $3::jsonb)`,
+        [id, ipHash, JSON.stringify({ ua, ref, source: 'server' })]
+      );
+    } catch {
+      void 0;
+    }
+
     res.json(profile);
   } catch (err) {
     next(err);

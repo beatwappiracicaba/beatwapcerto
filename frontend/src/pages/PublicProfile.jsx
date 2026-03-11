@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { apiClient } from '../services/apiClient';
@@ -19,7 +19,6 @@ const PublicProfile = () => {
   const [playStartTS, setPlayStartTS] = useState(null);
   const [sellerStats, setSellerStats] = useState(null);
   const [galleryPosts, setGalleryPosts] = useState([]);
-  const recordedProfileViewForId = useRef(null);
 
   useEffect(() => {
     if (id) {
@@ -57,15 +56,6 @@ const PublicProfile = () => {
   const handleSocialClick = (network) => {
     recordEvent({ type: `artist_click_${network}`, artist_id: profile.id });
   };
-
-  useEffect(() => {
-    if (profile) {
-      if (recordedProfileViewForId.current !== profile.id) {
-        recordedProfileViewForId.current = profile.id;
-        recordEvent({ type: 'profile_view', artist_id: profile.id });
-      }
-    }
-  }, [profile, ipHash]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
