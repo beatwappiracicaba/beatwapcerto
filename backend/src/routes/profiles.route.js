@@ -16,7 +16,16 @@ router.get('/profiles/artists/all', async (req, res, next) => {
   }
 });
 router.get('/profiles/:id', getProfile);
-router.get('/profiles/:id/posts', (req, res) => res.json([]));
+router.get('/profiles/:id/posts', (req, res) => {
+  const userId = req.params && req.params.id ? String(req.params.id) : '';
+  if (!userId) return res.status(400).json({ error: 'id é obrigatório' });
+  const memory = globalThis.__beatwapMemory;
+  const posts = memory && Array.isArray(memory.posts) ? memory.posts : [];
+  const rows = posts
+    .filter((p) => String(p.user_id) === userId)
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+  res.json(rows);
+});
 router.get('/profiles/:id/musics', (req, res) => res.json([]));
 router.get('/profiles/:id/feats', (req, res) => res.json([]));
 router.get('/profiles/:id/produced-musics', (req, res) => res.json([]));

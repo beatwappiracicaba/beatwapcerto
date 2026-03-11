@@ -128,9 +128,9 @@ export const eventApi = {
 export const uploadApi = {
   async uploadWithMeta(file, { fileName, bucket } = {}) {
     const formData = new FormData();
-    formData.append('file', file);
     if (fileName) formData.append('fileName', fileName);
     if (bucket) formData.append('bucket', bucket);
+    formData.append('file', file);
 
     const token = localStorage.getItem('token');
     const normalizedBaseUrl = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';

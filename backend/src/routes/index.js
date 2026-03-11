@@ -17,7 +17,7 @@ router.use(releasesRoutes);
 router.use(profilesRoutes);
 router.use(authRoutes);
 
-const memory = {
+const memory = globalThis.__beatwapMemory || (globalThis.__beatwapMemory = {
   queue: [],
   chats: [],
   notifications: [],
@@ -25,7 +25,7 @@ const memory = {
   producerProjects: [],
   musics: [],
   posts: [],
-};
+});
 
 const roleMap = {
   artist: 'Artista',
