@@ -236,13 +236,19 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     try {
       // Quota check
       const prof = await apiClient.get(`/users/${activeUser.id}/quota`);
-      const plan = (prof?.plano || 'sem plano').toLowerCase();
+      const plan = String(prof?.plano || 'sem plano')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
       const bonus = Number(prof?.bonus_quota || 0);
       let base = 0;
       let start = null;
       let end = null;
       const now = new Date();
-      if (plan.includes('avulso')) {
+      if (plan.includes('vitalicio')) {
+        start = null;
+        end = null;
+      } else if (plan.includes('avulso')) {
         base = 1;
         const ps = prof?.plan_started_at ? new Date(prof.plan_started_at) : now;
         start = ps.toISOString();
@@ -261,25 +267,17 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       } else {
         base = 0;
       }
-      const count = await apiClient.get(`/users/${activeUser.id}/music-count?start=${start}&end=${end}`);
-      const used = Number(count || 0);
-      const remaining = Math.max(0, base + bonus - used);
       const needed = formData.is_album ? (formData.tracks ? formData.tracks.length : 0) : 1;
-      
-      // Admins bypass quota check? Or enforce? Let's enforce for now to match "same functionality", but maybe add a bypass if needed.
-      // For now, let's keep it enforced as it checks the *artist's* quota.
-      if (remaining < needed && !isProducerMode) { 
-        // Note: If isProducerMode is true, we might want to bypass or warn. 
-        // User said "same functionality", so maybe we should enforce it? 
-        // But usually admins want to upload regardless. 
-        // Let's bypass for producer mode to avoid blocking them, or just show a warning.
-        // Actually, let's just let it pass if producer, or enforce?
-        // Let's enforce it for consistency, but if I'm the admin, I probably want to override.
-        // Let's bypass for now to be safe for the admin workflow.
-      } else if (remaining < needed) {
-        setErrors(prev => ({ ...prev, submit: `Limite insuficiente: necessário ${needed}, disponível ${remaining}.` }));
-        setLoading(false);
-        return;
+
+      if (!plan.includes('vitalicio')) {
+        const count = await apiClient.get(`/users/${activeUser.id}/music-count?start=${start}&end=${end}`);
+        const used = Number(count || 0);
+        const remaining = Math.max(0, base + bonus - used);
+        if (remaining < needed && !isProducerMode) {
+          setErrors(prev => ({ ...prev, submit: `Limite insuficiente: necessário ${needed}, disponível ${remaining}.` }));
+          setLoading(false);
+          return;
+        }
       }
 
       // Upload Files em paralelo
