@@ -10,16 +10,24 @@ if (!process.env.JWT_SECRET) {
 const app = express();
 const port = Number(process.env.PORT || 3000);
 
-const allowedOrigins = new Set(['https://www.beatwap.com.br', 'https://www.beatwap.com']);
+const allowedOrigins = new Set([
+  'https://www.beatwap.com.br',
+  'https://beatwap.com.br',
+  'https://www.beatwap.com',
+  'https://beatwap.com',
+]);
 
-app.use(cors({
+const corsOptions = {
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
     if (allowedOrigins.has(origin)) return cb(null, true);
     return cb(new Error('Acesso não permitido por CORS'));
   },
   credentials: true,
-}));
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 app.use(express.json({ limit: '1mb' }));
 
