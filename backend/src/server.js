@@ -13,18 +13,16 @@ const app = express();
 const port = Number(process.env.PORT || 3000);
 app.set('trust proxy', true);
 
-const allowedOrigins = new Set([
-  'https://www.beatwap.com.br',
-  'https://beatwap.com.br',
-  'https://www.beatwap.com',
-  'https://beatwap.com',
-]);
-
 const corsOptions = {
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
-    if (allowedOrigins.has(origin)) return cb(null, true);
-    return cb(new Error('Acesso não permitido por CORS'));
+    const o = String(origin).trim();
+    const ok =
+      /^https:\/\/(www\.)?beatwap\.com\.br$/i.test(o) ||
+      /^https:\/\/(www\.)?beatwap\.com$/i.test(o) ||
+      /^http:\/\/localhost:\d+$/i.test(o) ||
+      /^http:\/\/127\.0\.0\.1:\d+$/i.test(o);
+    return cb(null, ok);
   },
   credentials: true,
 };
