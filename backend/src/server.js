@@ -27,6 +27,10 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'UP' });
 });
 
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'UP' });
+});
+
 app.use('/api', apiRoutes);
 
 app.use(notFoundHandler);
