@@ -24,6 +24,7 @@ const memory = {
   artistMetrics: new Map(),
   producerProjects: [],
   musics: [],
+  posts: [],
 };
 
 const roleMap = {
@@ -152,8 +153,64 @@ router.get('/users', authRequired, async (req, res, next) => {
   }
 });
 
-router.get('/users/:id/posts', (req, res) => {
-  res.json([]);
+router.get('/users/:id/posts', authRequired, (req, res) => {
+  const userId = req.params && req.params.id ? String(req.params.id) : '';
+  if (!userId) return res.status(400).json({ error: 'id é obrigatório' });
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  const canReadOther = cargo === 'Produtor';
+  if (!canReadOther && requesterId !== userId) return res.status(403).json({ error: 'Sem permissão' });
+  const rows = memory.posts
+    .filter((p) => String(p.user_id) === userId)
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+  res.json(rows);
+});
+
+router.post('/posts', authRequired, (req, res) => {
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  const canCreateForOther = cargo === 'Produtor';
+
+  const user_id = req.body && req.body.user_id ? String(req.body.user_id) : requesterId;
+  const media_url = req.body && req.body.media_url ? String(req.body.media_url) : '';
+  const media_type = req.body && (req.body.media_type ?? req.body.type) ? String(req.body.media_type ?? req.body.type) : '';
+  const caption = req.body && req.body.caption ? String(req.body.caption) : '';
+  const link_url = req.body && req.body.link_url ? String(req.body.link_url) : '';
+
+  if (!user_id) return res.status(400).json({ error: 'user_id é obrigatório' });
+  if (!canCreateForOther && user_id !== requesterId) return res.status(403).json({ error: 'Sem permissão' });
+  if (!media_url) return res.status(400).json({ error: 'media_url é obrigatório' });
+  if (!media_type || (media_type !== 'image' && media_type !== 'video')) {
+    return res.status(400).json({ error: 'media_type inválido' });
+  }
+
+  const post = {
+    id: randomUUID(),
+    user_id,
+    media_url,
+    media_type,
+    caption,
+    link_url,
+    created_at: new Date().toISOString(),
+  };
+  memory.posts.unshift(post);
+  res.status(201).json(post);
+});
+
+router.delete('/posts/:id', authRequired, (req, res) => {
+  const postId = req.params && req.params.id ? String(req.params.id) : '';
+  if (!postId) return res.status(400).json({ error: 'id é obrigatório' });
+  const idx = memory.posts.findIndex((p) => String(p.id) === postId);
+  if (idx < 0) return res.status(404).json({ error: 'Post não encontrado' });
+
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  const canDeleteOther = cargo === 'Produtor';
+  const post = memory.posts[idx];
+  if (!canDeleteOther && String(post.user_id) !== requesterId) return res.status(403).json({ error: 'Sem permissão' });
+
+  memory.posts.splice(idx, 1);
+  res.json({ ok: true });
 });
 
 router.get('/users/:id/quota', authRequired, async (req, res, next) => {
