@@ -1,10 +1,7 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import apiRoutes from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
-
-dotenv.config();
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET não definida');
@@ -38,4 +35,3 @@ app.use(errorHandler);
 app.listen(port, '127.0.0.1', () => {
   process.stdout.write(`API ouvindo em 127.0.0.1:${port}\n`);
 });
-
