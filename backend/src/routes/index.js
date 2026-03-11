@@ -172,6 +172,21 @@ router.post('/analytics', async (req, res, next) => {
     );
     res.status(201).json(rows[0]);
   } catch (err) {
+    if (isMissingTableError(err)) {
+      if (!Array.isArray(memory.analytics_events)) memory.analytics_events = [];
+      const row = {
+        id: randomUUID(),
+        type: req.body && req.body.type ? String(req.body.type) : '',
+        artist_id: req.body && req.body.artist_id ? String(req.body.artist_id) : null,
+        music_id: req.body && req.body.music_id ? String(req.body.music_id) : null,
+        duration_seconds: Number(req.body && req.body.duration_seconds ? req.body.duration_seconds : 0) || 0,
+        ip_hash: req.body && req.body.ip_hash ? String(req.body.ip_hash) : null,
+        metadata: req.body && req.body.metadata && typeof req.body.metadata === 'object' ? req.body.metadata : {},
+        created_at: new Date().toISOString(),
+      };
+      memory.analytics_events.unshift(row);
+      return res.status(201).json(row);
+    }
     next(err);
   }
 });
@@ -211,6 +226,72 @@ router.get('/producers', async (req, res, next) => {
     }
     next(err);
   }
+});
+
+router.get('/marketing/:artistId', authRequired, (req, res) => {
+  const artistId = req.params && req.params.artistId ? String(req.params.artistId) : '';
+  if (!artistId || !isUuidLike(artistId)) return res.status(400).json({ error: 'artistId inválido' });
+
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  const canReadOther = cargo === 'Produtor';
+  if (!canReadOther && requesterId !== artistId) return res.status(403).json({ error: 'Sem permissão' });
+
+  const store = (memory.marketing_by_artist && typeof memory.marketing_by_artist === 'object') ? memory.marketing_by_artist : (memory.marketing_by_artist = {});
+  res.set('Cache-Control', 'no-store');
+  res.json(store[artistId] || null);
+});
+
+router.put('/marketing/:artistId', authRequired, (req, res) => {
+  const artistId = req.params && req.params.artistId ? String(req.params.artistId) : '';
+  if (!artistId || !isUuidLike(artistId)) return res.status(400).json({ error: 'artistId inválido' });
+
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  const canEditOther = cargo === 'Produtor';
+  if (!canEditOther && requesterId !== artistId) return res.status(403).json({ error: 'Sem permissão' });
+
+  const patch = (req.body && typeof req.body === 'object') ? req.body : {};
+  const store = (memory.marketing_by_artist && typeof memory.marketing_by_artist === 'object') ? memory.marketing_by_artist : (memory.marketing_by_artist = {});
+  const prev = (store[artistId] && typeof store[artistId] === 'object') ? store[artistId] : {};
+  const next = { ...prev, ...patch, artist_id: artistId, updated_at: new Date().toISOString() };
+  store[artistId] = next;
+
+  res.set('Cache-Control', 'no-store');
+  res.json(next);
+});
+
+router.get('/artist/marketing/:artistId', authRequired, (req, res) => {
+  const artistId = req.params && req.params.artistId ? String(req.params.artistId) : '';
+  if (!artistId || !isUuidLike(artistId)) return res.status(400).json({ error: 'artistId inválido' });
+
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  const canReadOther = cargo === 'Produtor';
+  if (!canReadOther && requesterId !== artistId) return res.status(403).json({ error: 'Sem permissão' });
+
+  const store = (memory.marketing_by_artist && typeof memory.marketing_by_artist === 'object') ? memory.marketing_by_artist : (memory.marketing_by_artist = {});
+  res.set('Cache-Control', 'no-store');
+  res.json(store[artistId] || null);
+});
+
+router.put('/artist/marketing/:artistId', authRequired, (req, res) => {
+  const artistId = req.params && req.params.artistId ? String(req.params.artistId) : '';
+  if (!artistId || !isUuidLike(artistId)) return res.status(400).json({ error: 'artistId inválido' });
+
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  const canEditOther = cargo === 'Produtor';
+  if (!canEditOther && requesterId !== artistId) return res.status(403).json({ error: 'Sem permissão' });
+
+  const patch = (req.body && typeof req.body === 'object') ? req.body : {};
+  const store = (memory.marketing_by_artist && typeof memory.marketing_by_artist === 'object') ? memory.marketing_by_artist : (memory.marketing_by_artist = {});
+  const prev = (store[artistId] && typeof store[artistId] === 'object') ? store[artistId] : {};
+  const next = { ...prev, ...patch, artist_id: artistId, updated_at: new Date().toISOString() };
+  store[artistId] = next;
+
+  res.set('Cache-Control', 'no-store');
+  res.json(next);
 });
 
 router.get('/analytics/artist/:artistId/summary', authRequired, async (req, res, next) => {
