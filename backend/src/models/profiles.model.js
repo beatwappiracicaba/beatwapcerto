@@ -74,3 +74,14 @@ export async function createProfile(pool, { nome, email, cargo, passwordHash }) 
   );
   return rows[0] || null;
 }
+
+export async function updateProfileAvatar(pool, { id, avatarUrl }) {
+  const { rows } = await pool.query(
+    `UPDATE public.profiles
+     SET avatar_url = $2
+     WHERE id = $1
+     RETURNING id, nome, email, cargo, avatar_url, bio, created_at`,
+    [id, avatarUrl]
+  );
+  return rows[0] || null;
+}
