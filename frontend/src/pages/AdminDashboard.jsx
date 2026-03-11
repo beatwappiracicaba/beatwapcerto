@@ -346,7 +346,7 @@ export const AdminArtists = () => {
       if (planForm.plan_started_at) {
         update.plan_started_at = new Date(planForm.plan_started_at).toISOString();
       }
-      await apiClient.put('/profile', update);
+      await apiClient.put(`/profiles/${selectedArtist}`, update);
       addToast('Plano do artista atualizado', 'success');
     } catch {
       addToast('Falha ao atualizar plano', 'error');

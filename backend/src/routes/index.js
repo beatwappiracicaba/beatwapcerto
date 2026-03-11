@@ -27,6 +27,7 @@ const memory = globalThis.__beatwapMemory || (globalThis.__beatwapMemory = {
   posts: [],
 });
 if (!Array.isArray(memory.sellerArtistEvents)) memory.sellerArtistEvents = [];
+if (!Array.isArray(memory.musicExternalMetrics)) memory.musicExternalMetrics = [];
 
 const roleMap = {
   artist: 'Artista',
@@ -376,7 +377,35 @@ router.get('/users/:id/quota', authRequired, async (req, res, next) => {
 });
 
 router.get('/users/:id/music-count', authRequired, (req, res) => {
-  res.json(0);
+  const userId = req.params && req.params.id ? String(req.params.id) : '';
+  if (!userId || !isUuidLike(userId)) return res.status(400).json({ error: 'id inválido' });
+
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  const canReadOther = cargo === 'Produtor';
+  if (!canReadOther && requesterId !== userId) return res.status(403).json({ error: 'Sem permissão' });
+
+  const startRaw = req.query && req.query.start ? String(req.query.start) : '';
+  const endRaw = req.query && req.query.end ? String(req.query.end) : '';
+  const start = startRaw ? new Date(startRaw) : null;
+  const end = endRaw ? new Date(endRaw) : null;
+  const hasStart = start && !Number.isNaN(start.getTime());
+  const hasEnd = end && !Number.isNaN(end.getTime());
+
+  const count = (Array.isArray(memory.musics) ? memory.musics : [])
+    .filter((m) => m && typeof m === 'object')
+    .filter((m) => {
+      const owner = String(m.artista_id ?? m.artist_id ?? '');
+      if (owner !== userId) return false;
+      const createdAt = m.created_at ? new Date(String(m.created_at)) : null;
+      if (!createdAt || Number.isNaN(createdAt.getTime())) return true;
+      if (hasStart && createdAt < start) return false;
+      if (hasEnd && createdAt > end) return false;
+      return true;
+    })
+    .length;
+
+  res.json(count);
 });
 
 router.get('/admins', authRequired, async (req, res, next) => {
@@ -470,6 +499,155 @@ router.post('/seller/artist-events', authRequired, (req, res) => {
   };
   memory.sellerArtistEvents.unshift(event);
   res.status(201).json(event);
+});
+
+router.get('/songs/mine', authRequired, (req, res) => {
+  const userId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!userId || !isUuidLike(userId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const rows = (Array.isArray(memory.musics) ? memory.musics : [])
+    .filter((m) => m && typeof m === 'object')
+    .filter((m) => String(m.artista_id ?? m.artist_id ?? '') === userId)
+    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+  res.json(rows);
+});
+
+router.get('/songs/external-metrics', authRequired, (req, res) => {
+  const userId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!userId || !isUuidLike(userId)) return res.status(401).json({ error: 'Autenticação necessária' });
+
+  const myMusicIds = new Set(
+    (Array.isArray(memory.musics) ? memory.musics : [])
+      .filter((m) => m && typeof m === 'object')
+      .filter((m) => String(m.artista_id ?? m.artist_id ?? '') === userId)
+      .map((m) => String(m.id || ''))
+      .filter(Boolean)
+  );
+
+  const latestByMusic = new Map();
+  (Array.isArray(memory.musicExternalMetrics) ? memory.musicExternalMetrics : [])
+    .filter((em) => em && typeof em === 'object')
+    .filter((em) => myMusicIds.has(String(em.music_id || '')))
+    .forEach((em) => {
+      const mid = String(em.music_id || '');
+      const prev = latestByMusic.get(mid);
+      const prevAt = prev && prev.updated_at ? String(prev.updated_at) : '';
+      const nextAt = em.updated_at ? String(em.updated_at) : '';
+      if (!prev || nextAt >= prevAt) latestByMusic.set(mid, em);
+    });
+
+  res.json(Array.from(latestByMusic.values()));
+});
+
+router.get('/musics/:musicId/external-metrics', authRequired, (req, res) => {
+  const musicId = req.params && req.params.musicId ? String(req.params.musicId) : '';
+  if (!musicId || !isUuidLike(musicId)) return res.status(400).json({ error: 'musicId inválido' });
+
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  const canEditOther = cargo === 'Produtor';
+
+  const music = (Array.isArray(memory.musics) ? memory.musics : []).find((m) => m && typeof m === 'object' && String(m.id || '') === musicId) || null;
+  if (music) {
+    const owner = String(music.artista_id ?? music.artist_id ?? '');
+    if (!canEditOther && owner && owner !== requesterId) return res.status(403).json({ error: 'Sem permissão' });
+  } else if (!canEditOther) {
+    return res.status(404).json({ error: 'Música não encontrada' });
+  }
+
+  const source = req.query && req.query.source ? String(req.query.source) : '';
+  const rows = (Array.isArray(memory.musicExternalMetrics) ? memory.musicExternalMetrics : [])
+    .filter((em) => em && typeof em === 'object')
+    .filter((em) => String(em.music_id || '') === musicId)
+    .filter((em) => (source ? String(em.source || '') === source : true))
+    .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
+
+  res.json(rows[0] || { music_id: musicId, source: source || 'manual', plays: 0, listeners: 0, revenue: 0, updated_at: null });
+});
+
+router.post('/musics/:musicId/external-metrics', authRequired, (req, res) => {
+  const musicId = req.params && req.params.musicId ? String(req.params.musicId) : '';
+  if (!musicId || !isUuidLike(musicId)) return res.status(400).json({ error: 'musicId inválido' });
+
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  const canEditOther = cargo === 'Produtor';
+
+  const music = (Array.isArray(memory.musics) ? memory.musics : []).find((m) => m && typeof m === 'object' && String(m.id || '') === musicId) || null;
+  if (music) {
+    const owner = String(music.artista_id ?? music.artist_id ?? '');
+    if (!canEditOther && owner && owner !== requesterId) return res.status(403).json({ error: 'Sem permissão' });
+  } else if (!canEditOther) {
+    return res.status(404).json({ error: 'Música não encontrada' });
+  }
+
+  const source = req.body && req.body.source ? String(req.body.source) : 'manual';
+  const plays = Number(req.body && req.body.plays ? req.body.plays : 0) || 0;
+  const listeners = Number(req.body && req.body.listeners ? req.body.listeners : 0) || 0;
+  const revenue = Number(req.body && req.body.revenue ? req.body.revenue : 0) || 0;
+  const updated_at = new Date().toISOString();
+
+  const row = { id: randomUUID(), music_id: musicId, source, plays, listeners, revenue, updated_at };
+  memory.musicExternalMetrics.unshift(row);
+  res.status(201).json(row);
+});
+
+router.post('/musics/batch', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!requesterId || !isUuidLike(requesterId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const canCreateForOther = cargo === 'Produtor';
+
+  const musics = req.body && Array.isArray(req.body.musics) ? req.body.musics : null;
+  if (!musics || musics.length === 0) return res.status(400).json({ error: 'musics é obrigatório' });
+  if (musics.length > 100) return res.status(413).json({ error: 'Muitas músicas' });
+
+  const created = [];
+  for (const m of musics) {
+    const body = m && typeof m === 'object' ? m : null;
+    if (!body) continue;
+    const artista_id = body.artista_id ? String(body.artista_id) : '';
+    if (!artista_id || !isUuidLike(artista_id)) return res.status(400).json({ error: 'artista_id inválido' });
+    if (!canCreateForOther && artista_id !== requesterId) return res.status(403).json({ error: 'Sem permissão' });
+
+    const music = {
+      id: randomUUID(),
+      created_at: new Date().toISOString(),
+      ...body,
+      artista_id,
+    };
+    memory.musics.unshift(music);
+    created.push(music);
+  }
+
+  res.status(201).json(created);
+});
+
+router.post('/musics', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!requesterId || !isUuidLike(requesterId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const canCreateForOther = cargo === 'Produtor';
+
+  const artista_id = req.body && req.body.artista_id ? String(req.body.artista_id) : requesterId;
+  if (!artista_id || !isUuidLike(artista_id)) return res.status(400).json({ error: 'artista_id inválido' });
+  if (!canCreateForOther && artista_id !== requesterId) return res.status(403).json({ error: 'Sem permissão' });
+
+  const titulo = req.body && (req.body.titulo ?? req.body.title) ? String(req.body.titulo ?? req.body.title).trim() : '';
+  const audio_url = req.body && req.body.audio_url ? String(req.body.audio_url) : '';
+  const cover_url = req.body && req.body.cover_url ? String(req.body.cover_url) : '';
+  if (!titulo) return res.status(400).json({ error: 'titulo é obrigatório' });
+  if (!audio_url) return res.status(400).json({ error: 'audio_url é obrigatório' });
+  if (!cover_url) return res.status(400).json({ error: 'cover_url é obrigatório' });
+
+  const music = {
+    id: randomUUID(),
+    created_at: new Date().toISOString(),
+    ...((req.body && typeof req.body === 'object') ? req.body : {}),
+    artista_id,
+    titulo,
+  };
+  memory.musics.unshift(music);
+  res.status(201).json(music);
 });
 
 router.get('/producer-projects', authRequired, async (req, res, next) => {
@@ -583,7 +761,7 @@ router.get('/admin/musics', authRequired, (req, res) => {
   const artistId = req.query && req.query.artist_id ? String(req.query.artist_id) : '';
   const status = req.query && req.query.status ? String(req.query.status) : '';
   const rows = memory.musics.filter((m) => {
-    if (artistId && String(m.artist_id || '') !== artistId) return false;
+    if (artistId && String(m.artist_id ?? m.artista_id ?? '') !== artistId) return false;
     if (status && String(m.status || '') !== status) return false;
     return true;
   });
