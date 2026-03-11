@@ -312,3 +312,4 @@ router.post('/admin/artist/:artistId/metrics', authRequired, (req, res) => {
   res.json(m);
 });
 
+export default router;
