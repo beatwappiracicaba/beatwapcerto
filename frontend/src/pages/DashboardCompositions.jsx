@@ -13,13 +13,6 @@ export const DashboardCompositions = () => {
   const [loading, setLoading] = useState(true);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [compMetrics, setCompMetrics] = useState({});
-  const [summaryMetrics, setSummaryMetrics] = useState({
-    plays: 0,
-    listeners: 0,
-    time: 0,
-    profile_views: 0,
-    social_clicks: 0
-  });
 
   const fetchCompositions = useCallback(async () => {
     setLoading(true);
@@ -38,26 +31,8 @@ export const DashboardCompositions = () => {
       const ev = await apiClient.get(`/analytics/artist/${user.id}/events`);
       
       const agg = {};
-      const summary = {
-        plays: 0,
-        listeners: new Set(),
-        time: 0,
-        profile_views: 0,
-        social_clicks: 0
-      };
 
       (ev || []).forEach(e => {
-        // Summary Metrics
-        if (e.type === 'music_play') {
-          summary.plays++;
-          summary.time += Number(e.duration_seconds || 0);
-          if (e.ip_hash) summary.listeners.add(e.ip_hash);
-        } else if (e.type === 'profile_view') {
-          summary.profile_views++;
-        } else if (e.type && e.type.startsWith('artist_click_')) {
-          summary.social_clicks++;
-        }
-
         // Individual Composition Metrics
         const mid = e.music_id || 'unknown';
         if (!agg[mid]) agg[mid] = { plays: 0, totalSeconds: 0 };
@@ -68,54 +43,12 @@ export const DashboardCompositions = () => {
       });
 
       setCompMetrics(agg);
-      setSummaryMetrics({
-        plays: summary.plays,
-        listeners: summary.listeners.size,
-        time: summary.time,
-        profile_views: summary.profile_views,
-        social_clicks: summary.social_clicks
-      });
     };
     loadMetrics();
   }, [user]);
 
   return (
     <DashboardLayout>
-      {/* Summary Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <Card>
-          <div className="text-sm text-gray-400"><span>Total de Plays</span></div>
-          <div className="text-3xl font-bold"><span>{loading ? '...' : summaryMetrics.plays}</span></div>
-        </Card>
-        <Card>
-          <div className="text-sm text-gray-400"><span>Ouvintes</span></div>
-          <div className="text-3xl font-bold"><span>{loading ? '...' : summaryMetrics.listeners}</span></div>
-        </Card>
-        <Card>
-          <div className="text-sm text-gray-400"><span>Tempo Ouvido</span></div>
-          <div className="text-3xl font-bold">
-            <span>
-            {loading ? '...' : (() => {
-               const s = summaryMetrics.time || 0;
-               const h = Math.floor(s / 3600);
-               const m = Math.floor((s % 3600) / 60);
-               return `${h}h ${m}m`;
-            })()}
-            </span>
-          </div>
-        </Card>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <Card>
-          <div className="text-sm text-gray-400"><span>Visitas no Perfil</span></div>
-          <div className="text-3xl font-bold"><span>{loading ? '...' : summaryMetrics.profile_views}</span></div>
-        </Card>
-        <Card>
-          <div className="text-sm text-gray-400"><span>Cliques Sociais</span></div>
-          <div className="text-3xl font-bold"><span>{loading ? '...' : summaryMetrics.social_clicks}</span></div>
-        </Card>
-      </div>
-
       <Card>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-3">
           <div className="text-xl font-semibold text-white"><span>Minhas Composições</span></div>

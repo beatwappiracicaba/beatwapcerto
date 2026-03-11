@@ -27,7 +27,6 @@ import { encryptData, decryptData, downloadDecryptedFile } from '../utils/securi
 
 export const AdminHome = () => {
   const [counts, setCounts] = useState({ artists: 0, musics: 0, pending: 0 });
-  const [myMetrics, setMyMetrics] = useState(null);
   const { user } = useAuth();
   const { addToast } = useToast();
   const [projects, setProjects] = useState([]);
@@ -46,19 +45,6 @@ export const AdminHome = () => {
     load();
   }, []);
 
-  useEffect(() => {
-    const fetchMyMetrics = async () => {
-      if (!user) return;
-      const data = await apiClient.get(`/analytics/artist/${user.id}/summary`);
-      setMyMetrics({
-        plays: data?.plays || 0,
-        time: data?.time || 0,
-        profile_views: data?.profile_views || 0,
-        social_clicks: data?.social_clicks || 0
-      });
-    };
-    fetchMyMetrics();
-  }, [user]);
   const loadProjects = useCallback(async () => {
     try {
       setLoadingProjects(true);
@@ -102,35 +88,6 @@ export const AdminHome = () => {
   };
   return (
     <AdminLayout>
-      <div className="mb-8">
-        <h2 className="text-xl font-bold mb-4">Meu Perfil</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card>
-              <div className="text-sm text-gray-400">Visitas no Perfil</div>
-              <div className="text-3xl font-bold">{myMetrics?.profile_views ?? 0}</div>
-            </Card>
-            <Card>
-              <div className="text-sm text-gray-400">Cliques Sociais</div>
-              <div className="text-3xl font-bold">{myMetrics?.social_clicks ?? 0}</div>
-            </Card>
-             <Card>
-              <div className="text-sm text-gray-400">Total Plays</div>
-              <div className="text-3xl font-bold">{myMetrics?.plays ?? 0}</div>
-            </Card>
-            <Card>
-              <div className="text-sm text-gray-400">Tempo Ouvido</div>
-              <div className="text-3xl font-bold">
-                {(() => {
-                   const s = myMetrics?.time || 0;
-                   const h = Math.floor(s / 3600);
-                   const m = Math.floor((s % 3600) / 60);
-                   return `${h}h ${m}m`;
-                })()}
-              </div>
-            </Card>
-        </div>
-      </div>
-
       <h2 className="text-xl font-bold mb-4">Plataforma</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <Card><div className="text-sm text-gray-400">Artistas</div><div className="text-3xl font-bold">{counts.artists}</div></Card>

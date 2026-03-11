@@ -156,8 +156,8 @@ export const DashboardArtistHome = () => {
         </div>
       )}
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="col-span-1 md:col-span-2">
+      <div className="grid grid-cols-1 gap-6">
+        <Card className="col-span-1">
            <div className="flex items-center justify-between mb-4">
              <div className="text-sm text-gray-400"><span>Música com mais visualizações</span></div>
              <div className="px-2 py-1 bg-green-500/10 rounded-lg text-green-500 text-xs font-bold">TOP 1</div>
@@ -190,31 +190,8 @@ export const DashboardArtistHome = () => {
              );
            })()}
         </Card>
-        <Card>
-          <div className="text-sm text-gray-400"><span>Tempo Ouvido</span></div>
-          <div className="text-3xl font-bold">
-            <span>
-            {loading ? '...' : (() => {
-               const s = metrics?.tempo_ouvido || 0;
-               const h = Math.floor(s / 3600);
-               const m = Math.floor((s % 3600) / 60);
-               return `${h}h ${m}m`;
-            })()}
-            </span>
-          </div>
-        </Card>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-        <Card>
-          <div className="text-sm text-gray-400"><span>Visitas no Perfil</span></div>
-          <div className="text-3xl font-bold"><span>{loading ? '...' : metrics?.visitas_perfil ?? 0}</span></div>
-        </Card>
-        <Card>
-          <div className="text-sm text-gray-400"><span>Cliques Sociais</span></div>
-          <div className="text-3xl font-bold"><span>{loading ? '...' : metrics?.cliques_sociais ?? 0}</span></div>
-        </Card>
-      </div>
     </DashboardLayout>
   );
 };
