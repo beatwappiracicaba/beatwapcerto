@@ -1298,13 +1298,31 @@ export const AdminComposers = () => {
   const [internalMetrics, setInternalMetrics] = useState({ plays: 0, listeners: 0, time: 0 });
   const { addToast } = useToast();
   const load = useCallback(async () => {
-    const data = await apiClient.get('/composers');
-    const mapped = (data || []).map(p => ({
-      ...p,
-      nome: decryptData(p.nome),
-      nome_completo_razao_social: decryptData(p.nome_completo_razao_social)
-    }));
-    setComposers(mapped);
+    try {
+      const data = await apiClient.get('/composers');
+      if (Array.isArray(data) && data.length > 0) {
+        const mapped = data.map(p => ({
+          ...p,
+          nome: decryptData(p.nome),
+          nome_completo_razao_social: decryptData(p.nome_completo_razao_social)
+        }));
+        setComposers(mapped);
+        return;
+      }
+    } catch {
+      void 0;
+    }
+    try {
+      const data = await apiClient.get(`/profiles?role=composer&t=${Date.now()}`);
+      const mapped = (data || []).map(p => ({
+        ...p,
+        nome: decryptData(p.nome),
+        nome_completo_razao_social: decryptData(p.nome_completo_razao_social)
+      }));
+      setComposers(mapped);
+    } catch {
+      setComposers([]);
+    }
   }, []);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {

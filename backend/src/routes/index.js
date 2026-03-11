@@ -214,7 +214,17 @@ router.get('/projects', async (req, res, next) => {
     next(err);
   }
 });
-router.get('/composers', (req, res) => res.json([]));
+router.get('/composers', async (req, res, next) => {
+  try {
+    const rows = await listProfiles(pool, { cargo: 'Compositor', limit: 500 });
+    res.json(rows);
+  } catch (err) {
+    if (isMissingTableError(err)) {
+      return res.json([]);
+    }
+    next(err);
+  }
+});
 router.get('/sponsors', (req, res) => res.json([]));
 router.get('/producers', async (req, res, next) => {
   try {
@@ -226,6 +236,35 @@ router.get('/producers', async (req, res, next) => {
     }
     next(err);
   }
+});
+
+router.get('/albums/:albumId/tracks', (req, res) => {
+  const albumId = req.params && req.params.albumId ? String(req.params.albumId) : '';
+  if (!albumId || !isUuidLike(albumId)) return res.status(400).json({ error: 'albumId inválido' });
+
+  const rows = (Array.isArray(memory.musics) ? memory.musics : [])
+    .filter((m) => m && typeof m === 'object')
+    .filter((m) => String(m.status || '') === 'aprovado')
+    .filter((m) => String(m.album_id || '') === albumId)
+    .map((m) => ({
+      id: String(m.id || ''),
+      album_id: albumId,
+      album_title: m.album_title ?? null,
+      titulo: m.titulo ?? m.title ?? '',
+      nome_artista: m.nome_artista ?? m.artist_name ?? null,
+      artista_id: m.artista_id ?? m.artist_id ?? null,
+      cover_url: m.cover_url ?? null,
+      audio_url: m.audio_url ?? null,
+      preview_url: m.preview_url ?? m.audio_url ?? null,
+      release_date: m.release_date ?? null,
+      estilo: m.estilo ?? null,
+      presave_link: m.presave_link ?? null,
+      created_at: m.created_at ?? null,
+    }))
+    .sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')));
+
+  res.set('Cache-Control', 'no-store');
+  res.json(rows);
 });
 
 router.get('/marketing/:artistId', authRequired, (req, res) => {
