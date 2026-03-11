@@ -5,7 +5,7 @@ import profilesRoutes from './profiles.route.js';
 import authRoutes from './auth.route.js';
 import { authRequired } from '../middleware/auth.js';
 import { pool } from '../db.js';
-import { listProfiles } from '../models/profiles.model.js';
+import { getProfileById, listProfiles } from '../models/profiles.model.js';
 
 const router = Router();
 
@@ -68,6 +68,31 @@ router.get('/users', authRequired, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+router.get('/users/:id/posts', (req, res) => {
+  res.json([]);
+});
+
+router.get('/users/:id/quota', authRequired, async (req, res, next) => {
+  try {
+    const id = req.params && req.params.id ? String(req.params.id) : '';
+    if (!id) return res.status(400).json({ error: 'id é obrigatório' });
+    const prof = await getProfileById(pool, id);
+    if (!prof) return res.status(404).json({ error: 'Perfil não encontrado' });
+    res.json({
+      id: prof.id,
+      plano: prof.plano ?? 'Sem Plano',
+      bonus_quota: prof.bonus_quota ?? 0,
+      plan_started_at: prof.plan_started_at ?? null,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/users/:id/music-count', authRequired, (req, res) => {
+  res.json(0);
 });
 
 router.get('/admins', authRequired, async (req, res, next) => {
