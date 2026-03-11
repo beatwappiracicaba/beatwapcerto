@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import multer from 'multer';
+import jwt from 'jsonwebtoken';
 import releasesRoutes from './releases.route.js';
 import profilesRoutes from './profiles.route.js';
 import authRoutes from './auth.route.js';
@@ -29,6 +30,8 @@ const memory = globalThis.__beatwapMemory || (globalThis.__beatwapMemory = {
 if (!Array.isArray(memory.sellerArtistEvents)) memory.sellerArtistEvents = [];
 if (!Array.isArray(memory.musicExternalMetrics)) memory.musicExternalMetrics = [];
 if (!Array.isArray(memory.todos)) memory.todos = [];
+if (!Array.isArray(memory.compositions)) memory.compositions = [];
+if (!Array.isArray(memory.sponsors)) memory.sponsors = [];
 
 const roleMap = {
   artist: 'Artista',
@@ -128,6 +131,18 @@ function isMissingTableError(err) {
   return !!(err && (err.code === '42P01' || /does not exist/i.test(String(err.message || ''))));
 }
 
+function tryDecodeUser(req) {
+  const auth = req && req.headers && req.headers.authorization ? String(req.headers.authorization) : '';
+  if (!auth.startsWith('Bearer ')) return null;
+  const token = auth.slice('Bearer '.length).trim();
+  if (!token) return null;
+  try {
+    return jwt.verify(token, process.env.JWT_SECRET);
+  } catch {
+    return null;
+  }
+}
+
 function isSellerOrAdmin(req) {
   const cargo = req && req.user && req.user.cargo ? String(req.user.cargo) : '';
   return cargo === 'Vendedor' || cargo === 'Produtor';
@@ -191,7 +206,110 @@ router.post('/analytics', async (req, res, next) => {
   }
 });
 
-router.get('/compositions', (req, res) => res.json([]));
+router.get('/compositions', async (req, res) => {
+  const rows = (Array.isArray(memory.compositions) ? memory.compositions : [])
+    .filter((c) => c && typeof c === 'object')
+    .filter((c) => String(c.status || '') === 'approved')
+    .slice(0, 50);
+  res.set('Cache-Control', 'no-store');
+  res.json(rows);
+});
+
+router.post('/compositions', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!requesterId || !isUuidLike(requesterId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const canCreateForOther = cargo === 'Produtor';
+
+  const composer_id = req.body && req.body.composer_id ? String(req.body.composer_id) : requesterId;
+  if (!composer_id || !isUuidLike(composer_id)) return res.status(400).json({ error: 'composer_id inválido' });
+  if (!canCreateForOther && composer_id !== requesterId) return res.status(403).json({ error: 'Sem permissão' });
+
+  const title = req.body && req.body.title ? String(req.body.title).trim() : '';
+  const genre = req.body && req.body.genre ? String(req.body.genre).trim() : '';
+  const audio_url = req.body && req.body.audio_url ? String(req.body.audio_url).trim() : '';
+  const cover_url = req.body && req.body.cover_url ? String(req.body.cover_url).trim() : null;
+  const description = req.body && req.body.description ? String(req.body.description).trim() : null;
+  const price = (req.body && (req.body.price ?? req.body.valor ?? req.body.preco) != null)
+    ? (Number(req.body.price ?? req.body.valor ?? req.body.preco) || null)
+    : null;
+  const status = req.body && req.body.status ? String(req.body.status) : 'pending';
+
+  if (!title) return res.status(400).json({ error: 'title é obrigatório' });
+  if (!genre) return res.status(400).json({ error: 'genre é obrigatório' });
+  if (!audio_url) return res.status(400).json({ error: 'audio_url é obrigatório' });
+
+  const row = {
+    id: randomUUID(),
+    composer_id,
+    title,
+    genre,
+    description,
+    price,
+    cover_url,
+    audio_url,
+    status,
+    admin_feedback: null,
+    created_at: new Date().toISOString(),
+  };
+
+  memory.compositions.unshift(row);
+  res.status(201).json(row);
+});
+
+router.get('/composer/compositions', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!requesterId || !isUuidLike(requesterId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const canReadOther = cargo === 'Produtor';
+
+  const qComposerId = req.query && req.query.composer_id ? String(req.query.composer_id) : '';
+  const composerId = (canReadOther && qComposerId && isUuidLike(qComposerId)) ? qComposerId : requesterId;
+
+  const rows = (Array.isArray(memory.compositions) ? memory.compositions : [])
+    .filter((c) => c && typeof c === 'object')
+    .filter((c) => String(c.composer_id || '') === composerId)
+    .slice(0, 500);
+
+  res.set('Cache-Control', 'no-store');
+  res.json(rows);
+});
+
+router.get('/admin/compositions', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+  const rows = (Array.isArray(memory.compositions) ? memory.compositions : [])
+    .filter((c) => c && typeof c === 'object')
+    .slice(0, 5000);
+  res.set('Cache-Control', 'no-store');
+  res.json(rows);
+});
+
+router.put('/admin/compositions/:id/status', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+
+  const id = req.params && req.params.id ? String(req.params.id) : '';
+  if (!id || !isUuidLike(id)) return res.status(400).json({ error: 'id inválido' });
+
+  const status = req.body && req.body.status ? String(req.body.status) : '';
+  const feedback = req.body && req.body.feedback ? String(req.body.feedback) : null;
+  if (!status) return res.status(400).json({ error: 'status é obrigatório' });
+
+  const store = Array.isArray(memory.compositions) ? memory.compositions : (memory.compositions = []);
+  const idx = store.findIndex((c) => c && typeof c === 'object' && String(c.id || '') === id);
+  if (idx < 0) return res.status(404).json({ error: 'Composição não encontrada' });
+
+  const prev = store[idx];
+  const next = {
+    ...prev,
+    status,
+    admin_feedback: feedback,
+    updated_at: new Date().toISOString(),
+  };
+  store[idx] = next;
+  res.json(next);
+});
 router.get('/projects', async (req, res, next) => {
   try {
     const { rows } = await pool.query(
@@ -225,7 +343,86 @@ router.get('/composers', async (req, res, next) => {
     next(err);
   }
 });
-router.get('/sponsors', (req, res) => res.json([]));
+router.get('/sponsors', (req, res) => {
+  const decoded = tryDecodeUser(req);
+  const cargo = decoded && decoded.cargo ? String(decoded.cargo) : '';
+  const isAdmin = cargo === 'Produtor';
+
+  const rows = (Array.isArray(memory.sponsors) ? memory.sponsors : [])
+    .filter((s) => s && typeof s === 'object')
+    .filter((s) => isAdmin ? true : !!s.active)
+    .slice(0, 5000);
+
+  res.set('Cache-Control', 'no-store');
+  res.json(rows);
+});
+
+router.post('/sponsors', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+
+  const name = req.body && req.body.name ? String(req.body.name).trim() : '';
+  if (!name) return res.status(400).json({ error: 'name é obrigatório' });
+
+  const instagram_url = req.body && req.body.instagram_url ? String(req.body.instagram_url).trim() : null;
+  const site_url = req.body && req.body.site_url ? String(req.body.site_url).trim() : null;
+  const logo_data = req.body && req.body.logo_data ? String(req.body.logo_data) : null;
+
+  const row = {
+    id: randomUUID(),
+    name,
+    instagram_url: instagram_url || null,
+    site_url: site_url || null,
+    logo_url: logo_data || null,
+    active: true,
+    created_by: req.user && req.user.id ? String(req.user.id) : null,
+    created_at: new Date().toISOString(),
+  };
+
+  memory.sponsors.unshift(row);
+  res.status(201).json(row);
+});
+
+router.put('/sponsors/:id', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+
+  const id = req.params && req.params.id ? String(req.params.id) : '';
+  if (!id || !isUuidLike(id)) return res.status(400).json({ error: 'id inválido' });
+
+  const store = Array.isArray(memory.sponsors) ? memory.sponsors : (memory.sponsors = []);
+  const idx = store.findIndex((s) => s && typeof s === 'object' && String(s.id || '') === id);
+  if (idx < 0) return res.status(404).json({ error: 'Patrocinador não encontrado' });
+
+  const prev = store[idx];
+  const patch = (req.body && typeof req.body === 'object') ? req.body : {};
+  const next = { ...prev };
+
+  if (typeof patch.active === 'boolean') next.active = patch.active;
+  if (patch.name != null) next.name = String(patch.name).trim();
+  if (patch.instagram_url != null) next.instagram_url = String(patch.instagram_url).trim() || null;
+  if (patch.site_url != null) next.site_url = String(patch.site_url).trim() || null;
+  if (patch.logo_data != null) next.logo_url = String(patch.logo_data) || null;
+
+  next.updated_at = new Date().toISOString();
+  store[idx] = next;
+  res.json(next);
+});
+
+router.delete('/sponsors/:id', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+
+  const id = req.params && req.params.id ? String(req.params.id) : '';
+  if (!id || !isUuidLike(id)) return res.status(400).json({ error: 'id inválido' });
+
+  const store = Array.isArray(memory.sponsors) ? memory.sponsors : (memory.sponsors = []);
+  const idx = store.findIndex((s) => s && typeof s === 'object' && String(s.id || '') === id);
+  if (idx < 0) return res.status(404).json({ error: 'Patrocinador não encontrado' });
+
+  store.splice(idx, 1);
+  res.json({ ok: true });
+});
 router.get('/producers', async (req, res, next) => {
   try {
     const rows = await listProfiles(pool, { cargo: 'Produtor', limit: 500 });
