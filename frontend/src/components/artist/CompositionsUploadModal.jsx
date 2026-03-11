@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, Music, Image as ImageIcon, FileText } from 'lucide-react';
-import { apiClient } from '../../services/apiClient';
+import { apiClient, uploadApi } from '../../services/apiClient';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../../utils/cropImage';
 import { AnimatedButton } from '../ui/AnimatedButton';
@@ -183,17 +183,10 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
   const uploadFile = async (file, bucket) => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${(composerId || user.id)}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-    
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('fileName', fileName);
-    formData.append('bucket', bucket);
-    
-    const response = await apiClient.post('/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-    
-    if (response.error) throw new Error(response.error);
+
+    const response = await uploadApi.uploadWithMeta(file, { fileName, bucket });
+    if (response?.error) throw new Error(response.error);
+    if (!response?.url) throw new Error('Falha no upload');
     return response.url;
   };
   

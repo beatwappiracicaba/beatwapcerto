@@ -7,7 +7,7 @@ import { AnimatedButton } from '../ui/AnimatedButton';
 import { useData } from '../../context/DataContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useToast } from '../../context/ToastContext';
-import { apiClient } from '../../services/apiClient';
+import { apiClient, uploadApi } from '../../services/apiClient';
 import { encryptFile } from '../../utils/security';
 
 import { MusicUploadModal } from '../artist/MusicUploadModal';
@@ -136,17 +136,10 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
     const filePath = `${artist.id}/${fileName}`;
-    
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('fileName', filePath);
-    formData.append('bucket', bucket);
-    
-    const response = await apiClient.post('/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-    
-    if (response.error) throw new Error(response.error);
+
+    const response = await uploadApi.uploadWithMeta(file, { fileName: filePath, bucket });
+    if (response?.error) throw new Error(response.error);
+    if (!response?.url) throw new Error('Falha no upload');
     return response.url;
   };
 

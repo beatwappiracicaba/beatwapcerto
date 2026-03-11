@@ -126,6 +126,28 @@ export const eventApi = {
 };
 
 export const uploadApi = {
+  async uploadWithMeta(file, { fileName, bucket } = {}) {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (fileName) formData.append('fileName', fileName);
+    if (bucket) formData.append('bucket', bucket);
+
+    const token = localStorage.getItem('token');
+    const normalizedBaseUrl = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
+    const apiBase = normalizedBaseUrl ? `${normalizedBaseUrl}/api` : '/api';
+
+    const res = await fetch(`${apiBase}/upload`, {
+      method: 'POST',
+      body: formData,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+    if (!res.ok) throw new Error((data && data.error) || res.statusText);
+    return data;
+  },
   uploadFile: (file) => {
     const formData = new FormData();
     formData.append('file', file);

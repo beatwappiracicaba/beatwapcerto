@@ -1,5 +1,9 @@
 import { Router } from 'express';
 import { randomUUID } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import multer from 'multer';
 import releasesRoutes from './releases.route.js';
 import profilesRoutes from './profiles.route.js';
 import authRoutes from './auth.route.js';
@@ -33,6 +37,84 @@ const roleMap = {
   composer: 'Compositor',
   compositor: 'Compositor',
 };
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsRoot = path.resolve(__dirname, '..', '..', 'uploads');
+
+function sanitizeBucket(bucketRaw) {
+  const b = bucketRaw ? String(bucketRaw) : '';
+  if (!b) return 'uploads';
+  if (!/^[a-zA-Z0-9_-]+$/.test(b)) return 'uploads';
+  return b;
+}
+
+function sanitizeFileName(fileNameRaw) {
+  const raw = fileNameRaw ? String(fileNameRaw) : '';
+  const cleaned = raw.replace(/\\/g, '/').replace(/^\/+/, '');
+  const normalized = path.posix.normalize(cleaned);
+  if (!normalized || normalized === '.' || normalized.startsWith('../') || normalized.includes('/../')) return null;
+  return normalized;
+}
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      try {
+        const bucket = sanitizeBucket(req.body && req.body.bucket ? req.body.bucket : '');
+        const fileNameNormalized = sanitizeFileName(req.body && req.body.fileName ? req.body.fileName : file.originalname);
+        if (!fileNameNormalized) return cb(new Error('fileName inválido'));
+        const dir = path.posix.dirname(fileNameNormalized);
+        const dest = path.join(uploadsRoot, bucket, dir === '.' ? '' : dir);
+        fs.mkdirSync(dest, { recursive: true });
+        cb(null, dest);
+      } catch (err) {
+        cb(err);
+      }
+    },
+    filename: (req, file, cb) => {
+      const fileNameNormalized = sanitizeFileName(req.body && req.body.fileName ? req.body.fileName : file.originalname);
+      if (!fileNameNormalized) return cb(new Error('fileName inválido'));
+      cb(null, path.posix.basename(fileNameNormalized));
+    },
+  }),
+  limits: { fileSize: 100 * 1024 * 1024 },
+});
+
+function buildPublicUrl(req, bucket, fileNameNormalized) {
+  const proto = String(req.get('x-forwarded-proto') || req.protocol || 'http');
+  const host = String(req.get('host') || '');
+  const base = host ? `${proto}://${host}` : '';
+  const urlPath = `/uploads/${bucket}/${fileNameNormalized}`;
+  return base ? `${base}${encodeURI(urlPath)}` : encodeURI(urlPath);
+}
+
+router.post('/upload', authRequired, upload.single('file'), (req, res) => {
+  const bucket = sanitizeBucket(req.body && req.body.bucket ? req.body.bucket : '');
+  const fileNameNormalized = sanitizeFileName(req.body && req.body.fileName ? req.body.fileName : (req.file ? req.file.originalname : ''));
+  if (!req.file || !fileNameNormalized) return res.status(400).json({ error: 'Arquivo é obrigatório' });
+  res.json({ url: buildPublicUrl(req, bucket, fileNameNormalized) });
+});
+
+router.post('/upload/single', authRequired, upload.single('file'), (req, res) => {
+  const bucket = sanitizeBucket(req.body && req.body.bucket ? req.body.bucket : 'uploads');
+  const fileNameNormalized = sanitizeFileName(req.body && req.body.fileName ? req.body.fileName : (req.file ? req.file.originalname : ''));
+  if (!req.file || !fileNameNormalized) return res.status(400).json({ error: 'Arquivo é obrigatório' });
+  res.json({ url: buildPublicUrl(req, bucket, fileNameNormalized) });
+});
+
+router.post('/upload/multiple', authRequired, upload.array('files', 10), (req, res) => {
+  const bucket = sanitizeBucket(req.body && req.body.bucket ? req.body.bucket : 'uploads');
+  const files = Array.isArray(req.files) ? req.files : [];
+  const urls = files
+    .map((f) => {
+      const fileNameNormalized = sanitizeFileName(f.originalname);
+      if (!fileNameNormalized) return null;
+      return buildPublicUrl(req, bucket, fileNameNormalized);
+    })
+    .filter(Boolean);
+  res.json({ urls });
+});
 
 router.get('/compositions', (req, res) => res.json([]));
 router.get('/projects', (req, res) => res.json([]));

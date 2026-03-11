@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../../utils/cropImage';
-import { apiClient } from '../../services/apiClient';
+import { apiClient, uploadApi } from '../../services/apiClient';
 import { Card } from '../ui/Card';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
@@ -104,16 +104,9 @@ export const GalleryManager = ({ userId }) => {
       const fileExt = fileToUpload.name.split('.').pop();
       const fileName = `${userId}/${Date.now()}.${fileExt}`;
       
-      // Upload via API
-      const formData = new FormData();
-      formData.append('file', fileToUpload);
-      formData.append('fileName', fileName);
-      
-      const uploadResponse = await apiClient.post('/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      
-      if (uploadResponse.error) throw new Error(uploadResponse.error);
+      const uploadResponse = await uploadApi.uploadWithMeta(fileToUpload, { fileName, bucket: 'posts' });
+      if (uploadResponse?.error) throw new Error(uploadResponse.error);
+      if (!uploadResponse?.url) throw new Error('Falha no upload');
 
       // Criar post no banco
       await apiClient.post('/posts', {
