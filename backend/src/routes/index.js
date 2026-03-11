@@ -121,6 +121,10 @@ function isUuidLike(v) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ''));
 }
 
+function isMissingTableError(err) {
+  return !!(err && (err.code === '42P01' || /does not exist/i.test(String(err.message || ''))));
+}
+
 router.post('/analytics', async (req, res, next) => {
   try {
     const type = req.body && req.body.type ? String(req.body.type) : '';
@@ -169,6 +173,13 @@ router.get('/projects', async (req, res, next) => {
     res.set('Cache-Control', 'no-store');
     res.json(rows);
   } catch (err) {
+    if (isMissingTableError(err)) {
+      const rows = (Array.isArray(memory.producerProjects) ? memory.producerProjects : [])
+        .filter((p) => (!p || typeof p !== 'object') ? false : (typeof p.published === 'boolean' ? p.published : true))
+        .slice(0, 50);
+      res.set('Cache-Control', 'no-store');
+      return res.json(rows);
+    }
     next(err);
   }
 });
@@ -391,6 +402,13 @@ router.get('/producer-projects', authRequired, async (req, res, next) => {
     res.set('Cache-Control', 'no-store');
     res.json(rows);
   } catch (err) {
+    if (isMissingTableError(err)) {
+      const rows = (Array.isArray(memory.producerProjects) ? memory.producerProjects : [])
+        .filter((p) => p && typeof p === 'object' && String(p.producer_id) === String(req.user.id))
+        .slice(0, 200);
+      res.set('Cache-Control', 'no-store');
+      return res.json(rows);
+    }
     next(err);
   }
 });
@@ -419,6 +437,22 @@ router.post('/producer-projects', authRequired, async (req, res, next) => {
     );
     res.status(201).json(rows[0]);
   } catch (err) {
+    if (isMissingTableError(err)) {
+      const project = {
+        id: randomUUID(),
+        producer_id: String(req.user.id),
+        title: req.body && req.body.title ? String(req.body.title).trim() : '',
+        url: req.body && req.body.url ? String(req.body.url).trim() : '',
+        platform: req.body && req.body.platform ? String(req.body.platform).trim() : '',
+        published: req.body && typeof req.body.published === 'boolean' ? req.body.published : true,
+        created_at: new Date().toISOString(),
+      };
+      if (!project.title || !project.url || !project.platform) {
+        return res.status(400).json({ error: 'title, url e platform são obrigatórios' });
+      }
+      memory.producerProjects.unshift(project);
+      return res.status(201).json(project);
+    }
     next(err);
   }
 });
@@ -445,6 +479,16 @@ router.delete('/producer-projects/:id', authRequired, async (req, res, next) => 
     await pool.query('DELETE FROM public.producer_projects WHERE id = $1', [id]);
     res.json({ ok: true });
   } catch (err) {
+    if (isMissingTableError(err)) {
+      const producerId = req.user && req.user.id ? String(req.user.id) : '';
+      const id = req.params && req.params.id ? String(req.params.id) : '';
+      const projects = Array.isArray(memory.producerProjects) ? memory.producerProjects : [];
+      const project = projects.find((p) => p && typeof p === 'object' && String(p.id) === id) || null;
+      if (!project) return res.status(404).json({ error: 'Projeto não encontrado' });
+      if (String(project.producer_id) !== producerId) return res.status(403).json({ error: 'Sem permissão' });
+      memory.producerProjects = projects.filter((p) => !(p && typeof p === 'object' && String(p.id) === id));
+      return res.json({ ok: true });
+    }
     next(err);
   }
 });
