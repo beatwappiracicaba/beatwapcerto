@@ -18,6 +18,8 @@ const memory = {
   chats: [],
   notifications: [],
   artistMetrics: new Map(),
+  producerProjects: [],
+  musics: [],
 };
 
 const roleMap = {
@@ -37,6 +39,25 @@ router.get('/projects', (req, res) => res.json([]));
 router.get('/composers', (req, res) => res.json([]));
 router.get('/sponsors', (req, res) => res.json([]));
 router.get('/producers', (req, res) => res.json([]));
+
+router.get('/analytics/artist/:artistId/summary', authRequired, (req, res) => {
+  res.json({ plays: 0, listeners: 0, time: 0, profile_views: 0, social_clicks: 0 });
+});
+
+router.get('/analytics/artist/:artistId/events', authRequired, (req, res) => {
+  res.json([]);
+});
+
+router.get('/admin/stats', authRequired, (req, res) => {
+  Promise.resolve()
+    .then(async () => {
+      const artists = await listProfiles(pool, { cargo: 'Artista', limit: 500 });
+      const pending = 0;
+      const musics = memory.musics.length;
+      res.json({ artists: artists.length, musics, pending });
+    })
+    .catch(() => res.json({ artists: 0, musics: memory.musics.length, pending: 0 }));
+});
 
 router.get('/users', authRequired, async (req, res, next) => {
   try {
@@ -74,6 +95,84 @@ router.get('/artists-for-seller', authRequired, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+router.get('/producer-projects', authRequired, (req, res) => {
+  res.json(memory.producerProjects);
+});
+
+router.post('/producer-projects', authRequired, (req, res) => {
+  const producer_id = req.body && req.body.producer_id ? String(req.body.producer_id) : (req.user && req.user.id ? String(req.user.id) : '');
+  const title = req.body && req.body.title ? String(req.body.title) : '';
+  const url = req.body && req.body.url ? String(req.body.url) : '';
+  const platform = req.body && req.body.platform ? String(req.body.platform) : '';
+  const published = req.body && typeof req.body.published === 'boolean' ? req.body.published : true;
+
+  if (!producer_id || !title || !url || !platform) {
+    return res.status(400).json({ error: 'producer_id, title, url e platform são obrigatórios' });
+  }
+
+  const project = {
+    id: randomUUID(),
+    producer_id,
+    title,
+    url,
+    platform,
+    published,
+    created_at: new Date().toISOString(),
+  };
+  memory.producerProjects.unshift(project);
+  res.status(201).json(project);
+});
+
+router.delete('/producer-projects/:id', authRequired, (req, res) => {
+  const id = req.params && req.params.id ? String(req.params.id) : '';
+  memory.producerProjects = memory.producerProjects.filter((p) => p.id !== id);
+  res.json({ ok: true });
+});
+
+router.get('/admin/musics', authRequired, (req, res) => {
+  const artistId = req.query && req.query.artist_id ? String(req.query.artist_id) : '';
+  const status = req.query && req.query.status ? String(req.query.status) : '';
+  const rows = memory.musics.filter((m) => {
+    if (artistId && String(m.artist_id || '') !== artistId) return false;
+    if (status && String(m.status || '') !== status) return false;
+    return true;
+  });
+  res.json(rows);
+});
+
+router.post('/admin/musics', authRequired, (req, res) => {
+  const artist_id = req.body && req.body.artist_id ? String(req.body.artist_id) : '';
+  const title = req.body && (req.body.title ?? req.body.titulo) ? String(req.body.title ?? req.body.titulo) : '';
+  const status = req.body && req.body.status ? String(req.body.status) : 'pendente';
+
+  const music = {
+    id: randomUUID(),
+    artist_id,
+    title,
+    status,
+    created_at: new Date().toISOString(),
+    ...((req.body && typeof req.body === 'object') ? req.body : {}),
+  };
+  memory.musics.unshift(music);
+  res.status(201).json(music);
+});
+
+router.put('/admin/musics/:id', authRequired, (req, res) => {
+  const id = req.params && req.params.id ? String(req.params.id) : '';
+  const idx = memory.musics.findIndex((m) => String(m.id) === id);
+  if (idx < 0) return res.status(404).json({ error: 'Música não encontrada' });
+  const current = memory.musics[idx];
+  const next = { ...current, ...((req.body && typeof req.body === 'object') ? req.body : {}), id: current.id };
+  memory.musics[idx] = next;
+  res.json(next);
+});
+
+router.delete('/admin/musics/:id', authRequired, (req, res) => {
+  const id = req.params && req.params.id ? String(req.params.id) : '';
+  memory.musics = memory.musics.filter((m) => String(m.id) !== id);
+  res.json({ ok: true });
 });
 
 router.get('/notifications', authRequired, (req, res) => {
