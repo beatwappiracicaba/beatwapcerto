@@ -716,8 +716,21 @@ export const AdminMusics = () => {
 
   useEffect(() => {
     const fetchProducers = async () => {
-      const data = await apiClient.get('/producers');
-      setProducers(data || []);
+      try {
+        const data = await apiClient.get('/producers');
+        if (Array.isArray(data) && data.length > 0) {
+          setProducers(data);
+          return;
+        }
+      } catch {
+        void 0;
+      }
+      try {
+        const data = await apiClient.get(`/profiles?role=producer&t=${Date.now()}`);
+        setProducers(data || []);
+      } catch {
+        setProducers([]);
+      }
     };
     fetchProducers();
   }, []);
