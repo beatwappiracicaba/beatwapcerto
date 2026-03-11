@@ -88,3 +88,39 @@ export async function register(req, res, next) {
     next(err);
   }
 }
+
+export async function changePassword(req, res, next) {
+  try {
+    const id = req.user && req.user.id ? String(req.user.id) : '';
+    if (!id) return res.status(401).json({ error: 'Autenticação necessária' });
+
+    const currentPasswordRaw = req.body && (req.body.current_password ?? req.body.senha_atual ?? req.body.currentPassword)
+      ? String(req.body.current_password ?? req.body.senha_atual ?? req.body.currentPassword)
+      : '';
+    const newPasswordRaw = req.body && (req.body.new_password ?? req.body.nova_senha ?? req.body.newPassword ?? req.body.password ?? req.body.senha)
+      ? String(req.body.new_password ?? req.body.nova_senha ?? req.body.newPassword ?? req.body.password ?? req.body.senha)
+      : '';
+
+    if (!newPasswordRaw || newPasswordRaw.length < 6) {
+      return res.status(400).json({ error: 'Nova senha inválida (mínimo 6 caracteres)' });
+    }
+
+    const { rows } = await pool.query(
+      'SELECT password_hash FROM public.profiles WHERE id = $1 LIMIT 1',
+      [id]
+    );
+    const row = rows[0] || null;
+    if (!row || !row.password_hash) return res.status(404).json({ error: 'Perfil não encontrado' });
+
+    if (currentPasswordRaw) {
+      const ok = await bcrypt.compare(currentPasswordRaw, row.password_hash);
+      if (!ok) return res.status(401).json({ error: 'Senha atual incorreta' });
+    }
+
+    const nextHash = await bcrypt.hash(newPasswordRaw, 10);
+    await pool.query('UPDATE public.profiles SET password_hash = $2 WHERE id = $1', [id, nextHash]);
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}

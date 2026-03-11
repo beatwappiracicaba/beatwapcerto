@@ -211,13 +211,12 @@ export const DashboardArtistProfile = () => {
     }
     setLoading(true);
     try {
-      // Sem provedor de senha no frontend; instrução de troca via suporte.
-      addToast('Troca de senha via painel indisponível nesta versão.', 'info');
+      await apiClient.post('/auth/change-password', { new_password: formData.nova_senha });
       addToast('Senha atualizada com sucesso!', 'success');
       setFormData(prev => ({ ...prev, nova_senha: '', confirmar_senha: '' }));
     } catch (error) {
       console.error(error);
-      addToast('Erro ao atualizar senha: ' + (error.message || ''), 'error');
+      addToast(error?.message || 'Erro ao atualizar senha', 'error');
     } finally {
       setLoading(false);
     }
