@@ -26,6 +26,7 @@ const memory = globalThis.__beatwapMemory || (globalThis.__beatwapMemory = {
   musics: [],
   posts: [],
 });
+if (!Array.isArray(memory.sellerArtistEvents)) memory.sellerArtistEvents = [];
 
 const roleMap = {
   artist: 'Artista',
@@ -125,6 +126,19 @@ function isMissingTableError(err) {
   return !!(err && (err.code === '42P01' || /does not exist/i.test(String(err.message || ''))));
 }
 
+function isSellerOrAdmin(req) {
+  const cargo = req && req.user && req.user.cargo ? String(req.user.cargo) : '';
+  return cargo === 'Vendedor' || cargo === 'Produtor';
+}
+
+function isValidMonth(v) {
+  return /^\d{4}-\d{2}$/.test(String(v || ''));
+}
+
+function getMonthPrefix(v) {
+  return String(v || '').slice(0, 7);
+}
+
 router.post('/analytics', async (req, res, next) => {
   try {
     const type = req.body && req.body.type ? String(req.body.type) : '';
@@ -206,6 +220,9 @@ router.get('/analytics/artist/:artistId/summary', authRequired, async (req, res,
 
     res.json(rows[0] || { plays: 0, listeners: 0, time: 0, profile_views: 0, social_clicks: 0 });
   } catch (err) {
+    if (isMissingTableError(err)) {
+      return res.json({ plays: 0, listeners: 0, time: 0, profile_views: 0, social_clicks: 0 });
+    }
     next(err);
   }
 });
@@ -232,6 +249,9 @@ router.get('/analytics/artist/:artistId/events', authRequired, async (req, res, 
     );
     res.json(rows);
   } catch (err) {
+    if (isMissingTableError(err)) {
+      return res.json([]);
+    }
     next(err);
   }
 });
@@ -384,6 +404,72 @@ router.get('/artists-for-seller', authRequired, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+router.get('/seller/artists', authRequired, async (req, res, next) => {
+  try {
+    if (!isSellerOrAdmin(req)) return res.status(403).json({ error: 'Sem permissão' });
+    const rows = await listProfiles(pool, { cargo: 'Artista' });
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/seller/artists/:artistId/events', authRequired, (req, res) => {
+  if (!isSellerOrAdmin(req)) return res.status(403).json({ error: 'Sem permissão' });
+  const artistId = req.params && req.params.artistId ? String(req.params.artistId) : '';
+  if (!artistId || !isUuidLike(artistId)) return res.status(400).json({ error: 'artistId inválido' });
+  const month = req.query && req.query.month ? String(req.query.month) : '';
+  if (month && !isValidMonth(month)) return res.status(400).json({ error: 'month inválido' });
+
+  const rows = (Array.isArray(memory.sellerArtistEvents) ? memory.sellerArtistEvents : [])
+    .filter((e) => e && typeof e === 'object')
+    .filter((e) => String(e.artista_id || '') === artistId)
+    .filter((e) => (month ? getMonthPrefix(e.date) === month : true))
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+
+  res.json(rows);
+});
+
+router.get('/seller/artist-events', authRequired, (req, res) => {
+  if (!isSellerOrAdmin(req)) return res.status(403).json({ error: 'Sem permissão' });
+  const artistId = req.query && (req.query.artist_id || req.query.artista_id) ? String(req.query.artist_id || req.query.artista_id) : '';
+  if (!artistId || !isUuidLike(artistId)) return res.status(400).json({ error: 'artist_id inválido' });
+  const month = req.query && req.query.month ? String(req.query.month) : '';
+  if (month && !isValidMonth(month)) return res.status(400).json({ error: 'month inválido' });
+
+  const rows = (Array.isArray(memory.sellerArtistEvents) ? memory.sellerArtistEvents : [])
+    .filter((e) => e && typeof e === 'object')
+    .filter((e) => String(e.artista_id || '') === artistId)
+    .filter((e) => (month ? getMonthPrefix(e.date) === month : true))
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+
+  res.json(rows);
+});
+
+router.post('/seller/artist-events', authRequired, (req, res) => {
+  if (!isSellerOrAdmin(req)) return res.status(403).json({ error: 'Sem permissão' });
+  const artistaId = req.body && (req.body.artista_id || req.body.artist_id) ? String(req.body.artista_id || req.body.artist_id) : '';
+  if (!artistaId || !isUuidLike(artistaId)) return res.status(400).json({ error: 'artista_id inválido' });
+  const title = req.body && req.body.title ? String(req.body.title).trim() : '';
+  const date = req.body && req.body.date ? String(req.body.date).trim() : '';
+  const type = req.body && req.body.type ? String(req.body.type).trim() : '';
+  const notes = req.body && req.body.notes ? String(req.body.notes) : '';
+  if (!title || !date) return res.status(400).json({ error: 'title e date são obrigatórios' });
+
+  const event = {
+    id: randomUUID(),
+    artista_id: artistaId,
+    seller_id: req.user && req.user.id ? String(req.user.id) : null,
+    title,
+    date,
+    type: type || 'show',
+    notes,
+    created_at: new Date().toISOString(),
+  };
+  memory.sellerArtistEvents.unshift(event);
+  res.status(201).json(event);
 });
 
 router.get('/producer-projects', authRequired, async (req, res, next) => {
