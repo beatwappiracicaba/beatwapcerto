@@ -201,7 +201,17 @@ router.get('/projects', async (req, res, next) => {
 });
 router.get('/composers', (req, res) => res.json([]));
 router.get('/sponsors', (req, res) => res.json([]));
-router.get('/producers', (req, res) => res.json([]));
+router.get('/producers', async (req, res, next) => {
+  try {
+    const rows = await listProfiles(pool, { cargo: 'Produtor', limit: 500 });
+    res.json(rows);
+  } catch (err) {
+    if (isMissingTableError(err)) {
+      return res.json([]);
+    }
+    next(err);
+  }
+});
 
 router.get('/analytics/artist/:artistId/summary', authRequired, async (req, res, next) => {
   try {
