@@ -282,7 +282,7 @@ export const AdminArtists = () => {
   useEffect(() => {
     const loadPlan = async () => {
       if (!selectedArtist) { setPlanForm({ plano: 'Gratuito', bonus_quota: 0, plan_started_at: '' }); return; }
-      const data = await apiClient.get(`/profiles/${selectedArtist}`);
+      const data = await apiClient.get(`/users/${selectedArtist}/quota`);
       setPlanForm({
         plano: data?.plano || 'Avulso',
         bonus_quota: Number(data?.bonus_quota || 0),
@@ -1300,7 +1300,7 @@ export const AdminComposers = () => {
         setPlanForm({ plano: 'Avulso', bonus_quota: 0, plan_started_at: '' });
         return;
       }
-      const data = await apiClient.get(`/profiles/${selectedComposer}`);
+      const data = await apiClient.get(`/users/${selectedComposer}/quota`);
       setPlanForm({
         plano: data?.plano || 'Avulso',
         bonus_quota: Number(data?.bonus_quota || 0),

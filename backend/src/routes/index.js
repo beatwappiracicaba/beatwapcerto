@@ -421,7 +421,13 @@ router.delete('/posts/:id', authRequired, async (req, res, next) => {
 router.get('/users/:id/quota', authRequired, async (req, res, next) => {
   try {
     const id = req.params && req.params.id ? String(req.params.id) : '';
-    if (!id) return res.status(400).json({ error: 'id é obrigatório' });
+    if (!id || !isUuidLike(id)) return res.status(400).json({ error: 'id inválido' });
+
+    const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+    const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+    const canReadOther = cargo === 'Produtor';
+    if (!canReadOther && requesterId !== id) return res.status(403).json({ error: 'Sem permissão' });
+
     const prof = await getProfileById(pool, id);
     if (!prof) return res.status(404).json({ error: 'Perfil não encontrado' });
     res.json({
