@@ -117,18 +117,103 @@ router.post('/upload/multiple', authRequired, upload.array('files', 10), (req, r
   res.json({ urls });
 });
 
+function isUuidLike(v) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ''));
+}
+
+router.post('/analytics', async (req, res, next) => {
+  try {
+    const type = req.body && req.body.type ? String(req.body.type) : '';
+    const allowed =
+      type === 'music_play' ||
+      type === 'music_click_presave' ||
+      type === 'music_click_smartlink' ||
+      type === 'profile_view' ||
+      type === 'sponsor_click' ||
+      type.startsWith('artist_click_');
+    if (!allowed) return res.status(400).json({ error: 'Tipo de evento inválido' });
+
+    const artist_id = req.body && req.body.artist_id ? String(req.body.artist_id) : null;
+    const music_id = req.body && req.body.music_id ? String(req.body.music_id) : null;
+    const ip_hash = req.body && req.body.ip_hash ? String(req.body.ip_hash) : null;
+    const duration_seconds = Number(req.body && req.body.duration_seconds ? req.body.duration_seconds : 0) || 0;
+    const metadata = req.body && req.body.metadata && typeof req.body.metadata === 'object' ? req.body.metadata : {};
+
+    const artistIdToStore = artist_id && isUuidLike(artist_id) ? artist_id : null;
+    const musicIdToStore = music_id && isUuidLike(music_id) ? music_id : null;
+
+    const { rows } = await pool.query(
+      `INSERT INTO public.analytics_events
+        (id, type, artist_id, music_id, duration_seconds, ip_hash, metadata)
+       VALUES
+        (gen_random_uuid(), $1, $2, $3, $4, $5, $6::jsonb)
+       RETURNING id, type, artist_id, music_id, duration_seconds, ip_hash, created_at`,
+      [type, artistIdToStore, musicIdToStore, duration_seconds || null, ip_hash, JSON.stringify(metadata)]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/compositions', (req, res) => res.json([]));
-router.get('/projects', (req, res) => res.json([]));
+router.get('/projects', (req, res) => {
+  const rows = (Array.isArray(memory.producerProjects) ? memory.producerProjects : [])
+    .filter((p) => (!p || typeof p !== 'object') ? false : (typeof p.published === 'boolean' ? p.published : true))
+    .slice(0, 50);
+  res.json(rows);
+});
 router.get('/composers', (req, res) => res.json([]));
 router.get('/sponsors', (req, res) => res.json([]));
 router.get('/producers', (req, res) => res.json([]));
 
-router.get('/analytics/artist/:artistId/summary', authRequired, (req, res) => {
-  res.json({ plays: 0, listeners: 0, time: 0, profile_views: 0, social_clicks: 0 });
+router.get('/analytics/artist/:artistId/summary', authRequired, async (req, res, next) => {
+  try {
+    const artistId = req.params && req.params.artistId ? String(req.params.artistId) : '';
+    if (!artistId || !isUuidLike(artistId)) return res.status(400).json({ error: 'artistId inválido' });
+
+    const { rows } = await pool.query(
+      `SELECT
+        COALESCE(SUM(CASE WHEN type = 'music_play' THEN 1 ELSE 0 END), 0)::int AS plays,
+        COALESCE(COUNT(DISTINCT CASE WHEN type = 'music_play' THEN ip_hash ELSE NULL END), 0)::int AS listeners,
+        COALESCE(SUM(CASE WHEN type = 'music_play' THEN COALESCE(duration_seconds, 0) ELSE 0 END), 0)::int AS time,
+        COALESCE(SUM(CASE WHEN type = 'profile_view' THEN 1 ELSE 0 END), 0)::int AS profile_views,
+        COALESCE(SUM(CASE WHEN type LIKE 'artist_click_%' THEN 1 ELSE 0 END), 0)::int AS social_clicks
+       FROM public.analytics_events
+       WHERE artist_id = $1`,
+      [artistId]
+    );
+
+    res.json(rows[0] || { plays: 0, listeners: 0, time: 0, profile_views: 0, social_clicks: 0 });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.get('/analytics/artist/:artistId/events', authRequired, (req, res) => {
-  res.json([]);
+router.get('/analytics/artist/:artistId/events', authRequired, async (req, res, next) => {
+  try {
+    const artistId = req.params && req.params.artistId ? String(req.params.artistId) : '';
+    if (!artistId || !isUuidLike(artistId)) return res.status(400).json({ error: 'artistId inválido' });
+
+    const { rows } = await pool.query(
+      `SELECT
+        id,
+        type,
+        artist_id,
+        music_id,
+        duration_seconds,
+        ip_hash,
+        created_at
+       FROM public.analytics_events
+       WHERE artist_id = $1
+       ORDER BY created_at DESC
+       LIMIT 5000`,
+      [artistId]
+    );
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.get('/admin/stats', authRequired, (req, res) => {
@@ -153,64 +238,84 @@ router.get('/users', authRequired, async (req, res, next) => {
   }
 });
 
-router.get('/users/:id/posts', authRequired, (req, res) => {
-  const userId = req.params && req.params.id ? String(req.params.id) : '';
-  if (!userId) return res.status(400).json({ error: 'id é obrigatório' });
-  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
-  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
-  const canReadOther = cargo === 'Produtor';
-  if (!canReadOther && requesterId !== userId) return res.status(403).json({ error: 'Sem permissão' });
-  const rows = memory.posts
-    .filter((p) => String(p.user_id) === userId)
-    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
-  res.json(rows);
-});
+router.get('/users/:id/posts', authRequired, async (req, res, next) => {
+  try {
+    const userId = req.params && req.params.id ? String(req.params.id) : '';
+    if (!userId || !isUuidLike(userId)) return res.status(400).json({ error: 'id inválido' });
+    const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+    const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+    const canReadOther = cargo === 'Produtor';
+    if (!canReadOther && requesterId !== userId) return res.status(403).json({ error: 'Sem permissão' });
 
-router.post('/posts', authRequired, (req, res) => {
-  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
-  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
-  const canCreateForOther = cargo === 'Produtor';
-
-  const user_id = req.body && req.body.user_id ? String(req.body.user_id) : requesterId;
-  const media_url = req.body && req.body.media_url ? String(req.body.media_url) : '';
-  const media_type = req.body && (req.body.media_type ?? req.body.type) ? String(req.body.media_type ?? req.body.type) : '';
-  const caption = req.body && req.body.caption ? String(req.body.caption) : '';
-  const link_url = req.body && req.body.link_url ? String(req.body.link_url) : '';
-
-  if (!user_id) return res.status(400).json({ error: 'user_id é obrigatório' });
-  if (!canCreateForOther && user_id !== requesterId) return res.status(403).json({ error: 'Sem permissão' });
-  if (!media_url) return res.status(400).json({ error: 'media_url é obrigatório' });
-  if (!media_type || (media_type !== 'image' && media_type !== 'video')) {
-    return res.status(400).json({ error: 'media_type inválido' });
+    const { rows } = await pool.query(
+      `SELECT id, user_id, media_url, media_type, caption, link_url, created_at
+       FROM public.posts
+       WHERE user_id = $1
+       ORDER BY created_at DESC
+       LIMIT 200`,
+      [userId]
+    );
+    res.json(rows);
+  } catch (err) {
+    next(err);
   }
-
-  const post = {
-    id: randomUUID(),
-    user_id,
-    media_url,
-    media_type,
-    caption,
-    link_url,
-    created_at: new Date().toISOString(),
-  };
-  memory.posts.unshift(post);
-  res.status(201).json(post);
 });
 
-router.delete('/posts/:id', authRequired, (req, res) => {
-  const postId = req.params && req.params.id ? String(req.params.id) : '';
-  if (!postId) return res.status(400).json({ error: 'id é obrigatório' });
-  const idx = memory.posts.findIndex((p) => String(p.id) === postId);
-  if (idx < 0) return res.status(404).json({ error: 'Post não encontrado' });
+router.post('/posts', authRequired, async (req, res, next) => {
+  try {
+    const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+    const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+    const canCreateForOther = cargo === 'Produtor';
 
-  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
-  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
-  const canDeleteOther = cargo === 'Produtor';
-  const post = memory.posts[idx];
-  if (!canDeleteOther && String(post.user_id) !== requesterId) return res.status(403).json({ error: 'Sem permissão' });
+    const user_id = req.body && req.body.user_id ? String(req.body.user_id) : requesterId;
+    const media_url = req.body && req.body.media_url ? String(req.body.media_url) : '';
+    const media_type = req.body && (req.body.media_type ?? req.body.type) ? String(req.body.media_type ?? req.body.type) : '';
+    const caption = req.body && req.body.caption ? String(req.body.caption) : '';
+    const link_url = req.body && req.body.link_url ? String(req.body.link_url) : '';
 
-  memory.posts.splice(idx, 1);
-  res.json({ ok: true });
+    if (!user_id || !isUuidLike(user_id)) return res.status(400).json({ error: 'user_id inválido' });
+    if (!canCreateForOther && user_id !== requesterId) return res.status(403).json({ error: 'Sem permissão' });
+    if (!media_url) return res.status(400).json({ error: 'media_url é obrigatório' });
+    if (!media_type || (media_type !== 'image' && media_type !== 'video')) {
+      return res.status(400).json({ error: 'media_type inválido' });
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO public.posts
+        (id, user_id, media_url, media_type, caption, link_url)
+       VALUES
+        (gen_random_uuid(), $1, $2, $3, $4, $5)
+       RETURNING id, user_id, media_url, media_type, caption, link_url, created_at`,
+      [user_id, media_url, media_type, caption || null, link_url || null]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/posts/:id', authRequired, async (req, res, next) => {
+  try {
+    const postId = req.params && req.params.id ? String(req.params.id) : '';
+    if (!postId || !isUuidLike(postId)) return res.status(400).json({ error: 'id inválido' });
+
+    const { rows } = await pool.query(
+      'SELECT id, user_id FROM public.posts WHERE id = $1 LIMIT 1',
+      [postId]
+    );
+    const post = rows[0] || null;
+    if (!post) return res.status(404).json({ error: 'Post não encontrado' });
+
+    const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+    const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+    const canDeleteOther = cargo === 'Produtor';
+    if (!canDeleteOther && String(post.user_id) !== requesterId) return res.status(403).json({ error: 'Sem permissão' });
+
+    await pool.query('DELETE FROM public.posts WHERE id = $1', [postId]);
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.get('/users/:id/quota', authRequired, async (req, res, next) => {
@@ -555,24 +660,51 @@ router.post('/messages', authRequired, (req, res) => {
 });
 
 router.get('/admin/artist/:artistId/metrics', authRequired, (req, res) => {
-  const artistId = req.params && req.params.artistId ? String(req.params.artistId) : '';
-  const m = memory.artistMetrics.get(artistId) || {
-    total_plays: 0,
-    ouvintes_mensais: 0,
-    receita_estimada: 0,
-  };
-  res.json(m);
+  Promise.resolve()
+    .then(async () => {
+      const artistId = req.params && req.params.artistId ? String(req.params.artistId) : '';
+      if (!artistId || !isUuidLike(artistId)) return { total_plays: 0, ouvintes_mensais: 0, receita_estimada: 0 };
+      const { rows } = await pool.query(
+        `SELECT total_plays, ouvintes_mensais, receita_estimada
+         FROM public.artist_metrics
+         WHERE artist_id = $1
+         LIMIT 1`,
+        [artistId]
+      );
+      return rows[0] || { total_plays: 0, ouvintes_mensais: 0, receita_estimada: 0 };
+    })
+    .then((m) => res.json(m))
+    .catch(() => res.json({ total_plays: 0, ouvintes_mensais: 0, receita_estimada: 0 }));
 });
 
 router.post('/admin/artist/:artistId/metrics', authRequired, (req, res) => {
-  const artistId = req.params && req.params.artistId ? String(req.params.artistId) : '';
-  const total_plays = Number(req.body && req.body.total_plays ? req.body.total_plays : 0) || 0;
-  const ouvintes_mensais = Number(req.body && req.body.ouvintes_mensais ? req.body.ouvintes_mensais : 0) || 0;
-  const receita_estimada = Number(req.body && req.body.receita_estimada ? req.body.receita_estimada : 0) || 0;
+  Promise.resolve()
+    .then(async () => {
+      const artistId = req.params && req.params.artistId ? String(req.params.artistId) : '';
+      if (!artistId || !isUuidLike(artistId)) return { error: 'artistId inválido' };
 
-  const m = { total_plays, ouvintes_mensais, receita_estimada, updated_at: new Date().toISOString() };
-  memory.artistMetrics.set(artistId, m);
-  res.json(m);
+      const total_plays = Number(req.body && req.body.total_plays ? req.body.total_plays : 0) || 0;
+      const ouvintes_mensais = Number(req.body && req.body.ouvintes_mensais ? req.body.ouvintes_mensais : 0) || 0;
+      const receita_estimada = Number(req.body && req.body.receita_estimada ? req.body.receita_estimada : 0) || 0;
+
+      const { rows } = await pool.query(
+        `INSERT INTO public.artist_metrics (artist_id, total_plays, ouvintes_mensais, receita_estimada, updated_at)
+         VALUES ($1, $2, $3, $4, now())
+         ON CONFLICT (artist_id)
+         DO UPDATE SET total_plays = EXCLUDED.total_plays,
+                       ouvintes_mensais = EXCLUDED.ouvintes_mensais,
+                       receita_estimada = EXCLUDED.receita_estimada,
+                       updated_at = now()
+         RETURNING total_plays, ouvintes_mensais, receita_estimada, updated_at`,
+        [artistId, total_plays, ouvintes_mensais, receita_estimada]
+      );
+      return rows[0] || { total_plays, ouvintes_mensais, receita_estimada, updated_at: new Date().toISOString() };
+    })
+    .then((m) => {
+      if (m && m.error) return res.status(400).json(m);
+      res.json(m);
+    })
+    .catch(() => res.status(500).json({ error: 'Falha ao salvar métricas' }));
 });
 
 export default router;

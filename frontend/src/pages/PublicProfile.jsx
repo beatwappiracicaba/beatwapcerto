@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { apiClient } from '../services/apiClient';
@@ -19,6 +19,7 @@ const PublicProfile = () => {
   const [playStartTS, setPlayStartTS] = useState(null);
   const [sellerStats, setSellerStats] = useState(null);
   const [galleryPosts, setGalleryPosts] = useState([]);
+  const recordedProfileViewForId = useRef(null);
 
   useEffect(() => {
     if (id) {
@@ -49,7 +50,6 @@ const PublicProfile = () => {
 
   const recordEvent = async (payload) => {
     try {
-      if (payload.type === 'profile_view') return; 
       await apiClient.post('/analytics', { ...payload, ip_hash: ipHash || 'unknown' });
     } catch (e) { console.error('Analytics Error:', e); }
   };
@@ -60,7 +60,10 @@ const PublicProfile = () => {
 
   useEffect(() => {
     if (profile) {
-      // recordEvent({ type: 'profile_view', artist_id: profile.id }); // Disabled to prevent 400 error
+      if (recordedProfileViewForId.current !== profile.id) {
+        recordedProfileViewForId.current = profile.id;
+        recordEvent({ type: 'profile_view', artist_id: profile.id });
+      }
     }
   }, [profile, ipHash]);
 
