@@ -16,13 +16,7 @@ app.set('trust proxy', true);
 const corsOptions = {
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
-    const o = String(origin).trim();
-    const ok =
-      /^https:\/\/(www\.)?beatwap\.com\.br$/i.test(o) ||
-      /^https:\/\/(www\.)?beatwap\.com$/i.test(o) ||
-      /^http:\/\/localhost:\d+$/i.test(o) ||
-      /^http:\/\/127\.0\.0\.1:\d+$/i.test(o);
-    return cb(null, ok);
+    return cb(null, true);
   },
   credentials: true,
 };
