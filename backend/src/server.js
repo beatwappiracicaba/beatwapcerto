@@ -1,120 +1,41 @@
-// Importação dos módulos necessários
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { pool } from './db.js'; // Importa o pool de db.js
-import profilesRoutes from './routes/profiles.route.js'; // Importa as rotas de perfis
-import producersRoutes from './routes/producers.route.js';
-import releasesRoutes from './routes/releases.route.js';
-import compositionsRoutes from './routes/compositions.route.js';
-import usersRoutes from './routes/users.route.js';
-import artistsRoutes from './routes/artists.route.js';
-import projectsRoutes from './routes/projects.route.js';
-import composersRoutes from './routes/composers.route.js';
-import sponsorsRoutes from './routes/sponsors.route.js';
-import authRoutes from './routes/auth.route.js';
-import adminRoutes from './routes/admin.route.js';
-import analyticsRoutes from './routes/analytics.route.js';
-import songsRoutes from './routes/songs.route.js';
-import { createDatabaseProxy } from './middleware/databaseProxy.js';
+import apiRoutes from './routes/index.js';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
-// Carrega as variáveis de ambiente do arquivo .env
 dotenv.config();
 
-// Inicializa o aplicativo Express
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET não definida');
+}
+
 const app = express();
+const port = Number(process.env.PORT || 3000);
 
-// Define a porta do servidor, usando a variável de ambiente ou 3000 como padrão
-const PORT = process.env.PORT || 3000;
+const allowedOrigins = new Set(['https://www.beatwap.com.br', 'https://www.beatwap.com']);
 
-// Tenta conectar ao banco de dados para verificar a conexão
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error('Erro ao conectar ao banco de dados:', err.stack);
-  } else {
-    console.log('🚀 Conexão com o banco de dados PostgreSQL estabelecida com sucesso!');
-    client.release();
-  }
-});
-
-// --- Configuração do CORS ---
-const allowedOrigins = process.env.FRONTEND_URLS ? process.env.FRONTEND_URLS.split(',') : [];
-
-const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Acesso não permitido por CORS'));
-    }
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.has(origin)) return cb(null, true);
+    return cb(new Error('Acesso não permitido por CORS'));
   },
   credentials: true,
-};
+}));
 
-app.use(cors(corsOptions));
+app.use(express.json({ limit: '1mb' }));
 
-// --- Middlewares ---
-app.use(express.json());
-
-// --- Rotas ---
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'UP', timestamp: new Date() });
+  res.status(200).json({ status: 'UP' });
 });
 
-// Rota de teste para verificar tabelas
-app.get('/api/test-tables', async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' 
-      ORDER BY table_name;
-    `);
-    res.json({ tables: result.rows });
-  } catch (error) {
-    console.error('Erro ao verificar tabelas:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
+app.use('/api', apiRoutes);
 
-// Adicionar proxy de banco de dados para o Worker
-app.use('/api/db', (req, res, next) => {
-  if (req.path === '/query' || req.path === '/health') {
-    next();
-  } else {
-    res.status(404).json({ error: 'Rota não encontrada' });
-  }
-});
-createDatabaseProxy(app);
+app.use(notFoundHandler);
+app.use(errorHandler);
 
-// Usa todas as rotas com o prefixo /api
-app.use('/api/profiles', profilesRoutes);
-app.use('/api/producers', producersRoutes);
-app.use('/api/releases', releasesRoutes);
-app.use('/api/compositions', compositionsRoutes);
-app.use('/api/users', usersRoutes);
-app.use('/api/artists', artistsRoutes);
-app.use('/api/projects', projectsRoutes);
-app.use('/api/composers', composersRoutes);
-app.use('/api/sponsors', sponsorsRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/songs', songsRoutes);
-
-// --- Tratamento de Erros ---
-app.use((req, res, next) => {
-  res.status(404).json({ message: 'Rota não encontrada.' });
-});
-
-app.use((err, req, res, next) => {
-  console.error('Ocorreu um erro no servidor:', err.stack);
-  res.status(500).json({ message: 'Erro interno do servidor.' });
-});
-
-// --- Inicialização do Servidor ---
-app.listen(PORT, () => {
-  console.log(`🎉 Servidor rodando na porta ${PORT}`);
-  console.log(`🔗 URLs do frontend permitidas: ${allowedOrigins.join(', ')}`);
+app.listen(port, '127.0.0.1', () => {
+  process.stdout.write(`API ouvindo em 127.0.0.1:${port}\n`);
 });
 

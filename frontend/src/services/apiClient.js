@@ -1,6 +1,5 @@
 import { API_BASE_URL } from '../config/apiConfig.js';
 
-const API_BASE = `${API_BASE_URL}/api`;
 const DEFAULT_TIMEOUT_MS = 15000;
 
 async function request(path, options = {}) {
@@ -10,36 +9,49 @@ async function request(path, options = {}) {
     ...(options.headers || {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {})
   };
-  const controller = new AbortController();
   const timeoutMs = Number(options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-  const timeoutId = Number.isFinite(timeoutMs) && timeoutMs > 0
-    ? setTimeout(() => controller.abort(), timeoutMs)
-    : null;
+  const normalizedBaseUrl = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
 
-  let res;
-  let text = '';
-  try {
-    res = await fetch(`${API_BASE}${path}`, { ...options, headers, signal: controller.signal });
-    text = await res.text();
-  } catch (err) {
-    if (timeoutId) clearTimeout(timeoutId);
-    if (err?.name === 'AbortError') {
-      throw new Error('Tempo esgotado ao conectar na API');
+  const attempt = async (baseUrl) => {
+    const controller = new AbortController();
+    const timeoutId = Number.isFinite(timeoutMs) && timeoutMs > 0
+      ? setTimeout(() => controller.abort(), timeoutMs)
+      : null;
+
+    let res;
+    let text = '';
+    try {
+      const apiBase = baseUrl ? `${baseUrl}/api` : '/api';
+      res = await fetch(`${apiBase}${path}`, { ...options, headers, signal: controller.signal });
+      text = await res.text();
+    } catch (err) {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (err?.name === 'AbortError') {
+        throw new Error('Tempo esgotado ao conectar na API');
+      }
+      throw err;
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
     }
-    throw err;
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId);
-  }
 
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch { data = null; }
-  if (!res.ok) {
-    throw new Error((data && data.error) || res.statusText);
+    const contentType = String(res.headers.get('content-type') || '').toLowerCase();
+    const looksJson = contentType.includes('application/json') || (text && (text.trim().startsWith('{') || text.trim().startsWith('[')));
+
+    let data = null;
+    if (looksJson) {
+      try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+    }
+
+    return { res, text, data, looksJson };
+  };
+
+  const primary = await attempt(normalizedBaseUrl);
+  if (!primary.res.ok) throw new Error((primary.data && primary.data.error) || primary.res.statusText);
+  if (!primary.looksJson) throw new Error('API respondeu em formato inválido (não-JSON).');
+  if (primary.data && typeof primary.data === 'object' && 'success' in primary.data && 'data' in primary.data) {
+    return primary.data.data ?? null;
   }
-  if (data && typeof data === 'object' && 'success' in data && 'data' in data) {
-    return data.data ?? null;
-  }
-  return data;
+  return primary.data;
 }
 
 export const apiClient = {
@@ -117,7 +129,7 @@ export const uploadApi = {
   uploadFile: (file) => {
     const formData = new FormData();
     formData.append('file', file);
-    return fetch(`${API_BASE}/upload/single`, {
+    return fetch(`${API_BASE_URL}/api/upload/single`, {
       method: 'POST',
       body: formData,
       headers: {
@@ -128,7 +140,7 @@ export const uploadApi = {
   uploadMultiple: (files) => {
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
-    return fetch(`${API_BASE}/upload/multiple`, {
+    return fetch(`${API_BASE_URL}/api/upload/multiple`, {
       method: 'POST',
       body: formData,
       headers: {

@@ -1,36 +1,45 @@
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { getProfileByEmail } from '../models/profiles.model.js';
 import { pool } from '../db.js';
-import { getUserByEmailQuery } from '../models/auth.model.js';
 
-export const login = async (req, res) => {
+export async function login(req, res, next) {
   try {
-    const { email, password } = req.body;
-    
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email e senha são obrigatórios' });
+    const email = req.body && req.body.email ? String(req.body.email).trim().toLowerCase() : '';
+    const passwordRaw = req.body && (req.body.password ?? req.body.senha) ? String(req.body.password ?? req.body.senha) : '';
+
+    if (!email || !passwordRaw) {
+      return res.status(400).json({ error: 'Email e senha são obrigatórios' });
     }
-    
-    const { rows } = await pool.query(getUserByEmailQuery, [email]);
-    
-    if (rows.length === 0) {
-      return res.status(401).json({ message: 'Credenciais inválidas' });
+
+    const user = await getProfileByEmail(pool, email);
+    if (!user || !user.password_hash) {
+      return res.status(401).json({ error: 'Credenciais inválidas' });
     }
-    
-    const user = rows[0];
-    
-    // Aqui você deve adicionar a verificação de senha com bcrypt ou similar
-    // Por enquanto, vamos apenas verificar se o usuário existe
-    
-    res.status(200).json({
-      message: 'Login realizado com sucesso',
+
+    const ok = await bcrypt.compare(passwordRaw, user.password_hash);
+    if (!ok) {
+      return res.status(401).json({ error: 'Credenciais inválidas' });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, cargo: user.cargo },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      token,
       user: {
         id: user.id,
-        username: user.username,
+        nome: user.nome,
         email: user.email,
-        role: user.role
-      }
+        cargo: user.cargo,
+        avatar_url: user.avatar_url,
+      },
     });
-  } catch (error) {
-    console.error('Erro ao fazer login:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
+  } catch (err) {
+    next(err);
   }
-};
+}
+

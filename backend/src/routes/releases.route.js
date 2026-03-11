@@ -3,6 +3,7 @@ import { getReleases } from '../controllers/releases.controller.js';
 
 const router = Router();
 
-router.get('/', getReleases);
+router.get('/releases', getReleases);
 
 export default router;
+

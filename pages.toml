@@ -20,5 +20,3 @@ environment = "production"
 [build.environment]
 # Versão do Node.js
 NODE_VERSION = "18"
-# Variáveis de ambiente para o build
-VITE_API_BASE_URL = "https://beatwap-api-worker.beatwappiracicaba.workers.dev"
