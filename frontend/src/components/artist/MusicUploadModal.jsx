@@ -441,7 +441,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className={`bg-[#121212] border border-white/10 rounded-2xl w-full ${formData.is_album ? 'max-w-5xl' : 'max-w-2xl'} overflow-hidden flex flex-col max-h-[90vh] transition-all duration-300`}
+          className={`bg-[#121212] border border-white/10 rounded-2xl w-full ${formData.is_album ? 'max-w-5xl' : 'max-w-2xl'} overflow-hidden flex flex-col h-[90vh] transition-all duration-300`}
         >
           <div className="p-4 border-b border-white/10 flex justify-between items-center bg-beatwap-black">
             <h3 className="text-xl font-bold text-white">Nova Música</h3>
@@ -450,7 +450,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
             </button>
           </div>
 
-          <div className="p-6 overflow-y-auto space-y-6">
+          <div className="flex-1 min-h-0 p-6 overflow-y-auto space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Cover Upload */}
               <div className="space-y-2">
@@ -802,18 +802,17 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                 <span>{errors.submit}</span>
               </div>
             )}
-
-            <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
-              <button 
-                onClick={onClose}
-                className="px-6 py-3 rounded-xl text-sm font-bold text-gray-400 hover:text-white transition-colors"
-              >
-                Cancelar
-              </button>
-              <AnimatedButton onClick={handleSubmit} isLoading={loading} icon={CheckCircle2}>
-                Enviar para Análise
-              </AnimatedButton>
-            </div>
+          </div>
+          <div className="p-4 border-t border-white/10 flex justify-end gap-3 bg-[#121212]">
+            <button 
+              onClick={onClose}
+              className="px-6 py-3 rounded-xl text-sm font-bold text-gray-400 hover:text-white transition-colors"
+            >
+              Cancelar
+            </button>
+            <AnimatedButton onClick={handleSubmit} isLoading={loading} icon={CheckCircle2}>
+              Enviar para Análise
+            </AnimatedButton>
           </div>
           {renderCoverCropModal()}
         </motion.div>
