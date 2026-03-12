@@ -116,6 +116,20 @@ function normalizeReleasesFromMemory(musics) {
 
 const homeCache = globalThis.__beatwapHomeCache || (globalThis.__beatwapHomeCache = { at: 0, data: null });
 
+function normalizeSponsorForPublic(s) {
+  const logo = s && typeof s === 'object' && typeof s.logo_url === 'string' ? s.logo_url : null;
+  const safeLogo = logo && !logo.startsWith('data:') && logo.length <= 2048 ? logo : null;
+  return {
+    id: s && typeof s === 'object' ? (s.id ?? null) : null,
+    name: s && typeof s === 'object' ? (s.name ?? null) : null,
+    instagram_url: s && typeof s === 'object' ? (s.instagram_url ?? null) : null,
+    site_url: s && typeof s === 'object' ? (s.site_url ?? null) : null,
+    logo_url: safeLogo,
+    active: s && typeof s === 'object' ? !!s.active : false,
+    created_at: s && typeof s === 'object' ? (s.created_at ?? null) : null,
+  };
+}
+
 router.get('/home', async (req, res) => {
   const now = Date.now();
   if (homeCache.data && now - Number(homeCache.at || 0) < 15_000) {
@@ -166,7 +180,7 @@ router.get('/home', async (req, res) => {
 
   let composers = [];
   try {
-    composers = await withTimeout(listProfiles(pool, { cargo: 'Compositor', limit: 500 }), dbTimeoutMs);
+    composers = await withTimeout(listProfiles(pool, { cargo: 'Compositor', limit: 50 }), dbTimeoutMs);
   } catch {
     composers = [];
   }
@@ -174,7 +188,8 @@ router.get('/home', async (req, res) => {
   const sponsors = (Array.isArray(memory.sponsors) ? memory.sponsors : [])
     .filter((s) => s && typeof s === 'object')
     .filter((s) => !!s.active)
-    .slice(0, 5000);
+    .slice(0, 50)
+    .map(normalizeSponsorForPublic);
 
   let artists = [];
   let producers = [];
@@ -621,13 +636,18 @@ router.get('/sponsors', (req, res) => {
   const decoded = tryDecodeUser(req);
   const cargo = decoded && decoded.cargo ? String(decoded.cargo) : '';
   const isAdmin = cargo === 'Produtor';
+  const light = req.query && (String(req.query.light || '') === '1' || String(req.query.light || '').toLowerCase() === 'true');
+  const limitRaw = req.query && req.query.limit != null ? Number(req.query.limit) : null;
+  const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(5000, Math.max(1, Math.floor(limitRaw))) : 200;
 
-  const rows = (Array.isArray(memory.sponsors) ? memory.sponsors : [])
+  const base = (Array.isArray(memory.sponsors) ? memory.sponsors : [])
     .filter((s) => s && typeof s === 'object')
     .filter((s) => isAdmin ? true : !!s.active)
-    .slice(0, 5000);
+    .slice(0, limit);
 
-  res.set('Cache-Control', 'no-store');
+  const rows = (isAdmin && !light) ? base : base.map(normalizeSponsorForPublic);
+
+  res.set('Cache-Control', isAdmin && !light ? 'no-store' : 'public, max-age=60, s-maxage=600, stale-while-revalidate=600');
   res.json(rows);
 });
 
