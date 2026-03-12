@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { apiClient } from '../services/apiClient';
+import { API_BASE_URL } from '../config/apiConfig.js';
 
 const ChatContext = createContext();
 
@@ -15,21 +16,107 @@ export const ChatProvider = ({ children }) => {
   const [typingState, setTypingState] = useState({});
   const typingTimeoutsRef = useRef({});
   const channelRef = useRef(null);
+  const streamAbortRef = useRef(null);
+  const streamOkRef = useRef(false);
+  const streamRetryRef = useRef(0);
+  const refreshTimerRef = useRef(null);
 
   useEffect(() => {
     if (user) {
       fetchChats();
       fetchQueue();
       fetchAdmins(); // Fetch admins for header display
-      
-      // Sistema de polling para substituir realtime
+
+      const scheduleRefresh = ({ chats: shouldChats, queue: shouldQueue } = { chats: true, queue: true }) => {
+        if (refreshTimerRef.current) return;
+        refreshTimerRef.current = setTimeout(() => {
+          refreshTimerRef.current = null;
+          if (shouldChats) fetchChats();
+          if (shouldQueue) fetchQueue();
+        }, 250);
+      };
+
+      const connectStream = async () => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const normalizedBaseUrl = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
+        const apiBase = normalizedBaseUrl ? `${normalizedBaseUrl}/api` : '/api';
+        const url = `${apiBase}/chat/stream`;
+
+        if (streamAbortRef.current) streamAbortRef.current.abort();
+        const controller = new AbortController();
+        streamAbortRef.current = controller;
+
+        try {
+          const res = await fetch(url, {
+            method: 'GET',
+            headers: {
+              Accept: 'text/event-stream',
+              Authorization: `Bearer ${token}`,
+            },
+            signal: controller.signal,
+          });
+
+          if (!res.ok || !res.body) throw new Error('Falha ao conectar no realtime');
+          streamOkRef.current = true;
+          streamRetryRef.current = 0;
+
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder('utf-8');
+          let buffer = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            let idx;
+            while ((idx = buffer.indexOf('\n\n')) >= 0) {
+              const raw = buffer.slice(0, idx);
+              buffer = buffer.slice(idx + 2);
+              const lines = raw.split('\n').map(l => l.trimEnd()).filter(Boolean);
+              let event = '';
+              let data = '';
+              for (const line of lines) {
+                if (line.startsWith('event:')) event = line.slice('event:'.length).trim();
+                else if (line.startsWith('data:')) data += (data ? '\n' : '') + line.slice('data:'.length).trim();
+              }
+
+              if (event === 'chat_update') scheduleRefresh({ chats: true, queue: false });
+              if (event === 'queue_update') scheduleRefresh({ chats: false, queue: true });
+              if (event === 'connected') scheduleRefresh({ chats: true, queue: true });
+            }
+          }
+        } catch (e) {
+          if (controller.signal.aborted) return;
+        } finally {
+          streamOkRef.current = false;
+          if (!controller.signal.aborted) {
+            const retry = Math.min(10000, 1000 * Math.max(1, streamRetryRef.current + 1));
+            streamRetryRef.current += 1;
+            setTimeout(() => {
+              if (streamAbortRef.current?.signal?.aborted) return;
+              connectStream();
+            }, retry);
+          }
+        }
+      };
+
+      connectStream();
+
       const pollInterval = setInterval(() => {
+        if (streamOkRef.current) return;
         fetchChats();
         fetchQueue();
-      }, 5000); // Atualizar a cada 5 segundos
+      }, 5000);
 
       return () => {
         clearInterval(pollInterval);
+        if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+        if (streamAbortRef.current) streamAbortRef.current.abort();
+        streamAbortRef.current = null;
+        streamOkRef.current = false;
         const timeouts = typingTimeoutsRef.current || {};
         Object.values(timeouts).forEach(t => clearTimeout(t));
         typingTimeoutsRef.current = {};
@@ -37,6 +124,11 @@ export const ChatProvider = ({ children }) => {
     } else {
       setChats([]);
       setSupportQueue([]);
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+      if (streamAbortRef.current) streamAbortRef.current.abort();
+      streamAbortRef.current = null;
+      streamOkRef.current = false;
     }
   }, [user, profile]);
 

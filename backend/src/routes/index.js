@@ -38,6 +38,8 @@ if (!Array.isArray(memory.sellerCommissions)) memory.sellerCommissions = [];
 if (!Array.isArray(memory.sellerLeads)) memory.sellerLeads = [];
 if (!Array.isArray(memory.artistEvents)) memory.artistEvents = [];
 if (!Array.isArray(memory.financeEvents)) memory.financeEvents = [];
+if (!memory.realtime || typeof memory.realtime !== 'object') memory.realtime = { clients: new Map() };
+if (!(memory.realtime.clients instanceof Map)) memory.realtime.clients = new Map();
 
 const roleMap = {
   artist: 'Artista',
@@ -213,6 +215,73 @@ function isValidMonth(v) {
 
 function getMonthPrefix(v) {
   return String(v || '').slice(0, 7);
+}
+
+function sseWrite(res, event, payload) {
+  const safePayload = payload === undefined ? null : payload;
+  const body = `event: ${event}\ndata: ${JSON.stringify(safePayload)}\n\n`;
+  res.write(body);
+}
+
+function registerRealtimeClient({ userId, cargo, res }) {
+  if (!memory.realtime || typeof memory.realtime !== 'object') memory.realtime = { clients: new Map() };
+  if (!(memory.realtime.clients instanceof Map)) memory.realtime.clients = new Map();
+  const store = memory.realtime.clients;
+  const prev = store.get(userId);
+  const list = Array.isArray(prev) ? prev : [];
+  const item = { res, cargo };
+  store.set(userId, [...list, item]);
+  return () => {
+    const curr = store.get(userId);
+    if (!Array.isArray(curr)) return;
+    const next = curr.filter((c) => c && c.res !== res);
+    if (next.length) store.set(userId, next);
+    else store.delete(userId);
+  };
+}
+
+function emitRealtimeToUsers(userIds, event, payload) {
+  if (!memory.realtime || typeof memory.realtime !== 'object') return;
+  if (!(memory.realtime.clients instanceof Map)) return;
+  const store = memory.realtime.clients;
+  const unique = Array.from(new Set((Array.isArray(userIds) ? userIds : []).map(String).filter(Boolean)));
+  for (const userId of unique) {
+    const clients = store.get(userId);
+    if (!Array.isArray(clients) || !clients.length) continue;
+    const alive = [];
+    for (const c of clients) {
+      try {
+        if (c && c.res && !c.res.writableEnded) {
+          sseWrite(c.res, event, payload);
+          alive.push(c);
+        }
+      } catch { void 0; }
+    }
+    if (alive.length) store.set(userId, alive);
+    else store.delete(userId);
+  }
+}
+
+function emitRealtimeToRole(cargo, event, payload) {
+  if (!memory.realtime || typeof memory.realtime !== 'object') return;
+  if (!(memory.realtime.clients instanceof Map)) return;
+  const store = memory.realtime.clients;
+  for (const [userId, clients] of store.entries()) {
+    if (!Array.isArray(clients) || !clients.length) continue;
+    const alive = [];
+    for (const c of clients) {
+      try {
+        if (c && c.res && !c.res.writableEnded) {
+          if (String(c.cargo || '') === String(cargo || '')) {
+            sseWrite(c.res, event, payload);
+          }
+          alive.push(c);
+        }
+      } catch { void 0; }
+    }
+    if (alive.length) store.set(userId, alive);
+    else store.delete(userId);
+  }
 }
 
 router.post('/analytics', async (req, res, next) => {
@@ -1645,6 +1714,32 @@ router.post('/broadcast-notifications', authRequired, (req, res) => {
     .catch(() => res.json({ ok: true, recipients: 0 }));
 });
 
+router.get('/chat/stream', authRequired, (req, res) => {
+  const userId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!userId) return res.status(401).json({ error: 'Autenticação necessária' });
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+
+  res.status(200);
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Connection', 'keep-alive');
+  if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+  const cleanup = registerRealtimeClient({ userId, cargo, res });
+  const ping = setInterval(() => {
+    try {
+      if (!res.writableEnded) sseWrite(res, 'ping', { t: Date.now() });
+    } catch { void 0; }
+  }, 25000);
+
+  try { sseWrite(res, 'connected', { ok: true }); } catch { void 0; }
+
+  req.on('close', () => {
+    clearInterval(ping);
+    cleanup();
+  });
+});
+
 router.get('/queue', authRequired, (req, res) => {
   res.json(memory.queue);
 });
@@ -1662,12 +1757,17 @@ router.post('/queue', authRequired, (req, res) => {
     created_at: new Date().toISOString(),
   };
   memory.queue.unshift(item);
+  emitRealtimeToUsers([requester_id], 'queue_update', { type: 'created', id: item.id });
+  emitRealtimeToRole('Vendedor', 'queue_update', { type: 'created', id: item.id });
+  emitRealtimeToRole('Produtor', 'queue_update', { type: 'created', id: item.id });
   res.status(201).json(item);
 });
 
 router.delete('/queue/:id', authRequired, (req, res) => {
   const id = req.params && req.params.id ? String(req.params.id) : '';
   memory.queue = memory.queue.filter((q) => q.id !== id);
+  emitRealtimeToRole('Vendedor', 'queue_update', { type: 'deleted', id });
+  emitRealtimeToRole('Produtor', 'queue_update', { type: 'deleted', id });
   res.json({ ok: true });
 });
 
@@ -1709,6 +1809,7 @@ router.post('/chats', authRequired, (req, res) => {
     messages: [],
   };
   memory.chats.unshift(chat);
+  emitRealtimeToUsers(participant_ids, 'chat_update', { type: 'chat_created', chat_id: chat.id });
   res.status(201).json(chat);
 });
 
@@ -1716,6 +1817,8 @@ router.put('/chats/:id/status', authRequired, (req, res) => {
   const id = req.params && req.params.id ? String(req.params.id) : '';
   const status = req.body && req.body.status ? String(req.body.status) : '';
   memory.chats = memory.chats.map((c) => (c.id === id ? { ...c, status: status || c.status } : c));
+  const chat = memory.chats.find((c) => c && c.id === id);
+  emitRealtimeToUsers((chat && chat.participant_ids) ? chat.participant_ids : [], 'chat_update', { type: 'chat_status', chat_id: id });
   res.json({ ok: true });
 });
 
@@ -1723,6 +1826,8 @@ router.put('/chats/:id/assign', authRequired, (req, res) => {
   const id = req.params && req.params.id ? String(req.params.id) : '';
   const userId = req.user && req.user.id ? String(req.user.id) : null;
   memory.chats = memory.chats.map((c) => (c.id === id ? { ...c, assigned_to: userId } : c));
+  const chat = memory.chats.find((c) => c && c.id === id);
+  emitRealtimeToUsers((chat && chat.participant_ids) ? chat.participant_ids : [], 'chat_update', { type: 'chat_assigned', chat_id: id });
   res.json({ ok: true });
 });
 
@@ -1733,12 +1838,16 @@ router.put('/chats/:id/mark-read', authRequired, (req, res) => {
     const messages = (c.messages || []).map((m) => ({ ...m, read: true }));
     return { ...c, messages };
   });
+  const chat = memory.chats.find((c) => c && c.id === id);
+  emitRealtimeToUsers((chat && chat.participant_ids) ? chat.participant_ids : [], 'chat_update', { type: 'chat_read', chat_id: id });
   res.json({ ok: true });
 });
 
 router.delete('/chats/:id', authRequired, (req, res) => {
   const id = req.params && req.params.id ? String(req.params.id) : '';
+  const prev = memory.chats.find((c) => c && c.id === id);
   memory.chats = memory.chats.filter((c) => c.id !== id);
+  emitRealtimeToUsers((prev && prev.participant_ids) ? prev.participant_ids : [], 'chat_update', { type: 'chat_deleted', chat_id: id });
   res.json({ ok: true });
 });
 
@@ -1780,6 +1889,11 @@ router.post('/messages', authRequired, (req, res) => {
       memory.chats[idx] = updated;
     }
   }
+
+  const chat = chat_id ? memory.chats.find((c) => c && c.id === chat_id) : null;
+  const participantIds = chat && Array.isArray(chat.participant_ids) ? chat.participant_ids : [];
+  const targets = participantIds.length ? participantIds : [sender_id, receiver_id].filter(Boolean);
+  emitRealtimeToUsers(targets, 'chat_update', { type: 'message', chat_id: chat_id || null, message_id: msg.id });
 
   res.status(201).json(msg);
 });
