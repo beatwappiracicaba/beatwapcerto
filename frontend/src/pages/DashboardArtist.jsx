@@ -17,114 +17,110 @@ export const DashboardArtistHome = () => {
 
   useEffect(() => {
     const fetchMetrics = async () => {
-      const legacy = await apiClient.get(`/admin/artist/${user.id}/metrics`);
-      const events = await apiClient.get(`/analytics/artist/${user.id}/events`);
-      const shows = await apiClient.get('/artist/finance/events');
-      const allMusics = await apiClient.get('/songs/mine');
-
-      const showRevenue = (shows || []).reduce((acc, curr) => acc + (Number(curr.artist_share) || 0), 0) || 0;
-
-      const musicIds = (allMusics || []).map(m => m.id);
-      const musicMap = (allMusics || []).reduce((acc, m) => {
-        acc[m.id] = m;
-        return acc;
-      }, {});
-      
-      let totalExternalPlays = 0;
-      let totalExternalListeners = 0;
-      let totalExternalRevenue = 0;
-      let extMetrics = [];
-      
-      if (musicIds.length > 0) {
-        extMetrics = (await apiClient.get('/songs/external-metrics')) || [];
-          
-        (extMetrics || []).forEach(em => {
-          totalExternalPlays += Number(em.plays || 0);
-          // Listeners might overlap between musics, but since we have no user ID for external listeners, 
-          // we usually sum them or take max?
-          // For simplicity and typical "monthly listeners" logic, usually it's per artist. 
-          // But here we input per music. If user inputs 1000 listeners on Song A and 1000 on Song B, 
-          // total listeners is hard to know without deduplication.
-          // However, usually "Monthly Listeners" is an artist-level metric.
-          // But the user asked to input metrics "of each music manually".
-          // Let's sum them for now, or maybe the user inputs "Monthly Listeners" in the artist profile metrics (legacy)?
-          // Actually, the legacy `artist_metrics` table had `listeners`. 
-          // The new `music_external_metrics` has `listeners`.
-          // Let's assume we sum them or take the max? Summing listeners across tracks usually inflates numbers.
-          // Let's SUM for now as requested "put metrics of each music... and it appears".
-          totalExternalListeners += Number(em.listeners || 0); 
-          totalExternalRevenue += Number(em.revenue || 0);
-        });
-      }
-
-      const agg = {
-        plays: 0,
-        listeners: new Set(),
-        time: 0,
-        profile_views: 0,
-        social_clicks: 0
+      const safeGet = async (url, fallback) => {
+        try {
+          const data = await apiClient.get(url);
+          return data ?? fallback;
+        } catch {
+          return fallback;
+        }
       };
 
-      // Track plays per music to find Top 1
-      const playsPerMusic = {}; // { musicId: count }
+      try {
+        const legacy = await safeGet(`/admin/artist/${user.id}/metrics`, { total_plays: 0, ouvintes_mensais: 0, receita_estimada: 0 });
+        const events = await safeGet(`/analytics/artist/${user.id}/events`, []);
+        const shows = await safeGet('/artist/finance/events', []);
+        const allMusics = await safeGet('/songs/mine', []);
 
-      (events || []).forEach(e => {
-        if (e.type === 'music_play') {
-          agg.plays++;
-          agg.time += Number(e.duration_seconds || 0);
-          if (e.ip_hash) agg.listeners.add(e.ip_hash);
-          
-          // Count internal plays per music
-          const mid = e.music_id;
-          if (mid) playsPerMusic[mid] = (playsPerMusic[mid] || 0) + 1;
-        } else if (e.type === 'profile_view') {
-          agg.profile_views++;
-        } else if (e.type && e.type.startsWith('artist_click_')) {
-          agg.social_clicks++;
-        }
-      });
-      
-      const extForTop = extMetrics || [];
-      extForTop.forEach(em => {
-        if (em.music_id) {
-          playsPerMusic[em.music_id] = (playsPerMusic[em.music_id] || 0) + Number(em.plays || 0);
-        }
-      });
+        const showRevenue = (shows || []).reduce((acc, curr) => acc + (Number(curr.artist_share) || 0), 0) || 0;
 
-      // Find Top Music
-      let topMusic = null;
-      let maxPlays = -1;
-      let topMusicId = null;
-      
-      for (const [mid, count] of Object.entries(playsPerMusic)) {
-        if (count > maxPlays) {
-          maxPlays = count;
-          topMusicId = mid;
+        const musicIds = (allMusics || []).map(m => m.id);
+        const musicMap = (allMusics || []).reduce((acc, m) => {
+          acc[m.id] = m;
+          return acc;
+        }, {});
+        
+        let totalExternalPlays = 0;
+        let totalExternalListeners = 0;
+        let totalExternalRevenue = 0;
+        let extMetrics = [];
+        
+        if (musicIds.length > 0) {
+          extMetrics = await safeGet('/songs/external-metrics', []);
+            
+          (extMetrics || []).forEach(em => {
+            totalExternalPlays += Number(em.plays || 0);
+            totalExternalListeners += Number(em.listeners || 0); 
+            totalExternalRevenue += Number(em.revenue || 0);
+          });
         }
+
+        const agg = {
+          plays: 0,
+          listeners: new Set(),
+          time: 0,
+          profile_views: 0,
+          social_clicks: 0
+        };
+
+        const playsPerMusic = {};
+
+        (events || []).forEach(e => {
+          if (e.type === 'music_play') {
+            agg.plays++;
+            agg.time += Number(e.duration_seconds || 0);
+            if (e.ip_hash) agg.listeners.add(e.ip_hash);
+            
+            const mid = e.music_id;
+            if (mid) playsPerMusic[mid] = (playsPerMusic[mid] || 0) + 1;
+          } else if (e.type === 'profile_view') {
+            agg.profile_views++;
+          } else if (e.type && e.type.startsWith('artist_click_')) {
+            agg.social_clicks++;
+          }
+        });
+        
+        const extForTop = extMetrics || [];
+        extForTop.forEach(em => {
+          if (em.music_id) {
+            playsPerMusic[em.music_id] = (playsPerMusic[em.music_id] || 0) + Number(em.plays || 0);
+          }
+        });
+
+        let topMusic = null;
+        let maxPlays = -1;
+        let topMusicId = null;
+        
+        for (const [mid, count] of Object.entries(playsPerMusic)) {
+          if (count > maxPlays) {
+            maxPlays = count;
+            topMusicId = mid;
+          }
+        }
+        
+        if (topMusicId && musicMap[topMusicId]) {
+           topMusic = { ...musicMap[topMusicId], totalPlays: maxPlays };
+        }
+
+        const basePlays = Number(legacy?.total_plays || 0);
+        const baseListeners = Number(legacy?.ouvintes_mensais || 0);
+        const finalPlays = basePlays + totalExternalPlays;
+        const finalListeners = baseListeners + totalExternalListeners; 
+        const finalStreamingRevenue = (Number(legacy?.receita_estimada || 0)) + totalExternalRevenue;
+
+        setMetrics({ 
+          total_plays: finalPlays, 
+          ouvintes_mensais: finalListeners, 
+          receita_estimada: finalStreamingRevenue,
+          tempo_ouvido: agg.time, 
+          visitas_perfil: agg.profile_views,
+          cliques_sociais: agg.social_clicks,
+          faturamento_shows: showRevenue,
+          topMusic
+        });
+      } finally {
+        setLoading(false);
       }
-      
-      if (topMusicId && musicMap[topMusicId]) {
-         topMusic = { ...musicMap[topMusicId], totalPlays: maxPlays };
-      }
-
-      // Merge Internal + External totals
-      const basePlays = Number(legacy?.total_plays || 0);
-      const baseListeners = Number(legacy?.ouvintes_mensais || 0);
-      const finalPlays = basePlays + totalExternalPlays;
-      const finalListeners = baseListeners + totalExternalListeners; 
-      const finalStreamingRevenue = (Number(legacy?.receita_estimada || 0)) + totalExternalRevenue;
-
-      setMetrics({ 
-        total_plays: finalPlays, 
-        ouvintes_mensais: finalListeners, 
-        receita_estimada: finalStreamingRevenue,
-        tempo_ouvido: agg.time, 
-        visitas_perfil: agg.profile_views,
-        cliques_sociais: agg.social_clicks,
-        faturamento_shows: showRevenue,
-        topMusic
-      });
-      setLoading(false);
     };
     if (user) fetchMetrics();
   }, [user]);
