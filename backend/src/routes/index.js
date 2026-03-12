@@ -36,6 +36,7 @@ if (!Array.isArray(memory.sellerGoals)) memory.sellerGoals = [];
 if (!Array.isArray(memory.sellerCommissions)) memory.sellerCommissions = [];
 if (!Array.isArray(memory.sellerLeads)) memory.sellerLeads = [];
 if (!Array.isArray(memory.artistEvents)) memory.artistEvents = [];
+if (!Array.isArray(memory.financeEvents)) memory.financeEvents = [];
 
 const roleMap = {
   artist: 'Artista',
@@ -623,6 +624,101 @@ router.get('/artist/compositions', authRequired, (req, res) => {
     .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
   res.set('Cache-Control', 'no-store');
   res.json(rows);
+});
+
+router.get('/artist/finance/events', authRequired, async (req, res, next) => {
+  try {
+    const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+    if (!requesterId || !isUuidLike(requesterId)) return res.status(401).json({ error: 'Autenticação necessária' });
+    const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+    const canReadOther = cargo === 'Produtor';
+    const qArtistId = req.query && (req.query.artist_id || req.query.artista_id) ? String(req.query.artist_id || req.query.artista_id) : '';
+    const artistId = (canReadOther && qArtistId && isUuidLike(qArtistId)) ? qArtistId : requesterId;
+
+    const rows = (Array.isArray(memory.financeEvents) ? memory.financeEvents : [])
+      .filter((e) => e && typeof e === 'object')
+      .filter((e) => String(e.artist_id || '') === artistId)
+      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+      .slice(0, 2000);
+
+    const uniqueIds = Array.from(
+      new Set(
+        rows
+          .flatMap((e) => [e.artist_id, e.seller_id])
+          .filter((id) => id && isUuidLike(id))
+          .map(String)
+      )
+    );
+
+    const profilesById = {};
+    await Promise.all(
+      uniqueIds.map(async (id) => {
+        try {
+          const p = await getProfileById(pool, id);
+          if (p) profilesById[id] = p;
+        } catch { void 0; }
+      })
+    );
+
+    res.set('Cache-Control', 'no-store');
+    res.json(
+      rows.map((e) => ({
+        ...e,
+        artist: profilesById[String(e.artist_id)] ? {
+          id: profilesById[String(e.artist_id)].id,
+          nome: profilesById[String(e.artist_id)].nome || profilesById[String(e.artist_id)].nome_completo_razao_social,
+          avatar_url: profilesById[String(e.artist_id)].avatar_url,
+        } : null,
+        seller: profilesById[String(e.seller_id)] ? {
+          id: profilesById[String(e.seller_id)].id,
+          nome: profilesById[String(e.seller_id)].nome || profilesById[String(e.seller_id)].nome_completo_razao_social,
+          avatar_url: profilesById[String(e.seller_id)].avatar_url,
+        } : null,
+      }))
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/artist/finance/events/:id/receipts', authRequired, (req, res) => {
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!requesterId || !isUuidLike(requesterId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  const isSeller = cargo === 'Vendedor';
+  const isProducer = cargo === 'Produtor';
+  if (!isSeller && !isProducer) return res.status(403).json({ error: 'Sem permissão' });
+
+  const id = req.params && req.params.id ? String(req.params.id) : '';
+  if (!id || !isUuidLike(id)) return res.status(400).json({ error: 'id inválido' });
+
+  const store = Array.isArray(memory.financeEvents) ? memory.financeEvents : (memory.financeEvents = []);
+  const idx = store.findIndex((e) => e && typeof e === 'object' && String(e.id || '') === id);
+  if (idx < 0) return res.status(404).json({ error: 'Evento não encontrado' });
+
+  const prev = store[idx];
+  if (isSeller && prev.seller_id && String(prev.seller_id) !== requesterId) return res.status(403).json({ error: 'Sem permissão' });
+
+  const body = (req.body && typeof req.body === 'object') ? req.body : {};
+  const markAsPaid = typeof body.markAsPaid === 'boolean' ? body.markAsPaid : null;
+  const hasContract = typeof body.hasContract === 'boolean' ? body.hasContract : null;
+
+  const next = {
+    ...prev,
+    receipt_artist: body.receipt_artist || prev.receipt_artist || null,
+    receipt_seller: body.receipt_seller || prev.receipt_seller || null,
+    receipt_house: body.receipt_house || prev.receipt_house || null,
+    receipt_manager: body.receipt_manager || prev.receipt_manager || null,
+    contract_file: body.contract_file || prev.contract_file || null,
+    contract_url: body.contract_file || prev.contract_url || prev.contract_file || null,
+    has_contract: hasContract === null ? (prev.has_contract || false) : hasContract,
+    status: markAsPaid === null ? (prev.status || 'pendente') : (markAsPaid ? 'pago' : 'pendente'),
+    updated_at: new Date().toISOString(),
+  };
+
+  store[idx] = next;
+  res.set('Cache-Control', 'no-store');
+  res.json(next);
 });
 
 router.get('/analytics/artist/:artistId/summary', authRequired, async (req, res, next) => {
