@@ -1,5 +1,4 @@
 import express from 'express';
-import cors from 'cors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import apiRoutes from './routes/index.js';
@@ -22,22 +21,29 @@ const allowedOrigins = new Set([
   'http://127.0.0.1:3000',
 ]);
 
-const corsOptions = {
-  origin: (origin, cb) => {
-    if (!origin) return cb(null, true);
-    const o = String(origin);
-    if (allowedOrigins.has(o)) return cb(null, true);
-    return cb(null, false);
-  },
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  maxAge: 86400,
-  optionsSuccessStatus: 200,
-};
+const corsAllowMethods = 'GET, POST, PUT, DELETE, OPTIONS';
+const corsAllowHeaders = 'Content-Type, Authorization';
+const corsAllowCredentials = 'true';
+const corsPrimaryOrigin = 'https://www.beatwap.com.br';
 
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.use('/api', (req, res, next) => {
+  const originHeader = req.get('Origin');
+  const origin = originHeader ? String(originHeader) : null;
+
+  if (origin && allowedOrigins.has(origin)) {
+    res.set('Access-Control-Allow-Origin', origin);
+    res.vary('Origin');
+  } else if (!origin) {
+    res.set('Access-Control-Allow-Origin', corsPrimaryOrigin);
+  }
+
+  res.set('Access-Control-Allow-Methods', corsAllowMethods);
+  res.set('Access-Control-Allow-Headers', corsAllowHeaders);
+  res.set('Access-Control-Allow-Credentials', corsAllowCredentials);
+
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
 
 app.use(express.json({ limit: '5mb' }));
 
@@ -56,7 +62,6 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api', (req, res, next) => {
   res.set('Content-Type', 'application/json; charset=utf-8');
-  if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
 
