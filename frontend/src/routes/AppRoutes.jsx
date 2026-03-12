@@ -22,8 +22,8 @@ import LegalAll from '../pages/LegalAll';
 import { DashboardArtistHome, DashboardArtistMusics, DashboardArtistChat } from '../pages/DashboardArtist';
 import { DashboardMarketing } from '../pages/DashboardMarketing';
 import DashboardWork from '../pages/DashboardWork';
-import { DashboardArtistProfile } from '../pages/DashboardArtistProfile';
-import { AdminHome, AdminArtists, AdminComposers, AdminMusics, AdminChat, AdminProfile } from '../pages/AdminDashboard';
+import { DashboardArtistProfile, DashboardPublicProfile } from '../pages/DashboardArtistProfile';
+import { AdminHome, AdminArtists, AdminComposers, AdminMusics, AdminChat, AdminProfile, AdminPublicProfile } from '../pages/AdminDashboard';
 import { AdminSellers } from '../pages/AdminSellers';
 import { AdminFinance } from '../pages/AdminFinance';
 import { AdminCompositions } from '../pages/AdminCompositions';
@@ -126,6 +126,7 @@ export const AppRoutes = () => {
         <Route path="/dashboard/musics" element={isArtista ? <DashboardArtistMusics /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/compositions" element={(isArtista || isCompositor) ? <DashboardCompositions /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/profile" element={(isArtista || isCompositor || isVendedor) ? <DashboardArtistProfile /> : <Navigate to="/" replace />} />
+        <Route path="/dashboard/gestao/perfil-publico" element={(isArtista || isCompositor || isVendedor) ? <DashboardPublicProfile /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/chat" element={(isArtista || isCompositor) ? <DashboardArtistChat /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/work" element={isArtista ? <DashboardWork /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/marketing" element={(isArtista || isCompositor) ? <DashboardMarketing /> : <Navigate to="/" replace />} />
@@ -141,6 +142,7 @@ export const AppRoutes = () => {
 
         <Route path="/admin" element={<ProtectedRoute element={<Navigate to={routeForRole(profile?.cargo)} replace />} />} />
         <Route path="/admin/profile" element={isProdutor ? <AdminProfile /> : <Navigate to="/" replace />} />
+        <Route path="/admin/public-profile" element={isProdutor ? <AdminPublicProfile /> : <Navigate to="/" replace />} />
         <Route path="/admin/artists" element={isProdutor ? <AdminArtists /> : <Navigate to="/" replace />} />
         <Route path="/admin/composers" element={isProdutor ? <AdminComposers /> : <Navigate to="/" replace />} />
         <Route path="/admin/sellers" element={isProdutor ? <AdminSellers /> : <Navigate to="/" replace />} />

@@ -40,10 +40,6 @@ export const ChatProvider = ({ children }) => {
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const normalizedBaseUrl = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
-        const apiBase = normalizedBaseUrl ? `${normalizedBaseUrl}/api` : '/api';
-        const url = `${apiBase}/chat/stream`;
-
         if (streamAbortRef.current) streamAbortRef.current.abort();
         const controller = new AbortController();
         streamAbortRef.current = controller;
@@ -52,17 +48,39 @@ export const ChatProvider = ({ children }) => {
         }, 6000);
 
         try {
-          const res = await fetch(url, {
-            method: 'GET',
-            headers: {
-              Accept: 'text/event-stream',
-              Authorization: `Bearer ${token}`,
-            },
-            signal: controller.signal,
-          });
+          const normalizedBaseUrl = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
+          const hostname = typeof window !== 'undefined' && window.location ? String(window.location.hostname || '') : '';
+          const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
+          const candidates = [];
+          if (normalizedBaseUrl) candidates.push(normalizedBaseUrl);
+          if (!candidates.includes('')) candidates.push('');
+          if (!isLocalHost && !candidates.includes('https://api.beatwap.com.br')) candidates.push('https://api.beatwap.com.br');
+
+          let res = null;
+          for (let i = 0; i < candidates.length; i += 1) {
+            const baseUrl = candidates[i];
+            const apiBase = baseUrl ? `${baseUrl}/api` : '/api';
+            const url = `${apiBase}/chat/stream`;
+            try {
+              res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                  Accept: 'text/event-stream',
+                  Authorization: `Bearer ${token}`,
+                },
+                signal: controller.signal,
+              });
+              if (res.ok && res.body) break;
+              if (res.status === 404 && i < candidates.length - 1) continue;
+              break;
+            } catch (e) {
+              if (i < candidates.length - 1) continue;
+              throw e;
+            }
+          }
           clearTimeout(connectTimeoutId);
 
-          if (!res.ok || !res.body) throw new Error('Falha ao conectar no realtime');
+          if (!res || !res.ok || !res.body) throw new Error('Falha ao conectar no realtime');
           const contentType = String(res.headers.get('content-type') || '').toLowerCase();
           if (!contentType.includes('text/event-stream')) throw new Error('Realtime inválido');
           streamOkRef.current = true;

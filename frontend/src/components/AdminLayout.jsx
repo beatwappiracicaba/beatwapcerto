@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, Music, Menu, X, Settings, DollarSign, ChevronDown } from 'lucide-react';
+import { LayoutGrid, Users, User, Music, Menu, X, Settings, DollarSign, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { NotificationBell } from './notifications/NotificationBell';
 import { ProfileButton } from './ProfileButton';
@@ -43,6 +43,7 @@ export const AdminLayout = ({ children }) => {
   );
   const financeiroActive = location.pathname.startsWith('/admin/finance');
   const sistemaActive = location.pathname.startsWith('/admin/settings');
+  const publicProfileActive = location.pathname.startsWith('/admin/public-profile');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-[#0b0b0b] to-[#161616] text-white flex">
@@ -65,6 +66,18 @@ export const AdminLayout = ({ children }) => {
           >
             <LayoutGrid size={16} />
             <span>Painel</span>
+          </NavLink>
+
+          <NavLink
+            to="/admin/public-profile"
+            className={({ isActive }) =>
+              `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors text-xs uppercase tracking-wide ${
+                isActive || publicProfileActive ? 'bg-white/10 text-beatwap-gold' : 'text-gray-400 hover:bg-white/5'
+              }`
+            }
+          >
+            <User size={16} />
+            <span>Perfil Público</span>
           </NavLink>
 
           {(permissions.admin_artists !== false ||

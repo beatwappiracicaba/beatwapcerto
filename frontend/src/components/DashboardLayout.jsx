@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutGrid, Music, Menu, X, TrendingUp, Lock, Users, Calendar, Target, FileText, MessageCircle, DollarSign, ChevronDown } from 'lucide-react';
+import { LayoutGrid, Music, Menu, X, TrendingUp, Lock, Users, User, Calendar, Target, FileText, MessageCircle, DollarSign, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ChatButton } from './FloatingChat/ChatButton';
 import { ChatWindow } from './FloatingChat/ChatWindow';
@@ -15,7 +15,7 @@ export const DashboardLayout = ({ children }) => {
   const isCompositor = profile?.cargo?.toLowerCase() === 'compositor';
   const currentUserId = user?.id;
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [openSections, setOpenSections] = useState({ trabalhos: false, trabalhoSeller: false, financeiroSeller: false });
+  const [openSections, setOpenSections] = useState({ trabalhos: false, trabalhoSeller: false, financeiroSeller: false, gestao: false });
 
   // Default permissions (all enabled) if not set
   const plan = String(profile?.plano || '');
@@ -44,6 +44,7 @@ export const DashboardLayout = ({ children }) => {
     location.pathname.startsWith(p)
   );
   const financeiroSellerActive = location.pathname.startsWith('/seller/finance');
+  const gestaoActive = location.pathname.startsWith('/dashboard/gestao');
 
   const hasAccess = () => {
     if (isVendedor) return true; // Vendedor has access to their specific routes (handled by router)
@@ -216,6 +217,44 @@ export const DashboardLayout = ({ children }) => {
                   </div>
                 </div>
               )}
+
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => toggleSection('gestao')}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-colors ${
+                    gestaoActive ? 'bg-white/10 text-beatwap-gold' : 'text-gray-300 hover:bg-white/5'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Users size={16} />
+                    <span>Gestão</span>
+                  </span>
+                  <ChevronDown
+                    size={14}
+                    className={`transition-transform duration-200 ${openSections.gestao ? 'rotate-180' : ''}`}
+                  />
+                </button>
+                <div
+                  className={`overflow-hidden transition-all duration-200 ${
+                    openSections.gestao ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'
+                  }`}
+                >
+                  <div className="mt-1 space-y-1">
+                    <NavLink
+                      to="/dashboard/gestao/perfil-publico"
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
+                          isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
+                        }`
+                      }
+                    >
+                      <User size={14} />
+                      <span>Perfil Público</span>
+                    </NavLink>
+                  </div>
+                </div>
+              </div>
             </>
           )}
 
@@ -325,6 +364,44 @@ export const DashboardLayout = ({ children }) => {
                   <DollarSign size={18} /> <span>Financeiro</span>
                 </NavLink>
               )}
+
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => toggleSection('gestao')}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-colors ${
+                    gestaoActive ? 'bg-white/10 text-beatwap-gold' : 'text-gray-300 hover:bg-white/5'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Users size={16} />
+                    <span>Gestão</span>
+                  </span>
+                  <ChevronDown
+                    size={14}
+                    className={`transition-transform duration-200 ${openSections.gestao ? 'rotate-180' : ''}`}
+                  />
+                </button>
+                <div
+                  className={`overflow-hidden transition-all duration-200 ${
+                    openSections.gestao ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'
+                  }`}
+                >
+                  <div className="mt-1 space-y-1">
+                    <NavLink
+                      to="/dashboard/gestao/perfil-publico"
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
+                          isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
+                        }`
+                      }
+                    >
+                      <User size={14} />
+                      <span>Perfil Público</span>
+                    </NavLink>
+                  </div>
+                </div>
+              </div>
             </>
           )}
         </nav>

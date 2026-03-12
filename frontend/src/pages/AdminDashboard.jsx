@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause, Check, FolderDown, CheckCircle2, ChevronDown, ChevronRight, Plus, Music } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -1552,6 +1553,7 @@ export const AdminChat = () => {
 export const AdminProfile = () => {
   const { user, profile, refreshProfile } = useAuth();
   const { addToast } = useToast();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('detalhes');
   const [loading, setLoading] = useState(false);
   const [myCompositions, setMyCompositions] = useState([]);
@@ -1577,12 +1579,9 @@ export const AdminProfile = () => {
     confirmar_senha: ''
   });
   const [mandatoryMissing, setMandatoryMissing] = useState(false);
-  const [avatarModalOpen, setAvatarModalOpen] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [artists, setArtists] = useState([]);
   const [selectedArtistEdit, setSelectedArtistEdit] = useState('');
   const [artistSearchName, setArtistSearchName] = useState('');
-  const [isArtistProfileOpen, setIsArtistProfileOpen] = useState(false);
 
   useEffect(() => {
     if (user && profile) {
@@ -1659,66 +1658,6 @@ export const AdminProfile = () => {
   };
 
 
-  const handleSavePublicProfile = async ({ name, bio, genre, socials, blob }) => {
-    try {
-      let avatar_url = null;
-      if (blob) {
-        const dataUrl = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-        const r = await apiClient.post('/profile/avatar', { dataUrl });
-        avatar_url = r?.avatar_url || null;
-      }
-      
-      const updateData = {
-        nome: name,
-        genero_musical: genre,
-        youtube_url: socials?.youtube || null,
-        spotify_url: socials?.spotify || null,
-        deezer_url: socials?.deezer || null,
-        tiktok_url: socials?.tiktok || null,
-        instagram_url: socials?.instagram || null,
-        site_url: socials?.site || null,
-      };
-      if (bio) updateData.bio = bio;
-      if (avatar_url) updateData.avatar_url = avatar_url;
-
-      await apiClient.put('/profile', updateData);
-      
-      await refreshProfile();
-      addToast('Perfil público atualizado', 'success');
-      setIsArtistProfileOpen(false);
-    } catch (e) {
-      console.error(e);
-      addToast('Falha ao atualizar perfil', 'error');
-    }
-  };
-
-  const handleAvatarSave = async ({ blob }) => {
-    if (!blob || !user) return;
-    try {
-      setUploadingAvatar(true);
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-      await apiClient.post('/profile/avatar', { dataUrl });
-      await refreshProfile();
-      addToast('Foto de perfil atualizada!', 'success');
-      setAvatarModalOpen(false);
-    } catch (error) {
-      console.error(error);
-      addToast('Erro ao atualizar foto de perfil.', 'error');
-    } finally {
-      setUploadingAvatar(false);
-    }
-  };
-
   const handlePasswordChange = async () => {
     if (formData.nova_senha !== formData.confirmar_senha) {
       addToast('As senhas não coincidem.', 'warning');
@@ -1766,7 +1705,6 @@ export const AdminProfile = () => {
     { id: 'contrato', label: 'Contrato', icon: FileText },
     { id: 'composicoes', label: 'Minhas Composições', icon: Music },
     { id: 'senha', label: 'Minha Senha', icon: Lock },
-    { id: 'artista', label: 'Meu Perfil Público', icon: User },
   ];
 
   return (
@@ -1820,8 +1758,8 @@ export const AdminProfile = () => {
                         </div>
                       )}
                     </div>
-                    <AnimatedButton onClick={() => setIsArtistProfileOpen(true)} variant="secondary" className="w-full sm:w-auto justify-center">
-                      Modificar Foto
+                    <AnimatedButton onClick={() => navigate('/admin/public-profile')} variant="secondary" className="w-full sm:w-auto justify-center">
+                      Editar Perfil Público
                     </AnimatedButton>
                   </div>
                   <h3 className="text-lg font-bold text-white mb-4 text-center sm:text-left">Dados Pessoais</h3>
@@ -1987,53 +1925,113 @@ export const AdminProfile = () => {
             </motion.div>
           </AnimatePresence>
         </Card>
-        {activeTab === 'artista' && (
-          <Card className="space-y-6">
-            <div>
-              <div className="font-bold text-xl text-white">Meu Perfil Público</div>
-              <p className="text-gray-400 text-sm mt-1">
-                Gerencie as informações que aparecem na sua página de perfil público e na Home.
-                Adicione fotos, links e biografia para atrair mais visibilidade.
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-white/5 border border-white/10 rounded-xl">
-               <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-beatwap-gold/20 bg-gray-800 flex-shrink-0">
-                  {profile?.avatar_url ? (
-                    <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-500">
-                      <User size={48} />
-                    </div>
-                  )}
-               </div>
-               <div className="flex-1 text-center sm:text-left space-y-2">
-                  <div>
-                    <div className="font-bold text-white text-xl">{profile?.nome || profile?.nome_completo_razao_social || 'Sem nome artístico'}</div>
-                    <div className="text-beatwap-gold text-sm font-medium">{profile?.genero_musical || 'Gênero não definido'}</div>
-                  </div>
-                  <p className="text-gray-400 text-sm line-clamp-2 max-w-lg">
-                    {profile?.bio || 'Sem biografia definida. Clique em editar para adicionar.'}
-                  </p>
-                  <div className="flex flex-wrap gap-2 justify-center sm:justify-start pt-2">
-                     {profile?.youtube_url && <div className="px-2 py-1 bg-red-500/10 text-red-500 text-xs rounded border border-red-500/20">YouTube</div>}
-                     {profile?.spotify_url && <div className="px-2 py-1 bg-green-500/10 text-green-500 text-xs rounded border border-green-500/20">Spotify</div>}
-                     {profile?.instagram_url && <div className="px-2 py-1 bg-purple-500/10 text-purple-500 text-xs rounded border border-purple-500/20">Instagram</div>}
-                  </div>
-               </div>
-               <AnimatedButton onClick={() => setIsArtistProfileOpen(true)} icon={User}>
-                  Editar Perfil Completo
-               </AnimatedButton>
-            </div>
-            
-            <div className="pt-6 border-t border-white/10">
-              <GalleryManager userId={profile?.id} />
-            </div>
-          </Card>
+        {isMyCompositionsUploadOpen && (
+          <CompositionsUploadModal
+            isOpen={isMyCompositionsUploadOpen}
+            onClose={() => setIsMyCompositionsUploadOpen(false)}
+            onSuccess={() => {
+              setIsMyCompositionsUploadOpen(false);
+              loadMyCompositions();
+            }}
+            composerId={user?.id || null}
+          />
         )}
+      </div>
+    </AdminLayout>
+  );
+};
+
+export const AdminPublicProfile = () => {
+  const { profile, refreshProfile } = useAuth();
+  const { addToast } = useToast();
+  const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
+
+  const handleSavePublicProfile = async ({ name, bio, genre, socials, blob }) => {
+    try {
+      let avatar_url = null;
+      if (blob) {
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        const r = await apiClient.post('/profile/avatar', { dataUrl });
+        avatar_url = r?.avatar_url || null;
+      }
+
+      const updateData = {
+        nome: name,
+        genero_musical: genre,
+        youtube_url: socials?.youtube || null,
+        spotify_url: socials?.spotify || null,
+        deezer_url: socials?.deezer || null,
+        tiktok_url: socials?.tiktok || null,
+        instagram_url: socials?.instagram || null,
+        site_url: socials?.site || null,
+      };
+      if (bio) updateData.bio = bio;
+      if (avatar_url) updateData.avatar_url = avatar_url;
+
+      await apiClient.put('/profile', updateData);
+
+      await refreshProfile();
+      addToast('Perfil público atualizado', 'success');
+      setIsProfileEditOpen(false);
+    } catch (e) {
+      console.error(e);
+      addToast('Falha ao atualizar perfil', 'error');
+    }
+  };
+
+  return (
+    <AdminLayout>
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div>
+          <div className="font-bold text-2xl text-white">Perfil Público</div>
+          <p className="text-gray-400 text-sm mt-1">
+            Gerencie as informações que aparecem na sua página de perfil público e na Home.
+          </p>
+        </div>
+
+        <Card className="space-y-6 p-4 md:p-6">
+          <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-white/5 border border-white/10 rounded-xl">
+            <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-beatwap-gold/20 bg-gray-800 flex-shrink-0">
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-500">
+                  <User size={48} />
+                </div>
+              )}
+            </div>
+            <div className="flex-1 text-center sm:text-left space-y-2">
+              <div>
+                <div className="font-bold text-white text-xl">{profile?.nome || profile?.nome_completo_razao_social || 'Sem nome artístico'}</div>
+                <div className="text-beatwap-gold text-sm font-medium">{profile?.genero_musical || 'Gênero não definido'}</div>
+              </div>
+              <p className="text-gray-400 text-sm line-clamp-2 max-w-lg">
+                {profile?.bio || 'Sem biografia definida. Clique em editar para adicionar.'}
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center sm:justify-start pt-2">
+                {profile?.youtube_url && <div className="px-2 py-1 bg-red-500/10 text-red-500 text-xs rounded border border-red-500/20">YouTube</div>}
+                {profile?.spotify_url && <div className="px-2 py-1 bg-green-500/10 text-green-500 text-xs rounded border border-green-500/20">Spotify</div>}
+                {profile?.instagram_url && <div className="px-2 py-1 bg-purple-500/10 text-purple-500 text-xs rounded border border-purple-500/20">Instagram</div>}
+              </div>
+            </div>
+            <AnimatedButton onClick={() => setIsProfileEditOpen(true)} icon={User} className="w-full sm:w-auto justify-center">
+              Editar Perfil Completo
+            </AnimatedButton>
+          </div>
+
+          <div className="pt-6 border-t border-white/10">
+            <GalleryManager userId={profile?.id} />
+          </div>
+        </Card>
+
         <ProfileEditModal
-          isOpen={isArtistProfileOpen}
-          onClose={() => setIsArtistProfileOpen(false)}
+          isOpen={isProfileEditOpen}
+          onClose={() => setIsProfileEditOpen(false)}
           currentAvatar={profile?.avatar_url}
           currentName={profile?.nome || profile?.nome_completo_razao_social}
           currentBio={profile?.bio}
@@ -2049,17 +2047,6 @@ export const AdminProfile = () => {
           onSave={handleSavePublicProfile}
           uploading={false}
         />
-        {isMyCompositionsUploadOpen && (
-          <CompositionsUploadModal
-            isOpen={isMyCompositionsUploadOpen}
-            onClose={() => setIsMyCompositionsUploadOpen(false)}
-            onSuccess={() => {
-              setIsMyCompositionsUploadOpen(false);
-              loadMyCompositions();
-            }}
-            composerId={user?.id || null}
-          />
-        )}
       </div>
     </AdminLayout>
   );

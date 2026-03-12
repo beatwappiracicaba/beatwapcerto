@@ -30,13 +30,8 @@ async function request(path, options = {}) {
   const hostname = isBrowser && window.location ? String(window.location.hostname || '') : '';
   const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
   const baseUrls = [];
-  if (normalizedBaseUrl) {
-    baseUrls.push(normalizedBaseUrl);
-  } else if (!isLocalHost) {
-    baseUrls.push(PROD_FALLBACK_BASE_URL);
-  } else {
-    baseUrls.push('');
-  }
+  if (normalizedBaseUrl) baseUrls.push(normalizedBaseUrl);
+  if (!baseUrls.includes('')) baseUrls.push('');
   if (!isLocalHost && !baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
 
   const deadline = Number.isFinite(timeoutMs) && timeoutMs > 0 ? (Date.now() + timeoutMs) : null;
@@ -128,7 +123,10 @@ async function request(path, options = {}) {
         });
       }
       last = err;
-      const retriable = err?.code === 'ETIMEDOUT' || err?.name === 'AbortError' || err instanceof TypeError;
+      const retriable = err?.code === 'ETIMEDOUT'
+        || err?.name === 'AbortError'
+        || err instanceof TypeError
+        || (!normalizedBaseUrl && baseUrl === '' && Number(err?.status) === 404);
       const hasNext = i < baseUrls.length - 1;
       if (DEBUG_API) {
         console.warn('[api] attempt failed', {
