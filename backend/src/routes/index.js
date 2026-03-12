@@ -40,6 +40,9 @@ if (!Array.isArray(memory.artistEvents)) memory.artistEvents = [];
 if (!Array.isArray(memory.financeEvents)) memory.financeEvents = [];
 if (!memory.realtime || typeof memory.realtime !== 'object') memory.realtime = { clients: new Map() };
 if (!(memory.realtime.clients instanceof Map)) memory.realtime.clients = new Map();
+if (!Array.isArray(memory.sellerProposals)) memory.sellerProposals = [];
+if (!Array.isArray(memory.contractors)) memory.contractors = [];
+if (!(memory.sellerLeadHistory instanceof Map)) memory.sellerLeadHistory = new Map();
 
 const roleMap = {
   artist: 'Artista',
@@ -1270,6 +1273,463 @@ router.get('/artists-for-seller', authRequired, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+router.get('/seller/dashboard', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Vendedor') return res.status(403).json({ error: 'Sem permissão' });
+  const sellerId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!sellerId || !isUuidLike(sellerId)) return res.status(401).json({ error: 'Autenticação necessária' });
+
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+
+  const goalsStore = Array.isArray(memory.sellerGoals) ? memory.sellerGoals : [];
+  const goalForMonth = goalsStore.find((g) =>
+    g &&
+    typeof g === 'object' &&
+    String(g.seller_id || '') === sellerId &&
+    Number(g.month || 0) === month &&
+    Number(g.year || 0) === year
+  );
+  const latestGoal = goalsStore
+    .filter((g) => g && typeof g === 'object' && String(g.seller_id || '') === sellerId)
+    .sort((a, b) => {
+      const ak = `${String(a.year || '').padStart(4, '0')}-${String(a.month || '').padStart(2, '0')}`;
+      const bk = `${String(b.year || '').padStart(4, '0')}-${String(b.month || '').padStart(2, '0')}`;
+      return bk.localeCompare(ak);
+    })[0];
+
+  const g = goalForMonth || latestGoal || null;
+  const shows_target = Number(g && g.shows_target ? g.shows_target : 0) || 0;
+  const revenue_target = Number(g && g.revenue_target ? g.revenue_target : 0) || 0;
+
+  const leadsStore = Array.isArray(memory.sellerLeads) ? memory.sellerLeads : [];
+  const closedThisMonth = leadsStore
+    .filter((l) => l && typeof l === 'object')
+    .filter((l) => String(l.seller_id || '') === sellerId)
+    .filter((l) => String(l.status || '') === 'fechado')
+    .filter((l) => {
+      const dRaw = l.event_date || l.date || l.created_at;
+      const d = dRaw ? new Date(String(dRaw)) : null;
+      if (!d || Number.isNaN(d.getTime())) return false;
+      return d.getFullYear() === year && (d.getMonth() + 1) === month;
+    });
+
+  const current_shows = closedThisMonth.length;
+  const current_revenue = closedThisMonth.reduce((acc, l) => acc + (Number(l.budget || l.value || 0) || 0), 0);
+
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    month,
+    year,
+    shows_target,
+    revenue_target,
+    current_shows,
+    current_revenue,
+  });
+});
+
+router.get('/seller/contractors', authRequired, async (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Vendedor') return res.status(403).json({ error: 'Sem permissão' });
+  res.set('Cache-Control', 'no-store');
+  res.json(Array.isArray(memory.contractors) ? memory.contractors : []);
+});
+
+router.get('/seller/leads', authRequired, async (req, res, next) => {
+  try {
+    const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+    if (cargo !== 'Vendedor') return res.status(403).json({ error: 'Sem permissão' });
+    const sellerId = req.user && req.user.id ? String(req.user.id) : '';
+    if (!sellerId || !isUuidLike(sellerId)) return res.status(401).json({ error: 'Autenticação necessária' });
+
+    const store = Array.isArray(memory.sellerLeads) ? memory.sellerLeads : [];
+    const rows = store
+      .filter((l) => l && typeof l === 'object')
+      .filter((l) => String(l.seller_id || '') === sellerId)
+      .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+      .slice(0, 5000);
+
+    const artistIds = Array.from(new Set(rows.map((l) => String(l.artist_id || '')).filter((id) => id && isUuidLike(id))));
+    const artistsById = {};
+    await Promise.all(
+      artistIds.map(async (id) => {
+        try {
+          const p = await getProfileById(pool, id);
+          if (p) artistsById[id] = p;
+        } catch { void 0; }
+      })
+    );
+
+    res.set('Cache-Control', 'no-store');
+    res.json(
+      rows.map((l) => {
+        const artist = artistsById[String(l.artist_id)] || null;
+        return {
+          ...l,
+          artist: artist
+            ? {
+              id: artist.id,
+              nome: artist.nome || artist.nome_completo_razao_social,
+              nome_completo_razao_social: artist.nome_completo_razao_social,
+              celular: artist.celular,
+              avatar_url: artist.avatar_url,
+            }
+            : null,
+        };
+      })
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/seller/leads', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Vendedor') return res.status(403).json({ error: 'Sem permissão' });
+  const sellerId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!sellerId || !isUuidLike(sellerId)) return res.status(401).json({ error: 'Autenticação necessária' });
+
+  const artist_id = req.body && req.body.artist_id ? String(req.body.artist_id) : '';
+  if (!artist_id || !isUuidLike(artist_id)) return res.status(400).json({ error: 'artist_id inválido' });
+  const contractor_name = req.body && req.body.contractor_name ? String(req.body.contractor_name).trim() : '';
+  const event_name = req.body && req.body.event_name ? String(req.body.event_name).trim() : '';
+  const city = req.body && req.body.city ? String(req.body.city).trim() : '';
+  const event_date = req.body && req.body.event_date ? String(req.body.event_date).trim() : '';
+  const budget = Number(req.body && req.body.budget ? req.body.budget : 0) || 0;
+  const status = req.body && req.body.status ? String(req.body.status).trim() : 'novo';
+  const whatsapp = req.body && req.body.whatsapp ? String(req.body.whatsapp).trim() : '';
+  const contractor_id = req.body && req.body.contractor_id ? String(req.body.contractor_id) : null;
+
+  if (!contractor_name) return res.status(400).json({ error: 'contractor_name é obrigatório' });
+  if (!event_name) return res.status(400).json({ error: 'event_name é obrigatório' });
+
+  const now = new Date().toISOString();
+  const lead = {
+    id: randomUUID(),
+    seller_id: sellerId,
+    artist_id,
+    contractor_id: contractor_id && isUuidLike(contractor_id) ? contractor_id : null,
+    contractor_name,
+    event_name,
+    city,
+    event_date: event_date || null,
+    budget,
+    status: status || 'novo',
+    whatsapp: whatsapp || null,
+    created_at: now,
+    updated_at: now,
+  };
+
+  const store = Array.isArray(memory.sellerLeads) ? memory.sellerLeads : (memory.sellerLeads = []);
+  store.unshift(lead);
+  res.status(201).json(lead);
+});
+
+router.put('/seller/leads/:id', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Vendedor') return res.status(403).json({ error: 'Sem permissão' });
+  const sellerId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!sellerId || !isUuidLike(sellerId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const id = req.params && req.params.id ? String(req.params.id) : '';
+  if (!id || !isUuidLike(id)) return res.status(400).json({ error: 'id inválido' });
+
+  const store = Array.isArray(memory.sellerLeads) ? memory.sellerLeads : (memory.sellerLeads = []);
+  const idx = store.findIndex((l) => l && typeof l === 'object' && String(l.id || '') === id);
+  if (idx < 0) return res.status(404).json({ error: 'Lead não encontrado' });
+  const prev = store[idx];
+  if (String(prev.seller_id || '') !== sellerId) return res.status(403).json({ error: 'Sem permissão' });
+
+  const patch = (req.body && typeof req.body === 'object') ? req.body : {};
+  const next = {
+    ...prev,
+    contractor_name: patch.contractor_name !== undefined ? String(patch.contractor_name).trim() : prev.contractor_name,
+    event_name: patch.event_name !== undefined ? String(patch.event_name).trim() : prev.event_name,
+    city: patch.city !== undefined ? String(patch.city).trim() : prev.city,
+    event_date: patch.event_date !== undefined ? (patch.event_date ? String(patch.event_date).trim() : null) : prev.event_date,
+    budget: patch.budget !== undefined ? (Number(patch.budget) || 0) : prev.budget,
+    status: patch.status !== undefined ? String(patch.status).trim() : prev.status,
+    whatsapp: patch.whatsapp !== undefined ? (patch.whatsapp ? String(patch.whatsapp).trim() : null) : prev.whatsapp,
+    contractor_id: patch.contractor_id !== undefined ? (patch.contractor_id && isUuidLike(patch.contractor_id) ? String(patch.contractor_id) : null) : prev.contractor_id,
+    artist_id: patch.artist_id !== undefined ? String(patch.artist_id) : prev.artist_id,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (!next.artist_id || !isUuidLike(next.artist_id)) return res.status(400).json({ error: 'artist_id inválido' });
+  if (!next.contractor_name) return res.status(400).json({ error: 'contractor_name é obrigatório' });
+  if (!next.event_name) return res.status(400).json({ error: 'event_name é obrigatório' });
+
+  store[idx] = next;
+  res.json(next);
+});
+
+router.delete('/seller/leads/:id', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Vendedor') return res.status(403).json({ error: 'Sem permissão' });
+  const sellerId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!sellerId || !isUuidLike(sellerId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const id = req.params && req.params.id ? String(req.params.id) : '';
+  if (!id || !isUuidLike(id)) return res.status(400).json({ error: 'id inválido' });
+
+  const store = Array.isArray(memory.sellerLeads) ? memory.sellerLeads : (memory.sellerLeads = []);
+  const prev = store.find((l) => l && typeof l === 'object' && String(l.id || '') === id) || null;
+  if (!prev) return res.status(404).json({ error: 'Lead não encontrado' });
+  if (String(prev.seller_id || '') !== sellerId) return res.status(403).json({ error: 'Sem permissão' });
+
+  memory.sellerLeads = store.filter((l) => String(l.id || '') !== id);
+  if (memory.sellerLeadHistory instanceof Map) memory.sellerLeadHistory.delete(id);
+  res.json({ ok: true });
+});
+
+router.get('/seller/leads/:id/history', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Vendedor') return res.status(403).json({ error: 'Sem permissão' });
+  const sellerId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!sellerId || !isUuidLike(sellerId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const id = req.params && req.params.id ? String(req.params.id) : '';
+  if (!id || !isUuidLike(id)) return res.status(400).json({ error: 'id inválido' });
+
+  const store = Array.isArray(memory.sellerLeads) ? memory.sellerLeads : [];
+  const lead = store.find((l) => l && typeof l === 'object' && String(l.id || '') === id) || null;
+  if (!lead) return res.status(404).json({ error: 'Lead não encontrado' });
+  if (String(lead.seller_id || '') !== sellerId) return res.status(403).json({ error: 'Sem permissão' });
+
+  const history = (memory.sellerLeadHistory instanceof Map) ? (memory.sellerLeadHistory.get(id) || []) : [];
+  res.set('Cache-Control', 'no-store');
+  res.json(history);
+});
+
+router.post('/seller/leads/:id/history', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Vendedor') return res.status(403).json({ error: 'Sem permissão' });
+  const sellerId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!sellerId || !isUuidLike(sellerId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const id = req.params && req.params.id ? String(req.params.id) : '';
+  if (!id || !isUuidLike(id)) return res.status(400).json({ error: 'id inválido' });
+
+  const store = Array.isArray(memory.sellerLeads) ? memory.sellerLeads : [];
+  const lead = store.find((l) => l && typeof l === 'object' && String(l.id || '') === id) || null;
+  if (!lead) return res.status(404).json({ error: 'Lead não encontrado' });
+  if (String(lead.seller_id || '') !== sellerId) return res.status(403).json({ error: 'Sem permissão' });
+
+  const notes = req.body && req.body.notes ? String(req.body.notes) : '';
+  if (!notes.trim()) return res.status(400).json({ error: 'notes é obrigatório' });
+  if (!(memory.sellerLeadHistory instanceof Map)) memory.sellerLeadHistory = new Map();
+  const prev = memory.sellerLeadHistory.get(id) || [];
+  const row = { id: randomUUID(), lead_id: id, notes: notes.trim(), created_at: new Date().toISOString() };
+  memory.sellerLeadHistory.set(id, [...prev, row].slice(-500));
+  res.status(201).json(row);
+});
+
+router.post('/seller/leads/:id/sync-agenda', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Vendedor') return res.status(403).json({ error: 'Sem permissão' });
+  const sellerId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!sellerId || !isUuidLike(sellerId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const leadId = req.params && req.params.id ? String(req.params.id) : '';
+  if (!leadId || !isUuidLike(leadId)) return res.status(400).json({ error: 'id inválido' });
+
+  const status = req.body && req.body.status ? String(req.body.status).trim() : '';
+  const artistId = req.body && req.body.artist_id ? String(req.body.artist_id) : '';
+  const eventName = req.body && req.body.event_name ? String(req.body.event_name) : '';
+  const eventDate = req.body && req.body.event_date ? String(req.body.event_date) : '';
+  const contractorName = req.body && req.body.contractor_name ? String(req.body.contractor_name) : '';
+  const budget = Number(req.body && req.body.budget ? req.body.budget : 0) || 0;
+  const city = req.body && req.body.city ? String(req.body.city) : '';
+  if (!artistId || !isUuidLike(artistId)) return res.status(400).json({ error: 'artist_id inválido' });
+
+  const events = Array.isArray(memory.sellerArtistEvents) ? memory.sellerArtistEvents : (memory.sellerArtistEvents = []);
+  const idx = events.findIndex((e) => e && typeof e === 'object' && e.metadata && String(e.metadata.lead_id || '') === leadId);
+
+  if (status === 'perdido' || status === 'cancelado') {
+    if (idx >= 0) events.splice(idx, 1);
+    return res.json({ ok: true, action: 'deleted' });
+  }
+
+  const title = eventName ? String(eventName) : 'Show';
+  const notes = [contractorName ? `Cliente: ${contractorName}` : null, city ? `Cidade: ${city}` : null, budget ? `Valor: ${budget}` : null].filter(Boolean).join(' | ');
+  const row = {
+    id: idx >= 0 ? events[idx].id : randomUUID(),
+    artista_id: artistId,
+    seller_id: sellerId,
+    title,
+    date: eventDate || null,
+    type: 'show',
+    notes,
+    created_at: idx >= 0 ? events[idx].created_at : new Date().toISOString(),
+    metadata: { lead_id: leadId },
+  };
+
+  if (idx >= 0) events[idx] = { ...events[idx], ...row };
+  else events.unshift(row);
+
+  res.json({ ok: true, action: idx >= 0 ? 'updated' : 'created' });
+});
+
+router.get('/seller/calendar', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Vendedor') return res.status(403).json({ error: 'Sem permissão' });
+  const sellerId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!sellerId || !isUuidLike(sellerId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const month = req.query && req.query.month ? String(req.query.month) : '';
+  if (month && !isValidMonth(month)) return res.status(400).json({ error: 'month inválido' });
+
+  const store = Array.isArray(memory.sellerLeads) ? memory.sellerLeads : [];
+  const rows = store
+    .filter((l) => l && typeof l === 'object')
+    .filter((l) => String(l.seller_id || '') === sellerId)
+    .filter((l) => l.event_date)
+    .filter((l) => {
+      if (!month) return true;
+      const d = new Date(String(l.event_date));
+      if (Number.isNaN(d.getTime())) return false;
+      const m = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      return m === month;
+    })
+    .filter((l) => {
+      const s = String(l.status || '');
+      return s !== 'perdido' && s !== 'cancelado';
+    })
+    .sort((a, b) => String(a.event_date || '').localeCompare(String(b.event_date || '')));
+
+  res.set('Cache-Control', 'no-store');
+  res.json(rows);
+});
+
+router.get('/seller/proposals', authRequired, async (req, res, next) => {
+  try {
+    const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+    if (cargo !== 'Vendedor') return res.status(403).json({ error: 'Sem permissão' });
+    const sellerId = req.user && req.user.id ? String(req.user.id) : '';
+    if (!sellerId || !isUuidLike(sellerId)) return res.status(401).json({ error: 'Autenticação necessária' });
+
+    const store = Array.isArray(memory.sellerProposals) ? memory.sellerProposals : [];
+    const rows = store
+      .filter((p) => p && typeof p === 'object')
+      .filter((p) => String(p.seller_id || '') === sellerId)
+      .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+      .slice(0, 2000);
+
+    const leadStore = Array.isArray(memory.sellerLeads) ? memory.sellerLeads : [];
+    const leadsById = {};
+    for (const l of leadStore) {
+      if (l && typeof l === 'object' && l.id) leadsById[String(l.id)] = l;
+    }
+
+    const artistIds = Array.from(new Set(rows.map((p) => String(p.artist_id || '')).filter((id) => id && isUuidLike(id))));
+    const artistsById = {};
+    await Promise.all(
+      artistIds.map(async (id) => {
+        try {
+          const p = await getProfileById(pool, id);
+          if (p) artistsById[id] = p;
+        } catch { void 0; }
+      })
+    );
+
+    res.set('Cache-Control', 'no-store');
+    res.json(
+      rows.map((p) => {
+        const lead = p.lead_id ? (leadsById[String(p.lead_id)] || null) : null;
+        const artist = p.artist_id ? (artistsById[String(p.artist_id)] || null) : null;
+        return {
+          ...p,
+          leads: lead,
+          artist: artist ? { id: artist.id, nome: artist.nome || artist.nome_completo_razao_social, avatar_url: artist.avatar_url } : null,
+        };
+      })
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/seller/proposals', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Vendedor') return res.status(403).json({ error: 'Sem permissão' });
+  const sellerId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!sellerId || !isUuidLike(sellerId)) return res.status(401).json({ error: 'Autenticação necessária' });
+
+  const payload = (req.body && typeof req.body === 'object') ? req.body : {};
+  const lead_id = payload.lead_id && isUuidLike(payload.lead_id) ? String(payload.lead_id) : null;
+  const client_name = payload.client_name ? String(payload.client_name).trim() : '';
+  const title = payload.title ? String(payload.title).trim() : '';
+  const artist_id = payload.artist_id && isUuidLike(payload.artist_id) ? String(payload.artist_id) : null;
+  const value = Number(payload.value || 0) || 0;
+  const status = payload.status ? String(payload.status).trim() : 'rascunho';
+  const file_url = payload.file_url ? String(payload.file_url) : null;
+  const observations = payload.observations ? String(payload.observations) : '';
+
+  const now = new Date().toISOString();
+  const row = {
+    id: randomUUID(),
+    seller_id: sellerId,
+    lead_id,
+    client_name,
+    title,
+    artist_id,
+    value,
+    status,
+    file_url,
+    observations,
+    created_at: now,
+    updated_at: now,
+  };
+
+  const store = Array.isArray(memory.sellerProposals) ? memory.sellerProposals : (memory.sellerProposals = []);
+  store.unshift(row);
+  res.status(201).json(row);
+});
+
+router.put('/seller/proposals/:id', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Vendedor') return res.status(403).json({ error: 'Sem permissão' });
+  const sellerId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!sellerId || !isUuidLike(sellerId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const id = req.params && req.params.id ? String(req.params.id) : '';
+  if (!id || !isUuidLike(id)) return res.status(400).json({ error: 'id inválido' });
+
+  const store = Array.isArray(memory.sellerProposals) ? memory.sellerProposals : (memory.sellerProposals = []);
+  const idx = store.findIndex((p) => p && typeof p === 'object' && String(p.id || '') === id);
+  if (idx < 0) return res.status(404).json({ error: 'Proposta não encontrada' });
+  const prev = store[idx];
+  if (String(prev.seller_id || '') !== sellerId) return res.status(403).json({ error: 'Sem permissão' });
+
+  const payload = (req.body && typeof req.body === 'object') ? req.body : {};
+  const next = {
+    ...prev,
+    lead_id: payload.lead_id !== undefined ? (payload.lead_id && isUuidLike(payload.lead_id) ? String(payload.lead_id) : null) : prev.lead_id,
+    client_name: payload.client_name !== undefined ? String(payload.client_name || '').trim() : prev.client_name,
+    title: payload.title !== undefined ? String(payload.title || '').trim() : prev.title,
+    artist_id: payload.artist_id !== undefined ? (payload.artist_id && isUuidLike(payload.artist_id) ? String(payload.artist_id) : null) : prev.artist_id,
+    value: payload.value !== undefined ? (Number(payload.value || 0) || 0) : prev.value,
+    status: payload.status !== undefined ? String(payload.status || '').trim() : prev.status,
+    file_url: payload.file_url !== undefined ? (payload.file_url ? String(payload.file_url) : null) : prev.file_url,
+    observations: payload.observations !== undefined ? String(payload.observations || '') : prev.observations,
+    updated_at: new Date().toISOString(),
+  };
+
+  store[idx] = next;
+  res.json(next);
+});
+
+router.delete('/seller/proposals/:id', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Vendedor') return res.status(403).json({ error: 'Sem permissão' });
+  const sellerId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!sellerId || !isUuidLike(sellerId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const id = req.params && req.params.id ? String(req.params.id) : '';
+  if (!id || !isUuidLike(id)) return res.status(400).json({ error: 'id inválido' });
+
+  const store = Array.isArray(memory.sellerProposals) ? memory.sellerProposals : (memory.sellerProposals = []);
+  const prev = store.find((p) => p && typeof p === 'object' && String(p.id || '') === id) || null;
+  if (!prev) return res.status(404).json({ error: 'Proposta não encontrada' });
+  if (String(prev.seller_id || '') !== sellerId) return res.status(403).json({ error: 'Sem permissão' });
+
+  memory.sellerProposals = store.filter((p) => String(p.id || '') !== id);
+  res.json({ ok: true });
 });
 
 router.get('/seller/artists', authRequired, async (req, res, next) => {
