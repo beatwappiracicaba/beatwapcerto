@@ -19,6 +19,7 @@ async function request(path, options = {}) {
   const shouldSendJsonContentType = !!options.body && typeof options.body === 'string' && method !== 'GET' && method !== 'HEAD';
   const headers = {
     ...(options.headers || {}),
+    ...(!((options.headers || {}).Accept || (options.headers || {}).accept) ? { Accept: 'application/json' } : {}),
     ...(shouldSendJsonContentType ? { 'Content-Type': 'application/json' } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {})
   };
@@ -26,7 +27,7 @@ async function request(path, options = {}) {
   const hostname = isBrowser && window.location ? String(window.location.hostname || '') : '';
   const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
   const timeoutMs = Number(options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-  const perAttemptTimeoutMs = Number(options.perAttemptTimeoutMs ?? (isLocalHost ? 8000 : 15000));
+  const perAttemptTimeoutMs = Number(options.perAttemptTimeoutMs ?? (isLocalHost ? 8000 : 30000));
   const normalizedBaseUrlRaw = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
   const normalizedBaseUrl = normalizedBaseUrlRaw.replace(/\/api\/?$/, '');
 
@@ -37,7 +38,8 @@ async function request(path, options = {}) {
     if (!baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
   } else {
     if (!baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
-    if (!baseUrls.includes('')) baseUrls.push('');
+    const allowSameOriginApi = hostname === 'api.beatwap.com.br';
+    if (allowSameOriginApi && !baseUrls.includes('')) baseUrls.push('');
   }
 
   const deadline = Number.isFinite(timeoutMs) && timeoutMs > 0 ? (Date.now() + timeoutMs) : null;
@@ -71,7 +73,11 @@ async function request(path, options = {}) {
     }
 
     const contentType = String(res.headers.get('content-type') || '').toLowerCase();
-    const looksJson = contentType.includes('application/json') || (text && (text.trim().startsWith('{') || text.trim().startsWith('[')));
+    const looksJson = res.status === 204
+      || res.status === 205
+      || contentType.includes('application/json')
+      || contentType.includes('application/problem+json')
+      || (text && (text.trim().startsWith('{') || text.trim().startsWith('[')));
 
     let data = null;
     if (looksJson) {
@@ -212,7 +218,7 @@ export const homeApi = {
   composers: () => apiClient.get('/composers'),
   producers: () => apiClient.get('/producers'),
   sellers: () => apiClient.get('/profiles?role=seller'),
-  artists: () => apiClient.get('/artists'),
+  artists: () => apiClient.get('/profiles?role=artist'),
 };
 
 export const musicApi = {
@@ -277,8 +283,8 @@ export const uploadApi = {
     const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
     const baseUrls = [];
     if (normalizedBaseUrl) baseUrls.push(normalizedBaseUrl);
-    if (!baseUrls.includes('')) baseUrls.push('');
-    if (!isLocalHost && !baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
+    if (isLocalHost && !baseUrls.includes('')) baseUrls.push('');
+    if (!baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
 
     const run = async () => {
       let lastErr = null;
@@ -318,8 +324,8 @@ export const uploadApi = {
     const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
     const baseUrls = [];
     if (normalizedBaseUrl) baseUrls.push(normalizedBaseUrl);
-    if (!baseUrls.includes('')) baseUrls.push('');
-    if (!isLocalHost && !baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
+    if (isLocalHost && !baseUrls.includes('')) baseUrls.push('');
+    if (!baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
 
     const run = async () => {
       let lastErr = null;
