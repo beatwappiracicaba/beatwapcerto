@@ -1,3 +1,3 @@
 const ENV_API = import.meta.env.VITE_API_BASE_URL;
 const normalized = ENV_API ? String(ENV_API).trim().replace(/\/+$/, '') : '';
-export const API_BASE_URL = normalized || 'https://vps65060.publiccloud.com.br';
+export const API_BASE_URL = normalized || 'https://api.beatwap.com.br';
