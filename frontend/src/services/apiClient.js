@@ -134,8 +134,8 @@ async function request(path, options = {}) {
       const retriable = err?.code === 'ETIMEDOUT'
         || err?.name === 'AbortError'
         || err instanceof TypeError
-        || (!normalizedBaseUrl && baseUrl === '' && err?.code === 'ENONJSON')
-        || (!normalizedBaseUrl && baseUrl === '' && Number(err?.status) === 404);
+        || (err?.code === 'ENONJSON')
+        || (Number(err?.status) === 404);
       const hasNext = i < baseUrls.length - 1;
       if (DEBUG_API) {
         console.warn('[api] attempt failed', {
@@ -264,23 +264,83 @@ export const uploadApi = {
   uploadFile: (file) => {
     const formData = new FormData();
     formData.append('file', file);
-    return fetch(`${API_BASE_URL}/api/upload/single`, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+    const token = localStorage.getItem('token');
+    const normalizedBaseUrl = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
+    const hostname = typeof window !== 'undefined' && window.location ? String(window.location.hostname || '') : '';
+    const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
+    const baseUrls = [];
+    if (normalizedBaseUrl) baseUrls.push(normalizedBaseUrl);
+    if (!baseUrls.includes('')) baseUrls.push('');
+    if (!isLocalHost && !baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
+
+    const run = async () => {
+      let lastErr = null;
+      for (let i = 0; i < baseUrls.length; i += 1) {
+        const baseUrl = baseUrls[i];
+        const apiBase = baseUrl ? `${baseUrl}/api` : '/api';
+        const url = `${apiBase}/upload/single`;
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          const text = await res.text();
+          let data = null;
+          try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+          if (!res.ok) throw new Error((data && data.error) || res.statusText);
+          if (data == null) throw new Error('API respondeu em formato inválido (não-JSON).');
+          return data;
+        } catch (e) {
+          lastErr = e;
+          const hasNext = i < baseUrls.length - 1;
+          if (!hasNext) throw e;
+        }
       }
-    }).then(res => res.json());
+      throw lastErr || new Error('Falha ao enviar arquivo');
+    };
+
+    return run();
   },
   uploadMultiple: (files) => {
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
-    return fetch(`${API_BASE_URL}/api/upload/multiple`, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+    const token = localStorage.getItem('token');
+    const normalizedBaseUrl = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
+    const hostname = typeof window !== 'undefined' && window.location ? String(window.location.hostname || '') : '';
+    const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
+    const baseUrls = [];
+    if (normalizedBaseUrl) baseUrls.push(normalizedBaseUrl);
+    if (!baseUrls.includes('')) baseUrls.push('');
+    if (!isLocalHost && !baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
+
+    const run = async () => {
+      let lastErr = null;
+      for (let i = 0; i < baseUrls.length; i += 1) {
+        const baseUrl = baseUrls[i];
+        const apiBase = baseUrl ? `${baseUrl}/api` : '/api';
+        const url = `${apiBase}/upload/multiple`;
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          const text = await res.text();
+          let data = null;
+          try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+          if (!res.ok) throw new Error((data && data.error) || res.statusText);
+          if (data == null) throw new Error('API respondeu em formato inválido (não-JSON).');
+          return data;
+        } catch (e) {
+          lastErr = e;
+          const hasNext = i < baseUrls.length - 1;
+          if (!hasNext) throw e;
+        }
       }
-    }).then(res => res.json());
+      throw lastErr || new Error('Falha ao enviar arquivos');
+    };
+
+    return run();
   }
 };
