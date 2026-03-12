@@ -1598,6 +1598,79 @@ router.get('/seller/calendar', authRequired, (req, res) => {
   res.json(rows);
 });
 
+router.get('/seller/finance/summary', authRequired, async (req, res, next) => {
+  try {
+    const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+    if (cargo !== 'Vendedor') return res.status(403).json({ error: 'Sem permissão' });
+    const sellerId = req.user && req.user.id ? String(req.user.id) : '';
+    if (!sellerId || !isUuidLike(sellerId)) return res.status(401).json({ error: 'Autenticação necessária' });
+
+    const rows = (Array.isArray(memory.financeEvents) ? memory.financeEvents : [])
+      .filter((e) => e && typeof e === 'object')
+      .filter((e) => String(e.seller_id || '') === sellerId)
+      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+      .slice(0, 2000);
+
+    const uniqueIds = Array.from(
+      new Set(
+        rows
+          .flatMap((e) => [e.artist_id, e.seller_id, e.manager_id])
+          .filter((id) => id && isUuidLike(id))
+          .map(String)
+      )
+    );
+
+    const profilesById = {};
+    await Promise.all(
+      uniqueIds.map(async (id) => {
+        try {
+          const p = await getProfileById(pool, id);
+          if (p) profilesById[id] = p;
+        } catch { void 0; }
+      })
+    );
+
+    const events = rows.map((e) => ({
+      ...e,
+      artist: profilesById[String(e.artist_id)] ? {
+        id: profilesById[String(e.artist_id)].id,
+        nome: profilesById[String(e.artist_id)].nome || profilesById[String(e.artist_id)].nome_completo_razao_social,
+        avatar_url: profilesById[String(e.artist_id)].avatar_url,
+      } : null,
+      seller: profilesById[String(e.seller_id)] ? {
+        id: profilesById[String(e.seller_id)].id,
+        nome: profilesById[String(e.seller_id)].nome || profilesById[String(e.seller_id)].nome_completo_razao_social,
+        avatar_url: profilesById[String(e.seller_id)].avatar_url,
+      } : null,
+      manager: profilesById[String(e.manager_id)] ? {
+        id: profilesById[String(e.manager_id)].id,
+        nome: profilesById[String(e.manager_id)].nome || profilesById[String(e.manager_id)].nome_completo_razao_social,
+        avatar_url: profilesById[String(e.manager_id)].avatar_url,
+      } : null,
+    }));
+
+    const totalSold = rows.reduce((acc, e) => acc + (Number(e.revenue || 0) || 0), 0);
+    const totalCommissions = rows.reduce((acc, e) => acc + (Number(e.seller_commission || 0) || 0), 0);
+    const pendingCommissions = rows
+      .filter((e) => String(e.status || '') !== 'pago')
+      .reduce((acc, e) => acc + (Number(e.seller_commission || 0) || 0), 0);
+    const paidCommissions = rows
+      .filter((e) => String(e.status || '') === 'pago')
+      .reduce((acc, e) => acc + (Number(e.seller_commission || 0) || 0), 0);
+
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      totalSold,
+      totalCommissions,
+      pendingCommissions,
+      paidCommissions,
+      events,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/seller/proposals', authRequired, async (req, res, next) => {
   try {
     const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
