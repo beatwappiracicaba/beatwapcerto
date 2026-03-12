@@ -10,7 +10,11 @@ router.get('/profiles', getProfiles);
 router.get('/profiles/artists/all', async (req, res, next) => {
   try {
     const rows = await listProfiles(pool, { cargo: 'Artista', limit: 500 });
-    res.json(rows);
+    const normalized = (Array.isArray(rows) ? rows : []).map((p) => {
+      if (!p || typeof p !== 'object') return p;
+      return { ...p, avatar_url: sanitizeAvatarUrl(p.avatar_url) };
+    });
+    res.json(normalized);
   } catch (err) {
     next(err);
   }
@@ -18,6 +22,18 @@ router.get('/profiles/artists/all', async (req, res, next) => {
 router.get('/profiles/:id', getProfile);
 function isUuidLike(v) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ''));
+}
+
+function isMissingTableError(err) {
+  return !!(err && (err.code === '42P01' || /does not exist/i.test(String(err.message || ''))));
+}
+
+function sanitizeAvatarUrl(url) {
+  const u = typeof url === 'string' ? url : '';
+  if (!u) return null;
+  if (u.startsWith('data:')) return null;
+  if (u.length > 2048) return null;
+  return u;
 }
 
 router.get('/profiles/:id/posts', async (req, res, next) => {
@@ -34,6 +50,7 @@ router.get('/profiles/:id/posts', async (req, res, next) => {
     );
     res.json(rows);
   } catch (err) {
+    if (isMissingTableError(err)) return res.json([]);
     next(err);
   }
 });

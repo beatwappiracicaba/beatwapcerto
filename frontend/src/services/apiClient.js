@@ -22,18 +22,23 @@ async function request(path, options = {}) {
     ...(shouldSendJsonContentType ? { 'Content-Type': 'application/json' } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {})
   };
-  const timeoutMs = Number(options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-  const perAttemptTimeoutMs = Number(options.perAttemptTimeoutMs ?? 8000);
-  const normalizedBaseUrlRaw = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
-  const normalizedBaseUrl = normalizedBaseUrlRaw.replace(/\/api\/?$/, '');
-
   const isBrowser = typeof window !== 'undefined';
   const hostname = isBrowser && window.location ? String(window.location.hostname || '') : '';
   const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
+  const timeoutMs = Number(options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const perAttemptTimeoutMs = Number(options.perAttemptTimeoutMs ?? (isLocalHost ? 8000 : 15000));
+  const normalizedBaseUrlRaw = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
+  const normalizedBaseUrl = normalizedBaseUrlRaw.replace(/\/api\/?$/, '');
+
   const baseUrls = [];
   if (normalizedBaseUrl) baseUrls.push(normalizedBaseUrl);
-  if (!baseUrls.includes('')) baseUrls.push('');
-  if (!isLocalHost && !baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
+  if (isLocalHost) {
+    if (!baseUrls.includes('')) baseUrls.push('');
+    if (!baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
+  } else {
+    if (!baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
+    if (!baseUrls.includes('')) baseUrls.push('');
+  }
 
   const deadline = Number.isFinite(timeoutMs) && timeoutMs > 0 ? (Date.now() + timeoutMs) : null;
 
@@ -136,7 +141,8 @@ async function request(path, options = {}) {
         || err?.name === 'AbortError'
         || err instanceof TypeError
         || (err?.code === 'ENONJSON')
-        || (Number(err?.status) === 404);
+        || (Number(err?.status) === 404)
+        || (Number(err?.status) === 405);
       const hasNext = i < baseUrls.length - 1;
       if (DEBUG_API) {
         console.warn('[api] attempt failed', {
@@ -205,7 +211,7 @@ export const homeApi = {
   sponsors: () => apiClient.get('/sponsors'),
   composers: () => apiClient.get('/composers'),
   producers: () => apiClient.get('/producers'),
-  sellers: () => apiClient.get('/users?role=Vendedor'),
+  sellers: () => apiClient.get('/profiles?role=seller'),
   artists: () => apiClient.get('/artists'),
 };
 

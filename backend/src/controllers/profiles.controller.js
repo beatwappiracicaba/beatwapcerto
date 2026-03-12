@@ -3,6 +3,22 @@ import { pool } from '../db.js';
 import { createHash } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 
+function sanitizeAvatarUrl(url) {
+  const u = typeof url === 'string' ? url : '';
+  if (!u) return null;
+  if (u.startsWith('data:')) return null;
+  if (u.length > 2048) return null;
+  return u;
+}
+
+function normalizeProfileForPublic(p, { keepEmail = false, keepAccessControl = false } = {}) {
+  if (!p || typeof p !== 'object') return p;
+  const out = { ...p, avatar_url: sanitizeAvatarUrl(p.avatar_url) };
+  if (!keepEmail) delete out.email;
+  if (!keepAccessControl) delete out.access_control;
+  return out;
+}
+
 export async function getProfiles(req, res, next) {
   try {
     const rawRole = req.query && req.query.role ? String(req.query.role).trim().toLowerCase() : '';
@@ -36,7 +52,8 @@ export async function getProfiles(req, res, next) {
       includeAccessControl: isProducer,
       includeVerified: true,
     });
-    res.json(rows);
+    const normalized = (Array.isArray(rows) ? rows : []).map((p) => normalizeProfileForPublic(p, { keepEmail: isProducer, keepAccessControl: isProducer }));
+    res.json(normalized);
   } catch (err) {
     next(err);
   }
@@ -80,7 +97,7 @@ export async function getProfile(req, res, next) {
       void 0;
     }
 
-    res.json(profile);
+    res.json(normalizeProfileForPublic(profile));
   } catch (err) {
     next(err);
   }

@@ -130,6 +130,22 @@ function normalizeSponsorForPublic(s) {
   };
 }
 
+function sanitizeAvatarUrl(url) {
+  const u = typeof url === 'string' ? url : '';
+  if (!u) return null;
+  if (u.startsWith('data:')) return null;
+  if (u.length > 2048) return null;
+  return u;
+}
+
+function normalizeProfileForHome(p) {
+  if (!p || typeof p !== 'object') return p;
+  return {
+    ...p,
+    avatar_url: sanitizeAvatarUrl(p.avatar_url),
+  };
+}
+
 router.get('/home', async (req, res) => {
   const now = Date.now();
   if (homeCache.data && now - Number(homeCache.at || 0) < 15_000) {
@@ -248,7 +264,16 @@ router.get('/home', async (req, res) => {
     sellers = [];
   }
 
-  const data = { releases, compositions, projects, composers, sponsors, artists, producers, sellers };
+  const data = {
+    releases,
+    compositions,
+    projects,
+    composers: (Array.isArray(composers) ? composers : []).map(normalizeProfileForHome),
+    sponsors,
+    artists: (Array.isArray(artists) ? artists : []).map(normalizeProfileForHome),
+    producers: (Array.isArray(producers) ? producers : []).map(normalizeProfileForHome),
+    sellers: (Array.isArray(sellers) ? sellers : []).map(normalizeProfileForHome),
+  };
   homeCache.at = now;
   homeCache.data = data;
 
@@ -1585,31 +1610,6 @@ router.get('/users', authRequired, async (req, res, next) => {
     const rows = await listProfiles(pool, { cargo });
     res.json(rows);
   } catch (err) {
-    next(err);
-  }
-});
-
-router.get('/profiles/:id/posts', async (req, res, next) => {
-  try {
-    const userId = req.params && req.params.id ? String(req.params.id) : '';
-    if (!userId || !isUuidLike(userId)) return res.status(400).json({ error: 'id inválido' });
-    const { rows } = await pool.query(
-      `SELECT id, user_id, media_url, media_type, caption, link_url, created_at
-       FROM public.posts
-       WHERE user_id = $1
-       ORDER BY created_at DESC
-       LIMIT 200`,
-      [userId]
-    );
-    res.json(rows);
-  } catch (err) {
-    if (isMissingTableError(err)) {
-      const rows = (Array.isArray(memory.posts) ? memory.posts : [])
-        .filter((p) => p && typeof p === 'object' && String(p.user_id || '') === userId)
-        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
-        .slice(0, 200);
-      return res.json(rows);
-    }
     next(err);
   }
 });
