@@ -49,6 +49,7 @@ export async function register(req, res, next) {
     const email = req.body && req.body.email ? String(req.body.email).trim().toLowerCase() : '';
     const passwordRaw = req.body && (req.body.password ?? req.body.senha) ? String(req.body.password ?? req.body.senha) : '';
     const roleRaw = req.body && (req.body.role ?? req.body.cargo) ? String(req.body.role ?? req.body.cargo).trim().toLowerCase() : '';
+    const planoRaw = req.body && (req.body.plano ?? req.body.plan) ? String(req.body.plano ?? req.body.plan).trim() : '';
 
     if (!nome || !email || !passwordRaw) {
       return res.status(400).json({ error: 'Nome, email e senha são obrigatórios' });
@@ -72,7 +73,9 @@ export async function register(req, res, next) {
     }
 
     const passwordHash = await bcrypt.hash(passwordRaw, 10);
-    const user = await createProfile(pool, { nome, email, cargo, passwordHash });
+    const planLower = String(planoRaw || '').toLowerCase();
+    const shouldSetStart = !!planoRaw && !planLower.includes('sem') && !planLower.includes('gratuit');
+    const user = await createProfile(pool, { nome, email, cargo, passwordHash, plano: planoRaw || null, planStartedAt: shouldSetStart ? new Date().toISOString() : null });
     if (!user) {
       return res.status(500).json({ error: 'Falha ao criar usuário' });
     }

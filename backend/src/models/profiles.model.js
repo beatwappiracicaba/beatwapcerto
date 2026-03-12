@@ -143,12 +143,30 @@ export async function getPublicProfileById(pool, id) {
   return rows[0] || null;
 }
 
-export async function createProfile(pool, { nome, email, cargo, passwordHash }) {
+export async function createProfile(pool, { nome, email, cargo, passwordHash, plano = null, planStartedAt = null }) {
+  const columns = await getProfilesColumns(pool);
+  const values = [nome, email, cargo, passwordHash];
+  const insertCols = ['nome', 'email', 'cargo', 'password_hash'];
+  const insertParams = ['$1', '$2', '$3', '$4'];
+
+  const planoNormalized = plano === null ? null : String(plano || '').trim();
+
+  if (planoNormalized && columns.has('plano')) {
+    values.push(planoNormalized);
+    insertCols.push('plano');
+    insertParams.push(`$${values.length}`);
+  }
+  if (planStartedAt && columns.has('plan_started_at')) {
+    values.push(planStartedAt);
+    insertCols.push('plan_started_at');
+    insertParams.push(`$${values.length}`);
+  }
+
   const { rows } = await pool.query(
-    `INSERT INTO public.profiles (nome, email, cargo, password_hash)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO public.profiles (${insertCols.join(', ')})
+     VALUES (${insertParams.join(', ')})
      RETURNING id, nome, email, cargo, avatar_url, bio, created_at`,
-    [nome, email, cargo, passwordHash]
+    values
   );
   return rows[0] || null;
 }

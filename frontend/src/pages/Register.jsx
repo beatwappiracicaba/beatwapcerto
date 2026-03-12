@@ -23,16 +23,19 @@ const Register = () => {
   const [agreeLegal, setAgreeLegal] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [roleParam, setRoleParam] = useState(null);
+  const [planParam, setPlanParam] = useState(null);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const name = params.get('name') || '';
     const email = params.get('email') || '';
     const role = params.get('role') || '';
+    const plano = params.get('plano') || '';
     if (name || email || role) {
       setFormData(prev => ({ ...prev, name, email }));
       setRoleParam(role);
     }
+    if (plano) setPlanParam(plano);
   }, [location.search]);
 
   const handleSubmit = async (e) => {
@@ -53,7 +56,7 @@ const Register = () => {
     try {
       const capitalizedName = formData.name.replace(/\w\S*/g, (w) => (w.replace(/^\w/, (c) => c.toUpperCase())));
       const role = roleParam ? (roleParam.charAt(0).toUpperCase() + roleParam.slice(1).toLowerCase()) : 'Artista';
-      await authApi.register({ name: capitalizedName, email: formData.email, password: formData.password, role });
+      await authApi.register({ name: capitalizedName, email: formData.email, password: formData.password, role, plano: planParam });
       addToast('Conta criada com sucesso! Faça login para continuar.', 'success');
       navigate('/login');
     } catch (error) {

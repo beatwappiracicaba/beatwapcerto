@@ -15,6 +15,7 @@ export const AdminSettings = () => {
     name: '',
     email: '',
     role: 'Artista',
+    plano: 'Sem Plano',
     p_chat: true,
     p_musics: true,
     p_compositions: true,
@@ -113,6 +114,10 @@ export const AdminSettings = () => {
       params.set('name', form.name.trim());
       params.set('email', form.email.trim());
       params.set('role', form.role);
+      if (form.role === 'Artista' || form.role === 'Compositor') {
+        const plano = String(form.plano || '').trim();
+        if (plano) params.set('plano', plano);
+      }
       params.set('p_chat', form.p_chat ? '1' : '0');
       
       if (form.role === 'Produtor') {
@@ -280,6 +285,23 @@ export const AdminSettings = () => {
                   <option value="Produtor" className="bg-[#121212]">Produtor</option>
                 </select>
               </div>
+
+              {(form.role === 'Artista' || form.role === 'Compositor') && (
+                <div className="space-y-2">
+                  <div className="text-sm text-gray-300">Plano</div>
+                  <select
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
+                    value={form.plano}
+                    onChange={(e) => setForm({ ...form, plano: e.target.value })}
+                  >
+                    <option value="Sem Plano" className="bg-[#121212]">Sem Plano</option>
+                    <option value="Avulso" className="bg-[#121212]">Avulso</option>
+                    <option value="Mensal" className="bg-[#121212]">Mensal</option>
+                    <option value="Anual" className="bg-[#121212]">Anual</option>
+                    <option value="Vitalício" className="bg-[#121212]">Vitalício</option>
+                  </select>
+                </div>
+              )}
               
               <div className="space-y-3 pt-2">
                 <div className="text-sm text-gray-300 font-bold">Permissões Iniciais</div>

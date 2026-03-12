@@ -69,8 +69,9 @@ export const authApi = {
     localStorage.setItem('user', JSON.stringify(data.user));
     return data;
   },
-  async register({ name, email, password, role }) {
-    return apiClient.post('/auth/register', { name, email, password, role });
+  async register({ name, email, password, role, plano, plan }) {
+    const planValue = plano ?? plan;
+    return apiClient.post('/auth/register', { name, email, password, role, plano: planValue });
   },
   async logout() {
     localStorage.removeItem('token');
