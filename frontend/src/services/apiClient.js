@@ -72,9 +72,15 @@ async function request(path, options = {}) {
     let text = '';
     let url = '';
     try {
+      const fetchOptions = { ...(options || {}) };
+      delete fetchOptions.timeoutMs;
+      delete fetchOptions.perAttemptTimeoutMs;
+      delete fetchOptions.cache;
+      delete fetchOptions.cacheTtlMs;
+
       const apiBase = baseUrl ? `${baseUrl}/api` : '/api';
       url = `${apiBase}${path}`;
-      res = await fetch(url, { ...options, headers, signal: controller.signal });
+      res = await fetch(url, { ...fetchOptions, headers, signal: controller.signal });
       text = await res.text();
     } catch (err) {
       if (timeoutId) clearTimeout(timeoutId);
