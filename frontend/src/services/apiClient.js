@@ -97,7 +97,15 @@ async function request(path, options = {}) {
         e.response = result.data;
         throw e;
       }
-      if (!result.looksJson) throw new Error('API respondeu em formato inválido (não-JSON).');
+      if (!result.looksJson) {
+        const e = new Error('API respondeu em formato inválido (não-JSON).');
+        e.code = 'ENONJSON';
+        e.status = result.res.status;
+        e.url = result.url;
+        e.contentType = String(result.res.headers.get('content-type') || '');
+        e.preview = result.text ? String(result.text).slice(0, 160) : '';
+        throw e;
+      }
       if (result.data && typeof result.data === 'object' && 'success' in result.data && 'data' in result.data) {
         const totalMs = Date.now() - startedAt;
         if (DEBUG_API || totalMs >= SLOW_API_MS) {
@@ -126,6 +134,7 @@ async function request(path, options = {}) {
       const retriable = err?.code === 'ETIMEDOUT'
         || err?.name === 'AbortError'
         || err instanceof TypeError
+        || (!normalizedBaseUrl && baseUrl === '' && err?.code === 'ENONJSON')
         || (!normalizedBaseUrl && baseUrl === '' && Number(err?.status) === 404);
       const hasNext = i < baseUrls.length - 1;
       if (DEBUG_API) {
