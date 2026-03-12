@@ -34,12 +34,12 @@ export const DataProvider = ({ children }) => {
           .map(a => a.id);
         let metricsMap = {};
         if (artistIds.length) {
-          const metricsArray = await Promise.all(
-            artistIds.map(id => apiClient.get(`/admin/artist/${id}/metrics`))
-          );
-          (metricsArray || []).forEach(m => {
-            if (!m || !m.artista_id) return;
-            metricsMap[m.artista_id] = {
+          const idsParam = encodeURIComponent(artistIds.join(','));
+          const metricsRows = await apiClient.get(`/admin/artists/metrics?ids=${idsParam}`);
+          (metricsRows || []).forEach(m => {
+            const id = m?.artist_id || m?.artista_id;
+            if (!id) return;
+            metricsMap[id] = {
               plays: String(m.total_plays ?? '0'),
               listeners: String(m.ouvintes_mensais ?? '0'),
               revenue: String(m.receita_estimada ?? '0'),

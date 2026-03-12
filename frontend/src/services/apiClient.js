@@ -30,8 +30,13 @@ async function request(path, options = {}) {
   const hostname = isBrowser && window.location ? String(window.location.hostname || '') : '';
   const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
   const baseUrls = [];
-  if (normalizedBaseUrl) baseUrls.push(normalizedBaseUrl);
-  else baseUrls.push('');
+  if (normalizedBaseUrl) {
+    baseUrls.push(normalizedBaseUrl);
+  } else if (!isLocalHost) {
+    baseUrls.push(PROD_FALLBACK_BASE_URL);
+  } else {
+    baseUrls.push('');
+  }
   if (!isLocalHost && !baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
 
   const deadline = Number.isFinite(timeoutMs) && timeoutMs > 0 ? (Date.now() + timeoutMs) : null;

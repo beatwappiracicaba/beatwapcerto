@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Star, Shield, Info, Briefcase, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BadgeCheck, User, Star, Shield, Info, Briefcase, ChevronLeft, ChevronRight } from 'lucide-react';
 import { homeApi } from '../../services/apiClient';
 
 const UserCard = ({ user, type, onSelect }) => {
@@ -24,11 +24,14 @@ const UserCard = ({ user, type, onSelect }) => {
   };
 
   const avatarUrl = getAvatarUrl(user);
+  const isVerified = !!(user && (user.verified === true || user?.access_control?.verified === true));
 
   return (
     <motion.div
       whileHover={{ y: -5 }}
-      className="bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold transition-colors group"
+      className={`bg-white/5 border rounded-xl overflow-hidden cursor-pointer transition-colors group ${
+        isVerified ? 'border-beatwap-gold' : 'border-white/10 hover:border-beatwap-gold'
+      }`}
       onClick={() => onSelect(user)}
     >
       <div className="aspect-square bg-gray-800 relative overflow-hidden">
@@ -41,6 +44,11 @@ const UserCard = ({ user, type, onSelect }) => {
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
             <User size={64} className="text-white/20" />
+          </div>
+        )}
+        {isVerified && (
+          <div className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/70 border border-beatwap-gold flex items-center justify-center">
+            <BadgeCheck size={18} className="text-beatwap-gold" />
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3 sm:p-4">

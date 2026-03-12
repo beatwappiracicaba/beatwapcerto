@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause, Check, FolderDown, CheckCircle2, ChevronDown, ChevronRight } from 'lucide-react';
+import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause, Check, FolderDown, CheckCircle2, ChevronDown, ChevronRight, Plus, Music } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -1554,6 +1554,9 @@ export const AdminProfile = () => {
   const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState('detalhes');
   const [loading, setLoading] = useState(false);
+  const [myCompositions, setMyCompositions] = useState([]);
+  const [loadingMyCompositions, setLoadingMyCompositions] = useState(false);
+  const [isMyCompositionsUploadOpen, setIsMyCompositionsUploadOpen] = useState(false);
   const [formData, setFormData] = useState({
     nome_completo_razao_social: '',
     email: '',
@@ -1605,6 +1608,25 @@ export const AdminProfile = () => {
       setMandatoryMissing(missing);
     }
   }, [user, profile]);
+
+  const loadMyCompositions = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      setLoadingMyCompositions(true);
+      const data = await apiClient.get('/composer/compositions');
+      setMyCompositions(data || []);
+    } catch (e) {
+      console.error(e);
+      setMyCompositions([]);
+      addToast('Falha ao carregar composições', 'error');
+    } finally {
+      setLoadingMyCompositions(false);
+    }
+  }, [user?.id, addToast]);
+
+  useEffect(() => {
+    if (activeTab === 'composicoes') loadMyCompositions();
+  }, [activeTab, loadMyCompositions]);
 
 
 
@@ -1742,6 +1764,7 @@ export const AdminProfile = () => {
     { id: 'detalhes', label: 'Detalhes', icon: User },
     { id: 'endereco', label: 'Endereço', icon: MapPin },
     { id: 'contrato', label: 'Contrato', icon: FileText },
+    { id: 'composicoes', label: 'Minhas Composições', icon: Music },
     { id: 'senha', label: 'Minha Senha', icon: Lock },
     { id: 'artista', label: 'Meu Perfil Público', icon: User },
   ];
@@ -1901,6 +1924,66 @@ export const AdminProfile = () => {
                   </div>
                 </div>
               )}
+
+              {activeTab === 'composicoes' && (
+                <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-bold text-white">Minhas Composições</h3>
+                      <p className="text-gray-400 text-sm">Envie suas composições para aprovação. Após aprovadas, aparecem no seu perfil público e na Home.</p>
+                    </div>
+                    <AnimatedButton onClick={() => setIsMyCompositionsUploadOpen(true)} icon={Plus} className="w-full sm:w-auto justify-center">
+                      Enviar Composição
+                    </AnimatedButton>
+                  </div>
+
+                  {loadingMyCompositions ? (
+                    <div className="text-gray-400">Carregando...</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {myCompositions.length === 0 ? (
+                        <div className="text-gray-400 bg-white/5 border border-white/10 rounded-xl p-6 text-center">
+                          Nenhuma composição enviada ainda.
+                        </div>
+                      ) : (
+                        myCompositions.map((c) => (
+                          <div key={c.id} className="p-4 rounded-xl bg-white/5 border border-white/10">
+                            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="font-bold text-white truncate">{c.title || 'Sem título'}</div>
+                                <div className="text-xs text-gray-400 mt-1">
+                                  {(c.genre || 'Gênero não informado')} · {c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '—'}
+                                </div>
+                                {c.price ? (
+                                  <div className="text-xs text-beatwap-gold mt-2 font-bold">
+                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(c.price) || 0)}
+                                  </div>
+                                ) : null}
+                                {c.feedback ? (
+                                  <div className="text-xs text-gray-300 mt-2 whitespace-pre-wrap">{c.feedback}</div>
+                                ) : null}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`text-xs px-3 py-1 rounded-full font-bold ${
+                                    String(c.status || '').toLowerCase() === 'approved'
+                                      ? 'bg-green-500/20 text-green-400'
+                                      : (String(c.status || '').toLowerCase() === 'rejected'
+                                        ? 'bg-red-500/20 text-red-400'
+                                        : 'bg-yellow-500/20 text-yellow-400')
+                                  }`}
+                                >
+                                  {String(c.status || 'pending').toUpperCase()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </motion.div>
           </AnimatePresence>
         </Card>
@@ -1966,6 +2049,17 @@ export const AdminProfile = () => {
           onSave={handleSavePublicProfile}
           uploading={false}
         />
+        {isMyCompositionsUploadOpen && (
+          <CompositionsUploadModal
+            isOpen={isMyCompositionsUploadOpen}
+            onClose={() => setIsMyCompositionsUploadOpen(false)}
+            onSuccess={() => {
+              setIsMyCompositionsUploadOpen(false);
+              loadMyCompositions();
+            }}
+            composerId={user?.id || null}
+          />
+        )}
       </div>
     </AdminLayout>
   );

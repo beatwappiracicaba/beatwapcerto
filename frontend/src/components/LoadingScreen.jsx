@@ -1,16 +1,15 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-export const LoadingScreen = ({ onComplete }) => {
+export const LoadingScreen = ({ active = true, onComplete }) => {
   return (
-    <motion.div 
+    <motion.div
       className="fixed inset-0 z-50 flex items-center justify-center bg-beatwap-black"
       initial={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.8 }}
+      animate={{ opacity: active ? 1 : 0 }}
+      transition={{ duration: 0.8, ease: "easeInOut" }}
       onAnimationComplete={() => {
-        // We can trigger onComplete after exit if needed, 
-        // but typically onComplete is called by a timer in the parent to trigger the exit.
+        if (!active) onComplete?.();
       }}
     >
       <div className="relative flex flex-col items-center">

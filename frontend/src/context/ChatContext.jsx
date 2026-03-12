@@ -47,6 +47,9 @@ export const ChatProvider = ({ children }) => {
         if (streamAbortRef.current) streamAbortRef.current.abort();
         const controller = new AbortController();
         streamAbortRef.current = controller;
+        const connectTimeoutId = setTimeout(() => {
+          try { controller.abort(); } catch { void 0; }
+        }, 6000);
 
         try {
           const res = await fetch(url, {
@@ -57,8 +60,11 @@ export const ChatProvider = ({ children }) => {
             },
             signal: controller.signal,
           });
+          clearTimeout(connectTimeoutId);
 
           if (!res.ok || !res.body) throw new Error('Falha ao conectar no realtime');
+          const contentType = String(res.headers.get('content-type') || '').toLowerCase();
+          if (!contentType.includes('text/event-stream')) throw new Error('Realtime inválido');
           streamOkRef.current = true;
           streamRetryRef.current = 0;
 
@@ -88,8 +94,10 @@ export const ChatProvider = ({ children }) => {
             }
           }
         } catch (e) {
+          clearTimeout(connectTimeoutId);
           if (controller.signal.aborted) return;
         } finally {
+          clearTimeout(connectTimeoutId);
           streamOkRef.current = false;
           if (!controller.signal.aborted) {
             const retry = Math.min(10000, 1000 * Math.max(1, streamRetryRef.current + 1));

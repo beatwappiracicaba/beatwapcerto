@@ -1,6 +1,7 @@
-import { getProfileById, getPublicProfileById, listProfiles, updateProfileAvatar, updateProfileById } from '../models/profiles.model.js';
+import { getProfileById, getPublicProfileById, listProfiles, updateProfileAccessControl, updateProfileAvatar, updateProfileById } from '../models/profiles.model.js';
 import { pool } from '../db.js';
 import { createHash } from 'node:crypto';
+import jwt from 'jsonwebtoken';
 
 export async function getProfiles(req, res, next) {
   try {
@@ -16,7 +17,25 @@ export async function getProfiles(req, res, next) {
       compositor: 'Compositor',
     };
     const cargo = rawRole ? (roleMap[rawRole] || null) : null;
-    const rows = await listProfiles(pool, { cargo });
+    let isProducer = false;
+    try {
+      const auth = req.headers && req.headers.authorization ? String(req.headers.authorization) : '';
+      if (auth.startsWith('Bearer ')) {
+        const token = auth.slice('Bearer '.length).trim();
+        const decoded = token ? jwt.verify(token, process.env.JWT_SECRET) : null;
+        const decodedCargo = decoded && typeof decoded === 'object' && 'cargo' in decoded ? String(decoded.cargo || '') : '';
+        isProducer = decodedCargo === 'Produtor';
+      }
+    } catch {
+      isProducer = false;
+    }
+
+    const rows = await listProfiles(pool, {
+      cargo,
+      includeEmail: isProducer,
+      includeAccessControl: isProducer,
+      includeVerified: true,
+    });
     res.json(rows);
   } catch (err) {
     next(err);
@@ -115,6 +134,33 @@ export async function uploadMyAvatar(req, res, next) {
     if (!updated) return res.status(404).json({ error: 'Perfil não encontrado' });
     res.json({ avatar_url: updated.avatar_url });
   } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateProfilePermissions(req, res, next) {
+  try {
+    const targetId = req.params && req.params.id ? String(req.params.id) : '';
+    const userId = req.user && req.user.id ? String(req.user.id) : '';
+    const userCargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+    if (!userId) return res.status(401).json({ error: 'Autenticação necessária' });
+    if (userCargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+    if (!targetId) return res.status(400).json({ error: 'id é obrigatório' });
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(targetId)) return res.status(400).json({ error: 'id inválido' });
+
+    const access_control = req.body && req.body.access_control && typeof req.body.access_control === 'object'
+      ? req.body.access_control
+      : null;
+    if (!access_control) return res.status(400).json({ error: 'access_control é obrigatório' });
+
+    const updated = await updateProfileAccessControl(pool, { id: targetId, accessControl: access_control });
+    if (!updated) return res.status(404).json({ error: 'Perfil não encontrado' });
+    res.json(updated);
+  } catch (err) {
+    if (err && err.code === 'NO_COLUMN') {
+      return res.status(409).json({ error: 'access_control não está disponível neste banco' });
+    }
     next(err);
   }
 }

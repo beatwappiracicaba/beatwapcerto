@@ -71,6 +71,7 @@ export const AdminSettings = () => {
           musics: true,
           work: true,
           marketing: true,
+          verified: false,
           admin_artists: true,
           admin_composers: true,
           admin_musics: true,
@@ -202,6 +203,24 @@ export const AdminSettings = () => {
     } finally {
       setSavingId(null);
     }
+  };
+
+  const toggleVerified = async (artist) => {
+    const name = artist?.nome || artist?.nome_completo_razao_social || artist?.email || 'Usuário';
+    const current = !!artist?.access_control?.verified;
+    const next = !current;
+    const ok = window.confirm(next ? `Confirmar verificação do perfil de ${name}?` : `Remover verificação do perfil de ${name}?`);
+    if (!ok) return;
+
+    const updated = {
+      ...artist,
+      access_control: {
+        ...(artist.access_control || {}),
+        verified: next,
+      },
+    };
+    setArtists((prev) => prev.map((a) => (a.id === artist.id ? updated : a)));
+    await savePermissions(updated);
   };
 
   const openPurgeModal = (artist) => {
@@ -574,6 +593,14 @@ export const AdminSettings = () => {
                       </div>
 
                       <div className="flex gap-2 justify-end lg:w-auto w-full">
+                        <AnimatedButton
+                          onClick={() => toggleVerified(artist)}
+                          disabled={savingId === artist.id}
+                          className={`w-full lg:w-auto ${artist?.access_control?.verified ? 'bg-beatwap-gold text-black' : ''}`}
+                        >
+                          <Check size={16} />
+                          <span className="lg:hidden ml-2">Verificado</span>
+                        </AnimatedButton>
                         <AnimatedButton
                           onClick={() => openPurgeModal(artist)}
                           variant="danger"

@@ -6,12 +6,16 @@ import Header from '../components/landing/Header';
 import Footer from '../components/landing/Footer';
 import { User, Music, Instagram, Globe, MessageCircle, Play, Pause, ArrowLeft, Youtube, Target, DollarSign, Image, Link as LinkIcon, Video } from 'lucide-react';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
+import { decryptData } from '../utils/security';
 
 const PublicProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [items, setItems] = useState([]);
+  const [producerTab, setProducerTab] = useState('producoes');
+  const [producerProductions, setProducerProductions] = useState([]);
+  const [producerCompositions, setProducerCompositions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
@@ -105,7 +109,9 @@ const PublicProfile = () => {
         setItems(merged);
       } else if (cargo === 'produtor') {
         const producedData = await apiClient.get(`/profiles/${id}/produced-musics`);
-        setItems(producedData || []);
+        const compositionsData = await apiClient.get(`/profiles/${id}/compositions`);
+        setProducerProductions(producedData || []);
+        setProducerCompositions(compositionsData || []);
       } else {
         const musicData = await apiClient.get(`/profiles/${id}/compositions`);
         setItems(musicData || []);
@@ -174,6 +180,11 @@ const PublicProfile = () => {
   }
 
   const displayName = profile.nome || profile.nome_completo_razao_social || 'Compositor';
+  const cargoLower = String(profile.cargo || '').toLowerCase().trim();
+  const itemsToRender = cargoLower === 'produtor'
+    ? (producerTab === 'composicoes' ? producerCompositions : producerProductions)
+    : items;
+  const phoneDigits = profile.celular ? String(decryptData(profile.celular) || '').replace(/\D/g, '') : '';
 
   const getYoutubeVideoId = (url) => {
     if (!url) return null;
@@ -304,9 +315,9 @@ const PublicProfile = () => {
                       <Globe size={24} />
                     </a>
                   )}
-                  {profile.celular && (
+                  {phoneDigits && (
                     <a 
-                      href={`https://wa.me/55${profile.celular.replace(/\D/g, '')}?text=Olá, vi seu perfil na BeatWap.`}
+                      href={`https://wa.me/55${phoneDigits}?text=${encodeURIComponent('Olá, vi seu perfil na BeatWap.')}`}
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 px-6 py-3 bg-green-500 text-black font-bold rounded-xl hover:bg-white transition-colors"
@@ -408,19 +419,49 @@ const PublicProfile = () => {
               </div>
             ) : (
               <>
+            {cargoLower === 'produtor' && (
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setProducerTab('producoes')}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
+                    producerTab === 'producoes'
+                      ? 'bg-beatwap-gold text-beatwap-black'
+                      : 'bg-white/5 text-gray-300 hover:bg-white/10'
+                  }`}
+                >
+                  Produções
+                </button>
+                <button
+                  onClick={() => setProducerTab('composicoes')}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
+                    producerTab === 'composicoes'
+                      ? 'bg-beatwap-gold text-beatwap-black'
+                      : 'bg-white/5 text-gray-300 hover:bg-white/10'
+                  }`}
+                >
+                  Composições
+                </button>
+              </div>
+            )}
             <h2 className="text-2xl font-bold flex items-center gap-3">
               <Music className="text-beatwap-gold" />
-              {profile.cargo === 'Artista' ? 'Músicas Lançadas' : (profile.cargo === 'Produtor' ? 'Produções' : 'Composições')} ({items.length})
+              {cargoLower === 'artista'
+                ? 'Músicas Lançadas'
+                : (cargoLower === 'produtor'
+                  ? (producerTab === 'composicoes' ? 'Composições' : 'Produções')
+                  : 'Composições')} ({itemsToRender.length})
             </h2>
 
-            {items.length === 0 ? (
+            {itemsToRender.length === 0 ? (
               <div className="text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/10">
                 <Music size={48} className="mx-auto mb-4 opacity-20" />
-                <p className="text-gray-400">Nenhuma {profile.cargo === 'Artista' ? 'música' : (profile.cargo === 'Produtor' ? 'produção' : 'composição')} encontrada.</p>
+                <p className="text-gray-400">
+                  Nenhuma {cargoLower === 'artista' ? 'música' : (cargoLower === 'produtor' ? (producerTab === 'composicoes' ? 'composição' : 'produção') : 'composição')} encontrada.
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {items.map((item) => (
+                {itemsToRender.map((item) => (
                   <motion.div 
                     key={item.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -445,13 +486,13 @@ const PublicProfile = () => {
                       <h3 className="font-bold text-lg truncate mb-1">{item.title || item.titulo}</h3>
                       <p className="text-sm text-beatwap-gold uppercase font-bold tracking-wider mb-3">{item.genre || item.estilo || item.style || 'Gênero'}</p>
                       
-                      {/* Show WhatsApp Button only for Compositors or specific cases */}
-                      {profile.cargo === 'Compositor' && profile.celular && (
+                      {(cargoLower === 'compositor' || (cargoLower === 'produtor' && producerTab === 'composicoes')) && phoneDigits && (
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
-                            const num = profile.celular.replace(/\D/g, '');
-                            window.open(`https://wa.me/55${num}?text=Olá, vi sua composição "${item.title}" na BeatWap e gostaria de saber mais.`, '_blank');
+                            const title = item.title || item.titulo || '';
+                            const text = encodeURIComponent(`Olá, vi sua composição "${title}" na BeatWap e gostaria de saber mais.`);
+                            window.open(`https://wa.me/55${phoneDigits}?text=${text}`, '_blank');
                           }}
                           className="w-full py-2 rounded-lg bg-green-500/10 text-green-400 text-xs font-bold flex items-center justify-center gap-2 hover:bg-green-500/20 transition-colors"
                         >

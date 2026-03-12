@@ -6,7 +6,7 @@ import { AuthLayout } from '../components/AuthLayout';
 import { useAuth } from '../context/AuthContext';
 
 // UI
-import { SplashScreen } from '../components/ui/SplashScreen';
+import { LoadingScreen } from '../components/LoadingScreen';
 
 // DashboardLayout removido durante reconstrução
 
@@ -98,7 +98,7 @@ export const AppRoutes = () => {
   }, [splashActive]);
 
   if (splashMounted) {
-    return <SplashScreen active={splashActive} onComplete={() => setSplashMounted(false)} />;
+    return <LoadingScreen active={splashActive} onComplete={() => setSplashMounted(false)} />;
   }
 
   const isArtista = profile?.cargo === 'Artista';

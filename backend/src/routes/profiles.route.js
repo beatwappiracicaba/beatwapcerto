@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getMyProfile, getProfile, getProfiles, updateMyProfile, updateProfile, uploadMyAvatar } from '../controllers/profiles.controller.js';
+import { getMyProfile, getProfile, getProfiles, updateMyProfile, updateProfile, updateProfilePermissions, uploadMyAvatar } from '../controllers/profiles.controller.js';
 import { authRequired } from '../middleware/auth.js';
 import { listProfiles } from '../models/profiles.model.js';
 import { pool } from '../db.js';
@@ -40,11 +40,24 @@ router.get('/profiles/:id/posts', async (req, res, next) => {
 router.get('/profiles/:id/musics', (req, res) => res.json([]));
 router.get('/profiles/:id/feats', (req, res) => res.json([]));
 router.get('/profiles/:id/produced-musics', (req, res) => res.json([]));
-router.get('/profiles/:id/compositions', (req, res) => res.json([]));
+router.get('/profiles/:id/compositions', (req, res) => {
+  const id = req.params && req.params.id ? String(req.params.id) : '';
+  if (!id || !isUuidLike(id)) return res.status(400).json({ error: 'id inválido' });
+  const memory = globalThis.__beatwapMemory || {};
+  const rows = (Array.isArray(memory.compositions) ? memory.compositions : [])
+    .filter((c) => c && typeof c === 'object')
+    .filter((c) => String(c.composer_id || '') === id)
+    .filter((c) => String(c.status || '') === 'approved')
+    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+    .slice(0, 200);
+  res.set('Cache-Control', 'no-store');
+  res.json(rows);
+});
 router.get('/profile', authRequired, getMyProfile);
 router.put('/profile', authRequired, updateMyProfile);
 router.put('/profiles', authRequired, updateMyProfile);
 router.put('/profiles/:id', authRequired, updateProfile);
+router.put('/profiles/:id/access-control', authRequired, updateProfilePermissions);
 router.post('/profile/avatar', authRequired, uploadMyAvatar);
 
 export default router;

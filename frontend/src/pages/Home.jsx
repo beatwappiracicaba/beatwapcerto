@@ -16,6 +16,7 @@ import { Play, Pause, BadgeCheck, Music, MessageCircle, ChevronLeft, ChevronRigh
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Instagram, Globe, Youtube, Video } from 'lucide-react';
+import { decryptData } from '../utils/security';
  
 
 const Home = () => {
@@ -124,7 +125,7 @@ const Home = () => {
 
   const fetchHomeData = async () => {
     try {
-      const data = await apiClient.get(`/home?t=${Date.now()}`, { timeoutMs: 45000 });
+      const data = await apiClient.get('/home', { timeoutMs: 45000 });
 
       const releases = (data && Array.isArray(data.releases)) ? data.releases : [];
       const today = new Date();
@@ -832,8 +833,11 @@ const Home = () => {
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
-                              const num = comp.composer_phone.replace(/\D/g, '');
-                              window.open(`https://wa.me/55${num}?text=Olá, vi sua composição "${comp.title}" na BeatWap e gostaria de saber mais.`, '_blank');
+                              const raw = decryptData(comp.composer_phone);
+                              const num = String(raw || '').replace(/\D/g, '');
+                              if (!num) return;
+                              const text = encodeURIComponent(`Olá, vi sua composição "${comp.title}" na BeatWap e gostaria de saber mais.`);
+                              window.open(`https://wa.me/55${num}?text=${text}`, '_blank');
                             }}
                             className="mt-3 flex items-center gap-2 text-xs font-bold text-green-400 bg-green-400/10 px-3 py-2 rounded-lg hover:bg-green-400/20 transition-colors w-full justify-center"
                           >
@@ -965,14 +969,16 @@ const Home = () => {
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.1 }}
-                        className="group bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-beatwap-gold transition-colors"
+                        className={`group bg-white/5 border rounded-xl overflow-hidden cursor-pointer transition-colors ${
+                          composer?.verified === true || composer?.access_control?.verified === true ? 'border-beatwap-gold' : 'border-white/10 hover:border-beatwap-gold'
+                        }`}
                         onClick={() => navigate(`/profile/${composer.id}`)}
                       >
                         <div className="aspect-square bg-gray-800 relative overflow-hidden">
                           {composer.avatar_url ? (
                             <img 
                               src={composer.avatar_url} 
-                              alt={composer.name || 'Compositor'} 
+                              alt={composer.nome || composer.name || 'Compositor'} 
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                             />
                           ) : (
@@ -980,9 +986,14 @@ const Home = () => {
                               <User size={64} className="text-white/20" />
                             </div>
                           )}
+                          {(composer?.verified === true || composer?.access_control?.verified === true) && (
+                            <div className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/70 border border-beatwap-gold flex items-center justify-center">
+                              <BadgeCheck size={18} className="text-beatwap-gold" />
+                            </div>
+                          )}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3 sm:p-4">
                             <div className="w-full">
-                              <div className="text-white text-base sm:text-sm font-bold leading-snug">{composer.name || 'Compositor'}</div>
+                              <div className="text-white text-base sm:text-sm font-bold leading-snug">{composer.nome || composer.name || 'Compositor'}</div>
                               <div className="text-xs sm:text-[11px] text-gray-300 flex items-center gap-2">
                                 <span>Compositor</span>
                                 <span className="hidden sm:flex items-center gap-1 text-beatwap-gold">

@@ -154,10 +154,48 @@ router.get('/home', async (req, res) => {
     releases = normalizeReleasesFromMemory(memory.musics);
   }
 
-  const compositions = (Array.isArray(memory.compositions) ? memory.compositions : [])
+  const compositionsRaw = (Array.isArray(memory.compositions) ? memory.compositions : [])
     .filter((c) => c && typeof c === 'object')
     .filter((c) => String(c.status || '') === 'approved')
     .slice(0, 50);
+
+  let compositions = compositionsRaw;
+  try {
+    const composerIds = Array.from(
+      new Set(
+        compositionsRaw
+          .map((c) => (c && c.composer_id ? String(c.composer_id) : ''))
+          .filter((id) => id && isUuidLike(id))
+      )
+    );
+    if (composerIds.length) {
+      const result = await withTimeout(
+        pool.query(
+          `SELECT id, nome, nome_completo_razao_social, celular
+           FROM public.profiles
+           WHERE id = ANY($1::uuid[])`,
+          [composerIds]
+        ),
+        dbTimeoutMs
+      );
+      const byId = {};
+      (Array.isArray(result?.rows) ? result.rows : []).forEach((p) => {
+        if (!p || !p.id) return;
+        byId[String(p.id)] = p;
+      });
+      compositions = compositionsRaw.map((c) => {
+        const pid = c && c.composer_id ? String(c.composer_id) : '';
+        const p = pid && byId[pid] ? byId[pid] : null;
+        return {
+          ...c,
+          composer_name: p ? (p.nome || p.nome_completo_razao_social || null) : null,
+          composer_phone: p ? (p.celular || null) : null,
+        };
+      });
+    }
+  } catch {
+    compositions = compositionsRaw;
+  }
 
   let projects = [];
   try {
@@ -180,7 +218,7 @@ router.get('/home', async (req, res) => {
 
   let composers = [];
   try {
-    composers = await withTimeout(listProfiles(pool, { cargo: 'Compositor', limit: 50 }), dbTimeoutMs);
+    composers = await withTimeout(listProfiles(pool, { cargo: 'Compositor', limit: 50, includeVerified: true }), dbTimeoutMs);
   } catch {
     composers = [];
   }
@@ -195,17 +233,17 @@ router.get('/home', async (req, res) => {
   let producers = [];
   let sellers = [];
   try {
-    artists = await withTimeout(listProfiles(pool, { cargo: 'Artista', limit: 50 }), dbTimeoutMs);
+    artists = await withTimeout(listProfiles(pool, { cargo: 'Artista', limit: 50, includeVerified: true }), dbTimeoutMs);
   } catch {
     artists = [];
   }
   try {
-    producers = await withTimeout(listProfiles(pool, { cargo: 'Produtor', limit: 50 }), dbTimeoutMs);
+    producers = await withTimeout(listProfiles(pool, { cargo: 'Produtor', limit: 50, includeVerified: true }), dbTimeoutMs);
   } catch {
     producers = [];
   }
   try {
-    sellers = await withTimeout(listProfiles(pool, { cargo: 'Vendedor', limit: 50 }), dbTimeoutMs);
+    sellers = await withTimeout(listProfiles(pool, { cargo: 'Vendedor', limit: 50, includeVerified: true }), dbTimeoutMs);
   } catch {
     sellers = [];
   }
@@ -496,10 +534,44 @@ router.post('/analytics', async (req, res, next) => {
 });
 
 router.get('/compositions', async (req, res) => {
-  const rows = (Array.isArray(memory.compositions) ? memory.compositions : [])
+  const rowsRaw = (Array.isArray(memory.compositions) ? memory.compositions : [])
     .filter((c) => c && typeof c === 'object')
     .filter((c) => String(c.status || '') === 'approved')
     .slice(0, 50);
+  let rows = rowsRaw;
+  try {
+    const composerIds = Array.from(
+      new Set(
+        rowsRaw
+          .map((c) => (c && c.composer_id ? String(c.composer_id) : ''))
+          .filter((id) => id && isUuidLike(id))
+      )
+    );
+    if (composerIds.length) {
+      const result = await pool.query(
+        `SELECT id, nome, nome_completo_razao_social, celular
+         FROM public.profiles
+         WHERE id = ANY($1::uuid[])`,
+        [composerIds]
+      );
+      const byId = {};
+      (Array.isArray(result?.rows) ? result.rows : []).forEach((p) => {
+        if (!p || !p.id) return;
+        byId[String(p.id)] = p;
+      });
+      rows = rowsRaw.map((c) => {
+        const pid = c && c.composer_id ? String(c.composer_id) : '';
+        const p = pid && byId[pid] ? byId[pid] : null;
+        return {
+          ...c,
+          composer_name: p ? (p.nome || p.nome_completo_razao_social || null) : null,
+          composer_phone: p ? (p.celular || null) : null,
+        };
+      });
+    }
+  } catch {
+    rows = rowsRaw;
+  }
   res.set('Cache-Control', 'no-store');
   res.json(rows);
 });
@@ -968,6 +1040,87 @@ router.get('/artist/finance/events', authRequired, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+router.get('/events', authRequired, async (req, res, next) => {
+  try {
+    const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+    if (cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+
+    const rows = (Array.isArray(memory.financeEvents) ? memory.financeEvents : [])
+      .filter((e) => e && typeof e === 'object')
+      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+      .slice(0, 5000);
+
+    const uniqueIds = Array.from(
+      new Set(
+        rows
+          .flatMap((e) => [e.artist_id, e.seller_id, e.manager_id])
+          .filter((id) => id && isUuidLike(id))
+          .map(String)
+      )
+    );
+
+    const profilesById = {};
+    await Promise.all(
+      uniqueIds.map(async (id) => {
+        try {
+          const p = await getProfileById(pool, id);
+          if (p) profilesById[id] = p;
+        } catch { void 0; }
+      })
+    );
+
+    res.set('Cache-Control', 'no-store');
+    res.json(
+      rows.map((e) => ({
+        ...e,
+        artist: profilesById[String(e.artist_id)] ? {
+          id: profilesById[String(e.artist_id)].id,
+          nome: profilesById[String(e.artist_id)].nome || profilesById[String(e.artist_id)].nome_completo_razao_social,
+          avatar_url: profilesById[String(e.artist_id)].avatar_url,
+        } : null,
+        seller: profilesById[String(e.seller_id)] ? {
+          id: profilesById[String(e.seller_id)].id,
+          nome: profilesById[String(e.seller_id)].nome || profilesById[String(e.seller_id)].nome_completo_razao_social,
+          avatar_url: profilesById[String(e.seller_id)].avatar_url,
+        } : null,
+        manager: profilesById[String(e.manager_id)] ? {
+          id: profilesById[String(e.manager_id)].id,
+          nome: profilesById[String(e.manager_id)].nome || profilesById[String(e.manager_id)].nome_completo_razao_social,
+          avatar_url: profilesById[String(e.manager_id)].avatar_url,
+        } : null,
+      }))
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/events/:id', authRequired, (req, res) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+
+  const id = req.params && req.params.id ? String(req.params.id) : '';
+  if (!id || !isUuidLike(id)) return res.status(400).json({ error: 'id inválido' });
+
+  const store = Array.isArray(memory.financeEvents) ? memory.financeEvents : (memory.financeEvents = []);
+  const idx = store.findIndex((e) => e && typeof e === 'object' && String(e.id || '') === id);
+  if (idx < 0) return res.status(404).json({ error: 'Evento não encontrado' });
+
+  const body = (req.body && typeof req.body === 'object') ? req.body : {};
+  const next = {
+    ...store[idx],
+    revenue: (body.revenue ?? store[idx].revenue ?? 0),
+    artist_share: (body.artist_share ?? store[idx].artist_share ?? 0),
+    house_cut: (body.house_cut ?? store[idx].house_cut ?? 0),
+    seller_commission: (body.seller_commission ?? store[idx].seller_commission ?? 0),
+    status: body.status ? String(body.status) : (store[idx].status || 'pendente'),
+    updated_at: new Date().toISOString(),
+  };
+  store[idx] = next;
+  res.set('Cache-Control', 'no-store');
+  res.json(next);
 });
 
 router.post('/artist/finance/events/:id/receipts', authRequired, (req, res) => {
@@ -2577,9 +2730,11 @@ router.get('/chat/stream', authRequired, (req, res) => {
 
   res.status(200);
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
   if (typeof res.flushHeaders === 'function') res.flushHeaders();
+  try { res.write(':\n\n'); } catch { void 0; }
 
   const cleanup = registerRealtimeClient({ userId, cargo, res });
   const ping = setInterval(() => {
@@ -2774,6 +2929,43 @@ router.get('/admin/artist/:artistId/metrics', authRequired, async (req, res, nex
         : { total_plays: 0, ouvintes_mensais: 0, receita_estimada: 0 };
       return res.json(fallback);
     }
+    next(err);
+  }
+});
+
+router.get('/admin/artists/metrics', authRequired, async (req, res, next) => {
+  try {
+    const idsRaw = req.query && req.query.ids ? String(req.query.ids) : '';
+    const ids = idsRaw
+      .split(',')
+      .map((v) => v.trim())
+      .filter((v) => isUuidLike(v))
+      .slice(0, 200);
+    if (!ids.length) return res.json([]);
+
+    try {
+      const { rows } = await pool.query(
+        `SELECT artist_id, total_plays, ouvintes_mensais, receita_estimada
+         FROM public.artist_metrics
+         WHERE artist_id = ANY($1::uuid[])`,
+        [ids]
+      );
+      return res.json(Array.isArray(rows) ? rows : []);
+    } catch (err) {
+      if (!isMissingTableError(err)) throw err;
+      const out = [];
+      for (const id of ids) {
+        const row = (memory.artistMetrics instanceof Map) ? (memory.artistMetrics.get(id) || null) : null;
+        out.push({
+          artist_id: id,
+          total_plays: row ? Number(row.total_plays || 0) : 0,
+          ouvintes_mensais: row ? Number(row.ouvintes_mensais || 0) : 0,
+          receita_estimada: row ? Number(row.receita_estimada || 0) : 0,
+        });
+      }
+      return res.json(out);
+    }
+  } catch (err) {
     next(err);
   }
 });

@@ -1,7 +1,13 @@
-export async function listProfiles(pool, { cargo = null, limit = 100, includeEmail = false } = {}) {
+export async function listProfiles(
+  pool,
+  { cargo = null, limit = 100, includeEmail = false, includeAccessControl = false, includeVerified = false } = {}
+) {
   const normalizedCargo = cargo ? String(cargo).trim() : '';
   const lim = Number.isFinite(Number(limit)) ? Math.max(1, Math.min(500, Number(limit))) : 100;
   const withEmail = !!includeEmail;
+  const withAccessControl = !!includeAccessControl;
+  const withVerified = !!includeVerified;
+  const columns = await getProfilesColumns(pool);
 
   const values = [];
   let whereSql = '';
@@ -22,6 +28,17 @@ export async function listProfiles(pool, { cargo = null, limit = 100, includeEma
     'bio',
     'created_at',
   ];
+  if (withAccessControl && columns.has('access_control')) selectCols.push('access_control');
+  if (withVerified && columns.has('access_control')) {
+    selectCols.push(
+      `CASE
+        WHEN (access_control->>'verified') IN ('true', 'false') THEN (access_control->>'verified')::boolean
+        ELSE false
+      END AS verified`
+    );
+  } else if (withVerified) {
+    selectCols.push('false AS verified');
+  }
 
   const { rows } = await pool.query(
     `SELECT
@@ -219,4 +236,23 @@ export async function updateProfileById(pool, { id, patch, includeEmail = true }
   );
 
   return getProfileById(pool, id);
+}
+
+export async function updateProfileAccessControl(pool, { id, accessControl }) {
+  const columns = await getProfilesColumns(pool);
+  if (!columns.has('access_control')) {
+    const e = new Error('Campo access_control não existe');
+    e.code = 'NO_COLUMN';
+    throw e;
+  }
+
+  const payload = accessControl && typeof accessControl === 'object' ? accessControl : {};
+  const { rows } = await pool.query(
+    `UPDATE public.profiles
+     SET access_control = $2::jsonb
+     WHERE id = $1
+     RETURNING id, access_control`,
+    [id, JSON.stringify(payload)]
+  );
+  return rows[0] || null;
 }
