@@ -1,6 +1,28 @@
 import jwt from 'jsonwebtoken';
+import { pool } from '../db.js';
 
-export function authRequired(req, res, next) {
+const authStateCache = { revokedBefore: null, fetchedAt: 0 };
+
+async function getRevokedBefore() {
+  const now = Date.now();
+  if (now - authStateCache.fetchedAt < 5000) return authStateCache.revokedBefore;
+  authStateCache.fetchedAt = now;
+  try {
+    const { rows } = await pool.query('SELECT revoked_before FROM public.auth_state WHERE id = 1 LIMIT 1');
+    authStateCache.revokedBefore = rows[0] && rows[0].revoked_before ? new Date(rows[0].revoked_before) : null;
+    if (authStateCache.revokedBefore && Number.isNaN(authStateCache.revokedBefore.getTime())) authStateCache.revokedBefore = null;
+    return authStateCache.revokedBefore;
+  } catch (err) {
+    const code = err && typeof err === 'object' && 'code' in err ? String(err.code || '') : '';
+    if (code === '42P01') {
+      authStateCache.revokedBefore = null;
+      return null;
+    }
+    throw err;
+  }
+}
+
+export async function authRequired(req, res, next) {
   const auth = req.headers.authorization ? String(req.headers.authorization) : '';
   if (!auth.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Autenticação necessária' });
@@ -8,10 +30,19 @@ export function authRequired(req, res, next) {
   const token = auth.slice('Bearer '.length).trim();
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const revokedBefore = await getRevokedBefore();
+    if (revokedBefore) {
+      const iatSeconds = decoded && typeof decoded === 'object' && 'iat' in decoded ? Number(decoded.iat || 0) : 0;
+      if (iatSeconds > 0) {
+        const issuedAtMs = iatSeconds * 1000;
+        if (issuedAtMs < revokedBefore.getTime()) {
+          return res.status(401).json({ error: 'Sessão expirada. Faça login novamente.' });
+        }
+      }
+    }
     req.user = decoded;
     return next();
   } catch (err) {
     return res.status(401).json({ error: 'Token inválido ou expirado' });
   }
 }
-

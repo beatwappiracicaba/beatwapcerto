@@ -1102,6 +1102,26 @@ router.patch('/admin/commissions/:id/status', authRequired, (req, res) => {
   res.json(next);
 });
 
+router.post('/admin/reset-logins', authRequired, async (req, res, next) => {
+  try {
+    const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+    if (cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+
+    const { rows } = await pool.query(
+      `INSERT INTO public.auth_state (id, revoked_before)
+       VALUES (1, now())
+       ON CONFLICT (id)
+       DO UPDATE SET revoked_before = EXCLUDED.revoked_before
+       RETURNING revoked_before`
+    );
+
+    res.set('Cache-Control', 'no-store');
+    res.json({ ok: true, revoked_before: rows[0] ? rows[0].revoked_before : null });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/users', authRequired, async (req, res, next) => {
   try {
     const rawRole = req.query && req.query.role ? String(req.query.role).trim().toLowerCase() : '';
