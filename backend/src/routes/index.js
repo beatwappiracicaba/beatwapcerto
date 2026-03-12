@@ -1589,6 +1589,31 @@ router.get('/users', authRequired, async (req, res, next) => {
   }
 });
 
+router.get('/profiles/:id/posts', async (req, res, next) => {
+  try {
+    const userId = req.params && req.params.id ? String(req.params.id) : '';
+    if (!userId || !isUuidLike(userId)) return res.status(400).json({ error: 'id inválido' });
+    const { rows } = await pool.query(
+      `SELECT id, user_id, media_url, media_type, caption, link_url, created_at
+       FROM public.posts
+       WHERE user_id = $1
+       ORDER BY created_at DESC
+       LIMIT 200`,
+      [userId]
+    );
+    res.json(rows);
+  } catch (err) {
+    if (isMissingTableError(err)) {
+      const rows = (Array.isArray(memory.posts) ? memory.posts : [])
+        .filter((p) => p && typeof p === 'object' && String(p.user_id || '') === userId)
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+        .slice(0, 200);
+      return res.json(rows);
+    }
+    next(err);
+  }
+});
+
 router.get('/users/:id/posts', authRequired, async (req, res, next) => {
   try {
     const userId = req.params && req.params.id ? String(req.params.id) : '';
@@ -1608,6 +1633,13 @@ router.get('/users/:id/posts', authRequired, async (req, res, next) => {
     );
     res.json(rows);
   } catch (err) {
+    if (isMissingTableError(err)) {
+      const rows = (Array.isArray(memory.posts) ? memory.posts : [])
+        .filter((p) => p && typeof p === 'object' && String(p.user_id || '') === userId)
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+        .slice(0, 200);
+      return res.json(rows);
+    }
     next(err);
   }
 });
@@ -1641,6 +1673,19 @@ router.post('/posts', authRequired, async (req, res, next) => {
     );
     res.status(201).json(rows[0]);
   } catch (err) {
+    if (isMissingTableError(err)) {
+      const row = {
+        id: randomUUID(),
+        user_id,
+        media_url,
+        media_type,
+        caption: caption || null,
+        link_url: link_url || null,
+        created_at: new Date().toISOString(),
+      };
+      memory.posts.unshift(row);
+      return res.status(201).json(row);
+    }
     next(err);
   }
 });
@@ -1665,6 +1710,13 @@ router.delete('/posts/:id', authRequired, async (req, res, next) => {
     await pool.query('DELETE FROM public.posts WHERE id = $1', [postId]);
     res.json({ ok: true });
   } catch (err) {
+    if (isMissingTableError(err)) {
+      const store = Array.isArray(memory.posts) ? memory.posts : (memory.posts = []);
+      const idx = store.findIndex((p) => p && typeof p === 'object' && String(p.id || '') === postId);
+      if (idx === -1) return res.status(404).json({ error: 'Post não encontrado' });
+      store.splice(idx, 1);
+      return res.json({ ok: true });
+    }
     next(err);
   }
 });

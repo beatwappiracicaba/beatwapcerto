@@ -24,7 +24,8 @@ async function request(path, options = {}) {
   };
   const timeoutMs = Number(options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   const perAttemptTimeoutMs = Number(options.perAttemptTimeoutMs ?? 8000);
-  const normalizedBaseUrl = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
+  const normalizedBaseUrlRaw = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
+  const normalizedBaseUrl = normalizedBaseUrlRaw.replace(/\/api\/?$/, '');
 
   const isBrowser = typeof window !== 'undefined';
   const hostname = isBrowser && window.location ? String(window.location.hostname || '') : '';
@@ -246,7 +247,7 @@ export const uploadApi = {
     formData.append('file', file);
 
     const token = localStorage.getItem('token');
-    const normalizedBaseUrl = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
+    const normalizedBaseUrl = (API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '').replace(/\/api\/?$/, '');
     const apiBase = normalizedBaseUrl ? `${normalizedBaseUrl}/api` : '/api';
 
     const res = await fetch(`${apiBase}/upload`, {
@@ -265,7 +266,7 @@ export const uploadApi = {
     const formData = new FormData();
     formData.append('file', file);
     const token = localStorage.getItem('token');
-    const normalizedBaseUrl = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
+    const normalizedBaseUrl = (API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '').replace(/\/api\/?$/, '');
     const hostname = typeof window !== 'undefined' && window.location ? String(window.location.hostname || '') : '';
     const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
     const baseUrls = [];
@@ -306,7 +307,7 @@ export const uploadApi = {
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
     const token = localStorage.getItem('token');
-    const normalizedBaseUrl = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
+    const normalizedBaseUrl = (API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '').replace(/\/api\/?$/, '');
     const hostname = typeof window !== 'undefined' && window.location ? String(window.location.hostname || '') : '';
     const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
     const baseUrls = [];
