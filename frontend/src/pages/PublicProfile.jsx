@@ -196,7 +196,7 @@ const PublicProfile = () => {
 
           {/* Profile Header */}
           <div className="bg-white/5 border border-white/10 rounded-3xl p-8 mb-12">
-            <div className="flex flex-col md:flex-row items-start gap-8">
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
               <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-beatwap-gold/20 bg-gray-800 shrink-0">
                 {profile.avatar_url ? (
                   <img src={profile.avatar_url} alt={displayName} className="w-full h-full object-cover" />

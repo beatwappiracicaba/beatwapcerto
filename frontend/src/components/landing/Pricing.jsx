@@ -209,7 +209,7 @@ const Pricing = () => {
             <div className="absolute top-0 right-0 bg-beatwap-gold/20 text-beatwap-gold text-xs font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl">
               MAIS POPULAR
             </div>
-            <div className="mb-4">
+            <div className="mb-4 text-center sm:text-left">
               <div className="w-12 h-12 bg-beatwap-gold/20 rounded-xl flex items-center justify-center mb-4 text-beatwap-gold">
                 <Star size={24} />
               </div>
@@ -217,11 +217,11 @@ const Pricing = () => {
               <p className="text-gray-400 text-sm mt-1">Mentoria e visibilidade constante</p>
             </div>
 
-            <div className="mb-6">
-              <span className="text-4xl font-bold text-white">
+            <div className="mb-6 flex items-end justify-center sm:justify-start gap-2">
+              <span className="text-4xl font-bold text-white leading-none">
                 R$ {userType === 'artist' ? '200' : '100'}
               </span>
-              <span className="text-gray-400 text-sm">/mês</span>
+              <span className="text-gray-400 text-sm pb-1">/mês</span>
             </div>
 
             <ul className="space-y-3 mb-8 flex-grow">
@@ -262,7 +262,7 @@ const Pricing = () => {
 
           {/* 3. PLANO ANUAL */}
           <div className="bg-white/5 border border-white/10 rounded-3xl p-6 hover:border-blue-500/50 transition-all duration-300 flex flex-col">
-            <div className="mb-4">
+            <div className="mb-4 text-center sm:text-left">
               <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mb-4 text-blue-400">
                 <CreditCard size={24} />
               </div>
@@ -270,11 +270,11 @@ const Pricing = () => {
               <p className="text-gray-400 text-sm mt-1">Economia e longo prazo</p>
             </div>
 
-            <div className="mb-6">
-              <span className="text-4xl font-bold text-white">
+            <div className="mb-6 flex items-end justify-center sm:justify-start gap-2">
+              <span className="text-4xl font-bold text-white leading-none">
                 R$ {userType === 'artist' ? '1.200' : '600'}
               </span>
-              <span className="text-gray-400 text-sm">/ano</span>
+              <span className="text-gray-400 text-sm pb-1">/ano</span>
             </div>
 
             <ul className="space-y-3 mb-8 flex-grow">
