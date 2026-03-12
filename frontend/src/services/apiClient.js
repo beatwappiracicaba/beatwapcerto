@@ -1,7 +1,10 @@
 import { API_BASE_URL } from '../config/apiConfig.js';
 
-const DEFAULT_TIMEOUT_MS = 45000;
+const DEFAULT_TIMEOUT_MS_GET = 15000;
+const DEFAULT_TIMEOUT_MS_MUTATION = 45000;
 const PROD_FALLBACK_BASE_URL = 'https://api.beatwap.com.br';
+const inflightRequests = new Map();
+const responseCache = new Map();
 const DEBUG_API = (() => {
   try {
     const v = import.meta?.env?.VITE_DEBUG_API;
@@ -23,11 +26,26 @@ async function request(path, options = {}) {
     ...(shouldSendJsonContentType ? { 'Content-Type': 'application/json' } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {})
   };
+  const hasAuthHeader = !!headers.Authorization;
+  const cacheMode = options.cache ?? (!hasAuthHeader && (method === 'GET' || method === 'HEAD'));
+  const cacheTtlMs = Number(options.cacheTtlMs ?? 5000);
+  const cacheKey = cacheMode && cacheTtlMs > 0 ? `${method} ${String(path)} ${hasAuthHeader ? String(headers.Authorization) : ''}` : null;
+  if (cacheKey) {
+    const cached = responseCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.value;
+    const inflight = inflightRequests.get(cacheKey);
+    if (inflight) return inflight;
+  }
+
   const isBrowser = typeof window !== 'undefined';
   const hostname = isBrowser && window.location ? String(window.location.hostname || '') : '';
   const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
-  const timeoutMs = Number(options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-  const perAttemptTimeoutMs = Number(options.perAttemptTimeoutMs ?? (isLocalHost ? 8000 : 30000));
+  const defaultTimeoutMs = method === 'GET' || method === 'HEAD' ? DEFAULT_TIMEOUT_MS_GET : DEFAULT_TIMEOUT_MS_MUTATION;
+  const timeoutMs = Number(options.timeoutMs ?? defaultTimeoutMs);
+  const defaultPerAttemptTimeoutMs = method === 'GET' || method === 'HEAD'
+    ? (isLocalHost ? 8000 : 12000)
+    : (isLocalHost ? 12000 : 30000);
+  const perAttemptTimeoutMs = Number(options.perAttemptTimeoutMs ?? defaultPerAttemptTimeoutMs);
   const normalizedBaseUrlRaw = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
   const normalizedBaseUrl = normalizedBaseUrlRaw.replace(/\/api\/?$/, '');
 
@@ -87,96 +105,110 @@ async function request(path, options = {}) {
     return { res, text, data, looksJson, url };
   };
 
-  const startedAt = Date.now();
-  const attempts = [];
-  let last = null;
-  for (let i = 0; i < baseUrls.length; i += 1) {
-    const baseUrl = baseUrls[i];
-    const overallRemainingMs = deadline ? Math.max(1, deadline - Date.now()) : timeoutMs;
-    const isLastAttempt = i === baseUrls.length - 1;
-    const budgetMs = (!isLastAttempt && Number.isFinite(perAttemptTimeoutMs) && perAttemptTimeoutMs > 0)
-      ? Math.min(overallRemainingMs, perAttemptTimeoutMs)
-      : overallRemainingMs;
-    const attemptStart = Date.now();
-    try {
-      const result = await attempt(baseUrl, budgetMs);
-      const ms = Date.now() - attemptStart;
-      attempts.push({ baseUrl, url: result.url, ok: result.res.ok, status: result.res.status, ms });
-      if (!result.res.ok) {
-        const e = new Error((result.data && result.data.error) || result.res.statusText || 'Falha na API');
-        e.status = result.res.status;
-        e.url = result.url;
-        e.response = result.data;
-        throw e;
-      }
-      if (!result.looksJson) {
-        const e = new Error('API respondeu em formato inválido (não-JSON).');
-        e.code = 'ENONJSON';
-        e.status = result.res.status;
-        e.url = result.url;
-        e.contentType = String(result.res.headers.get('content-type') || '');
-        e.preview = result.text ? String(result.text).slice(0, 160) : '';
-        throw e;
-      }
-      if (result.data && typeof result.data === 'object' && 'success' in result.data && 'data' in result.data) {
+  const exec = async () => {
+    const startedAt = Date.now();
+    const attempts = [];
+    let last = null;
+    for (let i = 0; i < baseUrls.length; i += 1) {
+      const baseUrl = baseUrls[i];
+      const overallRemainingMs = deadline ? Math.max(1, deadline - Date.now()) : timeoutMs;
+      const isLastAttempt = i === baseUrls.length - 1;
+      const budgetMs = (!isLastAttempt && Number.isFinite(perAttemptTimeoutMs) && perAttemptTimeoutMs > 0)
+        ? Math.min(overallRemainingMs, perAttemptTimeoutMs)
+        : overallRemainingMs;
+      const attemptStart = Date.now();
+      try {
+        const result = await attempt(baseUrl, budgetMs);
+        const ms = Date.now() - attemptStart;
+        attempts.push({ baseUrl, url: result.url, ok: result.res.ok, status: result.res.status, ms });
+        if (!result.res.ok) {
+          const e = new Error((result.data && result.data.error) || result.res.statusText || 'Falha na API');
+          e.status = result.res.status;
+          e.url = result.url;
+          e.response = result.data;
+          throw e;
+        }
+        if (!result.looksJson) {
+          const e = new Error('API respondeu em formato inválido (não-JSON).');
+          e.code = 'ENONJSON';
+          e.status = result.res.status;
+          e.url = result.url;
+          e.contentType = String(result.res.headers.get('content-type') || '');
+          e.preview = result.text ? String(result.text).slice(0, 160) : '';
+          throw e;
+        }
+        if (result.data && typeof result.data === 'object' && 'success' in result.data && 'data' in result.data) {
+          const totalMs = Date.now() - startedAt;
+          if (DEBUG_API || totalMs >= SLOW_API_MS) {
+            console.log('[api] ok', { method, path, ms: totalMs, attempt: i + 1, url: result.url });
+          }
+          return result.data.data ?? null;
+        }
         const totalMs = Date.now() - startedAt;
         if (DEBUG_API || totalMs >= SLOW_API_MS) {
           console.log('[api] ok', { method, path, ms: totalMs, attempt: i + 1, url: result.url });
         }
-        return result.data.data ?? null;
+        return result.data;
+      } catch (err) {
+        const ms = Date.now() - attemptStart;
+        if (!attempts.some(a => a.baseUrl === baseUrl && a.ms === ms)) {
+          attempts.push({
+            baseUrl,
+            url: err?.url || (baseUrl ? `${baseUrl}/api${path}` : `/api${path}`),
+            ok: false,
+            status: err?.status || null,
+            ms,
+            error: String(err?.message || err)
+          });
+        }
+        last = err;
+        const retriable = err?.code === 'ETIMEDOUT'
+          || err?.name === 'AbortError'
+          || err instanceof TypeError
+          || (err?.code === 'ENONJSON')
+          || (Number(err?.status) === 404)
+          || (Number(err?.status) === 405);
+        const hasNext = i < baseUrls.length - 1;
+        if (DEBUG_API) {
+          console.warn('[api] attempt failed', {
+            method,
+            path,
+            attempt: i + 1,
+            retriable,
+            ms,
+            url: err?.url || null,
+            status: err?.status || null,
+            error: String(err?.message || err)
+          });
+        }
+        if (!retriable || !hasNext) throw err;
       }
-      const totalMs = Date.now() - startedAt;
-      if (DEBUG_API || totalMs >= SLOW_API_MS) {
-        console.log('[api] ok', { method, path, ms: totalMs, attempt: i + 1, url: result.url });
-      }
-      return result.data;
-    } catch (err) {
-      const ms = Date.now() - attemptStart;
-      if (!attempts.some(a => a.baseUrl === baseUrl && a.ms === ms)) {
-        attempts.push({
-          baseUrl,
-          url: err?.url || (baseUrl ? `${baseUrl}/api${path}` : `/api${path}`),
-          ok: false,
-          status: err?.status || null,
-          ms,
-          error: String(err?.message || err)
-        });
-      }
-      last = err;
-      const retriable = err?.code === 'ETIMEDOUT'
-        || err?.name === 'AbortError'
-        || err instanceof TypeError
-        || (err?.code === 'ENONJSON')
-        || (Number(err?.status) === 404)
-        || (Number(err?.status) === 405);
-      const hasNext = i < baseUrls.length - 1;
-      if (DEBUG_API) {
-        console.warn('[api] attempt failed', {
-          method,
-          path,
-          attempt: i + 1,
-          retriable,
-          ms,
-          url: err?.url || null,
-          status: err?.status || null,
-          error: String(err?.message || err)
-        });
-      }
-      if (!retriable || !hasNext) throw err;
     }
-  }
 
-  const totalMs = Date.now() - startedAt;
-  console.error('[api] failed', {
-    method,
-    path,
-    ms: totalMs,
-    timeoutMs,
-    perAttemptTimeoutMs,
-    attempts,
-    error: last ? { name: last?.name, code: last?.code, status: last?.status, message: String(last?.message || last) } : null
-  });
-  throw last || new Error('Falha ao conectar na API');
+    const totalMs = Date.now() - startedAt;
+    console.error('[api] failed', {
+      method,
+      path,
+      ms: totalMs,
+      timeoutMs,
+      perAttemptTimeoutMs,
+      attempts,
+      error: last ? { name: last?.name, code: last?.code, status: last?.status, message: String(last?.message || last) } : null
+    });
+    throw last || new Error('Falha ao conectar na API');
+  };
+
+  if (!cacheKey) return exec();
+
+  const promise = exec();
+  inflightRequests.set(cacheKey, promise);
+  try {
+    const value = await promise;
+    responseCache.set(cacheKey, { value, expiresAt: Date.now() + cacheTtlMs });
+    return value;
+  } finally {
+    inflightRequests.delete(cacheKey);
+  }
 }
 
 export const apiClient = {

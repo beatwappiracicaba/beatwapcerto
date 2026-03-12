@@ -71,6 +71,28 @@ function withTimeout(promise, ms) {
   return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
 }
 
+async function withDbTimeout(timeoutMs, fn) {
+  const ms = Number(timeoutMs) || 0;
+  const client = await pool.connect();
+  let hasSet = false;
+  try {
+    if (ms > 0) {
+      await client.query(`SET statement_timeout TO ${Math.floor(ms)}`);
+      hasSet = true;
+    }
+    return await fn(client);
+  } finally {
+    if (hasSet) {
+      try {
+        await client.query('SET statement_timeout TO DEFAULT');
+      } catch {
+        void 0;
+      }
+    }
+    client.release();
+  }
+}
+
 function normalizeReleasesFromMemory(musics) {
   return (Array.isArray(musics) ? musics : [])
     .filter((m) => m && typeof m === 'object')
@@ -157,7 +179,7 @@ router.get('/home', async (req, res) => {
 
   let releases = [];
   try {
-    const rows = await withTimeout(listReleases(pool), dbTimeoutMs);
+    const rows = await withDbTimeout(dbTimeoutMs, (db) => listReleases(db));
     const hasExpectedShape = Array.isArray(rows) && rows.some((r) => r && typeof r === 'object' && (
       Object.prototype.hasOwnProperty.call(r, 'show_on_home') ||
       Object.prototype.hasOwnProperty.call(r, 'audio_url') ||
@@ -185,14 +207,14 @@ router.get('/home', async (req, res) => {
       )
     );
     if (composerIds.length) {
-      const result = await withTimeout(
-        pool.query(
+      const result = await withDbTimeout(
+        dbTimeoutMs,
+        (db) => db.query(
           `SELECT id, nome, nome_completo_razao_social, celular
            FROM public.profiles
            WHERE id = ANY($1::uuid[])`,
           [composerIds]
         ),
-        dbTimeoutMs
       );
       const byId = {};
       (Array.isArray(result?.rows) ? result.rows : []).forEach((p) => {
@@ -215,15 +237,15 @@ router.get('/home', async (req, res) => {
 
   let projects = [];
   try {
-    const result = await withTimeout(
-      pool.query(
+    const result = await withDbTimeout(
+      dbTimeoutMs,
+      (db) => db.query(
         `SELECT id, producer_id, title, url, platform, published, created_at
          FROM public.producer_projects
          WHERE published = true
          ORDER BY created_at DESC
          LIMIT 50`
       ),
-      dbTimeoutMs
     );
     projects = Array.isArray(result?.rows) ? result.rows : [];
   } catch {
@@ -234,7 +256,7 @@ router.get('/home', async (req, res) => {
 
   let composers = [];
   try {
-    composers = await withTimeout(listProfiles(pool, { cargo: 'Compositor', limit: 50, includeVerified: true }), dbTimeoutMs);
+    composers = await withDbTimeout(dbTimeoutMs, (db) => listProfiles(db, { cargo: 'Compositor', limit: 50, includeVerified: true }));
   } catch {
     composers = [];
   }
@@ -249,17 +271,17 @@ router.get('/home', async (req, res) => {
   let producers = [];
   let sellers = [];
   try {
-    artists = await withTimeout(listProfiles(pool, { cargo: 'Artista', limit: 50, includeVerified: true }), dbTimeoutMs);
+    artists = await withDbTimeout(dbTimeoutMs, (db) => listProfiles(db, { cargo: 'Artista', limit: 50, includeVerified: true }));
   } catch {
     artists = [];
   }
   try {
-    producers = await withTimeout(listProfiles(pool, { cargo: 'Produtor', limit: 50, includeVerified: true }), dbTimeoutMs);
+    producers = await withDbTimeout(dbTimeoutMs, (db) => listProfiles(db, { cargo: 'Produtor', limit: 50, includeVerified: true }));
   } catch {
     producers = [];
   }
   try {
-    sellers = await withTimeout(listProfiles(pool, { cargo: 'Vendedor', limit: 50, includeVerified: true }), dbTimeoutMs);
+    sellers = await withDbTimeout(dbTimeoutMs, (db) => listProfiles(db, { cargo: 'Vendedor', limit: 50, includeVerified: true }));
   } catch {
     sellers = [];
   }
@@ -1742,6 +1764,40 @@ router.get('/users/:id/quota', authRequired, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+router.get('/me/uploads/count', authRequired, (req, res) => {
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!requesterId || !isUuidLike(requesterId)) return res.status(401).json({ error: 'Autenticação necessária' });
+
+  const typeRaw = req.query && req.query.type ? String(req.query.type) : 'music';
+  const type = typeRaw.toLowerCase();
+  const startRaw = req.query && req.query.start ? String(req.query.start) : '';
+  const endRaw = req.query && req.query.end ? String(req.query.end) : '';
+  const start = startRaw ? new Date(startRaw) : null;
+  const end = endRaw ? new Date(endRaw) : null;
+  const hasStart = start && !Number.isNaN(start.getTime());
+  const hasEnd = end && !Number.isNaN(end.getTime());
+
+  const isComposition = type.includes('composition');
+  const store = isComposition ? (Array.isArray(memory.compositions) ? memory.compositions : []) : (Array.isArray(memory.musics) ? memory.musics : []);
+
+  const count = store
+    .filter((row) => row && typeof row === 'object')
+    .filter((row) => {
+      const owner = isComposition
+        ? String(row.composer_id || '')
+        : String(row.artista_id ?? row.artist_id ?? '');
+      if (owner !== requesterId) return false;
+      const createdAt = row.created_at ? new Date(String(row.created_at)) : null;
+      if (!createdAt || Number.isNaN(createdAt.getTime())) return true;
+      if (hasStart && createdAt < start) return false;
+      if (hasEnd && createdAt > end) return false;
+      return true;
+    })
+    .length;
+
+  res.json({ count });
 });
 
 router.get('/users/:id/music-count', authRequired, (req, res) => {

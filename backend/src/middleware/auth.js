@@ -2,25 +2,44 @@ import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
 
 const DB_AUTH_TIMEOUT_MS = 1200;
+const AUTH_STATE_TTL_MS = 60_000;
+const USER_EXISTS_TTL_MS = 60_000;
 
 const authStateCache = { revokedBefore: null, fetchedAt: 0 };
 const userExistsCache = new Map();
 
-function withTimeout(promise, ms) {
-  const timeoutMs = Number(ms);
-  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return promise;
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error('DB timeout'), { code: 'ETIMEDOUT' })), timeoutMs))
-  ]);
+async function queryWithStatementTimeout(text, values, timeoutMs) {
+  const ms = Number(timeoutMs) || 0;
+  const client = await pool.connect();
+  let hasSet = false;
+  try {
+    if (ms > 0) {
+      await client.query(`SET statement_timeout TO ${Math.floor(ms)}`);
+      hasSet = true;
+    }
+    return await client.query(text, values);
+  } finally {
+    if (hasSet) {
+      try {
+        await client.query('SET statement_timeout TO DEFAULT');
+      } catch {
+        void 0;
+      }
+    }
+    client.release();
+  }
 }
 
 async function getRevokedBefore() {
   const now = Date.now();
-  if (now - authStateCache.fetchedAt < 5000) return authStateCache.revokedBefore;
+  if (now - authStateCache.fetchedAt < AUTH_STATE_TTL_MS) return authStateCache.revokedBefore;
   authStateCache.fetchedAt = now;
   try {
-    const { rows } = await withTimeout(pool.query('SELECT revoked_before FROM public.auth_state WHERE id = 1 LIMIT 1'), DB_AUTH_TIMEOUT_MS);
+    const { rows } = await queryWithStatementTimeout(
+      'SELECT revoked_before FROM public.auth_state WHERE id = 1 LIMIT 1',
+      [],
+      DB_AUTH_TIMEOUT_MS
+    );
     authStateCache.revokedBefore = rows[0] && rows[0].revoked_before ? new Date(rows[0].revoked_before) : null;
     if (authStateCache.revokedBefore && Number.isNaN(authStateCache.revokedBefore.getTime())) authStateCache.revokedBefore = null;
     return authStateCache.revokedBefore;
@@ -39,9 +58,13 @@ async function getUserExists(userId) {
   if (!id) return false;
   const now = Date.now();
   const cached = userExistsCache.get(id);
-  if (cached && now - cached.fetchedAt < 5000) return cached.exists === true;
+  if (cached && now - cached.fetchedAt < USER_EXISTS_TTL_MS) return cached.exists === true;
   try {
-    const { rows } = await withTimeout(pool.query('SELECT 1 FROM public.profiles WHERE id = $1 LIMIT 1', [id]), DB_AUTH_TIMEOUT_MS);
+    const { rows } = await queryWithStatementTimeout(
+      'SELECT 1 FROM public.profiles WHERE id = $1 LIMIT 1',
+      [id],
+      DB_AUTH_TIMEOUT_MS
+    );
     const exists = !!(rows && rows[0]);
     userExistsCache.set(id, { exists, fetchedAt: now });
     return exists;

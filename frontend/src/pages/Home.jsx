@@ -125,7 +125,7 @@ const Home = () => {
 
   const fetchHomeData = async () => {
     try {
-      const data = await apiClient.get('/home', { timeoutMs: 45000 });
+      const data = await apiClient.get('/home');
 
       const releases = (data && Array.isArray(data.releases)) ? data.releases : [];
       const today = new Date();
@@ -244,7 +244,7 @@ const Home = () => {
 
   const fetchArtists = async () => {
     try {
-      const data = await apiClient.get(`/profiles?role=artist&t=${Date.now()}`);
+      const data = await apiClient.get('/profiles?role=artist');
       setArtists(sortProfilesOldestFirst(data || []));
     } catch (error) {
       console.error('Error fetching artists:', error);
@@ -253,7 +253,7 @@ const Home = () => {
 
   const fetchProducers = async () => {
     try {
-      const data = await apiClient.get(`/profiles?role=producer&t=${Date.now()}`);
+      const data = await apiClient.get('/profiles?role=producer');
       setProducers(sortProfilesOldestFirst(data || []));
     } catch (error) {
       console.error('Error fetching producers:', error);
@@ -262,7 +262,7 @@ const Home = () => {
 
   const fetchSellers = async () => {
     try {
-      const data = await apiClient.get(`/profiles?role=seller&t=${Date.now()}`);
+      const data = await apiClient.get('/profiles?role=seller');
       setSellers(sortProfilesOldestFirst(data || []));
     } catch (error) {
       console.error('Error fetching sellers:', error);

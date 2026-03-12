@@ -45,7 +45,7 @@ export const ChatProvider = ({ children }) => {
         streamAbortRef.current = controller;
         const connectTimeoutId = setTimeout(() => {
           try { controller.abort(); } catch { void 0; }
-        }, 6000);
+        }, 12000);
 
         try {
           const normalizedBaseUrl = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
@@ -53,8 +53,14 @@ export const ChatProvider = ({ children }) => {
           const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
           const candidates = [];
           if (normalizedBaseUrl) candidates.push(normalizedBaseUrl);
-          if (!candidates.includes('')) candidates.push('');
-          if (!isLocalHost && !candidates.includes('https://api.beatwap.com.br')) candidates.push('https://api.beatwap.com.br');
+          if (isLocalHost) {
+            if (!candidates.includes('')) candidates.push('');
+            if (!candidates.includes('https://api.beatwap.com.br')) candidates.push('https://api.beatwap.com.br');
+          } else {
+            if (!candidates.includes('https://api.beatwap.com.br')) candidates.push('https://api.beatwap.com.br');
+            const allowSameOriginApi = hostname === 'api.beatwap.com.br';
+            if (allowSameOriginApi && !candidates.includes('')) candidates.push('');
+          }
 
           let res = null;
           for (let i = 0; i < candidates.length; i += 1) {
@@ -132,9 +138,11 @@ export const ChatProvider = ({ children }) => {
 
       const pollInterval = setInterval(() => {
         if (streamOkRef.current) return;
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
         fetchChats();
         fetchQueue();
-      }, 5000);
+      }, 15000);
 
       return () => {
         clearInterval(pollInterval);
@@ -160,7 +168,7 @@ export const ChatProvider = ({ children }) => {
 
   const fetchQueue = async () => {
     try {
-      const data = await apiClient.get('/queue');
+      const data = await apiClient.get('/queue', { cache: false });
       setSupportQueue(data || []);
     } catch (error) {
       console.error('Error fetching queue:', error);
@@ -201,7 +209,7 @@ export const ChatProvider = ({ children }) => {
       }
 
       // Verificar se já existe chat com esses participantes
-      const existingChats = await apiClient.get('/chats');
+      const existingChats = await apiClient.get('/chats', { cache: false });
       const existingDb = existingChats.find(c => 
         c.participant_ids.includes(user.id) && c.participant_ids.includes(requesterId)
       );
@@ -259,7 +267,7 @@ export const ChatProvider = ({ children }) => {
 
   const fetchAdmins = async () => {
     try {
-      const data = await apiClient.get('/admins');
+      const data = await apiClient.get('/admins', { cache: false });
       const mapped = (data || []).map(p => ({
         id: p.id,
         name: p.nome || p.nome_completo_razao_social || 'Produtor',
@@ -276,7 +284,7 @@ export const ChatProvider = ({ children }) => {
   const fetchChats = async () => {
     try {
       setLoading(true);
-      const data = await apiClient.get('/chats');
+      const data = await apiClient.get('/chats', { cache: false });
 
       // Process data to match mockChats structure
       const formattedChats = (data || []).map(chat => {

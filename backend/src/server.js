@@ -60,8 +60,34 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'UP' });
 });
 
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'UP' });
+});
+
+app.get('/api', (req, res) => {
+  res.status(200).json({ status: 'UP' });
+});
+
 app.use('/api', (req, res, next) => {
   res.set('Content-Type', 'application/json; charset=utf-8');
+  next();
+});
+
+app.use('/api', (req, res, next) => {
+  const originalJson = res.json.bind(res);
+  res.json = (body) => {
+    if (body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, 'success')) {
+      return originalJson(body);
+    }
+    const status = Number(res.statusCode || 200);
+    if (status >= 400) {
+      const error = body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, 'error')
+        ? String(body.error || 'Erro')
+        : (typeof body === 'string' && body ? body : 'Erro');
+      return originalJson({ success: false, error });
+    }
+    return originalJson({ success: true, data: body });
+  };
   next();
 });
 

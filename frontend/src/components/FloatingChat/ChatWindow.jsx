@@ -91,25 +91,6 @@ export const ChatWindow = ({ currentUserId }) => {
     scrollToBottom();
   }, [chats, activeChatId, isOpen, mode]);
 
-  // Poll de segurança para atualizar lista/conversas quando não estamos dentro do chat
-  useEffect(() => {
-    if (!isOpen || activeTab !== 'chat') return;
-    if (mode === 'chat' && activeChatId) return; // já existe outro poll específico
-    const id = setInterval(() => {
-      fetchChats();
-    }, 4000);
-    return () => clearInterval(id);
-  }, [isOpen, activeTab, mode, activeChatId, fetchChats]);
-
-  // Realtime específico do chat ativo (reforço local ao provider)
-  useEffect(() => {
-    if (!isOpen || activeTab !== 'chat' || mode !== 'chat' || !activeChatId) return;
-    const intervalId = setInterval(() => {
-      fetchChats();
-    }, 2000);
-    return () => clearInterval(intervalId);
-  }, [isOpen, activeTab, mode, activeChatId, fetchChats]);
-
   const handleInputChange = (e) => {
     const value = e.target.value;
     setInputText(value);
@@ -131,14 +112,6 @@ export const ChatWindow = ({ currentUserId }) => {
       typingTimeoutRef.current = null;
     }, 2000);
   };
-
-  useEffect(() => {
-    if (!isOpen || activeTab !== 'chat' || mode !== 'chat' || !activeChatId) return;
-    const intervalId = setInterval(() => {
-      fetchChats();
-    }, 4000);
-    return () => clearInterval(intervalId);
-  }, [isOpen, activeTab, mode, activeChatId, fetchChats]);
 
   useEffect(() => {
     const handlerOnline = () => setIsOnline(true);
