@@ -11,6 +11,7 @@ import authRoutes from './auth.route.js';
 import { authRequired } from '../middleware/auth.js';
 import { pool } from '../db.js';
 import { getProfileById, listProfiles } from '../models/profiles.model.js';
+import { listReleases } from '../models/releases.model.js';
 
 const router = Router();
 
@@ -59,6 +60,148 @@ const roleMap = {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const uploadsRoot = path.resolve(__dirname, '..', '..', 'uploads');
+
+function withTimeout(promise, ms) {
+  const timeoutMs = Number(ms) || 0;
+  if (!timeoutMs || timeoutMs <= 0) return promise;
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('timeout')), timeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+}
+
+function normalizeReleasesFromMemory(musics) {
+  return (Array.isArray(musics) ? musics : [])
+    .filter((m) => m && typeof m === 'object')
+    .filter((m) => String(m.status || '') === 'aprovado')
+    .map((m) => {
+      const id = String(m.id || '');
+      const artista_id = m.artista_id ?? m.artist_id ?? null;
+      const created_at = m.created_at || null;
+      const titulo = m.titulo ?? m.title ?? m.nome ?? '';
+      const cover_url = m.cover_url ?? null;
+      const audio_url = m.audio_url ?? null;
+      const preview_url = m.preview_url ?? audio_url;
+      const album_id = m.album_id ?? null;
+      const album_title = m.album_title ?? null;
+      const nome_artista = m.nome_artista ?? m.artist_name ?? null;
+      const release_date = m.release_date ?? null;
+      const estilo = m.estilo ?? null;
+      const presave_link = m.presave_link ?? null;
+      const is_beatwap_produced = !!m.is_beatwap_produced;
+      const show_on_home = !!m.show_on_home;
+
+      return {
+        id,
+        artista_id,
+        titulo,
+        cover_url,
+        audio_url,
+        preview_url,
+        album_id,
+        album_title,
+        nome_artista,
+        release_date,
+        estilo,
+        presave_link,
+        is_beatwap_produced,
+        show_on_home,
+        created_at,
+      };
+    })
+    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+    .slice(0, 200);
+}
+
+const homeCache = globalThis.__beatwapHomeCache || (globalThis.__beatwapHomeCache = { at: 0, data: null });
+
+router.get('/home', async (req, res) => {
+  const now = Date.now();
+  if (homeCache.data && now - Number(homeCache.at || 0) < 15_000) {
+    res.set('Cache-Control', 'public, max-age=15, s-maxage=300, stale-while-revalidate=300');
+    return res.json(homeCache.data);
+  }
+
+  const dbTimeoutMs = 1500;
+
+  let releases = [];
+  try {
+    const rows = await withTimeout(listReleases(pool), dbTimeoutMs);
+    const hasExpectedShape = Array.isArray(rows) && rows.some((r) => r && typeof r === 'object' && (
+      Object.prototype.hasOwnProperty.call(r, 'show_on_home') ||
+      Object.prototype.hasOwnProperty.call(r, 'audio_url') ||
+      Object.prototype.hasOwnProperty.call(r, 'preview_url') ||
+      Object.prototype.hasOwnProperty.call(r, 'album_id') ||
+      Object.prototype.hasOwnProperty.call(r, 'titulo')
+    ));
+    releases = hasExpectedShape ? rows : normalizeReleasesFromMemory(memory.musics);
+  } catch {
+    releases = normalizeReleasesFromMemory(memory.musics);
+  }
+
+  const compositions = (Array.isArray(memory.compositions) ? memory.compositions : [])
+    .filter((c) => c && typeof c === 'object')
+    .filter((c) => String(c.status || '') === 'approved')
+    .slice(0, 50);
+
+  let projects = [];
+  try {
+    const result = await withTimeout(
+      pool.query(
+        `SELECT id, producer_id, title, url, platform, published, created_at
+         FROM public.producer_projects
+         WHERE published = true
+         ORDER BY created_at DESC
+         LIMIT 50`
+      ),
+      dbTimeoutMs
+    );
+    projects = Array.isArray(result?.rows) ? result.rows : [];
+  } catch {
+    projects = (Array.isArray(memory.producerProjects) ? memory.producerProjects : [])
+      .filter((p) => (!p || typeof p !== 'object') ? false : (typeof p.published === 'boolean' ? p.published : true))
+      .slice(0, 50);
+  }
+
+  let composers = [];
+  try {
+    composers = await withTimeout(listProfiles(pool, { cargo: 'Compositor', limit: 500 }), dbTimeoutMs);
+  } catch {
+    composers = [];
+  }
+
+  const sponsors = (Array.isArray(memory.sponsors) ? memory.sponsors : [])
+    .filter((s) => s && typeof s === 'object')
+    .filter((s) => !!s.active)
+    .slice(0, 5000);
+
+  let artists = [];
+  let producers = [];
+  let sellers = [];
+  try {
+    artists = await withTimeout(listProfiles(pool, { cargo: 'Artista', limit: 50 }), dbTimeoutMs);
+  } catch {
+    artists = [];
+  }
+  try {
+    producers = await withTimeout(listProfiles(pool, { cargo: 'Produtor', limit: 50 }), dbTimeoutMs);
+  } catch {
+    producers = [];
+  }
+  try {
+    sellers = await withTimeout(listProfiles(pool, { cargo: 'Vendedor', limit: 50 }), dbTimeoutMs);
+  } catch {
+    sellers = [];
+  }
+
+  const data = { releases, compositions, projects, composers, sponsors, artists, producers, sellers };
+  homeCache.at = now;
+  homeCache.data = data;
+
+  res.set('Cache-Control', 'public, max-age=15, s-maxage=300, stale-while-revalidate=300');
+  res.json(data);
+});
 
 function sanitizeBucket(bucketRaw) {
   const b = bucketRaw ? String(bucketRaw) : '';

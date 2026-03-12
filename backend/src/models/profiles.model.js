@@ -1,6 +1,7 @@
-export async function listProfiles(pool, { cargo = null, limit = 100 } = {}) {
+export async function listProfiles(pool, { cargo = null, limit = 100, includeEmail = false } = {}) {
   const normalizedCargo = cargo ? String(cargo).trim() : '';
   const lim = Number.isFinite(Number(limit)) ? Math.max(1, Math.min(500, Number(limit))) : 100;
+  const withEmail = !!includeEmail;
 
   const values = [];
   let whereSql = '';
@@ -12,15 +13,19 @@ export async function listProfiles(pool, { cargo = null, limit = 100 } = {}) {
 
   values.push(lim);
 
+  const selectCols = [
+    'id',
+    'nome',
+    ...(withEmail ? ['email'] : []),
+    'cargo',
+    'avatar_url',
+    'bio',
+    'created_at',
+  ];
+
   const { rows } = await pool.query(
     `SELECT
-      id,
-      nome,
-      email,
-      cargo,
-      avatar_url,
-      bio,
-      created_at
+      ${selectCols.join(',\n      ')}
      FROM public.profiles
      ${whereSql}
      ORDER BY created_at DESC

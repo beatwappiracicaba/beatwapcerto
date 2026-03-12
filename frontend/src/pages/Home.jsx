@@ -50,14 +50,7 @@ const Home = () => {
   // Reset scroll on mount
   useEffect(() => {
     window.scrollTo(0, 0);
-    fetchLatestReleases();
-    fetchLatestCompositions();
-    fetchLatestProjects();
-    fetchComposers();
-    fetchSponsors();
-    fetchArtists();
-    fetchProducers();
-    fetchSellers();
+    fetchHomeData();
     (async () => {
       try {
         const res = await fetch('https://api.ipify.org?format=json');
@@ -117,6 +110,63 @@ const Home = () => {
     });
 
     return groups;
+  };
+
+  const fetchHomeData = async () => {
+    try {
+      const data = await apiClient.get(`/home?t=${Date.now()}`, { timeoutMs: 45000 });
+
+      const releases = (data && Array.isArray(data.releases)) ? data.releases : [];
+      const today = new Date();
+      const parsed = releases.map(r => {
+        const rd = r.release_date ? new Date(r.release_date) : null;
+        const isUpcoming = rd ? rd >= new Date(today.getFullYear(), today.getMonth(), today.getDate()) : false;
+        return { ...r, _rd: rd, _isUpcoming: isUpcoming };
+      });
+      const upcoming = parsed.filter(r => r._isUpcoming).sort((a, b) => (a._rd - b._rd));
+      const pastOrNoDate = parsed.filter(r => !r._isUpcoming).sort((a, b) => {
+        if (a._rd && b._rd) return b._rd - a._rd;
+        if (a._rd && !b._rd) return -1;
+        if (!a._rd && b._rd) return 1;
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
+      const combined = [...upcoming, ...pastOrNoDate].slice(0, 8).map(r => {
+        const o = { ...r };
+        delete o._rd;
+        delete o._isUpcoming;
+        return o;
+      });
+      setLatestReleases(combined);
+
+      const compositions = (data && Array.isArray(data.compositions)) ? data.compositions : [];
+      const mapped = compositions.map(c => ({
+        ...c,
+        composer_name: c.composer_name || 'Compositor',
+        composer_phone: c.composer_phone
+      }));
+      setLatestCompositions(mapped);
+
+      setLatestProjects((data && Array.isArray(data.projects)) ? data.projects : []);
+      setComposers((data && Array.isArray(data.composers)) ? data.composers : []);
+      setSponsors((data && Array.isArray(data.sponsors)) ? data.sponsors : []);
+      setArtists((data && Array.isArray(data.artists)) ? data.artists : []);
+      setProducers((data && Array.isArray(data.producers)) ? data.producers : []);
+      setSellers((data && Array.isArray(data.sellers)) ? data.sellers : []);
+    } catch (error) {
+      console.error('Error fetching home data:', error);
+      try {
+        await fetchLatestReleases();
+        await fetchLatestCompositions();
+        await fetchLatestProjects();
+        await fetchComposers();
+        await fetchSponsors();
+        await fetchArtists();
+        await fetchProducers();
+        await fetchSellers();
+      } catch {
+        void 0;
+      }
+    }
   };
 
   const fetchLatestReleases = async () => {

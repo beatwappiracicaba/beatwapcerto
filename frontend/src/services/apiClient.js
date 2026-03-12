@@ -1,6 +1,6 @@
 import { API_BASE_URL } from '../config/apiConfig.js';
 
-const DEFAULT_TIMEOUT_MS = 15000;
+const DEFAULT_TIMEOUT_MS = 30000;
 
 async function request(path, options = {}) {
   const token = localStorage.getItem('token');
@@ -55,11 +55,11 @@ async function request(path, options = {}) {
 }
 
 export const apiClient = {
-  get: (path) => request(path),
-  post: (path, body) => request(path, { method: 'POST', body: JSON.stringify(body) }),
-  put: (path, body) => request(path, { method: 'PUT', body: JSON.stringify(body) }),
-  patch: (path, body) => request(path, { method: 'PATCH', body: JSON.stringify(body) }),
-  del: (path) => request(path, { method: 'DELETE' }),
+  get: (path, options) => request(path, options),
+  post: (path, body, options) => request(path, { ...(options || {}), method: 'POST', body: JSON.stringify(body) }),
+  put: (path, body, options) => request(path, { ...(options || {}), method: 'PUT', body: JSON.stringify(body) }),
+  patch: (path, body, options) => request(path, { ...(options || {}), method: 'PATCH', body: JSON.stringify(body) }),
+  del: (path, options) => request(path, { ...(options || {}), method: 'DELETE' }),
 };
 
 export const authApi = {
