@@ -1,6 +1,7 @@
 import { API_BASE_URL } from '../config/apiConfig.js';
 
-const DEFAULT_TIMEOUT_MS = 30000;
+const DEFAULT_TIMEOUT_MS = 45000;
+const PROD_FALLBACK_BASE_URL = 'https://api.beatwap.com.br';
 
 async function request(path, options = {}) {
   const token = localStorage.getItem('token');
@@ -12,10 +13,20 @@ async function request(path, options = {}) {
   const timeoutMs = Number(options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   const normalizedBaseUrl = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
 
-  const attempt = async (baseUrl) => {
+  const isBrowser = typeof window !== 'undefined';
+  const hostname = isBrowser && window.location ? String(window.location.hostname || '') : '';
+  const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
+  const baseUrls = [];
+  if (normalizedBaseUrl) baseUrls.push(normalizedBaseUrl);
+  else baseUrls.push('');
+  if (!isLocalHost && !baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
+
+  const deadline = Number.isFinite(timeoutMs) && timeoutMs > 0 ? (Date.now() + timeoutMs) : null;
+
+  const attempt = async (baseUrl, remainingMs) => {
     const controller = new AbortController();
-    const timeoutId = Number.isFinite(timeoutMs) && timeoutMs > 0
-      ? setTimeout(() => controller.abort(), timeoutMs)
+    const timeoutId = Number.isFinite(remainingMs) && remainingMs > 0
+      ? setTimeout(() => controller.abort(), remainingMs)
       : null;
 
     let res;
@@ -27,7 +38,9 @@ async function request(path, options = {}) {
     } catch (err) {
       if (timeoutId) clearTimeout(timeoutId);
       if (err?.name === 'AbortError') {
-        throw new Error('Tempo esgotado ao conectar na API');
+        const e = new Error('Tempo esgotado ao conectar na API');
+        e.code = 'ETIMEDOUT';
+        throw e;
       }
       throw err;
     } finally {
@@ -45,13 +58,27 @@ async function request(path, options = {}) {
     return { res, text, data, looksJson };
   };
 
-  const primary = await attempt(normalizedBaseUrl);
-  if (!primary.res.ok) throw new Error((primary.data && primary.data.error) || primary.res.statusText);
-  if (!primary.looksJson) throw new Error('API respondeu em formato inválido (não-JSON).');
-  if (primary.data && typeof primary.data === 'object' && 'success' in primary.data && 'data' in primary.data) {
-    return primary.data.data ?? null;
+  let last = null;
+  for (let i = 0; i < baseUrls.length; i += 1) {
+    const baseUrl = baseUrls[i];
+    const remainingMs = deadline ? Math.max(1, deadline - Date.now()) : timeoutMs;
+    try {
+      const result = await attempt(baseUrl, remainingMs);
+      if (!result.res.ok) throw new Error((result.data && result.data.error) || result.res.statusText);
+      if (!result.looksJson) throw new Error('API respondeu em formato inválido (não-JSON).');
+      if (result.data && typeof result.data === 'object' && 'success' in result.data && 'data' in result.data) {
+        return result.data.data ?? null;
+      }
+      return result.data;
+    } catch (err) {
+      last = err;
+      const retriable = err?.code === 'ETIMEDOUT' || err?.name === 'AbortError' || err instanceof TypeError;
+      const hasNext = i < baseUrls.length - 1;
+      if (!retriable || !hasNext) throw err;
+    }
   }
-  return primary.data;
+
+  throw last || new Error('Falha ao conectar na API');
 }
 
 export const apiClient = {

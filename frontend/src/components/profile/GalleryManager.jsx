@@ -41,7 +41,7 @@ export const GalleryManager = ({ userId }) => {
 
   const fetchPosts = async () => {
     try {
-      const data = await apiClient.get(`/users/${userId}/posts`);
+      const data = await apiClient.get(`/profiles/${userId}/posts`);
         
       if (!data) throw new Error('No data returned');
       setPosts(data || []);
