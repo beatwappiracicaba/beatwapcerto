@@ -1122,6 +1122,146 @@ router.post('/admin/reset-logins', authRequired, async (req, res, next) => {
   }
 });
 
+router.post('/admin/users/:id/purge', authRequired, async (req, res, next) => {
+  const cargo = req.user && req.user.cargo ? String(req.user.cargo) : '';
+  if (cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+
+  const targetId = req.params && req.params.id ? String(req.params.id) : '';
+  if (!targetId || !isUuidLike(targetId)) return res.status(400).json({ error: 'id inválido' });
+
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  if (requesterId && requesterId === targetId) {
+    return res.status(400).json({ error: 'Não é possível apagar a própria conta por aqui' });
+  }
+
+  const confirmRaw = req.body && req.body.confirm ? String(req.body.confirm) : '';
+
+  const quoteIdent = (v) => `"${String(v || '').replace(/"/g, '""')}"`;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows: profiles } = await client.query(
+      'SELECT id, email FROM public.profiles WHERE id = $1 LIMIT 1',
+      [targetId]
+    );
+    const profile = profiles[0] || null;
+    if (!profile) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Conta não encontrada' });
+    }
+
+    const expectedDisplay = `APAGAR ${String(profile.email || '').trim()}`.trim();
+    const expectedNormalized = expectedDisplay.toLowerCase();
+    if (String(confirmRaw || '').trim().toLowerCase() !== expectedNormalized) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `Confirmação inválida. Digite: ${expectedDisplay}` });
+    }
+
+    const { rows: refs } = await client.query(
+      `SELECT table_name, column_name
+       FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND data_type = 'uuid'
+         AND column_name <> 'id'
+         AND column_name LIKE '%\\_id' ESCAPE '\\'`
+    );
+
+    const uniqueTargets = new Set(
+      (refs || [])
+        .filter((r) => r && typeof r === 'object')
+        .map((r) => `${String(r.table_name || '')}:${String(r.column_name || '')}`)
+        .filter((k) => !k.startsWith('profiles:'))
+    );
+
+    for (const key of uniqueTargets) {
+      const [table, column] = key.split(':');
+      if (!table || !column) continue;
+      await client.query(
+        `DELETE FROM public.${quoteIdent(table)} WHERE ${quoteIdent(column)} = $1`,
+        [targetId]
+      );
+    }
+
+    await client.query('DELETE FROM public.profiles WHERE id = $1', [targetId]);
+    await client.query('COMMIT');
+
+    const matchesId = (v) => String(v || '') === String(targetId);
+    const referencesUser = (item) => {
+      if (!item || typeof item !== 'object') return false;
+      for (const [k, v] of Object.entries(item)) {
+        if (Array.isArray(v) && v.map(String).includes(String(targetId))) return true;
+        if (v && typeof v === 'object') continue;
+        if (typeof v === 'string' || typeof v === 'number') {
+          if (k === 'id') continue;
+          if (k.endsWith('_id') || k === 'userId' || k === 'user_id' || k === 'requester_id' || k === 'sender_id' || k === 'receiver_id') {
+            if (matchesId(v)) return true;
+          }
+        }
+      }
+      return false;
+    };
+
+    const purgeFromArray = (arr) => (Array.isArray(arr) ? arr.filter((x) => !referencesUser(x)) : []);
+
+    memory.queue = purgeFromArray(memory.queue);
+    memory.notifications = purgeFromArray(memory.notifications);
+    memory.producerProjects = purgeFromArray(memory.producerProjects);
+    memory.musics = purgeFromArray(memory.musics);
+    memory.posts = purgeFromArray(memory.posts);
+    memory.sellerArtistEvents = purgeFromArray(memory.sellerArtistEvents);
+    memory.musicExternalMetrics = purgeFromArray(memory.musicExternalMetrics);
+    memory.todos = purgeFromArray(memory.todos);
+    memory.compositions = purgeFromArray(memory.compositions);
+    memory.sponsors = purgeFromArray(memory.sponsors);
+    memory.sellerGoals = purgeFromArray(memory.sellerGoals);
+    memory.sellerCommissions = purgeFromArray(memory.sellerCommissions);
+    memory.sellerLeads = purgeFromArray(memory.sellerLeads);
+    memory.artistEvents = purgeFromArray(memory.artistEvents);
+    memory.financeEvents = purgeFromArray(memory.financeEvents);
+    memory.sellerProposals = purgeFromArray(memory.sellerProposals);
+    memory.contractors = purgeFromArray(memory.contractors);
+
+    if (Array.isArray(memory.chats)) {
+      memory.chats = memory.chats.filter((c) => {
+        const ids = Array.isArray(c && c.participant_ids) ? c.participant_ids.map(String) : [];
+        if (ids.includes(String(targetId))) return false;
+        if (referencesUser(c)) return false;
+        return true;
+      });
+    }
+
+    if (memory.aiHistory instanceof Map) memory.aiHistory.delete(String(targetId));
+    if (memory.artistMetrics instanceof Map) memory.artistMetrics.delete(String(targetId));
+    if (memory.sellerLeadHistory instanceof Map) {
+      for (const [k, v] of memory.sellerLeadHistory.entries()) {
+        if (referencesUser(v)) memory.sellerLeadHistory.delete(k);
+      }
+    }
+
+    if (memory.realtime && memory.realtime.clients instanceof Map) {
+      const clients = memory.realtime.clients.get(String(targetId));
+      if (Array.isArray(clients)) {
+        for (const c of clients) {
+          try {
+            if (c && c.res && !c.res.writableEnded) c.res.end();
+          } catch { void 0; }
+        }
+      }
+      memory.realtime.clients.delete(String(targetId));
+    }
+
+    res.set('Cache-Control', 'no-store');
+    res.json({ ok: true });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch { void 0; }
+    next(err);
+  } finally {
+    client.release();
+  }
+});
+
 router.get('/users', authRequired, async (req, res, next) => {
   try {
     const rawRole = req.query && req.query.role ? String(req.query.role).trim().toLowerCase() : '';

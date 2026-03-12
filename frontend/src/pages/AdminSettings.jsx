@@ -4,7 +4,7 @@ import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AdminLayout } from '../components/AdminLayout';
 import { useToast } from '../context/ToastContext';
-import { Mail, User, Settings, Shield, Search, Save, Check, Loader } from 'lucide-react';
+import { Mail, User, Settings, Shield, Search, Save, Check, Loader, Trash2, X } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 
 export const AdminSettings = () => {
@@ -46,6 +46,9 @@ export const AdminSettings = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('Artista');
   const [savingId, setSavingId] = useState(null);
+  const [purgeTarget, setPurgeTarget] = useState(null);
+  const [purgeConfirm, setPurgeConfirm] = useState('');
+  const [purgeLoading, setPurgeLoading] = useState(false);
 
   const validEmail = String(form.email).trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
 
@@ -193,6 +196,33 @@ export const AdminSettings = () => {
       addToast('Erro ao salvar permissões', 'error');
     } finally {
       setSavingId(null);
+    }
+  };
+
+  const openPurgeModal = (artist) => {
+    setPurgeTarget(artist);
+    setPurgeConfirm('');
+  };
+
+  const closePurgeModal = () => {
+    if (purgeLoading) return;
+    setPurgeTarget(null);
+    setPurgeConfirm('');
+  };
+
+  const purgeAccount = async () => {
+    if (!purgeTarget?.id) return;
+    setPurgeLoading(true);
+    try {
+      await apiClient.post(`/admin/users/${purgeTarget.id}/purge`, { confirm: purgeConfirm });
+      addToast('Conta apagada com sucesso!', 'success');
+      setArtists((prev) => prev.filter((a) => a.id !== purgeTarget.id));
+      closePurgeModal();
+    } catch (error) {
+      console.error('Error purging account:', error);
+      addToast(error?.message || 'Erro ao apagar conta', 'error');
+    } finally {
+      setPurgeLoading(false);
     }
   };
 
@@ -521,7 +551,15 @@ export const AdminSettings = () => {
                         )}
                       </div>
 
-                      <div className="flex justify-end lg:w-auto w-full">
+                      <div className="flex gap-2 justify-end lg:w-auto w-full">
+                        <AnimatedButton
+                          onClick={() => openPurgeModal(artist)}
+                          variant="danger"
+                          className="w-full lg:w-auto"
+                        >
+                          <Trash2 size={16} />
+                          <span className="lg:hidden ml-2">Apagar</span>
+                        </AnimatedButton>
                         <AnimatedButton 
                           onClick={() => savePermissions(artist)} 
                           disabled={savingId === artist.id}
@@ -539,6 +577,53 @@ export const AdminSettings = () => {
           </div>
         </Card>
       </div>
+      {purgeTarget && (
+        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg">
+            <Card className="space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="text-lg font-bold text-white">Apagar conta</div>
+                <button
+                  type="button"
+                  onClick={closePurgeModal}
+                  className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10"
+                >
+                  <X size={16} className="text-gray-300" />
+                </button>
+              </div>
+
+              <div className="text-sm text-gray-300 space-y-2">
+                <div>
+                  Você está prestes a apagar permanentemente a conta de <span className="text-white font-bold">{purgeTarget.nome || purgeTarget.nome_completo_razao_social || 'Sem Nome'}</span>.
+                </div>
+                <div className="text-gray-400">
+                  Isso remove todos os dados vinculados a esta conta no sistema e também o email de login.
+                </div>
+                <div className="text-gray-400">
+                  Para confirmar, digite: <span className="text-white font-bold">APAGAR {purgeTarget.email}</span>
+                </div>
+              </div>
+
+              <input
+                type="text"
+                value={purgeConfirm}
+                onChange={(e) => setPurgeConfirm(e.target.value)}
+                placeholder={`APAGAR ${purgeTarget.email}`}
+                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-beatwap-gold outline-none"
+              />
+
+              <div className="flex gap-2 justify-end">
+                <AnimatedButton onClick={closePurgeModal} variant="secondary" className="px-4">
+                  Cancelar
+                </AnimatedButton>
+                <AnimatedButton onClick={purgeAccount} variant="danger" isLoading={purgeLoading} className="px-4">
+                  Apagar definitivamente
+                </AnimatedButton>
+              </div>
+            </Card>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 };
