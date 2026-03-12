@@ -5,9 +5,11 @@ const PROD_FALLBACK_BASE_URL = 'https://api.beatwap.com.br';
 
 async function request(path, options = {}) {
   const token = localStorage.getItem('token');
+  const method = String(options.method || 'GET').toUpperCase();
+  const shouldSendJsonContentType = !!options.body && typeof options.body === 'string' && method !== 'GET' && method !== 'HEAD';
   const headers = {
-    'Content-Type': 'application/json',
     ...(options.headers || {}),
+    ...(shouldSendJsonContentType ? { 'Content-Type': 'application/json' } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {})
   };
   const timeoutMs = Number(options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
