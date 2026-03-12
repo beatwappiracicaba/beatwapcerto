@@ -112,6 +112,16 @@ const Home = () => {
     return groups;
   };
 
+  const sortProfilesOldestFirst = (items) => {
+    const arr = Array.isArray(items) ? items.slice() : [];
+    const toMs = (v) => {
+      if (!v) return Number.POSITIVE_INFINITY;
+      const t = new Date(v).getTime();
+      return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
+    };
+    return arr.sort((a, b) => toMs(a?.created_at) - toMs(b?.created_at));
+  };
+
   const fetchHomeData = async () => {
     try {
       const data = await apiClient.get(`/home?t=${Date.now()}`, { timeoutMs: 45000 });
@@ -147,22 +157,24 @@ const Home = () => {
       setLatestCompositions(mapped);
 
       setLatestProjects((data && Array.isArray(data.projects)) ? data.projects : []);
-      setComposers((data && Array.isArray(data.composers)) ? data.composers : []);
+      setComposers(sortProfilesOldestFirst((data && Array.isArray(data.composers)) ? data.composers : []));
       setSponsors((data && Array.isArray(data.sponsors)) ? data.sponsors : []);
-      setArtists((data && Array.isArray(data.artists)) ? data.artists : []);
-      setProducers((data && Array.isArray(data.producers)) ? data.producers : []);
-      setSellers((data && Array.isArray(data.sellers)) ? data.sellers : []);
+      setArtists(sortProfilesOldestFirst((data && Array.isArray(data.artists)) ? data.artists : []));
+      setProducers(sortProfilesOldestFirst((data && Array.isArray(data.producers)) ? data.producers : []));
+      setSellers(sortProfilesOldestFirst((data && Array.isArray(data.sellers)) ? data.sellers : []));
     } catch (error) {
       console.error('Error fetching home data:', error);
       try {
-        await fetchLatestReleases();
-        await fetchLatestCompositions();
-        await fetchLatestProjects();
-        await fetchComposers();
-        await fetchSponsors();
-        await fetchArtists();
-        await fetchProducers();
-        await fetchSellers();
+        await Promise.allSettled([
+          fetchLatestReleases(),
+          fetchLatestCompositions(),
+          fetchLatestProjects(),
+          fetchComposers(),
+          fetchSponsors(),
+          fetchArtists(),
+          fetchProducers(),
+          fetchSellers(),
+        ]);
       } catch {
         void 0;
       }
@@ -232,7 +244,7 @@ const Home = () => {
   const fetchArtists = async () => {
     try {
       const data = await apiClient.get(`/profiles?role=artist&t=${Date.now()}`);
-      setArtists(data || []);
+      setArtists(sortProfilesOldestFirst(data || []));
     } catch (error) {
       console.error('Error fetching artists:', error);
     }
@@ -241,7 +253,7 @@ const Home = () => {
   const fetchProducers = async () => {
     try {
       const data = await apiClient.get(`/profiles?role=producer&t=${Date.now()}`);
-      setProducers(data || []);
+      setProducers(sortProfilesOldestFirst(data || []));
     } catch (error) {
       console.error('Error fetching producers:', error);
     }
@@ -250,7 +262,7 @@ const Home = () => {
   const fetchSellers = async () => {
     try {
       const data = await apiClient.get(`/profiles?role=seller&t=${Date.now()}`);
-      setSellers(data || []);
+      setSellers(sortProfilesOldestFirst(data || []));
     } catch (error) {
       console.error('Error fetching sellers:', error);
     }
@@ -319,7 +331,7 @@ const Home = () => {
     try {
       const data = await apiClient.get('/composers');
       const mapped = (data || []).map(s => ({ ...s, name: s.nome || s.nome_completo_razao_social || '' }));
-      setComposers(mapped);
+      setComposers(sortProfilesOldestFirst(mapped));
     } catch (error) {
       console.error('Error fetching composers:', error);
     }

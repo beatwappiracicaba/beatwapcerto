@@ -13,6 +13,7 @@ async function request(path, options = {}) {
     ...(token ? { Authorization: `Bearer ${token}` } : {})
   };
   const timeoutMs = Number(options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const perAttemptTimeoutMs = Number(options.perAttemptTimeoutMs ?? 8000);
   const normalizedBaseUrl = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
 
   const isBrowser = typeof window !== 'undefined';
@@ -63,9 +64,13 @@ async function request(path, options = {}) {
   let last = null;
   for (let i = 0; i < baseUrls.length; i += 1) {
     const baseUrl = baseUrls[i];
-    const remainingMs = deadline ? Math.max(1, deadline - Date.now()) : timeoutMs;
+    const overallRemainingMs = deadline ? Math.max(1, deadline - Date.now()) : timeoutMs;
+    const isLastAttempt = i === baseUrls.length - 1;
+    const budgetMs = (!isLastAttempt && Number.isFinite(perAttemptTimeoutMs) && perAttemptTimeoutMs > 0)
+      ? Math.min(overallRemainingMs, perAttemptTimeoutMs)
+      : overallRemainingMs;
     try {
-      const result = await attempt(baseUrl, remainingMs);
+      const result = await attempt(baseUrl, budgetMs);
       if (!result.res.ok) throw new Error((result.data && result.data.error) || result.res.statusText);
       if (!result.looksJson) throw new Error('API respondeu em formato inválido (não-JSON).');
       if (result.data && typeof result.data === 'object' && 'success' in result.data && 'data' in result.data) {
