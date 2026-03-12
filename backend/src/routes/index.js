@@ -23,6 +23,7 @@ const memory = globalThis.__beatwapMemory || (globalThis.__beatwapMemory = {
   chats: [],
   notifications: [],
   artistMetrics: new Map(),
+  aiHistory: new Map(),
   producerProjects: [],
   musics: [],
   posts: [],
@@ -126,6 +127,59 @@ router.post('/upload/multiple', authRequired, upload.array('files', 10), (req, r
     })
     .filter(Boolean);
   res.json({ urls });
+});
+
+router.get('/ai/history', authRequired, (req, res) => {
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!requesterId || !isUuidLike(requesterId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  if (!(memory.aiHistory instanceof Map)) memory.aiHistory = new Map();
+  const rows = memory.aiHistory.get(requesterId) || [];
+  res.set('Cache-Control', 'no-store');
+  res.json(rows.slice(-200));
+});
+
+router.post('/ai/history', authRequired, (req, res) => {
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!requesterId || !isUuidLike(requesterId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const role = req.body && req.body.role ? String(req.body.role) : '';
+  const content = req.body && req.body.content ? String(req.body.content) : '';
+  if (!role || (role !== 'user' && role !== 'assistant' && role !== 'system')) return res.status(400).json({ error: 'role inválido' });
+  if (!content) return res.status(400).json({ error: 'content é obrigatório' });
+
+  if (!(memory.aiHistory instanceof Map)) memory.aiHistory = new Map();
+  const prev = memory.aiHistory.get(requesterId) || [];
+  const row = { id: randomUUID(), user_id: requesterId, role, content, created_at: new Date().toISOString() };
+  const next = [...prev, row].slice(-500);
+  memory.aiHistory.set(requesterId, next);
+
+  res.status(201).json(row);
+});
+
+router.post('/ai/history/clear', authRequired, (req, res) => {
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!requesterId || !isUuidLike(requesterId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  if (!(memory.aiHistory instanceof Map)) memory.aiHistory = new Map();
+  memory.aiHistory.set(requesterId, []);
+  res.json({ ok: true });
+});
+
+router.post('/ai/chat', authRequired, (req, res) => {
+  const requesterId = req.user && req.user.id ? String(req.user.id) : '';
+  if (!requesterId || !isUuidLike(requesterId)) return res.status(401).json({ error: 'Autenticação necessária' });
+  const messages = Array.isArray(req.body && req.body.messages) ? req.body.messages : [];
+  const lastUser = [...messages].reverse().find((m) => m && typeof m === 'object' && String(m.role || '').toLowerCase() === 'user');
+  const prompt = lastUser && lastUser.content ? String(lastUser.content) : '';
+
+  const reply = prompt
+    ? `Recebi sua mensagem: "${prompt}". No momento o Assistente de IA está em modo básico (sem integração externa).`
+    : 'Envie uma mensagem para eu responder.';
+
+  if (!(memory.aiHistory instanceof Map)) memory.aiHistory = new Map();
+  const prev = memory.aiHistory.get(requesterId) || [];
+  const next = [...prev, { id: randomUUID(), user_id: requesterId, role: 'assistant', content: reply, created_at: new Date().toISOString() }].slice(-500);
+  memory.aiHistory.set(requesterId, next);
+
+  res.json({ reply });
 });
 
 function isUuidLike(v) {
