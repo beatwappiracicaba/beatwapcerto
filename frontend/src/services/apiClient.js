@@ -2,6 +2,16 @@ import { API_BASE_URL } from '../config/apiConfig.js';
 
 const DEFAULT_TIMEOUT_MS = 45000;
 const PROD_FALLBACK_BASE_URL = 'https://api.beatwap.com.br';
+const DEBUG_API = (() => {
+  try {
+    const v = import.meta?.env?.VITE_DEBUG_API;
+    if (v != null) return String(v).toLowerCase() === 'true' || String(v) === '1';
+    return !!import.meta?.env?.DEV;
+  } catch {
+    return false;
+  }
+})();
+const SLOW_API_MS = 2500;
 
 async function request(path, options = {}) {
   const token = localStorage.getItem('token');
@@ -34,17 +44,21 @@ async function request(path, options = {}) {
 
     let res;
     let text = '';
+    let url = '';
     try {
       const apiBase = baseUrl ? `${baseUrl}/api` : '/api';
-      res = await fetch(`${apiBase}${path}`, { ...options, headers, signal: controller.signal });
+      url = `${apiBase}${path}`;
+      res = await fetch(url, { ...options, headers, signal: controller.signal });
       text = await res.text();
     } catch (err) {
       if (timeoutId) clearTimeout(timeoutId);
       if (err?.name === 'AbortError') {
         const e = new Error('Tempo esgotado ao conectar na API');
         e.code = 'ETIMEDOUT';
+        e.url = url;
         throw e;
       }
+      if (url) err.url = url;
       throw err;
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
@@ -58,9 +72,11 @@ async function request(path, options = {}) {
       try { data = text ? JSON.parse(text) : null; } catch { data = null; }
     }
 
-    return { res, text, data, looksJson };
+    return { res, text, data, looksJson, url };
   };
 
+  const startedAt = Date.now();
+  const attempts = [];
   let last = null;
   for (let i = 0; i < baseUrls.length; i += 1) {
     const baseUrl = baseUrls[i];
@@ -69,22 +85,72 @@ async function request(path, options = {}) {
     const budgetMs = (!isLastAttempt && Number.isFinite(perAttemptTimeoutMs) && perAttemptTimeoutMs > 0)
       ? Math.min(overallRemainingMs, perAttemptTimeoutMs)
       : overallRemainingMs;
+    const attemptStart = Date.now();
     try {
       const result = await attempt(baseUrl, budgetMs);
-      if (!result.res.ok) throw new Error((result.data && result.data.error) || result.res.statusText);
+      const ms = Date.now() - attemptStart;
+      attempts.push({ baseUrl, url: result.url, ok: result.res.ok, status: result.res.status, ms });
+      if (!result.res.ok) {
+        const e = new Error((result.data && result.data.error) || result.res.statusText || 'Falha na API');
+        e.status = result.res.status;
+        e.url = result.url;
+        e.response = result.data;
+        throw e;
+      }
       if (!result.looksJson) throw new Error('API respondeu em formato inválido (não-JSON).');
       if (result.data && typeof result.data === 'object' && 'success' in result.data && 'data' in result.data) {
+        const totalMs = Date.now() - startedAt;
+        if (DEBUG_API || totalMs >= SLOW_API_MS) {
+          console.log('[api] ok', { method, path, ms: totalMs, attempt: i + 1, url: result.url });
+        }
         return result.data.data ?? null;
+      }
+      const totalMs = Date.now() - startedAt;
+      if (DEBUG_API || totalMs >= SLOW_API_MS) {
+        console.log('[api] ok', { method, path, ms: totalMs, attempt: i + 1, url: result.url });
       }
       return result.data;
     } catch (err) {
+      const ms = Date.now() - attemptStart;
+      if (!attempts.some(a => a.baseUrl === baseUrl && a.ms === ms)) {
+        attempts.push({
+          baseUrl,
+          url: err?.url || (baseUrl ? `${baseUrl}/api${path}` : `/api${path}`),
+          ok: false,
+          status: err?.status || null,
+          ms,
+          error: String(err?.message || err)
+        });
+      }
       last = err;
       const retriable = err?.code === 'ETIMEDOUT' || err?.name === 'AbortError' || err instanceof TypeError;
       const hasNext = i < baseUrls.length - 1;
+      if (DEBUG_API) {
+        console.warn('[api] attempt failed', {
+          method,
+          path,
+          attempt: i + 1,
+          retriable,
+          ms,
+          url: err?.url || null,
+          status: err?.status || null,
+          error: String(err?.message || err)
+        });
+      }
       if (!retriable || !hasNext) throw err;
     }
   }
 
+  const totalMs = Date.now() - startedAt;
+  console.error('[api] failed', {
+    method,
+    path,
+    ms: totalMs,
+    timeoutMs,
+    perAttemptTimeoutMs,
+    attempts,
+    error: last ? { name: last?.name, code: last?.code, status: last?.status, message: String(last?.message || last) } : null
+  });
   throw last || new Error('Falha ao conectar na API');
 }
 
