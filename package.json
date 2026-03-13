@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "description": "BeatWap Produções - Root configuration for Cloudflare Pages",
   "scripts": {
-    "build": "powershell -ExecutionPolicy Bypass -File build.ps1",
-    "copy-dist": "cd frontend && npm run copy-dist",
+    "build": "npm run build:frontend && npm run copy-dist",
+    "build:frontend": "cd frontend && node ../node_modules/vite/bin/vite.js build",
+    "copy-dist": "node -e \"const fs=require('fs'); const path=require('path'); const src=path.join(__dirname,'frontend','dist'); const dst=path.join(__dirname,'dist'); const sleep=(ms)=>Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,ms); const rm=()=>{try{fs.rmSync(dst,{recursive:true,force:true});}catch{}}; rm(); for(let i=0;i<6;i++){try{fs.cpSync(src,dst,{recursive:true}); console.log('copied',src,'->',dst); process.exit(0);}catch(e){ if(['EIO','EPERM','EBUSY'].includes(String(e&&e.code||''))){ sleep(250); rm(); continue; } throw e; }}\"",
     "dev": "cd frontend && npm run dev",
     "preview": "cd frontend && npm run preview"
   },
