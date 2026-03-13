@@ -125,7 +125,7 @@ const Home = () => {
 
   const fetchHomeData = async () => {
     try {
-      const data = await apiClient.get('/home');
+      const data = await apiClient.get('/home', { timeoutMs: 2500, perAttemptTimeoutMs: 2500, cache: false });
 
       const releases = (data && Array.isArray(data.releases)) ? data.releases : [];
       const today = new Date();
@@ -164,7 +164,7 @@ const Home = () => {
       setProducers(sortProfilesOldestFirst((data && Array.isArray(data.producers)) ? data.producers : []));
       setSellers(sortProfilesOldestFirst((data && Array.isArray(data.sellers)) ? data.sellers : []));
     } catch (error) {
-      console.error('Error fetching home data:', error);
+      console.warn('Home endpoint falhou; carregando via endpoints individuais:', error);
       try {
         await Promise.allSettled([
           fetchLatestReleases(),
