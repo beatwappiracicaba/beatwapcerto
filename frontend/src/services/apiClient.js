@@ -133,6 +133,14 @@ async function request(path, options = {}) {
         const ms = Date.now() - attemptStart;
         attempts.push({ baseUrl, url: result.url, ok: result.res.ok, status: result.res.status, ms });
         if (!result.res.ok) {
+          if (result.res.status === 401) {
+            try {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+            } catch {
+              void 0;
+            }
+          }
           const e = new Error((result.data && result.data.error) || result.res.statusText || 'Falha na API');
           e.status = result.res.status;
           e.url = result.url;

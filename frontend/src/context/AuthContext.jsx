@@ -19,10 +19,16 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const stored = authApi.getUser();
-    if (stored) {
+    const token = authApi.getToken();
+    if (stored && token) {
       setUser(stored);
       fetchProfile();
     } else {
+      if (stored && !token) {
+        authApi.logout();
+        setUser(null);
+        setProfile(null);
+      }
       setLoading(false);
     }
   }, []);
@@ -44,6 +50,13 @@ export const AuthProvider = ({ children }) => {
 
   const refreshProfile = async () => {
     const stored = authApi.getUser();
+    const token = authApi.getToken();
+    if (stored && !token) {
+      await authApi.logout();
+      setUser(null);
+      setProfile(null);
+      return;
+    }
     if (stored && !user) {
       setUser(stored);
     }
