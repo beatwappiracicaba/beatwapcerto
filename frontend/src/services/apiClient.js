@@ -1,6 +1,6 @@
 import { API_BASE_URL } from '../config/apiConfig.js';
 
-const DEFAULT_TIMEOUT_MS_GET = 15000;
+const DEFAULT_TIMEOUT_MS_GET = 30000;
 const DEFAULT_TIMEOUT_MS_MUTATION = 45000;
 const PROD_FALLBACK_BASE_URL = 'https://api.beatwap.com.br';
 const inflightRequests = new Map();
@@ -43,10 +43,15 @@ async function request(path, options = {}) {
   const defaultTimeoutMs = method === 'GET' || method === 'HEAD' ? DEFAULT_TIMEOUT_MS_GET : DEFAULT_TIMEOUT_MS_MUTATION;
   const timeoutMs = Number(options.timeoutMs ?? defaultTimeoutMs);
   const defaultPerAttemptTimeoutMs = method === 'GET' || method === 'HEAD'
-    ? (isLocalHost ? 8000 : 12000)
+    ? (isLocalHost ? 8000 : 25000)
     : (isLocalHost ? 12000 : 30000);
   const perAttemptTimeoutMs = Number(options.perAttemptTimeoutMs ?? defaultPerAttemptTimeoutMs);
-  const normalizedBaseUrlRaw = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
+  const normalizedBaseUrlRaw = API_BASE_URL
+    ? String(API_BASE_URL)
+        .trim()
+        .replace(/^['"`\s]+|['"`\s]+$/g, '')
+        .replace(/\/+$/, '')
+    : '';
   const normalizedBaseUrl = normalizedBaseUrlRaw.replace(/\/api\/?$/, '');
 
   const baseUrls = [];
@@ -297,7 +302,13 @@ export const uploadApi = {
     formData.append('file', file);
 
     const token = localStorage.getItem('token');
-    const normalizedBaseUrl = (API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '').replace(/\/api\/?$/, '');
+    const normalizedBaseUrl = (API_BASE_URL
+      ? String(API_BASE_URL)
+          .trim()
+          .replace(/^['"`\s]+|['"`\s]+$/g, '')
+          .replace(/\/+$/, '')
+      : ''
+    ).replace(/\/api\/?$/, '');
     const apiBase = normalizedBaseUrl ? `${normalizedBaseUrl}/api` : '/api';
 
     const res = await fetch(`${apiBase}/upload`, {
@@ -357,7 +368,13 @@ export const uploadApi = {
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
     const token = localStorage.getItem('token');
-    const normalizedBaseUrl = (API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '').replace(/\/api\/?$/, '');
+    const normalizedBaseUrl = (API_BASE_URL
+      ? String(API_BASE_URL)
+          .trim()
+          .replace(/^['"`\s]+|['"`\s]+$/g, '')
+          .replace(/\/+$/, '')
+      : ''
+    ).replace(/\/api\/?$/, '');
     const hostname = typeof window !== 'undefined' && window.location ? String(window.location.hostname || '') : '';
     const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
     const baseUrls = [];

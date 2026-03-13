@@ -45,10 +45,15 @@ export const ChatProvider = ({ children }) => {
         streamAbortRef.current = controller;
         const connectTimeoutId = setTimeout(() => {
           try { controller.abort(); } catch { void 0; }
-        }, 12000);
+        }, 25000);
 
         try {
-          const normalizedBaseUrl = API_BASE_URL ? String(API_BASE_URL).trim().replace(/\/+$/, '') : '';
+          const normalizedBaseUrl = API_BASE_URL
+            ? String(API_BASE_URL)
+                .trim()
+                .replace(/^['"`\s]+|['"`\s]+$/g, '')
+                .replace(/\/+$/, '')
+            : '';
           const hostname = typeof window !== 'undefined' && window.location ? String(window.location.hostname || '') : '';
           const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
           const candidates = [];

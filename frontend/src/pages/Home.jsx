@@ -126,8 +126,8 @@ const Home = () => {
   const fetchHomeData = async () => {
     try {
       const data = await apiClient.get('/home', {
-        timeoutMs: 12000,
-        perAttemptTimeoutMs: 12000,
+        timeoutMs: 30000,
+        perAttemptTimeoutMs: 25000,
         cache: true,
         cacheTtlMs: 15000
       });
