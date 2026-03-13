@@ -1,101 +1,16 @@
-import express from 'express';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import apiRoutes from './routes/index.js';
-import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+const http = require('http');
+const { createApp } = require('./app');
+const { config } = require('./config');
 
-if (!process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET não definida');
+function startServer() {
+  const app = createApp();
+  const server = http.createServer(app);
+  server.listen(config.port, '0.0.0.0');
+  return server;
 }
 
-const app = express();
-const port = Number(process.env.PORT || 3000);
-app.set('trust proxy', true);
+if (require.main === module) {
+  startServer();
+}
 
-const allowedOrigins = new Set([
-  'https://www.beatwap.com.br',
-  'https://beatwap.com.br',
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-]);
-
-const corsAllowMethods = 'GET, POST, PUT, DELETE, OPTIONS';
-const corsAllowHeaders = 'Content-Type, Authorization';
-const corsAllowCredentials = 'true';
-const corsPrimaryOrigin = 'https://www.beatwap.com.br';
-
-app.use('/api', (req, res, next) => {
-  const originHeader = req.get('Origin');
-  const origin = originHeader ? String(originHeader) : null;
-
-  if (origin && allowedOrigins.has(origin)) {
-    res.set('Access-Control-Allow-Origin', origin);
-    res.vary('Origin');
-  } else if (!origin) {
-    res.set('Access-Control-Allow-Origin', corsPrimaryOrigin);
-  }
-
-  res.set('Access-Control-Allow-Methods', corsAllowMethods);
-  res.set('Access-Control-Allow-Headers', corsAllowHeaders);
-  res.set('Access-Control-Allow-Credentials', corsAllowCredentials);
-
-  if (req.method === 'OPTIONS') return res.sendStatus(200);
-  next();
-});
-
-app.use(express.json({ limit: '5mb' }));
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const uploadsDir = path.resolve(__dirname, '..', 'uploads');
-app.use('/uploads', express.static(uploadsDir));
-
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'UP' });
-});
-
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'UP' });
-});
-
-app.get('/', (req, res) => {
-  res.status(200).json({ status: 'UP' });
-});
-
-app.get('/api', (req, res) => {
-  res.status(200).json({ status: 'UP' });
-});
-
-app.use('/api', (req, res, next) => {
-  res.set('Content-Type', 'application/json; charset=utf-8');
-  next();
-});
-
-app.use('/api', (req, res, next) => {
-  const originalJson = res.json.bind(res);
-  res.json = (body) => {
-    if (body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, 'success')) {
-      return originalJson(body);
-    }
-    const status = Number(res.statusCode || 200);
-    if (status >= 400) {
-      const error = body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, 'error')
-        ? String(body.error || 'Erro')
-        : (typeof body === 'string' && body ? body : 'Erro');
-      return originalJson({ success: false, error });
-    }
-    return originalJson({ success: true, data: body });
-  };
-  next();
-});
-
-app.use('/api', apiRoutes);
-
-app.use(notFoundHandler);
-app.use(errorHandler);
-
-app.listen(port, '127.0.0.1', () => {
-  process.stdout.write(`API ouvindo em 127.0.0.1:${port}\n`);
-});
+module.exports = { startServer };
