@@ -1,7 +1,6 @@
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
-const { config } = require('./config');
 const { errorHandler } = require('./middleware/error');
 const { apiRouter } = require('./routes');
 
@@ -11,7 +10,25 @@ function createApp() {
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
 
-  app.use(cors({ origin: config.corsOrigin === '*' ? true : config.corsOrigin, credentials: true }));
+  const allowedCorsHosts = new Set([
+    'www.beatwap.com.br',
+    'www.beatwap.com',
+    'beatwapcerto.pages.dev',
+  ]);
+  app.use(cors({
+    origin(origin, cb) {
+      if (!origin) return cb(null, true);
+      try {
+        const url = new URL(origin);
+        if (allowedCorsHosts.has(url.hostname)) return cb(null, true);
+        return cb(new Error('Not allowed by CORS'));
+      } catch {
+        return cb(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+  }));
+
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
 
