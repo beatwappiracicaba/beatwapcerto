@@ -1,12 +1,18 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, LogOut } from 'lucide-react';
+import { User, LogOut, Camera } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import { apiClient } from '../services/apiClient';
+import { ProfileEditModal } from './ui/ProfileEditModal';
 
 export const ProfileButton = ({ profile }) => {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, refreshProfile } = useAuth();
+  const { addToast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const dropdownRef = useRef(null);
   const isProdutor = profile?.cargo === 'Produtor';
 
@@ -26,9 +32,61 @@ export const ProfileButton = ({ profile }) => {
     navigate(isProdutor ? '/admin/profile' : '/dashboard/profile');
   };
 
+  const handleEditClick = () => {
+    setIsOpen(false);
+    setIsEditOpen(true);
+  };
+
   const handleSignOut = () => {
     setIsOpen(false);
     signOut();
+  };
+
+  const handleSaveProfile = async ({ name, bio, genre, socials, blob }) => {
+    try {
+      setIsSaving(true);
+      let avatar_url = null;
+
+      if (blob) {
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        const resp = await apiClient.post('/profile/avatar', { dataUrl });
+        avatar_url = resp?.avatar_url || null;
+      }
+
+      const updateData = {};
+      if (typeof name === 'string') updateData.nome = name;
+      if (typeof bio === 'string') updateData.bio = bio;
+      if (typeof genre === 'string') updateData.genero_musical = genre;
+      if (socials && typeof socials === 'object') {
+        updateData.youtube_url = socials.youtube || null;
+        updateData.spotify_url = socials.spotify || null;
+        updateData.deezer_url = socials.deezer || null;
+        updateData.tiktok_url = socials.tiktok || null;
+        updateData.instagram_url = socials.instagram || null;
+        updateData.site_url = socials.site || null;
+      }
+      if (avatar_url) updateData.avatar_url = avatar_url;
+
+      if (Object.keys(updateData).length) {
+        await apiClient.put('/profile', updateData);
+        await refreshProfile();
+        addToast('Perfil atualizado!', 'success');
+      } else {
+        addToast('Nada para atualizar.', 'warning');
+      }
+
+      setIsEditOpen(false);
+    } catch (e) {
+      console.error('Falha ao atualizar perfil:', e);
+      addToast('Falha ao atualizar perfil.', 'error');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -59,6 +117,13 @@ export const ProfileButton = ({ profile }) => {
                 <User size={16} />
                 Meu Perfil
             </button>
+            <button
+                onClick={handleEditClick}
+                className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors"
+            >
+                <Camera size={16} />
+                Modificar foto
+            </button>
             <div className="h-px bg-white/10 my-1 mx-2"></div>
             <button 
                 onClick={handleSignOut}
@@ -69,6 +134,25 @@ export const ProfileButton = ({ profile }) => {
             </button>
         </div>
       )}
+
+      <ProfileEditModal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        currentAvatar={profile?.avatar_url || null}
+        currentName={profile?.nome || profile?.nome_completo_razao_social || ''}
+        currentBio={profile?.bio || ''}
+        currentGenre={profile?.genero_musical || ''}
+        currentSocials={{
+          youtube: profile?.youtube_url || null,
+          spotify: profile?.spotify_url || null,
+          deezer: profile?.deezer_url || null,
+          tiktok: profile?.tiktok_url || null,
+          instagram: profile?.instagram_url || null,
+          site: profile?.site_url || null,
+        }}
+        onSave={handleSaveProfile}
+        uploading={isSaving}
+      />
     </div>
   );
 };

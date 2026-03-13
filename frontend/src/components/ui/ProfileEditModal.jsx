@@ -11,13 +11,16 @@ export const ProfileEditModal = ({
   onClose, 
   currentAvatar, 
   currentName, 
+  currentEmail,
   currentBio, 
   currentGenre,
   currentSocials = {},
   onSave, 
-  uploading 
+  uploading,
+  showEmail = false
 }) => {
   const [name, setName] = useState(currentName || '');
+  const [email, setEmail] = useState(currentEmail || '');
   const [bio, setBio] = useState(currentBio || '');
   const [genre, setGenre] = useState(currentGenre || '');
   const [socials, setSocials] = useState({
@@ -43,6 +46,7 @@ export const ProfileEditModal = ({
   useEffect(() => {
     if (isOpen) {
       setName(currentName || '');
+      setEmail(currentEmail || '');
       setBio(currentBio || '');
       setGenre(currentGenre || '');
       setSocials({
@@ -57,7 +61,7 @@ export const ProfileEditModal = ({
       setBlobToUpload(null);
       setImageSrc(null);
     }
-  }, [isOpen, currentName, currentBio, currentGenre, currentSocials]);
+  }, [isOpen, currentName, currentEmail, currentBio, currentGenre, currentSocials]);
 
   const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
     setCroppedAreaPixels(croppedAreaPixels);
@@ -94,6 +98,7 @@ export const ProfileEditModal = ({
   const handleSave = () => {
     onSave({ 
       name, 
+      email,
       bio, 
       genre,
       socials,
@@ -227,6 +232,18 @@ export const ProfileEditModal = ({
                             placeholder="Seu nome de artista"
                         />
                     </div>
+                    {showEmail && (
+                      <div>
+                        <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">Email</label>
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors"
+                          placeholder="email@exemplo.com"
+                        />
+                      </div>
+                    )}
                     <div>
                         <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">Status / Bio</label>
                         <textarea

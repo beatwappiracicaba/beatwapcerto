@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { apiClient } from '../services/apiClient';
 import Header from '../components/landing/Header';
 import Footer from '../components/landing/Footer';
-import { User, Music, Instagram, Globe, MessageCircle, Play, Pause, ArrowLeft, Youtube, Target, DollarSign, Image, Link as LinkIcon, Video } from 'lucide-react';
+import { User, Music, Instagram, Globe, MessageCircle, Play, Pause, ArrowLeft, Youtube, Target, DollarSign, Image, Video, MapPin, Calendar } from 'lucide-react';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { decryptData } from '../utils/security';
 
@@ -23,6 +23,7 @@ const PublicProfile = () => {
   const [playStartTS, setPlayStartTS] = useState(null);
   const [sellerStats, setSellerStats] = useState(null);
   const [galleryPosts, setGalleryPosts] = useState([]);
+  const [events, setEvents] = useState([]);
 
   useEffect(() => {
     if (id) {
@@ -107,6 +108,13 @@ const PublicProfile = () => {
         (featMusics || []).forEach(m => { map[m.id] = m; });
         const merged = Object.values(map).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         setItems(merged);
+        try {
+          const ev = await apiClient.get(`/profiles/${id}/events`, { cache: true, cacheTtlMs: 15000 });
+          setEvents(Array.isArray(ev) ? ev : []);
+        } catch (err) {
+          console.error('Error fetching events:', err);
+          setEvents([]);
+        }
       } else if (cargo === 'produtor') {
         const producedData = await apiClient.get(`/profiles/${id}/produced-musics`);
         const compositionsData = await apiClient.get(`/profiles/${id}/compositions`);
@@ -194,6 +202,25 @@ const PublicProfile = () => {
   };
 
   const videoId = profile ? getYoutubeVideoId(profile.youtube_url) : null;
+  const formatTicketPrice = (cents) => {
+    if (cents == null || !Number.isFinite(Number(cents))) return null;
+    const n = Number(cents) / 100;
+    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+  const formatEventDate = (iso) => {
+    const d = new Date(String(iso || ''));
+    if (Number.isNaN(d.getTime())) return '';
+    if (d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0) return d.toLocaleDateString('pt-BR');
+    return d.toLocaleString('pt-BR');
+  };
+  const toBuyHref = (raw) => {
+    const v = String(raw || '').trim();
+    if (!v) return null;
+    if (/^https?:\/\//i.test(v)) return v;
+    const digits = v.replace(/\D/g, '');
+    if (digits.length >= 10) return `https://wa.me/55${digits}?text=${encodeURIComponent('Olá! Tenho interesse no ingresso.')}`;
+    return null;
+  };
 
   return (
     <div className="min-h-screen bg-beatwap-dark text-white font-sans selection:bg-beatwap-gold selection:text-black">
@@ -360,34 +387,94 @@ const PublicProfile = () => {
                 <Image className="text-blue-400" />
                 Galeria & Momentos
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {galleryPosts.map(post => (
-                  <div key={post.id} className="bg-white/5 border border-white/10 rounded-xl overflow-hidden group">
-                    <div className="aspect-square relative bg-black">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-[6px]">
+                {galleryPosts.map((post) => (
+                  <button
+                    key={post.id}
+                    type="button"
+                    onClick={() => window.open(post.link_url || post.media_url, '_blank', 'noopener,noreferrer')}
+                    className="group relative aspect-square overflow-hidden bg-black/40 border border-white/10"
+                  >
+                    {post.media_type === 'video' ? (
+                      <video
+                        src={post.media_url}
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <img src={post.media_url} alt={post.caption || 'Post'} className="w-full h-full object-cover" />
+                    )}
+                    <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       {post.media_type === 'video' ? (
-                        <video src={post.media_url} controls className="w-full h-full object-contain" />
+                        <Video className="text-white" />
                       ) : (
-                        <img src={post.media_url} alt={post.caption} className="w-full h-full object-cover" />
+                        <Image className="text-white" />
                       )}
                     </div>
-                    {(post.caption || post.link_url) && (
-                      <div className="p-4">
-                        {post.caption && <p className="text-gray-300 text-sm mb-2">{post.caption}</p>}
-                        {post.link_url && (
-                          <a 
-                            href={post.link_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-beatwap-gold text-xs font-bold flex items-center gap-1 hover:underline"
-                          >
-                            <LinkIcon size={12} />
-                            Acessar Link
-                          </a>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {cargoLower === 'artista' && events.length > 0 && (
+            <div className="mb-12">
+              <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                <Calendar className="text-beatwap-gold" />
+                Próximos Shows
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {events.map((ev) => {
+                  const buyHref = toBuyHref(ev.purchase_contact);
+                  const ticket = formatTicketPrice(ev.ticket_price_cents);
+                  return (
+                    <div key={ev.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                      <div className="aspect-video bg-black/30 border-b border-white/10">
+                        <img src={ev.flyer_url} alt="Flyer do show" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="p-5 space-y-3">
+                        <div className="text-white font-bold">
+                          {formatEventDate(ev.event_date)}
+                        </div>
+                        <div className="flex items-start gap-2 text-gray-300">
+                          <MapPin size={16} className="mt-0.5 text-gray-400" />
+                          <div className="flex-1">{ev.location}</div>
+                        </div>
+                        {ticket && (
+                          <div className="text-sm text-gray-300">
+                            <span className="text-gray-400">Ingresso:</span> {ticket}
+                          </div>
+                        )}
+                        {ev.purchase_contact && (
+                          <div className="text-sm text-gray-300 break-words">
+                            <span className="text-gray-400">Contato/Link:</span>{' '}
+                            {buyHref ? (
+                              <a href={buyHref} target="_blank" rel="noopener noreferrer" className="text-beatwap-gold hover:underline">
+                                {ev.purchase_contact}
+                              </a>
+                            ) : (
+                              ev.purchase_contact
+                            )}
+                          </div>
+                        )}
+                        {buyHref && (
+                          <div className="pt-2">
+                            <a
+                              href={buyHref}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-beatwap-gold text-black font-bold hover:bg-white transition-colors w-full"
+                            >
+                              Comprar ingresso
+                            </a>
+                          </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

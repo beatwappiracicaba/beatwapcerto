@@ -292,7 +292,7 @@ export const AdminArtists = () => {
     };
     loadPlan();
   }, [selectedArtist]);
-  const handleSaveProfile = async ({ name, bio, blob }) => {
+  const handleSaveProfile = async ({ name, email, bio, genre, socials, blob }) => {
     try {
       if (!selectedArtist) return;
       let avatar_url = null;
@@ -308,10 +308,20 @@ export const AdminArtists = () => {
       }
       const updateData = {};
       if (name) updateData.nome = name;
+      if (email) updateData.email = email;
       if (bio) updateData.bio = bio;
+      if (genre) updateData.genero_musical = genre;
+      if (socials) {
+        if (socials.youtube) updateData.youtube_url = socials.youtube;
+        if (socials.spotify) updateData.spotify_url = socials.spotify;
+        if (socials.deezer) updateData.deezer_url = socials.deezer;
+        if (socials.tiktok) updateData.tiktok_url = socials.tiktok;
+        if (socials.instagram) updateData.instagram_url = socials.instagram;
+        if (socials.site) updateData.site_url = socials.site;
+      }
       if (avatar_url) updateData.avatar_url = avatar_url;
       if (Object.keys(updateData).length) {
-        await apiClient.put('/profile', updateData);
+        await apiClient.put(`/admin/profiles/${selectedArtist}`, updateData);
         addToast('Perfil do artista atualizado', 'success');
       } else {
         addToast('Nada para atualizar no perfil.', 'warning');
@@ -623,9 +633,11 @@ export const AdminArtists = () => {
           onClose={() => setIsProfileOpen(false)}
           currentAvatar={(artists.find(a => a.id === selectedArtist)?.avatar_url) || null}
           currentName={(artists.find(a => a.id === selectedArtist)?.nome) || ''}
+          currentEmail={(artists.find(a => a.id === selectedArtist)?.email) || ''}
           currentBio={(artists.find(a => a.id === selectedArtist)?.bio) || ''}
           onSave={handleSaveProfile}
           uploading={false}
+          showEmail={true}
         />
       )}
     </AdminLayout>

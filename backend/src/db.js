@@ -12,4 +12,8 @@ async function query(text, params) {
   return pool.query(text, params);
 }
 
-module.exports = { pool, query };
+async function cleanupExpiredEvents() {
+  await pool.query('delete from public_events where event_date < now()');
+}
+
+module.exports = { pool, query, cleanupExpiredEvents };

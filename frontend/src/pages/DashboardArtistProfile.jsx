@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, MapPin, CreditCard, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle } from 'lucide-react';
+import { User, MapPin, CreditCard, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Plus, Trash2, X } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -464,6 +464,40 @@ export const DashboardPublicProfile = () => {
   const { profile, refreshProfile } = useAuth();
   const { addToast } = useToast();
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
+  const [events, setEvents] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [eventSaving, setEventSaving] = useState(false);
+  const [eventForm, setEventForm] = useState({
+    event_date: '',
+    has_time: false,
+    location: '',
+    ticket_price: '',
+    purchase_contact: '',
+    flyerFile: null,
+    flyerPreviewUrl: ''
+  });
+
+  const isArtist = String(profile?.cargo || '').toLowerCase().trim() === 'artista';
+
+  const loadEvents = async () => {
+    if (!isArtist) return;
+    try {
+      setEventsLoading(true);
+      const data = await apiClient.get('/my/events', { cache: false });
+      setEvents(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error(e);
+      addToast('Falha ao carregar seus shows', 'error');
+      setEvents([]);
+    } finally {
+      setEventsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadEvents();
+  }, [profile?.id]);
 
   const handleSavePublicProfile = async ({ name, bio, genre, socials, blob }) => {
     try {
@@ -497,6 +531,107 @@ export const DashboardPublicProfile = () => {
       console.error(e);
       addToast('Falha ao atualizar perfil', 'error');
     }
+  };
+
+  const openEventModal = () => {
+    setEventForm({
+      event_date: '',
+      has_time: false,
+      location: '',
+      ticket_price: '',
+      purchase_contact: '',
+      flyerFile: null,
+      flyerPreviewUrl: ''
+    });
+    setIsEventModalOpen(true);
+  };
+
+  const closeEventModal = () => {
+    if (eventForm.flyerPreviewUrl) {
+      try { URL.revokeObjectURL(eventForm.flyerPreviewUrl); } catch { void 0; }
+    }
+    setIsEventModalOpen(false);
+  };
+
+  const handleEventFlyerChange = (e) => {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    if (eventForm.flyerPreviewUrl) {
+      try { URL.revokeObjectURL(eventForm.flyerPreviewUrl); } catch { void 0; }
+    }
+    setEventForm((prev) => ({
+      ...prev,
+      flyerFile: file,
+      flyerPreviewUrl: file ? URL.createObjectURL(file) : ''
+    }));
+  };
+
+  const handleCreateEvent = async () => {
+    try {
+      if (!eventForm.event_date) {
+        addToast('Informe a data do show', 'warning');
+        return;
+      }
+      if (!eventForm.location.trim()) {
+        addToast('Informe o local do show', 'warning');
+        return;
+      }
+      if (!eventForm.flyerFile) {
+        addToast('Envie o flyer do show', 'warning');
+        return;
+      }
+
+      setEventSaving(true);
+
+      const fd = new FormData();
+      fd.append('bucket', 'events');
+      fd.append('file', eventForm.flyerFile);
+      const uploadResp = await apiClient.postForm('/upload', fd, { timeoutMs: 60000, perAttemptTimeoutMs: 45000 });
+      const flyerUrl = uploadResp?.url || null;
+      if (!flyerUrl) throw new Error('Falha no upload do flyer');
+
+      const eventDatePayload = eventForm.has_time ? eventForm.event_date : `${eventForm.event_date}T00:00`;
+
+      await apiClient.post('/events', {
+        event_date: eventDatePayload,
+        location: eventForm.location,
+        flyer_url: flyerUrl,
+        ticket_price: eventForm.ticket_price,
+        purchase_contact: eventForm.purchase_contact
+      }, { timeoutMs: 60000, perAttemptTimeoutMs: 45000 });
+
+      addToast('Show publicado no seu perfil público!', 'success');
+      closeEventModal();
+      await loadEvents();
+    } catch (e) {
+      console.error(e);
+      addToast(e?.message || 'Falha ao publicar show', 'error');
+    } finally {
+      setEventSaving(false);
+    }
+  };
+
+  const handleDeleteEvent = async (eventId) => {
+    try {
+      await apiClient.del(`/events/${eventId}`);
+      setEvents((prev) => prev.filter((x) => x.id !== eventId));
+      addToast('Show removido', 'success');
+    } catch (e) {
+      console.error(e);
+      addToast('Falha ao remover show', 'error');
+    }
+  };
+
+  const formatTicketPrice = (cents) => {
+    if (cents == null || !Number.isFinite(Number(cents))) return null;
+    const n = Number(cents) / 100;
+    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
+  const formatEventDate = (iso) => {
+    const d = new Date(String(iso || ''));
+    if (Number.isNaN(d.getTime())) return '';
+    if (d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0) return d.toLocaleDateString('pt-BR');
+    return d.toLocaleString('pt-BR');
   };
 
   return (
@@ -539,6 +674,58 @@ export const DashboardPublicProfile = () => {
             </AnimatedButton>
           </div>
 
+          {isArtist && (
+            <div className="pt-6 border-t border-white/10">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div>
+                  <div className="font-bold text-white text-lg">Shows no Perfil Público</div>
+                  <div className="text-xs text-gray-400">Depois que a data do evento passar, ele some automaticamente.</div>
+                </div>
+                <AnimatedButton onClick={openEventModal} icon={Plus} className="w-full sm:w-auto justify-center">
+                  Adicionar Show
+                </AnimatedButton>
+              </div>
+
+              <div className="space-y-3">
+                {eventsLoading ? (
+                  <div className="text-sm text-gray-400">Carregando shows...</div>
+                ) : events.length === 0 ? (
+                  <div className="text-sm text-gray-500">Nenhum show publicado ainda.</div>
+                ) : (
+                  events.map((ev) => (
+                    <div key={ev.id} className="flex flex-col md:flex-row gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                      <div className="w-full md:w-40 h-32 rounded-lg overflow-hidden bg-black/30 border border-white/10">
+                        <img src={ev.flyer_url} alt="Flyer" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <div className="text-sm font-bold text-white">
+                          {formatEventDate(ev.event_date)}
+                        </div>
+                        <div className="text-sm text-gray-300">{ev.location}</div>
+                        {formatTicketPrice(ev.ticket_price_cents) && (
+                          <div className="text-xs text-gray-400">Ingresso: {formatTicketPrice(ev.ticket_price_cents)}</div>
+                        )}
+                        {ev.purchase_contact && (
+                          <div className="text-xs text-gray-400 break-words">Contato/Link: {ev.purchase_contact}</div>
+                        )}
+                      </div>
+                      <div className="flex md:flex-col gap-2 md:items-end">
+                        <AnimatedButton
+                          variant="secondary"
+                          onClick={() => handleDeleteEvent(ev.id)}
+                          icon={Trash2}
+                          className="w-full md:w-auto justify-center"
+                        >
+                          Apagar
+                        </AnimatedButton>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="pt-6 border-t border-white/10">
             <GalleryManager userId={profile?.id} />
           </div>
@@ -562,6 +749,88 @@ export const DashboardPublicProfile = () => {
           onSave={handleSavePublicProfile}
           uploading={false}
         />
+
+        {isEventModalOpen && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/70" onClick={closeEventModal} />
+            <div className="relative w-full max-w-xl bg-[#121212] border border-white/10 rounded-2xl p-5 md:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="font-bold text-white text-lg">Adicionar Show</div>
+                <button onClick={closeEventModal} className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10">
+                  <X size={18} className="text-gray-300" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <label className="flex items-center gap-2 text-sm text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={eventForm.has_time}
+                    onChange={(e) => {
+                      const checked = !!e.target.checked;
+                      setEventForm((prev) => {
+                        const current = String(prev.event_date || '');
+                        if (checked) {
+                          const nextValue = /^\d{4}-\d{2}-\d{2}$/.test(current) ? `${current}T00:00` : current;
+                          return { ...prev, has_time: true, event_date: nextValue };
+                        }
+                        const nextValue = current.includes('T') ? current.split('T')[0] : current;
+                        return { ...prev, has_time: false, event_date: nextValue };
+                      });
+                    }}
+                  />
+                  Incluir horário do evento
+                </label>
+                <AnimatedInput
+                  label="Data do Evento"
+                  type={eventForm.has_time ? 'datetime-local' : 'date'}
+                  value={eventForm.event_date}
+                  onChange={(e) => setEventForm((prev) => ({ ...prev, event_date: e.target.value }))}
+                />
+                <AnimatedInput
+                  label="Local do Show"
+                  value={eventForm.location}
+                  onChange={(e) => setEventForm((prev) => ({ ...prev, location: e.target.value }))}
+                  placeholder="Ex: Espaço X - São Paulo/SP"
+                />
+                <AnimatedInput
+                  label="Valor do Ingresso"
+                  value={eventForm.ticket_price}
+                  onChange={(e) => setEventForm((prev) => ({ ...prev, ticket_price: e.target.value }))}
+                  placeholder="Ex: R$ 50,00"
+                />
+                <AnimatedInput
+                  label="Contato ou Link para Comprar"
+                  value={eventForm.purchase_contact}
+                  onChange={(e) => setEventForm((prev) => ({ ...prev, purchase_contact: e.target.value }))}
+                  placeholder="Ex: https://... ou WhatsApp (DDD+numero)"
+                />
+                <div className="text-xs text-gray-500">
+                  Se você digitar apenas o número, ele vira um link do WhatsApp automaticamente.
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Flyer do Show</div>
+                  <input type="file" accept="image/*" onChange={handleEventFlyerChange} className="w-full text-sm text-gray-300" />
+                  {eventForm.flyerPreviewUrl && (
+                    <div className="w-full h-56 rounded-xl overflow-hidden border border-white/10 bg-black/30">
+                      <img src={eventForm.flyerPreviewUrl} alt="Preview" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 sm:justify-end pt-2">
+                  <AnimatedButton variant="secondary" onClick={closeEventModal} className="w-full sm:w-auto justify-center">
+                    Cancelar
+                  </AnimatedButton>
+                  <AnimatedButton onClick={handleCreateEvent} isLoading={eventSaving} icon={Plus} className="w-full sm:w-auto justify-center">
+                    Publicar
+                  </AnimatedButton>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

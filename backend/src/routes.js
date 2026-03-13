@@ -22,6 +22,125 @@ function bad(res, status, message) {
   return res.status(status).json({ success: false, error: message });
 }
 
+function okPerf(req, res, data) {
+  if (req && String(req.query.perf || '') === '1' && req._perf) {
+    const totalMs = nowMs() - req._perf.startMs;
+    const dbMs = req._perf.queries.reduce((acc, q) => acc + (q.ms || 0), 0);
+    return res.json({ success: true, data, perf: { totalMs, dbMs, queries: req._perf.queries } });
+  }
+  return ok(res, data);
+}
+
+function nowMs() {
+  return Number(process.hrtime.bigint() / 1000000n);
+}
+
+function clampInt(v, { min, max, fallback }) {
+  const n = Number.parseInt(String(v), 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+function parsePagination(req, { defaultLimit, maxLimit }) {
+  const limit = clampInt(req.query.limit, { min: 1, max: maxLimit, fallback: defaultLimit });
+  const offset = clampInt(req.query.offset, { min: 0, max: 100000, fallback: 0 });
+  return { limit, offset };
+}
+
+function parseMoneyToCents(value) {
+  if (value == null) return null;
+  if (typeof value === 'number' && Number.isFinite(value)) return Math.max(0, Math.round(value * 100));
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const normalized = raw.replace(/\s+/g, '').replace(/[^\d.,-]/g, '');
+  if (!normalized) return null;
+  const lastComma = normalized.lastIndexOf(',');
+  const lastDot = normalized.lastIndexOf('.');
+  const decimalSep = lastComma > lastDot ? ',' : '.';
+  let numStr = normalized;
+  if (decimalSep === ',') {
+    numStr = normalized.replace(/\./g, '').replace(',', '.');
+  } else {
+    numStr = normalized.replace(/,/g, '');
+  }
+  const n = Number.parseFloat(numStr);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(0, Math.round(n * 100));
+}
+
+function normalizePurchaseContact(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (/^www\./i.test(raw)) return `https://${raw}`;
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length >= 10) return `https://wa.me/55${digits}`;
+  return raw;
+}
+
+function parseDataUrl(dataUrl) {
+  const raw = String(dataUrl || '');
+  const match = raw.match(/^data:([^;]+);base64,(.+)$/i);
+  if (!match) return null;
+  return { mime: String(match[1] || '').toLowerCase(), base64: String(match[2] || '') };
+}
+
+function cargoFromRole(roleRaw) {
+  const role = String(roleRaw || '').trim().toLowerCase();
+  if (!role) return null;
+  if (role === 'artist' || role === 'artista') return 'Artista';
+  if (role === 'seller' || role === 'vendedor') return 'Vendedor';
+  if (role === 'producer' || role === 'produtor' || role === 'admin') return 'Produtor';
+  if (role === 'composer' || role === 'compositor') return 'Compositor';
+  return null;
+}
+
+function withPublicCache(ttlMs, handler) {
+  const cache = new Map();
+  return asyncHandler(async (req, res, next) => {
+    const hasAuth = !!(req.headers.authorization || req.headers.Authorization);
+    const isPerf = String(req.query.perf || '') === '1';
+    if (hasAuth || req.method !== 'GET') return handler(req, res, next);
+    if (isPerf) {
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('X-Cache', 'BYPASS');
+      return handler(req, res, next);
+    }
+    const key = String(req.originalUrl || req.url || '');
+    const entry = cache.get(key);
+    if (entry && entry.expiresAtMs > Date.now()) {
+      res.setHeader('Cache-Control', `public, max-age=${Math.max(0, Math.floor(ttlMs / 1000))}`);
+      res.setHeader('X-Cache', 'HIT');
+      return res.json(entry.payload);
+    }
+
+    const originalJson = res.json.bind(res);
+    res.json = (payload) => {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        cache.set(key, { expiresAtMs: Date.now() + ttlMs, payload });
+      }
+      res.setHeader('Cache-Control', `public, max-age=${Math.max(0, Math.floor(ttlMs / 1000))}`);
+      res.setHeader('X-Cache', 'MISS');
+      return originalJson(payload);
+    };
+    return handler(req, res, next);
+  });
+}
+
+async function timedQuery(req, sql, params, label) {
+  const start = nowMs();
+  const result = await query(sql, params);
+  const ms = nowMs() - start;
+  if (req && req._perf) {
+    req._perf.queries.push({
+      label: label || null,
+      ms,
+      rowCount: typeof result.rowCount === 'number' ? result.rowCount : null,
+    });
+  }
+  return result;
+}
+
 function normalizeCargo(input) {
   const s = String(input || '').trim().toLowerCase();
   if (!s) return 'Artista';
@@ -76,6 +195,20 @@ const apiRouter = express.Router();
 
 apiRouter.get('/health', (req, res) => ok(res, { ok: true }));
 
+apiRouter.use((req, res, next) => {
+  req._perf = { startMs: nowMs(), queries: [] };
+  res.on('finish', () => {
+    const totalMs = nowMs() - req._perf.startMs;
+    const qMs = req._perf.queries.reduce((acc, q) => acc + (q.ms || 0), 0);
+    if (totalMs >= 500 || String(req.query.perf || '') === '1') {
+      process.stdout.write(
+        `${req.method} ${req.originalUrl} total=${totalMs}ms db=${qMs}ms q=${req._perf.queries.length}\n`
+      );
+    }
+  });
+  next();
+});
+
 apiRouter.post(
   '/auth/register',
   asyncHandler(async (req, res) => {
@@ -123,6 +256,19 @@ apiRouter.post(
   })
 );
 
+apiRouter.post(
+  '/auth/change-password',
+  authRequired,
+  asyncHandler(async (req, res) => {
+    const userId = String(req.user.id);
+    const newPassword = String(req.body?.new_password || '');
+    if (!newPassword || newPassword.length < 6) return bad(res, 400, 'Senha muito curta');
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await query('update profiles set password_hash = $2, updated_at = now() where id = $1', [userId, passwordHash]);
+    return ok(res, { ok: true });
+  })
+);
+
 apiRouter.get(
   '/profile',
   authRequired,
@@ -131,18 +277,119 @@ apiRouter.get(
   })
 );
 
+apiRouter.put(
+  '/profile',
+  authRequired,
+  asyncHandler(async (req, res) => {
+    const id = String(req.user.id);
+    const payload = req.body || {};
+
+    const email = payload.email != null ? String(payload.email).trim().toLowerCase() : null;
+    if (email && !email.includes('@')) return bad(res, 400, 'Email inválido');
+    if (email) {
+      const { rows: existing } = await query('select id from profiles where email = $1 and id <> $2 limit 1', [email, id]);
+      if (existing[0]) return bad(res, 409, 'Email já está em uso');
+    }
+
+    const { rows } = await query(
+      `update profiles
+          set email = coalesce($2, email),
+              nome = coalesce($3, nome),
+              nome_completo_razao_social = coalesce($4, nome_completo_razao_social),
+              avatar_url = coalesce($5, avatar_url),
+              bio = coalesce($6, bio),
+              cpf_cnpj = coalesce($7, cpf_cnpj),
+              celular = coalesce($8, celular),
+              instagram_url = coalesce($9, instagram_url),
+              site_url = coalesce($10, site_url),
+              youtube_url = coalesce($11, youtube_url),
+              spotify_url = coalesce($12, spotify_url),
+              deezer_url = coalesce($13, deezer_url),
+              tiktok_url = coalesce($14, tiktok_url),
+              genero_musical = coalesce($15, genero_musical),
+              tema = coalesce($16, tema),
+              cep = coalesce($17, cep),
+              logradouro = coalesce($18, logradouro),
+              complemento = coalesce($19, complemento),
+              bairro = coalesce($20, bairro),
+              cidade = coalesce($21, cidade),
+              estado = coalesce($22, estado),
+              plano = coalesce($23, plano),
+              updated_at = now()
+        where id = $1
+      returning id, email, cargo, nome, nome_completo_razao_social, avatar_url, bio, cpf_cnpj, celular, instagram_url, site_url, youtube_url, spotify_url, deezer_url, tiktok_url, genero_musical, tema, cep, logradouro, complemento, bairro, cidade, estado, plano, access_control, created_at, updated_at`,
+      [
+        id,
+        email,
+        payload.nome != null ? String(payload.nome) : null,
+        payload.nome_completo_razao_social != null ? String(payload.nome_completo_razao_social) : null,
+        payload.avatar_url != null ? String(payload.avatar_url) : null,
+        payload.bio != null ? String(payload.bio) : null,
+        payload.cpf_cnpj != null ? String(payload.cpf_cnpj) : null,
+        payload.celular != null ? String(payload.celular) : null,
+        payload.instagram_url != null ? String(payload.instagram_url) : null,
+        payload.site_url != null ? String(payload.site_url) : null,
+        payload.youtube_url != null ? String(payload.youtube_url) : null,
+        payload.spotify_url != null ? String(payload.spotify_url) : null,
+        payload.deezer_url != null ? String(payload.deezer_url) : null,
+        payload.tiktok_url != null ? String(payload.tiktok_url) : null,
+        payload.genero_musical != null ? String(payload.genero_musical) : null,
+        payload.tema != null ? String(payload.tema) : null,
+        payload.cep != null ? String(payload.cep) : null,
+        payload.logradouro != null ? String(payload.logradouro) : null,
+        payload.complemento != null ? String(payload.complemento) : null,
+        payload.bairro != null ? String(payload.bairro) : null,
+        payload.cidade != null ? String(payload.cidade) : null,
+        payload.estado != null ? String(payload.estado) : null,
+        payload.plano != null ? String(payload.plano) : null
+      ]
+    );
+
+    return ok(res, rows[0] || null);
+  })
+);
+
+apiRouter.post(
+  '/profile/avatar',
+  authRequired,
+  asyncHandler(async (req, res) => {
+    const parsed = parseDataUrl(req.body?.dataUrl);
+    if (!parsed) return bad(res, 400, 'dataUrl inválido');
+
+    const allowed = new Set(['image/png', 'image/jpeg', 'image/webp']);
+    if (!allowed.has(parsed.mime)) return bad(res, 400, 'Formato de imagem não suportado');
+
+    const buffer = Buffer.from(parsed.base64, 'base64');
+    if (!buffer.length || buffer.length > 6 * 1024 * 1024) return bad(res, 400, 'Imagem muito grande');
+
+    const ext = parsed.mime === 'image/jpeg' ? 'jpg' : parsed.mime === 'image/webp' ? 'webp' : 'png';
+    const bucket = 'avatars';
+    const dest = path.join(__dirname, '..', 'uploads', bucket);
+    ensureDir(dest);
+    const filename = `${Date.now()}_${crypto.randomBytes(6).toString('hex')}.${ext}`;
+    fs.writeFileSync(path.join(dest, filename), buffer);
+    const relative = `/uploads/${bucket}/${filename}`;
+    return ok(res, { avatar_url: absoluteUploadsUrl(req, relative) });
+  })
+);
+
 apiRouter.get(
   '/profiles',
   asyncHandler(async (req, res) => {
-    const includeEmail = !!(req.headers.authorization || req.headers.Authorization);
-    const role = String(req.query.role || '').trim().toLowerCase();
-    const cargo = role === 'artist' ? 'Artista' : role === 'seller' ? 'Vendedor' : null;
+    const includePrivate = !!(req.headers.authorization || req.headers.Authorization);
+    const cargo = cargoFromRole(req.query.role);
+    const { limit, offset } = parsePagination(req, { defaultLimit: 50, maxLimit: 200 });
+
+    const cols = includePrivate
+      ? 'id, email, cargo, nome, nome_completo_razao_social, avatar_url, plano, access_control, created_at'
+      : 'id, null::text as email, cargo, nome, nome_completo_razao_social, avatar_url, plano, null::jsonb as access_control, created_at';
+
     const sql = cargo
-      ? `select id, ${includeEmail ? 'email' : 'null::text as email'}, cargo, nome, nome_completo_razao_social, avatar_url, plano, access_control from profiles where cargo = $1 order by created_at desc`
-      : `select id, ${includeEmail ? 'email' : 'null::text as email'}, cargo, nome, nome_completo_razao_social, avatar_url, plano, access_control from profiles order by created_at desc`;
-    const args = cargo ? [cargo] : [];
-    const { rows } = await query(sql, args);
-    return ok(res, rows);
+      ? `select ${cols} from profiles where cargo = $1 order by created_at desc limit $2 offset $3`
+      : `select ${cols} from profiles order by created_at desc limit $1 offset $2`;
+    const args = cargo ? [cargo, limit, offset] : [limit, offset];
+    const { rows } = await timedQuery(req, sql, args, 'profiles.list');
+    return okPerf(req, res, rows);
   })
 );
 
@@ -231,6 +478,80 @@ apiRouter.post(
     emit('chat_update', { t: Date.now() });
     emit('queue_update', { t: Date.now() });
     return ok(res, { ok: true });
+  })
+);
+
+apiRouter.put(
+  '/admin/profiles/:id',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const targetId = String(req.params.id || '');
+    const payload = req.body || {};
+
+    const email = payload.email != null ? String(payload.email).trim().toLowerCase() : null;
+    if (email && !email.includes('@')) return bad(res, 400, 'Email inválido');
+    if (email) {
+      const { rows: existing } = await query('select id from profiles where email = $1 and id <> $2 limit 1', [email, targetId]);
+      if (existing[0]) return bad(res, 409, 'Email já está em uso');
+    }
+
+    const { rows } = await query(
+      `update profiles
+          set email = coalesce($2, email),
+              nome = coalesce($3, nome),
+              nome_completo_razao_social = coalesce($4, nome_completo_razao_social),
+              avatar_url = coalesce($5, avatar_url),
+              bio = coalesce($6, bio),
+              cpf_cnpj = coalesce($7, cpf_cnpj),
+              celular = coalesce($8, celular),
+              instagram_url = coalesce($9, instagram_url),
+              site_url = coalesce($10, site_url),
+              youtube_url = coalesce($11, youtube_url),
+              spotify_url = coalesce($12, spotify_url),
+              deezer_url = coalesce($13, deezer_url),
+              tiktok_url = coalesce($14, tiktok_url),
+              genero_musical = coalesce($15, genero_musical),
+              tema = coalesce($16, tema),
+              cep = coalesce($17, cep),
+              logradouro = coalesce($18, logradouro),
+              complemento = coalesce($19, complemento),
+              bairro = coalesce($20, bairro),
+              cidade = coalesce($21, cidade),
+              estado = coalesce($22, estado),
+              plano = coalesce($23, plano),
+              updated_at = now()
+        where id = $1
+      returning id, email, cargo, nome, nome_completo_razao_social, avatar_url, bio, cpf_cnpj, celular, instagram_url, site_url, youtube_url, spotify_url, deezer_url, tiktok_url, genero_musical, tema, cep, logradouro, complemento, bairro, cidade, estado, plano, access_control, created_at, updated_at`,
+      [
+        targetId,
+        email,
+        payload.nome != null ? String(payload.nome) : null,
+        payload.nome_completo_razao_social != null ? String(payload.nome_completo_razao_social) : null,
+        payload.avatar_url != null ? String(payload.avatar_url) : null,
+        payload.bio != null ? String(payload.bio) : null,
+        payload.cpf_cnpj != null ? String(payload.cpf_cnpj) : null,
+        payload.celular != null ? String(payload.celular) : null,
+        payload.instagram_url != null ? String(payload.instagram_url) : null,
+        payload.site_url != null ? String(payload.site_url) : null,
+        payload.youtube_url != null ? String(payload.youtube_url) : null,
+        payload.spotify_url != null ? String(payload.spotify_url) : null,
+        payload.deezer_url != null ? String(payload.deezer_url) : null,
+        payload.tiktok_url != null ? String(payload.tiktok_url) : null,
+        payload.genero_musical != null ? String(payload.genero_musical) : null,
+        payload.tema != null ? String(payload.tema) : null,
+        payload.cep != null ? String(payload.cep) : null,
+        payload.logradouro != null ? String(payload.logradouro) : null,
+        payload.complemento != null ? String(payload.complemento) : null,
+        payload.bairro != null ? String(payload.bairro) : null,
+        payload.cidade != null ? String(payload.cidade) : null,
+        payload.estado != null ? String(payload.estado) : null,
+        payload.plano != null ? String(payload.plano) : null
+      ]
+    );
+
+    if (!rows[0]) return bad(res, 404, 'Perfil não encontrado');
+    return ok(res, rows[0]);
   })
 );
 
@@ -535,11 +856,354 @@ apiRouter.post(
   })
 );
 
+apiRouter.get(
+  '/releases',
+  withPublicCache(
+    60000,
+    asyncHandler(async (req, res) => {
+      const { limit, offset } = parsePagination(req, { defaultLimit: 20, maxLimit: 100 });
+      const { rows } = await timedQuery(
+        req,
+        'select id, title, cover_url, created_at from releases order by created_at desc limit $1 offset $2',
+        [limit, offset],
+        'releases.list'
+      );
+      return okPerf(req, res, rows);
+    })
+  )
+);
+
+apiRouter.get(
+  '/projects',
+  asyncHandler(async (req, res) => {
+    const { limit, offset } = parsePagination(req, { defaultLimit: 20, maxLimit: 100 });
+    const { rows } = await timedQuery(
+      req,
+      `select pr.id, pr.producer_id, pr.title, pr.url, pr.platform, pr.published, pr.created_at,
+              pf.nome as producer_name, pf.avatar_url as producer_avatar_url
+         from producer_projects pr
+         left join profiles pf on pf.id = pr.producer_id
+        where pr.published = true
+        order by pr.created_at desc
+        limit $1 offset $2`,
+      [limit, offset],
+      'projects.list'
+    );
+    return okPerf(req, res, rows);
+  })
+);
+
+apiRouter.get(
+  '/composers',
+  withPublicCache(
+    60000,
+    asyncHandler(async (req, res) => {
+      const { limit, offset } = parsePagination(req, { defaultLimit: 50, maxLimit: 200 });
+      const { rows } = await timedQuery(
+        req,
+        `select id, nome, nome_completo_razao_social, avatar_url, created_at
+           from profiles
+          where cargo = 'Compositor'
+          order by created_at asc
+          limit $1 offset $2`,
+        [limit, offset],
+        'composers.list'
+      );
+      return okPerf(req, res, rows);
+    })
+  )
+);
+
+apiRouter.get(
+  '/artists',
+  asyncHandler(async (req, res) => {
+    const { limit, offset } = parsePagination(req, { defaultLimit: 50, maxLimit: 200 });
+    const { rows } = await timedQuery(
+      req,
+      `select id, nome, nome_completo_razao_social, avatar_url, created_at
+         from profiles
+        where cargo = 'Artista'
+        order by created_at asc
+        limit $1 offset $2`,
+      [limit, offset],
+      'artists.list'
+    );
+    return okPerf(req, res, rows);
+  })
+);
+
+apiRouter.get(
+  '/producers',
+  asyncHandler(async (req, res) => {
+    const { limit, offset } = parsePagination(req, { defaultLimit: 50, maxLimit: 200 });
+    const { rows } = await timedQuery(
+      req,
+      `select id, nome, nome_completo_razao_social, avatar_url, created_at
+         from profiles
+        where cargo = 'Produtor'
+        order by created_at asc
+        limit $1 offset $2`,
+      [limit, offset],
+      'producers.list'
+    );
+    return okPerf(req, res, rows);
+  })
+);
+
+apiRouter.get(
+  '/sponsors',
+  withPublicCache(
+    60000,
+    asyncHandler(async (req, res) => {
+      const { limit, offset } = parsePagination(req, { defaultLimit: 50, maxLimit: 200 });
+      const { rows } = await timedQuery(
+        req,
+        `select id, name, image_url, link_url, created_at
+           from sponsors
+          where active = true
+          order by created_at desc
+          limit $1 offset $2`,
+        [limit, offset],
+        'sponsors.list'
+      );
+      return okPerf(req, res, rows);
+    })
+  )
+);
+
+apiRouter.get(
+  '/compositions',
+  asyncHandler(async (req, res) => {
+    const { limit, offset } = parsePagination(req, { defaultLimit: 20, maxLimit: 100 });
+    const status = req.query.status == null ? null : String(req.query.status).trim();
+    const baseSql = `
+      select c.id, c.composer_id, c.title, c.status, c.file_url, c.created_at,
+             p.nome as composer_name, p.celular as composer_phone, p.avatar_url as composer_avatar_url
+        from compositions c
+        join profiles p on p.id = c.composer_id
+      ${status ? 'where c.status = $3' : ''}
+       order by c.created_at desc
+       limit $1 offset $2
+    `;
+    const args = status ? [limit, offset, status] : [limit, offset];
+    const { rows } = await timedQuery(req, baseSql, args, 'compositions.list');
+    return okPerf(req, res, rows);
+  })
+);
+
+apiRouter.get(
+  '/home',
+  withPublicCache(
+    60000,
+    asyncHandler(async (req, res) => {
+      const releasesLimit = clampInt(req.query.releasesLimit, { min: 1, max: 50, fallback: 20 });
+      const projectsLimit = clampInt(req.query.projectsLimit, { min: 1, max: 50, fallback: 20 });
+      const compositionsLimit = clampInt(req.query.compositionsLimit, { min: 1, max: 50, fallback: 20 });
+      const sponsorsLimit = clampInt(req.query.sponsorsLimit, { min: 1, max: 100, fallback: 50 });
+      const profilesLimit = clampInt(req.query.profilesLimit, { min: 1, max: 200, fallback: 60 });
+
+      const sql = `
+        select
+          (select coalesce(jsonb_agg(r order by r.created_at desc), '[]'::jsonb)
+             from (select id, title, cover_url, created_at
+                     from releases
+                    order by created_at desc
+                    limit $1) r) as releases,
+          (select coalesce(jsonb_agg(p order by p.created_at desc), '[]'::jsonb)
+             from (select pr.id, pr.producer_id, pr.title, pr.url, pr.platform, pr.created_at,
+                          pf.nome as producer_name, pf.avatar_url as producer_avatar_url
+                     from producer_projects pr
+                     left join profiles pf on pf.id = pr.producer_id
+                    where pr.published = true
+                    order by pr.created_at desc
+                    limit $2) p) as projects,
+          (select coalesce(jsonb_agg(c order by c.created_at desc), '[]'::jsonb)
+             from (select c.id, c.composer_id, c.title, c.status, c.file_url, c.created_at,
+                          p.nome as composer_name, p.celular as composer_phone, p.avatar_url as composer_avatar_url
+                     from compositions c
+                     join profiles p on p.id = c.composer_id
+                    order by c.created_at desc
+                    limit $3) c) as compositions,
+          (select coalesce(jsonb_agg(s order by s.created_at desc), '[]'::jsonb)
+             from (select id, name, image_url, link_url, created_at
+                     from sponsors
+                    where active = true
+                    order by created_at desc
+                    limit $4) s) as sponsors,
+          (select coalesce(jsonb_agg(x order by x.created_at asc), '[]'::jsonb)
+             from (select id, nome, nome_completo_razao_social, avatar_url, created_at
+                     from profiles
+                    where cargo = 'Compositor'
+                    order by created_at asc
+                    limit $5) x) as composers,
+          (select coalesce(jsonb_agg(x order by x.created_at asc), '[]'::jsonb)
+             from (select id, nome, nome_completo_razao_social, avatar_url, created_at
+                     from profiles
+                    where cargo = 'Artista'
+                    order by created_at asc
+                    limit $5) x) as artists,
+          (select coalesce(jsonb_agg(x order by x.created_at asc), '[]'::jsonb)
+             from (select id, nome, nome_completo_razao_social, avatar_url, created_at
+                     from profiles
+                    where cargo = 'Produtor'
+                    order by created_at asc
+                    limit $5) x) as producers,
+          (select coalesce(jsonb_agg(x order by x.created_at asc), '[]'::jsonb)
+             from (select id, nome, nome_completo_razao_social, avatar_url, created_at
+                     from profiles
+                    where cargo = 'Vendedor'
+                    order by created_at asc
+                    limit $5) x) as sellers
+      `;
+
+      const { rows } = await timedQuery(
+        req,
+        sql,
+        [releasesLimit, projectsLimit, compositionsLimit, sponsorsLimit, profilesLimit],
+        'home.aggregate'
+      );
+      const row = rows[0] || {};
+      return okPerf(req, res, {
+        releases: row.releases || [],
+        compositions: row.compositions || [],
+        projects: row.projects || [],
+        composers: row.composers || [],
+        sponsors: row.sponsors || [],
+        artists: row.artists || [],
+        producers: row.producers || [],
+        sellers: row.sellers || []
+      });
+    })
+  )
+);
+
 apiRouter.get('/profiles/:id/musics', (req, res) => ok(res, []));
 apiRouter.get('/profiles/:id/feats', (req, res) => ok(res, []));
 apiRouter.get('/profiles/:id/produced-musics', (req, res) => ok(res, []));
 apiRouter.get('/profiles/:id/compositions', (req, res) => ok(res, []));
 apiRouter.get('/sellers/:id/stats', (req, res) => ok(res, null));
+
+apiRouter.get(
+  '/profiles/:id/events',
+  withPublicCache(
+    60000,
+    asyncHandler(async (req, res) => {
+      const artistId = String(req.params.id || '');
+      const { limit, offset } = parsePagination(req, { defaultLimit: 50, maxLimit: 200 });
+      const { rows } = await timedQuery(
+        req,
+        `select id, artist_id, event_date, location, flyer_url, ticket_price_cents, purchase_contact, created_at
+           from public_events
+          where artist_id = $1
+            and event_date >= now()
+          order by event_date asc
+          limit $2 offset $3`,
+        [artistId, limit, offset],
+        'events.public_by_artist'
+      );
+      return okPerf(req, res, rows);
+    })
+  )
+);
+
+apiRouter.get(
+  '/events',
+  withPublicCache(
+    60000,
+    asyncHandler(async (req, res) => {
+      const { limit, offset } = parsePagination(req, { defaultLimit: 50, maxLimit: 200 });
+      const artistId = req.query.artistId != null ? String(req.query.artistId) : (req.query.artist_id != null ? String(req.query.artist_id) : null);
+
+      const args = [];
+      let where = 'where e.event_date >= now()';
+      if (artistId) {
+        args.push(artistId);
+        where += ` and e.artist_id = $${args.length}`;
+      }
+      args.push(limit);
+      args.push(offset);
+
+      const { rows } = await timedQuery(
+        req,
+        `select e.id, e.artist_id, e.event_date, e.location, e.flyer_url, e.ticket_price_cents, e.purchase_contact, e.created_at,
+                p.nome as artist_name, p.nome_completo_razao_social as artist_legal_name, p.avatar_url as artist_avatar_url
+           from public_events e
+           join profiles p on p.id = e.artist_id
+          ${where}
+          order by e.event_date asc
+          limit $${args.length - 1} offset $${args.length}`,
+        args,
+        'events.public_list'
+      );
+      return okPerf(req, res, rows);
+    })
+  )
+);
+
+apiRouter.get(
+  '/my/events',
+  authRequired,
+  asyncHandler(async (req, res) => {
+    const artistId = String(req.user.id);
+    const { rows } = await timedQuery(
+      req,
+      `select id, artist_id, event_date, location, flyer_url, ticket_price_cents, purchase_contact, created_at
+         from public_events
+        where artist_id = $1
+          and event_date >= now()
+        order by event_date asc`,
+      [artistId],
+      'events.my_list'
+    );
+    return okPerf(req, res, rows);
+  })
+);
+
+apiRouter.post(
+  '/events',
+  authRequired,
+  requireRole(['Artista']),
+  asyncHandler(async (req, res) => {
+    const artistId = String(req.user.id);
+    const location = String(req.body?.location || '').trim();
+    const flyerUrl = String(req.body?.flyer_url || '').trim();
+    const purchaseContact = normalizePurchaseContact(req.body?.purchase_contact);
+    const eventDateRaw = req.body?.event_date;
+    const ticketPriceCents = parseMoneyToCents(req.body?.ticket_price);
+
+    if (!location) return bad(res, 400, 'Local do show é obrigatório');
+    if (!flyerUrl) return bad(res, 400, 'Flyer do show é obrigatório');
+    if (!eventDateRaw) return bad(res, 400, 'Data do evento é obrigatória');
+
+    const eventDate = new Date(String(eventDateRaw));
+    if (Number.isNaN(eventDate.getTime())) return bad(res, 400, 'Data do evento inválida');
+
+    const { rows } = await query(
+      `insert into public_events (artist_id, event_date, location, flyer_url, ticket_price_cents, purchase_contact)
+       values ($1,$2,$3,$4,$5,$6)
+       returning id, artist_id, event_date, location, flyer_url, ticket_price_cents, purchase_contact, created_at`,
+      [artistId, eventDate.toISOString(), location, flyerUrl, ticketPriceCents, purchaseContact || null]
+    );
+    return ok(res, rows[0]);
+  })
+);
+
+apiRouter.delete(
+  '/events/:id',
+  authRequired,
+  asyncHandler(async (req, res) => {
+    const id = String(req.params.id || '');
+    const userId = String(req.user.id);
+    const isAdmin = String(req.profile && req.profile.cargo ? req.profile.cargo : '').toLowerCase() === 'produtor';
+
+    const result = isAdmin
+      ? await query('delete from public_events where id = $1 returning id', [id])
+      : await query('delete from public_events where id = $1 and artist_id = $2 returning id', [id, userId]);
+
+    if (!result.rows[0]) return bad(res, 404, 'Show não encontrado');
+    return ok(res, { ok: true });
+  })
+);
 
 apiRouter.post('/upload', authRequired, upload.single('file'), (req, res) => {
   const bucket = safePathPart(req.body.bucket || 'misc');
@@ -560,14 +1224,7 @@ apiRouter.post('/upload/multiple', authRequired, upload.array('files', 10), (req
 });
 
 const emptyListRoutes = [
-  'releases',
-  'compositions',
-  'projects',
-  'sponsors',
-  'composers',
-  'producers',
-  'musics',
-  'events'
+  'musics'
 ];
 
 for (const name of emptyListRoutes) {
