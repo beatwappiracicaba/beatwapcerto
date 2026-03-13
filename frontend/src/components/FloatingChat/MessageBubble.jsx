@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { Check, CheckCheck, User as UserIcon } from 'lucide-react';
 

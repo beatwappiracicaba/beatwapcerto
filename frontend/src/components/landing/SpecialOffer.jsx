@@ -1,7 +1,6 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../ui/AnimatedButton';
-import { Check, Info, Music, Video, DollarSign } from 'lucide-react';
+import { Check, Info, Music } from 'lucide-react';
 
 const SpecialOffer = () => {
   return (

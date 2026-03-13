@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Zap, Award, Check, Star, TrendingUp, Music, Mic } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';

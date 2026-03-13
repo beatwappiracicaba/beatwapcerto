@@ -1,17 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
-import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, User, Plus, X } from 'lucide-react';
 
 const SellerAgenda = () => {
-  const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
   
   // Novos estados para gerenciamento de artistas
   const [viewMode, setViewMode] = useState('seller'); // 'seller' | 'artist'
@@ -21,27 +18,16 @@ const SellerAgenda = () => {
   const [showModal, setShowModal] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: '', date: '', type: 'show', notes: '' });
 
-  useEffect(() => {
-    fetchEvents();
-    fetchArtists();
-  }, [currentDate]);
-
-  useEffect(() => {
-    if (viewMode === 'artist' && selectedArtist) {
-      fetchArtistEvents();
-    }
-  }, [selectedArtist, currentDate, viewMode]);
-
-  const fetchArtists = async () => {
+  const fetchArtists = useCallback(async () => {
     try {
       const data = await apiClient.get('/artists');
       setArtists((data || []).map(a => ({ id: a.id, nome: a.nome || a.nome_completo_razao_social })));
     } catch (error) {
       console.error('Error fetching artists:', error);
     }
-  };
+  }, []);
 
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     try {
       const y = currentDate.getFullYear();
       const m = String(currentDate.getMonth() + 1).padStart(2, '0');
@@ -49,12 +35,11 @@ const SellerAgenda = () => {
       setEvents(data || []);
     } catch (error) {
       console.error('Error fetching events:', error);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [currentDate]);
 
-  const fetchArtistEvents = async () => {
+  const fetchArtistEvents = useCallback(async () => {
+    if (!selectedArtist) return;
     try {
       const y = currentDate.getFullYear();
       const m = String(currentDate.getMonth() + 1).padStart(2, '0');
@@ -63,7 +48,21 @@ const SellerAgenda = () => {
     } catch (error) {
       console.error('Error fetching artist events:', error);
     }
-  };
+  }, [currentDate, selectedArtist]);
+
+  useEffect(() => {
+    fetchArtists();
+  }, [fetchArtists]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
+
+  useEffect(() => {
+    if (viewMode === 'artist') {
+      fetchArtistEvents();
+    }
+  }, [fetchArtistEvents, viewMode]);
 
   const handleCreateEvent = async () => {
     if (!newEvent.title || !newEvent.date || !selectedArtist) return;
@@ -110,7 +109,6 @@ const SellerAgenda = () => {
 
     // Days of the month
     for (let day = 1; day <= daysInMonth; day++) {
-      const dayDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
       const dayEvents = currentEvents.filter(e => {
         // Handle both date formats (ISO string or YYYY-MM-DD)
         const eDate = viewMode === 'artist' ? new Date(e.date + 'T12:00:00') : new Date(e.event_date);

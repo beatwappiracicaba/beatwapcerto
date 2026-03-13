@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { apiClient } from '../services/apiClient';
-import { MapPin, Music, DollarSign, Phone, Eye, Calendar, Search, Edit2, Check, X, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { MapPin, Music, DollarSign, Phone, Eye, Calendar, Search, Edit2, Check, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const SellerArtists = () => {

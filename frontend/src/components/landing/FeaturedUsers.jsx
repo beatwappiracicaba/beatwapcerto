@@ -1,8 +1,7 @@
-import { useEffect, useState, useRef } from 'react';
+import { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BadgeCheck, User, Star, Shield, Info, Briefcase, ChevronLeft, ChevronRight } from 'lucide-react';
-import { homeApi } from '../../services/apiClient';
 
 const UserCard = ({ user, type, onSelect }) => {
   const getRoleLabel = () => {

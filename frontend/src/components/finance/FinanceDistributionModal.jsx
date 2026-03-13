@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Upload, Check, FileText, DollarSign, User, Briefcase, Building } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';
-import { AnimatedInput } from '../ui/AnimatedInput';
 import { apiClient } from '../../services/apiClient';
 import { useToast } from '../../context/ToastContext';
 

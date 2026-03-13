@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card } from '../ui/Card';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
 import { apiClient } from '../../services/apiClient';
-import { DollarSign, Check, X, Calendar, User, AlertTriangle, FileText } from 'lucide-react';
+import { DollarSign, Check, Calendar, User, FileText } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { FinanceDistributionModal } from '../finance/FinanceDistributionModal';
 
@@ -20,11 +20,7 @@ export const ShowRevenueDistributor = () => {
   });
   const { addToast } = useToast();
 
-  useEffect(() => {
-    fetchEvents();
-  }, []);
-
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     setLoading(true);
     try {
       const data = await apiClient.get('/events');
@@ -37,7 +33,11 @@ export const ShowRevenueDistributor = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
 
   const handleSelectEvent = (event) => {
     setSelectedEvent(event);

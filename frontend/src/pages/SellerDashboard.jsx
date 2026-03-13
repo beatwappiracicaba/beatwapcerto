@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -8,10 +8,9 @@ import { TrendingUp, Calendar, Users, DollarSign, Target, Award } from 'lucide-r
 import { useNavigate } from 'react-router-dom';
 
 const SellerDashboard = () => {
-  const { user, profile } = useAuth();
+  const { profile } = useAuth();
   const navigate = useNavigate();
   const [goals, setGoals] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchGoals();
@@ -23,8 +22,6 @@ const SellerDashboard = () => {
       setGoals(data || { shows_target: 10, current_shows: 0, revenue_target: 50000, current_revenue: 0 });
     } catch (error) {
       console.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
     }
   };
 

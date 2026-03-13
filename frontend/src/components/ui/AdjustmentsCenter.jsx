@@ -1,6 +1,4 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { AlertCircle, FileAudio, Image as ImageIcon, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, FileAudio, Image as ImageIcon } from 'lucide-react';
 import { Card } from './Card';
 import { AnimatedButton } from './AnimatedButton';
 

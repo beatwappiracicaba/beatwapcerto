@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { Headphones, Search, Rocket, Heart } from 'lucide-react';
 

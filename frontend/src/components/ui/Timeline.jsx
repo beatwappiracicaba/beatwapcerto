@@ -1,6 +1,5 @@
-import React from 'react';
 import { motion } from 'framer-motion';
-import { Check, Clock, AlertCircle, Send, Globe } from 'lucide-react';
+import { Clock, AlertCircle, Send, Globe } from 'lucide-react';
 import { clsx } from 'clsx';
 
 const steps = [
@@ -11,7 +10,7 @@ const steps = [
   { id: 'published', label: 'Publicada', icon: Globe },
 ];
 
-export const Timeline = ({ currentStatus, history = [] }) => {
+export const Timeline = ({ currentStatus }) => {
   // Map status to step index
   const statusMap = {
     'uploaded': 0,

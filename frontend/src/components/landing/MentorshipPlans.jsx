@@ -1,12 +1,10 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { Check, Star, Lock, Zap, TrendingUp, Award } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { useAuth } from '../../context/AuthContext';
 
 const MentorshipPlans = () => {
-  const { user, profile } = useAuth();
-  const navigate = useNavigate();
+  const { profile } = useAuth();
   const [billingCycle, setBillingCycle] = useState('monthly'); // 'monthly' or 'annual'
 
   const openPlan = (planLabel, value) => {

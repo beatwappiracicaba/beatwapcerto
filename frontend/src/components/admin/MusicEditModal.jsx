@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Check, Calendar, Link as LinkIcon, Barcode } from 'lucide-react';
+import { X, Check, Calendar, Link as LinkIcon, Barcode } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
 import { AnimatedButton } from '../ui/AnimatedButton';
-import { AnimatedInput } from '../ui/AnimatedInput';
 import { useToast } from '../../context/ToastContext';
 
 export const MusicEditModal = ({ isOpen, onClose, music, onSuccess }) => {

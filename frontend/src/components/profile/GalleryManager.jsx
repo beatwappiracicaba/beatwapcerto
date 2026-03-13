@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../../utils/cropImage';
 import { apiClient, uploadApi } from '../../services/apiClient';
@@ -35,14 +35,11 @@ export const GalleryManager = ({ userId }) => {
     };
   }, [imageSrc]);
 
-  useEffect(() => {
-    if (userId) fetchPosts();
-  }, [userId]);
-
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
+    if (!userId) return;
     try {
       const data = await apiClient.get(`/profiles/${userId}/posts`);
-        
+
       if (!data) throw new Error('No data returned');
       setPosts(data || []);
     } catch (error) {
@@ -50,7 +47,11 @@ export const GalleryManager = ({ userId }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -135,17 +136,11 @@ export const GalleryManager = ({ userId }) => {
     if (!window.confirm('Tem certeza que deseja excluir?')) return;
 
     try {
-        // Extract path from URL if needed for storage delete
-        // URL: .../posts/USER_ID/FILENAME
-        const path = post.media_url.split('/posts/')[1];
-        
-        // Delete via API
-        await apiClient.del(`/posts/${post.id}`);
-        
-        setPosts(posts.filter(p => p.id !== post.id));
+      await apiClient.del(`/posts/${post.id}`);
+      setPosts((prev) => prev.filter((p) => p.id !== post.id));
     } catch (error) {
-        console.error('Error deleting post:', error);
-        alert('Erro ao excluir.');
+      console.error('Error deleting post:', error);
+      alert('Erro ao excluir.');
     }
   };
 

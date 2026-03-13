@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../../utils/cropImage';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,7 +16,6 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
   const activeUser = targetArtist ? { id: targetArtist.id } : user;
   const isProducerMode = !!targetArtist;
 
-  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     titulo: '',
@@ -44,7 +43,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
   const [errors, setErrors] = useState({});
   const [artistOptions, setArtistOptions] = useState([]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const loadArtists = async () => {
       const data = await apiClient.get('/artists');
       setArtistOptions(data || []);
@@ -52,7 +51,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     loadArtists();
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (targetArtist) {
        setFormData(prev => ({
          ...prev,
@@ -87,7 +86,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
   const [coverCroppedArea, setCoverCroppedArea] = useState(null);
   const [coverOriginalFile, setCoverOriginalFile] = useState(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!coverImageSrc) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';

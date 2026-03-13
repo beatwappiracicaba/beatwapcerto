@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { motion, useScroll, useTransform } from 'framer-motion';
-import { Menu, X, Music } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Menu, X } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import logo from '../../assets/images/beatwap-logo.png';
 

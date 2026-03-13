@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Shield, Music, CreditCard, Star, User, Zap, MessageSquare, PenTool } from 'lucide-react';
+import { Check, Shield, Music, CreditCard, Star, User, PenTool } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { useAuth } from '../../context/AuthContext';
 import CheckoutModal from './CheckoutModal';

@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Pause, Volume2 } from 'lucide-react';
+import { Play, Pause } from 'lucide-react';
 
 export const AudioPlayer = ({ src, title, artist, minimal = false }) => {
   const [isPlaying, setIsPlaying] = useState(false);

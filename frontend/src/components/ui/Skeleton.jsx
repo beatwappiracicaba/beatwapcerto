@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 
 export const Skeleton = ({ className, width, height, rounded = "rounded-md" }) => {

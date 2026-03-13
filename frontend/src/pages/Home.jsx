@@ -125,7 +125,12 @@ const Home = () => {
 
   const fetchHomeData = async () => {
     try {
-      const data = await apiClient.get('/home', { timeoutMs: 2500, perAttemptTimeoutMs: 2500, cache: false });
+      const data = await apiClient.get('/home', {
+        timeoutMs: 12000,
+        perAttemptTimeoutMs: 12000,
+        cache: true,
+        cacheTtlMs: 15000
+      });
 
       const releases = (data && Array.isArray(data.releases)) ? data.releases : [];
       const today = new Date();
@@ -171,6 +176,8 @@ const Home = () => {
           fetchLatestCompositions(),
           fetchLatestProjects(),
           fetchComposers(),
+        ]);
+        await Promise.allSettled([
           fetchSponsors(),
           fetchArtists(),
           fetchProducers(),

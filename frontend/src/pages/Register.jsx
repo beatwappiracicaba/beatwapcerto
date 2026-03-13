@@ -6,7 +6,6 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Card } from '../components/ui/Card';
 import { authApi } from '../services/apiClient';
 import { useToast } from '../context/ToastContext';
-import { encryptData } from '../utils/security';
 
 const Register = () => {
   const navigate = useNavigate();

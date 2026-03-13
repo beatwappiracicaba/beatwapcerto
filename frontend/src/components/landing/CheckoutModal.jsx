@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check, FileText, Lock, Loader } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -30,7 +30,6 @@ const CheckoutModal = ({ isOpen, onClose, planType, customData }) => {
   const { user } = useAuth();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1); // 1: Form, 2: Terms
   
   const [formData, setFormData] = useState({
     fullName: '',

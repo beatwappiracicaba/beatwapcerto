@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, Music, Image as ImageIcon, FileText } from 'lucide-react';
+import { X, Upload, Music, Image as ImageIcon } from 'lucide-react';
 import { apiClient, uploadApi } from '../../services/apiClient';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../../utils/cropImage';
@@ -10,7 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
 export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId = null }) => {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const { addToast } = useToast();
 
   const [loading, setLoading] = useState(false);
@@ -36,7 +36,7 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
   const [coverCroppedArea, setCoverCroppedArea] = useState(null);
   const [coverOriginalFile, setCoverOriginalFile] = useState(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!coverImageSrc) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -44,22 +44,6 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
       document.body.style.overflow = previous;
     };
   }, [coverImageSrc]);
-
-  const validateImage = (file) => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        if (img.width < 1000 || img.height < 1000) { // Relaxed constraint for compositions? kept 3000 in music, maybe 1000 here is fine or keep 3000. Let's stick to 1000 for flexibility.
-          // reject('A imagem deve ter no mínimo 3000x3000px.'); 
-          resolve(true); // Let's accept any size for now to be less strict
-        } else {
-          resolve(true);
-        }
-      };
-      img.onerror = () => reject('Arquivo de imagem inválido.');
-      img.src = URL.createObjectURL(file);
-    });
-  };
 
   const handleFileChange = async (e, type) => {
     const file = e.target.files[0];

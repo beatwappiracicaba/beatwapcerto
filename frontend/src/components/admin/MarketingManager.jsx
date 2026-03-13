@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
 import { useToast } from '../../context/ToastContext';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
 import { Card } from '../ui/Card';
-import { Plus, Trash, Save, Loader, X, Check, ChevronDown, ChevronUp, Instagram, Music, Youtube } from 'lucide-react';
+import { Plus, Trash, Save, Loader, X, Instagram, Music, Youtube } from 'lucide-react';
 
 export const MarketingManager = ({ isOpen, onClose, artistId, artistName, artistRole = 'Artista', embedded = false }) => {
   const { addToast } = useToast();
@@ -31,11 +31,7 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName, artist
 
   const isComposer = ['Compositor', 'Produtor', 'compositor', 'produtor'].includes(artistRole);
 
-  useEffect(() => {
-    if (isOpen && artistId) loadData();
-  }, [isOpen, artistId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const existingData = await apiClient.get(`/marketing/${artistId}`);
@@ -63,7 +59,11 @@ export const MarketingManager = ({ isOpen, onClose, artistId, artistName, artist
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast, artistId, isComposer]);
+
+  useEffect(() => {
+    if (isOpen && artistId) loadData();
+  }, [artistId, isOpen, loadData]);
 
   const handleSave = async () => {
     setSaving(true);

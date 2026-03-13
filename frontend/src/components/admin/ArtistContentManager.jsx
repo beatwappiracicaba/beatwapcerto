@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, Save, Trash2, Edit2, Music, Check, FileAudio, Image as ImageIcon, AlertTriangle } from 'lucide-react';
+import { X, Upload, Save, Trash2, Edit2, Music, FileAudio, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { AnimatedInput } from '../ui/AnimatedInput';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { useData } from '../../context/DataContext';
 import { useNotification } from '../../context/NotificationContext';
 import { useToast } from '../../context/ToastContext';
-import { apiClient, uploadApi } from '../../services/apiClient';
+import { uploadApi } from '../../services/apiClient';
 import { encryptFile } from '../../utils/security';
 
 import { MusicUploadModal } from '../artist/MusicUploadModal';
@@ -45,29 +45,6 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
 
   // Filter music for this artist
   const artistMusic = music.filter(m => m.artistId === artist?.id);
-
-  const resetForm = () => {
-    setFormData({
-      title: '',
-      artist: '',
-      genre: '',
-      upc: '',
-      internalNote: '',
-      songwriter: '',
-      producer: '',
-      isrc: '',
-      hasFeaturing: false,
-      featuringArtist: '',
-      distributeAll: false,
-      isOriginal: false,
-      authorizationFile: null,
-      audioFile: null,
-      coverFile: null,
-      isAlbum: false,
-      audioFiles: [],
-      tracks: []
-    });
-  };
 
   const handleAddClick = () => {
     setShowUploadModal(true);

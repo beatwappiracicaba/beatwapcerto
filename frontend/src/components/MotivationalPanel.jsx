@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Music, Globe, Heart, Volume2 } from 'lucide-react';
+import { Music, Globe, Heart } from 'lucide-react';
 
 const quotes = [
   {

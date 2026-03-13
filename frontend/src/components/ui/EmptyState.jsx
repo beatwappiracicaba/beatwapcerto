@@ -1,6 +1,5 @@
-import React from 'react';
 import { motion } from 'framer-motion';
-import { Ghost, Search, Music } from 'lucide-react';
+import { Ghost } from 'lucide-react';
 
 export const EmptyState = ({ 
   icon: Icon = Ghost, 

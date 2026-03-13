@@ -27,7 +27,6 @@ export const ChatWindow = ({ currentUserId }) => {
     sendBroadcast,
     fetchArtistsForSeller,
     updateChatStatus,
-    fetchChats,
     typingState,
     sendTypingStatus
   } = useChat();
@@ -53,7 +52,7 @@ export const ChatWindow = ({ currentUserId }) => {
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const typingTimeoutRef = useRef(null);
-  const [showNewMessageToast, setShowNewMessageToast] = useState(false);
+  const [, setShowNewMessageToast] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'ia'
