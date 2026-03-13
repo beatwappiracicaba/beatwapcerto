@@ -48,6 +48,15 @@ const Home = () => {
     el.scrollBy({ left: dir * delta, behavior: 'smooth' });
   };
 
+  const buildWhatsAppHref = (rawPhone, title) => {
+    const raw = decryptData(rawPhone);
+    const digits = String(raw || '').replace(/\D/g, '');
+    if (!digits) return null;
+    const phone = digits.startsWith('55') ? digits : `55${digits}`;
+    const text = encodeURIComponent(`Olá, vi sua composição "${title}" na BeatWap e gostaria de saber mais.`);
+    return `https://wa.me/${phone}?text=${text}`;
+  };
+
   // Reset scroll on mount
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -833,18 +842,16 @@ const Home = () => {
                             <div className="text-[11px] text-gray-300 truncate">{comp.composer_name}</div>
                           </div>
                         </div>
-                        <h3 className="hidden sm:block font-bold text-lg truncate"><span>{comp.title}</span></h3>
-                        <p className="hidden sm:block text-sm text-gray-400 truncate"><span>{comp.composer_name}</span></p>
-                        <p className="hidden sm:block text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{comp.genre || 'Gênero'}</span></p>
+                        <h3 className="font-bold text-lg truncate"><span>{comp.title}</span></h3>
+                        <p className="text-sm text-gray-400 truncate"><span>{comp.composer_name}</span></p>
+                        <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{comp.genre || 'Gênero'}</span></p>
                         {comp.composer_phone && (
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
-                              const raw = decryptData(comp.composer_phone);
-                              const num = String(raw || '').replace(/\D/g, '');
-                              if (!num) return;
-                              const text = encodeURIComponent(`Olá, vi sua composição "${comp.title}" na BeatWap e gostaria de saber mais.`);
-                              window.open(`https://wa.me/55${num}?text=${text}`, '_blank');
+                              const href = buildWhatsAppHref(comp.composer_phone, comp.title);
+                              if (!href) return;
+                              window.open(href, '_blank');
                             }}
                             className="mt-3 flex items-center gap-2 text-xs font-bold text-green-400 bg-green-400/10 px-3 py-2 rounded-lg hover:bg-green-400/20 transition-colors w-full justify-center"
                           >
