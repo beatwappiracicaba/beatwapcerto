@@ -125,12 +125,28 @@ export const DashboardArtistProfile = () => {
       }
 
       const type = profile.cargo === 'Compositor' ? 'composition' : 'music';
-      const qs = new URLSearchParams();
-      qs.set('type', type);
-      if (start) qs.set('start', start);
-      if (end) qs.set('end', end);
-      const { count } = await apiClient.get(`/me/uploads/count?${qs.toString()}`);
-      const used = Number(count || 0);
+      const rangeStart = start ? new Date(start).getTime() : null;
+      const rangeEnd = end ? new Date(end).getTime() : null;
+      const withinRange = (createdAtRaw) => {
+        const d = new Date(String(createdAtRaw || ''));
+        const t = d.getTime();
+        if (!Number.isFinite(t)) return true;
+        if (rangeStart != null && t < rangeStart) return false;
+        if (rangeEnd != null && t > rangeEnd) return false;
+        return true;
+      };
+      let used = 0;
+      try {
+        if (type === 'composition') {
+          const rows = await apiClient.get('/composer/compositions');
+          used = (rows || []).filter((r) => withinRange(r.created_at)).length;
+        } else {
+          const rows = await apiClient.get('/songs/mine');
+          used = (rows || []).filter((r) => withinRange(r.created_at)).length;
+        }
+      } catch {
+        used = 0;
+      }
       const remaining = Math.max(0, base + bonus - used);
       setRemainingUploads(remaining);
     };

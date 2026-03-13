@@ -397,14 +397,19 @@ export const DashboardArtistMusics = () => {
     } else {
       base = 0;
     }
-    const params = new URLSearchParams();
-    if (start) params.set('start', start);
-    if (end) params.set('end', end);
-    const r = await apiClient.get(`/me/uploads/count?${params.toString()}`);
-    const used = Number(r?.count || 0);
+    const rangeStart = start ? new Date(start).getTime() : null;
+    const rangeEnd = end ? new Date(end).getTime() : null;
+    const used = (musics || []).filter((m) => {
+      const d = new Date(String(m.created_at || ''));
+      const t = d.getTime();
+      if (!Number.isFinite(t)) return true;
+      if (rangeStart != null && t < rangeStart) return false;
+      if (rangeEnd != null && t > rangeEnd) return false;
+      return true;
+    }).length;
     const remaining = Math.max(0, base + bonus - used);
     setRemainingUploads(remaining);
-  }, [user]);
+  }, [user, musics]);
 
   useEffect(() => {
     computeRemaining();
