@@ -4,6 +4,8 @@ import { useAuth } from './AuthContext';
 
 const DataContext = createContext();
 
+let supportsArtistsMetricsBatch = true;
+
 export const DataProvider = ({ children }) => {
   const [artists, setArtists] = useState([]);
   const [music, setMusic] = useState([]);
@@ -33,7 +35,7 @@ export const DataProvider = ({ children }) => {
           .filter(a => a.cargo === 'Artista')
           .map(a => a.id);
         let metricsMap = {};
-        if (artistIds.length) {
+        if (artistIds.length && supportsArtistsMetricsBatch) {
           const idsParam = encodeURIComponent(artistIds.join(','));
           try {
             const metricsRows = await apiClient.get(`/admin/artists/metrics?ids=${idsParam}`);
@@ -49,6 +51,7 @@ export const DataProvider = ({ children }) => {
             });
           } catch (e) {
             if (Number(e?.status) === 404) {
+              supportsArtistsMetricsBatch = false;
               const results = await Promise.allSettled(
                 artistIds.map((id) => apiClient.get(`/admin/artist/${id}/metrics`))
               );

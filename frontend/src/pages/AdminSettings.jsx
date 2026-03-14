@@ -200,7 +200,15 @@ export const AdminSettings = () => {
         await apiClient.put(`/profiles/${artist.id}/access-control`, payload);
       } catch (e) {
         if (Number(e?.status) === 404) {
-          await apiClient.put(`/profiles/${artist.id}/access_control`, payload);
+          try {
+            await apiClient.put(`/profiles/${artist.id}/access_control`, payload);
+          } catch (err) {
+            if (Number(err?.status) === 404) {
+              await apiClient.put(`/profiles/${artist.id}/accesscontrol`, payload);
+            } else {
+              throw err;
+            }
+          }
         } else {
           throw e;
         }

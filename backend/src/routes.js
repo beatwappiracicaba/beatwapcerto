@@ -605,8 +605,66 @@ apiRouter.get(
   })
 );
 
+apiRouter.get(
+  '/profiles/:id/access_control',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const targetId = String(req.params.id || '');
+    const { rows } = await query('select id, access_control from profiles where id = $1 limit 1', [targetId]);
+    if (!rows[0]) return bad(res, 404, 'Perfil não encontrado');
+    return ok(res, rows[0]);
+  })
+);
+
+apiRouter.get(
+  '/profiles/:id/accesscontrol',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const targetId = String(req.params.id || '');
+    const { rows } = await query('select id, access_control from profiles where id = $1 limit 1', [targetId]);
+    if (!rows[0]) return bad(res, 404, 'Perfil não encontrado');
+    return ok(res, rows[0]);
+  })
+);
+
 apiRouter.put(
   '/profiles/:id/access-control',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const targetId = String(req.params.id || '');
+    const access = req.body && req.body.access_control ? req.body.access_control : null;
+    if (!access || typeof access !== 'object') return bad(res, 400, 'access_control inválido');
+    const { rows } = await query(
+      'update profiles set access_control = $2, updated_at = now() where id = $1 returning id, access_control',
+      [targetId, access]
+    );
+    if (!rows[0]) return bad(res, 404, 'Perfil não encontrado');
+    return ok(res, rows[0]);
+  })
+);
+
+apiRouter.put(
+  '/profiles/:id/access_control',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const targetId = String(req.params.id || '');
+    const access = req.body && req.body.access_control ? req.body.access_control : null;
+    if (!access || typeof access !== 'object') return bad(res, 400, 'access_control inválido');
+    const { rows } = await query(
+      'update profiles set access_control = $2, updated_at = now() where id = $1 returning id, access_control',
+      [targetId, access]
+    );
+    if (!rows[0]) return bad(res, 404, 'Perfil não encontrado');
+    return ok(res, rows[0]);
+  })
+);
+
+apiRouter.put(
+  '/profiles/:id/accesscontrol',
   authRequired,
   requireRole(['Produtor']),
   asyncHandler(async (req, res) => {
