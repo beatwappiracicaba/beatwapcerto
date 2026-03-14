@@ -932,6 +932,111 @@ apiRouter.put(
   })
 );
 
+apiRouter.get(
+  '/admin/compositions',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const { limit, offset } = parsePagination(req, { defaultLimit: 200, maxLimit: 500 });
+    const status = req.query.status == null ? '' : String(req.query.status).trim();
+    const composerId = req.query.composer_id == null ? '' : String(req.query.composer_id).trim();
+
+    const cols = await getTableColumns('public.compositions');
+    const audioCol = pickFirstExistingColumn(cols, ['audio_url', 'file_url', 'url']);
+    const coverCol = pickFirstExistingColumn(cols, ['cover_url', 'image_url']);
+    const feedbackCol = pickFirstExistingColumn(cols, ['admin_feedback', 'feedback', 'rejection_reason']);
+
+    const where = [];
+    const params = [limit, offset];
+
+    if (status && status !== 'todos') {
+      params.push(status);
+      where.push(`c.status = $${params.length}`);
+    }
+
+    if (composerId) {
+      params.push(composerId);
+      where.push(`c.composer_id::text = $${params.length}`);
+    }
+
+    const selectParts = [
+      'c.id',
+      'c.composer_id',
+      'c.title',
+      'c.status',
+      audioCol ? `c.${qIdent(audioCol)} as audio_url` : 'null::text as audio_url',
+      coverCol ? `c.${qIdent(coverCol)} as cover_url` : 'null::text as cover_url',
+      feedbackCol ? `c.${qIdent(feedbackCol)} as admin_feedback` : 'null::text as admin_feedback',
+      'c.created_at',
+      'p.nome as profile_nome',
+      'p.nome_completo_razao_social as profile_nome_completo_razao_social',
+      'p.avatar_url as profile_avatar_url'
+    ];
+
+    const sql = `
+      select ${selectParts.join(', ')}
+        from compositions c
+        join profiles p on p.id = c.composer_id
+       ${where.length ? `where ${where.join(' and ')}` : ''}
+       order by c.created_at desc
+       limit $1 offset $2
+    `;
+
+    const { rows } = await timedQuery(req, sql, params, 'admin.compositions.list');
+    const mapped = (rows || []).map((r) => ({
+      id: r.id,
+      composer_id: r.composer_id,
+      title: r.title,
+      status: r.status,
+      audio_url: r.audio_url,
+      cover_url: r.cover_url,
+      admin_feedback: r.admin_feedback,
+      created_at: r.created_at,
+      profiles: {
+        nome: r.profile_nome,
+        nome_completo_razao_social: r.profile_nome_completo_razao_social,
+        avatar_url: r.profile_avatar_url
+      }
+    }));
+    return okPerf(req, res, mapped);
+  })
+);
+
+apiRouter.put(
+  '/admin/compositions/:id/status',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const id = String(req.params.id || '').trim();
+    const status = String(req.body?.status || '').trim().toLowerCase();
+    const feedback = req.body?.feedback == null ? null : String(req.body.feedback);
+
+    if (!id) return bad(res, 400, 'ID inválido');
+    if (!['pending', 'approved', 'rejected'].includes(status)) return bad(res, 400, 'Status inválido');
+
+    const cols = await getTableColumns('public.compositions');
+    const feedbackCol = pickFirstExistingColumn(cols, ['admin_feedback', 'feedback', 'rejection_reason']);
+
+    const sets = ['status = $2'];
+    const params = [id, status];
+
+    if (feedbackCol) {
+      params.push(feedback);
+      sets.push(`${qIdent(feedbackCol)} = $${params.length}`);
+    }
+
+    const sql = `
+      update compositions
+         set ${sets.join(', ')}
+       where id = $1
+       returning id, composer_id, title, status, created_at
+    `;
+    const { rows } = await query(sql, params);
+    if (!rows[0]) return bad(res, 404, 'Composição não encontrada');
+    return ok(res, rows[0]);
+  })
+);
+
 apiRouter.post(
   '/admin/users/:id/purge',
   authRequired,
