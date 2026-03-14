@@ -57,6 +57,19 @@ const Home = () => {
     return `https://wa.me/${phone}?text=${text}`;
   };
 
+  const formatWhatsAppPhone = (rawPhone) => {
+    const raw = decryptData(rawPhone);
+    const digits = String(raw || '').replace(/\D/g, '');
+    if (!digits) return null;
+    const normalized = digits.startsWith('55') ? digits : `55${digits}`;
+    const national = normalized.startsWith('55') ? normalized.slice(2) : normalized;
+    const ddd = national.slice(0, 2);
+    const rest = national.slice(2);
+    if (rest.length === 8) return `(${ddd}) ${rest.slice(0, 4)}-${rest.slice(4)}`;
+    if (rest.length === 9) return `(${ddd}) ${rest.slice(0, 5)}-${rest.slice(5)}`;
+    return `+${normalized}`;
+  };
+
   // Reset scroll on mount
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -166,7 +179,7 @@ const Home = () => {
       const compositions = (data && Array.isArray(data.compositions)) ? data.compositions : [];
       const mapped = compositions.map(c => ({
         ...c,
-        composer_name: decryptData(c.composer_name) || 'Compositor',
+        composer_name: decryptData(c.composer_name) || 'Autor',
         composer_phone: c.composer_phone
       }));
       setLatestCompositions(mapped);
@@ -231,7 +244,7 @@ const Home = () => {
       const data = await apiClient.get('/compositions');
       const mapped = (data || []).map(c => ({
         ...c,
-        composer_name: decryptData(c.composer_name) || 'Compositor',
+        composer_name: decryptData(c.composer_name) || 'Autor',
         composer_phone: c.composer_phone
       }));
       setLatestCompositions(mapped);
@@ -839,26 +852,35 @@ const Home = () => {
                           </div>
                           <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent block sm:hidden">
                             <div className="text-white text-sm font-bold truncate">{comp.title}</div>
-                            <div className="text-[11px] text-gray-300 truncate">{comp.composer_name || 'Compositor'}</div>
+                            <div className="text-[11px] text-gray-300 truncate">{comp.composer_name || 'Autor'}</div>
                           </div>
                         </div>
                         <h3 className="font-bold text-lg truncate"><span>{comp.title}</span></h3>
-                        <p className="text-sm text-gray-400 truncate"><span>{comp.composer_name || 'Compositor'}</span></p>
+                        <p className="text-sm text-gray-400 truncate"><span>{comp.composer_name || 'Autor'}</span></p>
                         <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{comp.genre || 'Gênero'}</span></p>
-                        {comp.composer_phone && (
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const href = buildWhatsAppHref(comp.composer_phone, comp.title);
-                              if (!href) return;
-                              window.open(href, '_blank');
-                            }}
-                            className="mt-3 flex items-center gap-2 text-xs font-bold text-green-400 bg-green-400/10 px-3 py-2 rounded-lg hover:bg-green-400/20 transition-colors w-full justify-center"
-                          >
-                            <MessageCircle size={14} />
-                            <span>WhatsApp do Compositor</span>
-                          </button>
-                        )}
+                        <div className="mt-3">
+                          {comp.composer_phone ? (
+                            <>
+                              <div className="text-xs text-gray-400 text-center">
+                                {formatWhatsAppPhone(comp.composer_phone) || 'WhatsApp não informado'}
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const href = buildWhatsAppHref(comp.composer_phone, comp.title);
+                                  if (!href) return;
+                                  window.open(href, '_blank');
+                                }}
+                                className="mt-2 flex items-center gap-2 text-xs font-bold text-green-400 bg-green-400/10 px-3 py-2 rounded-lg hover:bg-green-400/20 transition-colors w-full justify-center"
+                              >
+                                <MessageCircle size={14} />
+                                <span>Chamar no WhatsApp</span>
+                              </button>
+                            </>
+                          ) : (
+                            <div className="text-xs text-gray-500 text-center">WhatsApp não informado</div>
+                          )}
+                        </div>
                       </motion.div>
                     </div>
                   ))}
