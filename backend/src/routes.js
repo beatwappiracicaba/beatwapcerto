@@ -85,6 +85,77 @@ function parseDataUrl(dataUrl) {
   return { mime: String(match[1] || '').toLowerCase(), base64: String(match[2] || '') };
 }
 
+const uploadsCountCache = {
+  checkedAtMs: 0,
+  musicTable: null,
+  tableUserColumn: new Map()
+};
+
+async function resolveMusicTable() {
+  if (uploadsCountCache.musicTable && (Date.now() - uploadsCountCache.checkedAtMs) < 5 * 60 * 1000) return uploadsCountCache.musicTable;
+  uploadsCountCache.checkedAtMs = Date.now();
+  const { rows } = await query(
+    "select to_regclass('public.musics') as musics, to_regclass('public.songs') as songs, to_regclass('public.music') as music",
+    []
+  );
+  const row = rows[0] || {};
+  uploadsCountCache.musicTable = row.musics || row.songs || row.music || null;
+  return uploadsCountCache.musicTable;
+}
+
+async function countByUserAndCreatedAt({ table, userId, startIso, endIso }) {
+  const safeTable = String(table || '').trim();
+  if (!safeTable) return 0;
+  const userColumns = ['artist_id', 'artista_id', 'user_id', 'owner_id', 'composer_id', 'producer_id'];
+
+  const cachedCol = uploadsCountCache.tableUserColumn.get(safeTable) || null;
+  const candidates = cachedCol ? [cachedCol, ...userColumns.filter((c) => c !== cachedCol)] : userColumns;
+
+  for (const col of candidates) {
+    const safeCol = userColumns.includes(col) ? col : null;
+    if (!safeCol) continue;
+    try {
+      if (startIso && endIso) {
+        const { rows } = await query(
+          `select count(*)::int as count from ${safeTable} where ${safeCol} = $1 and created_at >= $2 and created_at <= $3`,
+          [userId, startIso, endIso]
+        );
+        uploadsCountCache.tableUserColumn.set(safeTable, safeCol);
+        return Number(rows[0]?.count || 0);
+      }
+      if (startIso) {
+        const { rows } = await query(
+          `select count(*)::int as count from ${safeTable} where ${safeCol} = $1 and created_at >= $2`,
+          [userId, startIso]
+        );
+        uploadsCountCache.tableUserColumn.set(safeTable, safeCol);
+        return Number(rows[0]?.count || 0);
+      }
+      if (endIso) {
+        const { rows } = await query(
+          `select count(*)::int as count from ${safeTable} where ${safeCol} = $1 and created_at <= $2`,
+          [userId, endIso]
+        );
+        uploadsCountCache.tableUserColumn.set(safeTable, safeCol);
+        return Number(rows[0]?.count || 0);
+      }
+      const { rows } = await query(`select count(*)::int as count from ${safeTable} where ${safeCol} = $1`, [userId]);
+      uploadsCountCache.tableUserColumn.set(safeTable, safeCol);
+      return Number(rows[0]?.count || 0);
+    } catch {
+      try {
+        const { rows } = await query(`select count(*)::int as count from ${safeTable} where ${safeCol} = $1`, [userId]);
+        uploadsCountCache.tableUserColumn.set(safeTable, safeCol);
+        return Number(rows[0]?.count || 0);
+      } catch {
+        void 0;
+      }
+    }
+  }
+
+  return 0;
+}
+
 function cargoFromRole(roleRaw) {
   const role = String(roleRaw || '').trim().toLowerCase();
   if (!role) return null;
@@ -374,6 +445,67 @@ apiRouter.post(
 );
 
 apiRouter.get(
+  '/me/uploads/count',
+  authRequired,
+  asyncHandler(async (req, res) => {
+    const userId = String(req.user.id);
+    const type = String(req.query.type || 'music').trim().toLowerCase();
+    const startRaw = req.query.start != null ? String(req.query.start) : null;
+    const endRaw = req.query.end != null ? String(req.query.end) : null;
+    const startDate = startRaw ? new Date(startRaw) : null;
+    const endDate = endRaw ? new Date(endRaw) : null;
+
+    if (startDate && Number.isNaN(startDate.getTime())) return bad(res, 400, 'Data inicial inválida');
+    if (endDate && Number.isNaN(endDate.getTime())) return bad(res, 400, 'Data final inválida');
+    if (startDate && endDate && startDate.getTime() > endDate.getTime()) return bad(res, 400, 'Intervalo de datas inválido');
+
+    const startIso = startDate ? startDate.toISOString() : null;
+    const endIso = endDate ? endDate.toISOString() : null;
+
+    if (type === 'composition') {
+      const count = await countByUserAndCreatedAt({
+        table: 'public.compositions',
+        userId,
+        startIso,
+        endIso
+      });
+      return ok(res, { count });
+    }
+
+    if (type === 'post') {
+      const count = await countByUserAndCreatedAt({
+        table: 'public.posts',
+        userId,
+        startIso,
+        endIso
+      });
+      return ok(res, { count });
+    }
+
+    if (type === 'event') {
+      const count = await countByUserAndCreatedAt({
+        table: 'public.public_events',
+        userId,
+        startIso,
+        endIso
+      });
+      return ok(res, { count });
+    }
+
+    const musicTable = await resolveMusicTable();
+    if (!musicTable) return ok(res, { count: 0 });
+
+    const count = await countByUserAndCreatedAt({
+      table: String(musicTable),
+      userId,
+      startIso,
+      endIso
+    });
+    return ok(res, { count });
+  })
+);
+
+apiRouter.get(
   '/profiles',
   asyncHandler(async (req, res) => {
     const includePrivate = !!(req.headers.authorization || req.headers.Authorization);
@@ -438,6 +570,18 @@ apiRouter.put(
   })
 );
 
+apiRouter.get(
+  '/profiles/:id/access-control',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const targetId = String(req.params.id || '');
+    const { rows } = await query('select id, access_control from profiles where id = $1 limit 1', [targetId]);
+    if (!rows[0]) return bad(res, 404, 'Perfil não encontrado');
+    return ok(res, rows[0]);
+  })
+);
+
 apiRouter.put(
   '/profiles/:id/access-control',
   authRequired,
@@ -452,6 +596,75 @@ apiRouter.put(
     );
     if (!rows[0]) return bad(res, 404, 'Perfil não encontrado');
     return ok(res, rows[0]);
+  })
+);
+
+apiRouter.get(
+  '/admin/artist/:id/metrics',
+  authRequired,
+  asyncHandler(async (req, res) => {
+    const artistId = String(req.params.id || '');
+    const requesterId = String(req.user?.id || '');
+    const requesterRole = String(req.profile?.cargo || '');
+    if (requesterRole !== 'Produtor' && requesterId !== artistId) return bad(res, 403, 'Sem permissão');
+
+    const { rows } = await query(
+      'select artist_id, total_plays, ouvintes_mensais, receita_estimada, updated_at from artist_metrics where artist_id = $1 limit 1',
+      [artistId]
+    );
+    if (rows[0]) return ok(res, rows[0]);
+    return ok(res, { artist_id: artistId, total_plays: 0, ouvintes_mensais: 0, receita_estimada: 0, updated_at: null });
+  })
+);
+
+apiRouter.post(
+  '/admin/artist/:id/metrics',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const artistId = String(req.params.id || '');
+    const totalPlays = clampInt(req.body?.total_plays, { min: 0, max: 1_000_000_000, fallback: 0 });
+    const ouvintesMensais = clampInt(req.body?.ouvintes_mensais, { min: 0, max: 1_000_000_000, fallback: 0 });
+    const receitaEstimada = Number(req.body?.receita_estimada || 0);
+    const safeReceita = Number.isFinite(receitaEstimada) ? receitaEstimada : 0;
+
+    const { rows } = await query(
+      `insert into artist_metrics (artist_id, total_plays, ouvintes_mensais, receita_estimada, updated_at)
+       values ($1, $2, $3, $4, now())
+       on conflict (artist_id)
+       do update set total_plays = excluded.total_plays,
+                     ouvintes_mensais = excluded.ouvintes_mensais,
+                     receita_estimada = excluded.receita_estimada,
+                     updated_at = now()
+       returning artist_id, total_plays, ouvintes_mensais, receita_estimada, updated_at`,
+      [artistId, totalPlays, ouvintesMensais, safeReceita]
+    );
+    return ok(res, rows[0] || null);
+  })
+);
+
+apiRouter.get(
+  '/admin/artists/metrics',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const raw = req.query.ids != null ? String(req.query.ids) : '';
+    const ids = raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const uniqueIds = Array.from(new Set(ids)).filter((id) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    );
+    if (!uniqueIds.length) return ok(res, []);
+
+    const { rows } = await query(
+      'select artist_id, total_plays, ouvintes_mensais, receita_estimada, updated_at from artist_metrics where artist_id = any($1::uuid[])',
+      [uniqueIds]
+    );
+    const byId = new Map((rows || []).map((r) => [String(r.artist_id), r]));
+    const ordered = uniqueIds.map((id) => byId.get(String(id)) || { artist_id: id, total_plays: 0, ouvintes_mensais: 0, receita_estimada: 0, updated_at: null });
+    return ok(res, ordered);
   })
 );
 

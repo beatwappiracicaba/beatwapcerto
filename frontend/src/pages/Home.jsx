@@ -166,7 +166,7 @@ const Home = () => {
       const compositions = (data && Array.isArray(data.compositions)) ? data.compositions : [];
       const mapped = compositions.map(c => ({
         ...c,
-        composer_name: c.composer_name || 'Compositor',
+        composer_name: decryptData(c.composer_name) || 'Compositor',
         composer_phone: c.composer_phone
       }));
       setLatestCompositions(mapped);
@@ -231,7 +231,7 @@ const Home = () => {
       const data = await apiClient.get('/compositions');
       const mapped = (data || []).map(c => ({
         ...c,
-        composer_name: c.composer_name || 'Compositor',
+        composer_name: decryptData(c.composer_name) || 'Compositor',
         composer_phone: c.composer_phone
       }));
       setLatestCompositions(mapped);
@@ -839,11 +839,11 @@ const Home = () => {
                           </div>
                           <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent block sm:hidden">
                             <div className="text-white text-sm font-bold truncate">{comp.title}</div>
-                            <div className="text-[11px] text-gray-300 truncate">{comp.composer_name}</div>
+                            <div className="text-[11px] text-gray-300 truncate">{comp.composer_name || 'Compositor'}</div>
                           </div>
                         </div>
                         <h3 className="font-bold text-lg truncate"><span>{comp.title}</span></h3>
-                        <p className="text-sm text-gray-400 truncate"><span>{comp.composer_name}</span></p>
+                        <p className="text-sm text-gray-400 truncate"><span>{comp.composer_name || 'Compositor'}</span></p>
                         <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{comp.genre || 'Gênero'}</span></p>
                         {comp.composer_phone && (
                           <button 
