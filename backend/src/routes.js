@@ -543,7 +543,30 @@ apiRouter.get(
     const id = String(req.params.id || '');
     const includeEmail = !!(req.headers.authorization || req.headers.Authorization);
     const { rows } = await query(
-      `select id, ${includeEmail ? 'email' : 'null::text as email'}, cargo, nome, nome_completo_razao_social, avatar_url, plano, access_control, created_at from profiles where id = $1 limit 1`,
+      `select id,
+              ${includeEmail ? 'email' : 'null::text as email'},
+              cargo,
+              nome,
+              nome_completo_razao_social,
+              avatar_url,
+              bio,
+              celular,
+              instagram_url,
+              site_url,
+              youtube_url,
+              spotify_url,
+              deezer_url,
+              tiktok_url,
+              genero_musical,
+              tema,
+              cidade,
+              estado,
+              plano,
+              access_control,
+              created_at
+         from profiles
+        where id = $1
+        limit 1`,
       [id]
     );
     if (!rows[0]) return bad(res, 404, 'Perfil não encontrado');

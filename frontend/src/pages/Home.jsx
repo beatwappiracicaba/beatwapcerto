@@ -70,6 +70,45 @@ const Home = () => {
     return `+${normalized}`;
   };
 
+  const enrichCompositionsFromProfiles = async (comps) => {
+    const missingIds = new Set();
+    (comps || []).forEach((c) => {
+      const authorId = c?.composer_id;
+      if (!authorId) return;
+      const hasName = !!(c?.composer_name && c.composer_name !== 'Autor');
+      const hasPhone = !!formatWhatsAppPhone(c?.composer_phone);
+      if (!hasName || !hasPhone) missingIds.add(String(authorId));
+    });
+    const ids = Array.from(missingIds);
+    if (!ids.length) return comps;
+
+    const results = await Promise.allSettled(
+      ids.map((id) => apiClient.get(`/profiles/${id}`, { cache: true, cacheTtlMs: 15000 }))
+    );
+    const byId = new Map();
+    results.forEach((r) => {
+      if (r.status !== 'fulfilled') return;
+      const p = r.value;
+      if (!p?.id) return;
+      byId.set(String(p.id), p);
+    });
+
+    return (comps || []).map((c) => {
+      const authorId = c?.composer_id;
+      const p = authorId ? byId.get(String(authorId)) : null;
+      if (!p) return c;
+
+      const name =
+        (c?.composer_name && c.composer_name !== 'Autor')
+          ? c.composer_name
+          : (decryptData(p.nome) || decryptData(p.nome_completo_razao_social) || 'Autor');
+
+      const phone = c?.composer_phone || p.celular || p.phone || null;
+
+      return { ...c, composer_name: name, composer_phone: phone };
+    });
+  };
+
   // Reset scroll on mount
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -179,10 +218,14 @@ const Home = () => {
       const compositions = (data && Array.isArray(data.compositions)) ? data.compositions : [];
       const mapped = compositions.map(c => ({
         ...c,
-        composer_name: decryptData(c.composer_name) || 'Autor',
-        composer_phone: c.composer_phone
+        composer_id: c?.composer_id || c?.composerId || c?.user_id || c?.userId || c?.profile_id || c?.profileId,
+        composer_name: decryptData(c?.composer_name || c?.author_name || c?.nome_autor || c?.nome_compositor || c?.nome || '') || 'Autor',
+        composer_phone: c?.composer_phone || c?.celular || c?.whatsapp || c?.phone || null
       }));
       setLatestCompositions(mapped);
+      enrichCompositionsFromProfiles(mapped)
+        .then((enriched) => setLatestCompositions(enriched))
+        .catch(() => void 0);
 
       setLatestProjects((data && Array.isArray(data.projects)) ? data.projects : []);
       setComposers(sortProfilesOldestFirst((data && Array.isArray(data.composers)) ? data.composers : []));
@@ -244,10 +287,14 @@ const Home = () => {
       const data = await apiClient.get('/compositions');
       const mapped = (data || []).map(c => ({
         ...c,
-        composer_name: decryptData(c.composer_name) || 'Autor',
-        composer_phone: c.composer_phone
+        composer_id: c?.composer_id || c?.composerId || c?.user_id || c?.userId || c?.profile_id || c?.profileId,
+        composer_name: decryptData(c?.composer_name || c?.author_name || c?.nome_autor || c?.nome_compositor || c?.nome || '') || 'Autor',
+        composer_phone: c?.composer_phone || c?.celular || c?.whatsapp || c?.phone || null
       }));
       setLatestCompositions(mapped);
+      enrichCompositionsFromProfiles(mapped)
+        .then((enriched) => setLatestCompositions(enriched))
+        .catch(() => void 0);
     } catch (error) {
       console.error('Error fetching compositions:', error);
     }
