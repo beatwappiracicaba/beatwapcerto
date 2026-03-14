@@ -195,7 +195,16 @@ export const AdminSettings = () => {
   const savePermissions = async (artist) => {
     setSavingId(artist.id);
     try {
-      await apiClient.put(`/profiles/${artist.id}/access-control`, { access_control: artist.access_control });
+      const payload = { access_control: artist.access_control };
+      try {
+        await apiClient.put(`/profiles/${artist.id}/access-control`, payload);
+      } catch (e) {
+        if (Number(e?.status) === 404) {
+          await apiClient.put(`/profiles/${artist.id}/access_control`, payload);
+        } else {
+          throw e;
+        }
+      }
       addToast('Permissões atualizadas com sucesso!', 'success');
     } catch (error) {
       console.error('Error saving permissions:', error);

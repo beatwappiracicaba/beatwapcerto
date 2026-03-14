@@ -35,17 +35,39 @@ export const DataProvider = ({ children }) => {
         let metricsMap = {};
         if (artistIds.length) {
           const idsParam = encodeURIComponent(artistIds.join(','));
-          const metricsRows = await apiClient.get(`/admin/artists/metrics?ids=${idsParam}`);
-          (metricsRows || []).forEach(m => {
-            const id = m?.artist_id || m?.artista_id;
-            if (!id) return;
-            metricsMap[id] = {
-              plays: String(m.total_plays ?? '0'),
-              listeners: String(m.ouvintes_mensais ?? '0'),
-              revenue: String(m.receita_estimada ?? '0'),
-              growth: '0%'
-            };
-          });
+          try {
+            const metricsRows = await apiClient.get(`/admin/artists/metrics?ids=${idsParam}`);
+            (metricsRows || []).forEach(m => {
+              const id = m?.artist_id || m?.artista_id;
+              if (!id) return;
+              metricsMap[id] = {
+                plays: String(m.total_plays ?? '0'),
+                listeners: String(m.ouvintes_mensais ?? '0'),
+                revenue: String(m.receita_estimada ?? '0'),
+                growth: '0%'
+              };
+            });
+          } catch (e) {
+            if (Number(e?.status) === 404) {
+              const results = await Promise.allSettled(
+                artistIds.map((id) => apiClient.get(`/admin/artist/${id}/metrics`))
+              );
+              results.forEach((r, idx) => {
+                if (r.status !== 'fulfilled') return;
+                const m = r.value;
+                const id = m?.artist_id || m?.artista_id || artistIds[idx];
+                if (!id) return;
+                metricsMap[id] = {
+                  plays: String(m.total_plays ?? '0'),
+                  listeners: String(m.ouvintes_mensais ?? '0'),
+                  revenue: String(m.receita_estimada ?? '0'),
+                  growth: '0%'
+                };
+              });
+            } else {
+              throw e;
+            }
+          }
         }
         const mergedArtists = formattedArtists.map(a => ({
           ...a,
