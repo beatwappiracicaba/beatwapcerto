@@ -88,7 +88,8 @@ function parseDataUrl(dataUrl) {
 const uploadsCountCache = {
   checkedAtMs: 0,
   musicTable: null,
-  tableUserColumn: new Map()
+  tableUserColumn: new Map(),
+  tableColumns: new Map()
 };
 
 async function resolveMusicTable() {
@@ -101,6 +102,42 @@ async function resolveMusicTable() {
   const row = rows[0] || {};
   uploadsCountCache.musicTable = row.musics || row.songs || row.music || null;
   return uploadsCountCache.musicTable;
+}
+
+function parseQualifiedTableName(qualified) {
+  const raw = String(qualified || '').trim();
+  if (!raw) return { schema: 'public', table: '' };
+  const cleaned = raw.replace(/"/g, '');
+  const parts = cleaned.split('.');
+  if (parts.length === 2) return { schema: parts[0] || 'public', table: parts[1] || '' };
+  return { schema: 'public', table: cleaned };
+}
+
+async function getTableColumns(qualifiedTable) {
+  const key = String(qualifiedTable || '').trim();
+  if (!key) return new Set();
+  const cached = uploadsCountCache.tableColumns.get(key);
+  if (cached) return cached;
+  const { schema, table } = parseQualifiedTableName(key);
+  if (!table) return new Set();
+  const { rows } = await query(
+    'select column_name from information_schema.columns where table_schema = $1 and table_name = $2',
+    [schema, table]
+  );
+  const set = new Set((rows || []).map((r) => String(r.column_name)));
+  uploadsCountCache.tableColumns.set(key, set);
+  return set;
+}
+
+function pickFirstExistingColumn(columnsSet, candidates) {
+  for (const c of candidates) {
+    if (columnsSet.has(c)) return c;
+  }
+  return null;
+}
+
+function qIdent(col) {
+  return `"${String(col).replace(/"/g, '""')}"`;
 }
 
 async function countByUserAndCreatedAt({ table, userId, startIso, endIso }) {
@@ -698,6 +735,33 @@ apiRouter.get(
   })
 );
 
+apiRouter.get(
+  '/admin/stats',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const { rows: aRows } = await query("select count(*)::int as count from profiles where cargo = 'Artista'", []);
+    const artists = aRows[0]?.count || 0;
+
+    const musicTable = await resolveMusicTable();
+    if (!musicTable) return ok(res, { artists, musics: 0, pending: 0 });
+
+    const { rows: mRows } = await query(`select count(*)::int as count from ${musicTable}`, []);
+    const musics = mRows[0]?.count || 0;
+
+    const cols = await getTableColumns(musicTable);
+    const statusCol = pickFirstExistingColumn(cols, ['status', 'estado']);
+    if (!statusCol) return ok(res, { artists, musics, pending: 0 });
+
+    const { rows: pRows } = await query(
+      `select count(*)::int as count from ${musicTable} where lower(${qIdent(statusCol)}) = any($1::text[])`,
+      [['pendente', 'pending']]
+    );
+    const pending = pRows[0]?.count || 0;
+    return ok(res, { artists, musics, pending });
+  })
+);
+
 apiRouter.post(
   '/admin/artist/:id/metrics',
   authRequired,
@@ -746,6 +810,125 @@ apiRouter.get(
     const byId = new Map((rows || []).map((r) => [String(r.artist_id), r]));
     const ordered = uniqueIds.map((id) => byId.get(String(id)) || { artist_id: id, total_plays: 0, ouvintes_mensais: 0, receita_estimada: 0, updated_at: null });
     return ok(res, ordered);
+  })
+);
+
+apiRouter.get(
+  '/admin/musics',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const musicTable = await resolveMusicTable();
+    if (!musicTable) return ok(res, []);
+
+    const cols = await getTableColumns(musicTable);
+    const idCol = pickFirstExistingColumn(cols, ['id']);
+    if (!idCol) return ok(res, []);
+
+    const artistCol = pickFirstExistingColumn(cols, ['artista_id', 'artist_id', 'user_id', 'owner_id']);
+    const titleCol = pickFirstExistingColumn(cols, ['titulo', 'title', 'nome', 'name']);
+    const statusCol = pickFirstExistingColumn(cols, ['status', 'estado']);
+    const createdAtCol = pickFirstExistingColumn(cols, ['created_at', 'createdAt', 'data_criacao', 'created']);
+
+    const selectParts = [
+      `m.${qIdent(idCol)} as id`,
+      titleCol ? `m.${qIdent(titleCol)} as titulo` : `null::text as titulo`,
+      artistCol ? `m.${qIdent(artistCol)} as artista_id` : `null::uuid as artista_id`,
+      `pf.nome as nome_artista`,
+      cols.has('cover_url') ? `m.${qIdent('cover_url')} as cover_url` : `null::text as cover_url`,
+      cols.has('audio_url') ? `m.${qIdent('audio_url')} as audio_url` : `null::text as audio_url`,
+      cols.has('authorization_url') ? `m.${qIdent('authorization_url')} as authorization_url` : `null::text as authorization_url`,
+      cols.has('is_original') ? `m.${qIdent('is_original')} as is_original` : `false as is_original`,
+      statusCol ? `m.${qIdent(statusCol)} as status` : `null::text as status`,
+      cols.has('estilo') ? `m.${qIdent('estilo')} as estilo` : `null::text as estilo`,
+      cols.has('upc') ? `m.${qIdent('upc')} as upc` : `null::text as upc`,
+      cols.has('isrc') ? `m.${qIdent('isrc')} as isrc` : `null::text as isrc`,
+      cols.has('presave_link') ? `m.${qIdent('presave_link')} as presave_link` : `null::text as presave_link`,
+      cols.has('release_date') ? `m.${qIdent('release_date')} as release_date` : `null::timestamptz as release_date`,
+      cols.has('album_id') ? `m.${qIdent('album_id')} as album_id` : `null::uuid as album_id`,
+      cols.has('album_title') ? `m.${qIdent('album_title')} as album_title` : `null::text as album_title`,
+      cols.has('is_beatwap_produced') ? `m.${qIdent('is_beatwap_produced')} as is_beatwap_produced` : `false as is_beatwap_produced`,
+      cols.has('produced_by') ? `m.${qIdent('produced_by')} as produced_by` : `null::uuid as produced_by`,
+      cols.has('show_on_home') ? `m.${qIdent('show_on_home')} as show_on_home` : `false as show_on_home`,
+      createdAtCol ? `m.${qIdent(createdAtCol)} as created_at` : `null::timestamptz as created_at`
+    ];
+
+    const where = [];
+    const params = [];
+
+    const status = req.query.status != null ? String(req.query.status).trim() : '';
+    if (status && status !== 'todos' && statusCol) {
+      params.push(status);
+      where.push(`lower(m.${qIdent(statusCol)}) = lower($${params.length})`);
+    }
+
+    const artistId = req.query.artist_id != null ? String(req.query.artist_id).trim() : '';
+    if (artistId && artistCol) {
+      params.push(artistId);
+      where.push(`m.${qIdent(artistCol)}::text = $${params.length}`);
+    }
+
+    const { limit, offset } = parsePagination(req, { defaultLimit: 200, maxLimit: 500 });
+    params.push(limit);
+    params.push(offset);
+
+    const orderBy = createdAtCol ? `m.${qIdent(createdAtCol)} desc` : `m.${qIdent(idCol)} desc`;
+    const sql = `
+      select ${selectParts.join(', ')}
+        from ${musicTable} m
+        ${artistCol ? `left join profiles pf on pf.id = m.${qIdent(artistCol)}` : 'left join profiles pf on 1=0'}
+       ${where.length ? `where ${where.join(' and ')}` : ''}
+       order by ${orderBy}
+       limit $${params.length - 1} offset $${params.length}
+    `;
+
+    const { rows } = await timedQuery(req, sql, params, 'admin.musics.list');
+    return okPerf(req, res, rows);
+  })
+);
+
+apiRouter.put(
+  '/admin/musics/:id',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const musicTable = await resolveMusicTable();
+    if (!musicTable) return bad(res, 404, 'Tabela de músicas não encontrada');
+
+    const cols = await getTableColumns(musicTable);
+    const idCol = pickFirstExistingColumn(cols, ['id']);
+    if (!idCol) return bad(res, 404, 'Tabela de músicas inválida');
+
+    const id = String(req.params.id || '').trim();
+    if (!id) return bad(res, 400, 'ID inválido');
+
+    const payload = req.body || {};
+    const allowed = [
+      'status',
+      'upc',
+      'presave_link',
+      'release_date',
+      'is_beatwap_produced',
+      'produced_by',
+      'show_on_home',
+      'isrc'
+    ];
+
+    const sets = [];
+    const params = [id];
+    for (const key of allowed) {
+      if (!cols.has(key)) continue;
+      if (!(key in payload)) continue;
+      params.push(payload[key]);
+      sets.push(`${qIdent(key)} = $${params.length}`);
+    }
+
+    if (!sets.length) return bad(res, 400, 'Nada para atualizar');
+
+    const sql = `update ${musicTable} set ${sets.join(', ')} where ${qIdent(idCol)}::text = $1 returning *`;
+    const { rows } = await query(sql, params);
+    if (!rows[0]) return bad(res, 404, 'Música não encontrada');
+    return ok(res, rows[0]);
   })
 );
 
@@ -1184,6 +1367,60 @@ apiRouter.get(
       'projects.list'
     );
     return okPerf(req, res, rows);
+  })
+);
+
+apiRouter.get(
+  '/producer-projects',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const { rows } = await timedQuery(
+      req,
+      'select id, producer_id, title, url, platform, published, created_at from producer_projects order by created_at desc',
+      [],
+      'producer_projects.list'
+    );
+    const withCover = (rows || []).map((r) => ({ ...r, cover_url: null }));
+    return okPerf(req, res, withCover);
+  })
+);
+
+apiRouter.post(
+  '/producer-projects',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const producerId = String(req.body?.producer_id || req.user?.id || '');
+    const title = String(req.body?.title || '').trim();
+    const url = String(req.body?.url || '').trim();
+    const platform = String(req.body?.platform || '').trim();
+    const published = req.body?.published == null ? true : !!req.body.published;
+
+    if (!producerId || !title || !url || !platform) return bad(res, 400, 'Dados inválidos');
+
+    const { rows } = await query(
+      `insert into producer_projects (id, producer_id, title, url, platform, published)
+       values (gen_random_uuid(), $1, $2, $3, $4, $5)
+       returning id, producer_id, title, url, platform, published, created_at`,
+      [producerId, title, url, platform, published]
+    );
+    const row = rows[0] ? { ...rows[0], cover_url: null } : null;
+    return ok(res, row);
+  })
+);
+
+apiRouter.delete(
+  '/producer-projects/:id',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const id = String(req.params.id || '').trim();
+    if (!id) return bad(res, 400, 'ID inválido');
+
+    const { rows } = await query('delete from producer_projects where id = $1 returning id', [id]);
+    if (!rows[0]) return bad(res, 404, 'Projeto não encontrado');
+    return ok(res, { ok: true });
   })
 );
 
