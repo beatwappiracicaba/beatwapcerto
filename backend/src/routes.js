@@ -1191,7 +1191,9 @@ apiRouter.get(
     const status = req.query.status == null ? null : String(req.query.status).trim();
     const baseSql = `
       select c.id, c.composer_id, c.title, c.status, c.file_url, c.created_at,
-             p.nome as composer_name, p.celular as composer_phone, p.avatar_url as composer_avatar_url
+             coalesce(nullif(p.nome, ''), nullif(p.nome_completo_razao_social, '')) as composer_name,
+             p.celular as composer_phone,
+             p.avatar_url as composer_avatar_url
         from compositions c
         join profiles p on p.id = c.composer_id
       ${status ? 'where c.status = $3' : ''}
@@ -1232,7 +1234,9 @@ apiRouter.get(
                     limit $2) p) as projects,
           (select coalesce(jsonb_agg(c order by c.created_at desc), '[]'::jsonb)
              from (select c.id, c.composer_id, c.title, c.status, c.file_url, c.created_at,
-                          p.nome as composer_name, p.celular as composer_phone, p.avatar_url as composer_avatar_url
+                          coalesce(nullif(p.nome, ''), nullif(p.nome_completo_razao_social, '')) as composer_name,
+                          p.celular as composer_phone,
+                          p.avatar_url as composer_avatar_url
                      from compositions c
                      join profiles p on p.id = c.composer_id
                     order by c.created_at desc
