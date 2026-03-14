@@ -503,6 +503,15 @@ export const DashboardPublicProfile = () => {
       const data = await apiClient.get('/my/events', { cache: false });
       setEvents(Array.isArray(data) ? data : []);
     } catch (e) {
+      if (Number(e?.status) === 404 && profile?.id) {
+        try {
+          const fallback = await apiClient.get(`/profiles/${profile.id}/events`, { cache: false });
+          setEvents(Array.isArray(fallback) ? fallback : []);
+          return;
+        } catch (err) {
+          console.error(err);
+        }
+      }
       console.error(e);
       addToast('Falha ao carregar seus shows', 'error');
       setEvents([]);
