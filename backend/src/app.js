@@ -37,6 +37,7 @@ function createApp() {
 
   app.get('/health', (req, res) => res.json({ ok: true }));
   app.use('/api', apiRouter);
+  app.use(apiRouter);
 
   app.use((req, res) => res.status(404).json({ success: false, error: 'Não encontrado' }));
   app.use(errorHandler);
