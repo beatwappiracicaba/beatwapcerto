@@ -37,18 +37,16 @@ router.get('/sponsors', async (req, res) => {
 router.get('/profiles', async (req, res) => {
   const role = String(req.query.role || '').toLowerCase();
   const map = { artist: 'Artista', producer: 'Produtor', seller: 'Vendedor', composer: 'Compositor' };
-  const cargo = map[role];
-  if (!cargo) return res.status(400).json({ ok: false, error: 'role inválido' });
-  const rows = await Profile.findAll({ where: { cargo }, limit: 50, order: [['created_at', 'DESC']] });
+  const cargo = map[role] || null;
+  const where = cargo ? { cargo } : {};
+  const rows = await Profile.findAll({ where, limit: 100, order: [['created_at', 'DESC']] });
   return res.json(rows);
 });
 
 router.get('/profiles/:id', async (req, res) => {
   const profile = await Profile.findByPk(String(req.params.id));
   if (!profile) return res.status(404).json({ ok: false, error: 'Não encontrado' });
-  const musics = await Music.findAll({ where: { profile_id: profile.id }, limit: 20, order: [['created_at', 'DESC']] });
-  const compositions = await Composition.findAll({ where: { profile_id: profile.id }, limit: 20, order: [['created_at', 'DESC']] });
-  return res.json({ ok: true, profile, musics, compositions });
+  return res.json(profile);
 });
 
 router.get('/profiles/:id/posts', async (req, res) => {
@@ -56,7 +54,7 @@ router.get('/profiles/:id/posts', async (req, res) => {
   const profile = await Profile.findByPk(profileId);
   if (!profile) return res.status(404).json({ ok: false, error: 'Não encontrado' });
   const posts = await Post.findAll({ where: { profile_id: profileId }, limit: 50, order: [['created_at', 'DESC']] });
-  return res.json({ ok: true, posts });
+  return res.json(posts);
 });
 
 router.get('/profiles/:id/compositions', async (req, res) => {
@@ -64,7 +62,7 @@ router.get('/profiles/:id/compositions', async (req, res) => {
   const profile = await Profile.findByPk(profileId);
   if (!profile) return res.status(404).json({ ok: false, error: 'Não encontrado' });
   const compositions = await Composition.findAll({ where: { profile_id: profileId }, limit: 50, order: [['created_at', 'DESC']] });
-  return res.json({ ok: true, compositions });
+  return res.json(compositions);
 });
 
 router.get('/profiles/:id/musics', async (req, res) => {
@@ -72,7 +70,7 @@ router.get('/profiles/:id/musics', async (req, res) => {
   const profile = await Profile.findByPk(profileId);
   if (!profile) return res.status(404).json({ ok: false, error: 'Não encontrado' });
   const musics = await Music.findAll({ where: { profile_id: profileId }, limit: 50, order: [['created_at', 'DESC']] });
-  return res.json({ ok: true, musics });
+  return res.json(musics);
 });
 
 router.get('/profile/:id', async (req, res) => {
@@ -95,7 +93,49 @@ router.get('/legal/:page', (req, res) => {
 
 router.get('/events', async (req, res) => {
   const events = await PublicEvent.findAll({ limit: 20, order: [['event_date', 'DESC']] });
-  return res.json({ ok: true, events });
+  return res.json(events);
+});
+
+router.get('/artists', async (req, res) => {
+  const rows = await Profile.findAll({ where: { cargo: 'Artista' }, limit: 100, order: [['created_at', 'DESC']] });
+  return res.json(rows);
+});
+
+router.get('/producers', async (req, res) => {
+  const rows = await Profile.findAll({ where: { cargo: 'Produtor' }, limit: 100, order: [['created_at', 'DESC']] });
+  return res.json(rows);
+});
+
+router.get('/users', async (req, res) => {
+  const rows = await Profile.findAll({ limit: 200, order: [['created_at', 'DESC']] });
+  return res.json(rows);
+});
+
+router.get('/profiles/:id/events', async (req, res) => {
+  const profileId = String(req.params.id);
+  const profile = await Profile.findByPk(profileId);
+  if (!profile) return res.status(404).json({ ok: false, error: 'Não encontrado' });
+  const rows = await PublicEvent.findAll({ where: { profile_id: profileId }, limit: 50, order: [['event_date', 'DESC']] });
+  return res.json(rows);
+});
+
+router.get('/profiles/:id/feats', async (req, res) => {
+  const profileId = String(req.params.id);
+  const profile = await Profile.findByPk(profileId);
+  if (!profile) return res.status(404).json({ ok: false, error: 'Não encontrado' });
+  const rows = await Music.findAll({ where: { feat_profile_id: profileId }, limit: 50, order: [['created_at', 'DESC']] });
+  return res.json(rows);
+});
+
+router.post('/analytics', async (req, res) => {
+  return res.json({ ok: true });
+});
+
+router.get('/sellers/:id/stats', async (req, res) => {
+  const id = String(req.params.id);
+  const profile = await Profile.findByPk(id);
+  if (!profile || profile.cargo !== 'Vendedor') return res.status(404).json({ ok: false, error: 'Não encontrado' });
+  return res.json({ leads: 0, closed: 0, revenue: 0 });
 });
 
 module.exports = router;

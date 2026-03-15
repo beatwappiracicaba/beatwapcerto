@@ -34,4 +34,24 @@ router.post('/', authRequired, upload.single('file'), (req, res) => {
   }
 });
 
+router.post('/single', authRequired, upload.single('file'), (req, res) => {
+  try {
+    const userId = String(req?.user?.sub || 'anon');
+    const url = `/uploads/${userId}/${req.file.filename}`;
+    return res.json({ url });
+  } catch (e) {
+    return res.status(500).json({ error: 'Erro upload' });
+  }
+});
+
+router.post('/multiple', authRequired, upload.array('files', 10), (req, res) => {
+  try {
+    const userId = String(req?.user?.sub || 'anon');
+    const urls = (req.files || []).map(f => `/uploads/${userId}/${f.filename}`);
+    return res.json({ urls });
+  } catch (e) {
+    return res.status(500).json({ error: 'Erro upload' });
+  }
+});
+
 module.exports = router;

@@ -18,6 +18,7 @@ const sellerRoutes = require('./routes/seller');
 const adminRoutes = require('./routes/admin');
 const uploadRoutes = require('./routes/upload');
 const notificationRoutes = require('./routes/notifications');
+const queueRoutes = require('./routes/queue');
 
 app.use('/api', publicRoutes);
 app.use('/api/auth', authRoutes);
@@ -26,6 +27,7 @@ app.use('/api/seller', sellerRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/queue', queueRoutes);
 
 app.get('/health', async (req, res) => {
   try {
