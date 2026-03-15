@@ -1,5 +1,5 @@
 const express = require('express');
-const { Profile, Album, Music, Composition, Release, PublicEvent, Sponsor } = require('../models');
+const { Profile, Album, Music, Composition, Release, PublicEvent, Sponsor, Post } = require('../models');
 
 const router = express.Router();
 
@@ -41,6 +41,22 @@ router.get('/profiles', async (req, res) => {
   if (!cargo) return res.status(400).json({ ok: false, error: 'role inválido' });
   const rows = await Profile.findAll({ where: { cargo }, limit: 50, order: [['created_at', 'DESC']] });
   return res.json({ ok: true, profiles: rows });
+});
+
+router.get('/profiles/:id', async (req, res) => {
+  const profile = await Profile.findByPk(String(req.params.id));
+  if (!profile) return res.status(404).json({ ok: false, error: 'Não encontrado' });
+  const musics = await Music.findAll({ where: { profile_id: profile.id }, limit: 20, order: [['created_at', 'DESC']] });
+  const compositions = await Composition.findAll({ where: { profile_id: profile.id }, limit: 20, order: [['created_at', 'DESC']] });
+  return res.json({ ok: true, profile, musics, compositions });
+});
+
+router.get('/profiles/:id/posts', async (req, res) => {
+  const profileId = String(req.params.id);
+  const profile = await Profile.findByPk(profileId);
+  if (!profile) return res.status(404).json({ ok: false, error: 'Não encontrado' });
+  const posts = await Post.findAll({ where: { profile_id: profileId }, limit: 50, order: [['created_at', 'DESC']] });
+  return res.json({ ok: true, posts });
 });
 
 router.get('/profile/:id', async (req, res) => {
