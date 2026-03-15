@@ -6,7 +6,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const { config } = require('./config');
-const { query } = require('./db');
+const { pool, query } = require('./db');
 const { authRequired, requireRole } = require('./middleware/auth');
 const { registerClient, emit, sseWrite } = require('./realtime');
 
@@ -83,6 +83,36 @@ function parseDataUrl(dataUrl) {
   const match = raw.match(/^data:([^;]+);base64,(.+)$/i);
   if (!match) return null;
   return { mime: String(match[1] || '').toLowerCase(), base64: String(match[2] || '') };
+}
+
+function mimeToExt(mime) {
+  const m = String(mime || '').toLowerCase();
+  if (m === 'image/jpeg') return 'jpg';
+  if (m === 'image/png') return 'png';
+  if (m === 'image/webp') return 'webp';
+  if (m === 'application/pdf') return 'pdf';
+  if (m === 'application/msword') return 'doc';
+  if (m === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'docx';
+  if (m === 'audio/mpeg') return 'mp3';
+  if (m === 'audio/wav' || m === 'audio/x-wav') return 'wav';
+  return null;
+}
+
+function saveDataUrlToUploads(req, { dataUrl, bucket, maxBytes }) {
+  const parsed = parseDataUrl(dataUrl);
+  if (!parsed) return { error: 'dataUrl inválido' };
+  const ext = mimeToExt(parsed.mime);
+  if (!ext) return { error: 'Formato não suportado' };
+  const buffer = Buffer.from(parsed.base64, 'base64');
+  const limit = Number.isFinite(maxBytes) && maxBytes > 0 ? maxBytes : (12 * 1024 * 1024);
+  if (!buffer.length || buffer.length > limit) return { error: 'Arquivo muito grande' };
+  const safeBucket = safePathPart(bucket || 'misc');
+  const dest = path.join(__dirname, '..', 'uploads', safeBucket);
+  ensureDir(dest);
+  const filename = `${Date.now()}_${crypto.randomBytes(6).toString('hex')}.${ext}`;
+  fs.writeFileSync(path.join(dest, filename), buffer);
+  const relative = `/uploads/${safeBucket}/${filename}`;
+  return { url: absoluteUploadsUrl(req, relative) };
 }
 
 const uploadsCountCache = {
@@ -283,15 +313,16 @@ function safePathPart(v) {
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const bucket = safePathPart(req.body.bucket || req.query.bucket || 'misc');
-    const dest = path.join(__dirname, '..', 'uploads', bucket);
+    const rawFileName = safePathPart(req.body.fileName || req.query.fileName || '');
+    const nestedDir = rawFileName ? path.posix.dirname(rawFileName) : '';
+    const nestedParts = nestedDir && nestedDir !== '.' ? nestedDir.split('/').filter(Boolean) : [];
+    const dest = path.join(__dirname, '..', 'uploads', bucket, ...nestedParts);
     ensureDir(dest);
     cb(null, dest);
   },
   filename: (req, file, cb) => {
     const original = String(file.originalname || 'file');
     const ext = path.extname(original).slice(0, 10) || '';
-    const fileName = safePathPart(req.body.fileName || req.query.fileName || '');
-    if (fileName) return cb(null, fileName.endsWith(ext) ? fileName : `${fileName}${ext}`);
     const name = `${Date.now()}_${crypto.randomBytes(6).toString('hex')}${ext}`;
     cb(null, name);
   }
@@ -543,6 +574,53 @@ apiRouter.get(
 );
 
 apiRouter.get(
+  '/users/:id/quota',
+  authRequired,
+  asyncHandler(async (req, res) => {
+    const targetId = String(req.params.id || '').trim();
+    if (!targetId) return bad(res, 400, 'ID inválido');
+    const requesterId = String(req.user.id);
+    const isProducer = String(req.profile && req.profile.cargo ? req.profile.cargo : '').toLowerCase() === 'produtor';
+    if (!isProducer && targetId !== requesterId) return bad(res, 403, 'Sem permissão');
+
+    const { rows } = await query('select id, plano, bonus_quota, plan_started_at from profiles where id = $1 limit 1', [targetId]);
+    const row = rows[0] || null;
+    if (!row) return bad(res, 404, 'Usuário não encontrado');
+    return ok(res, { id: row.id, plano: row.plano || 'Avulso', bonus_quota: Number(row.bonus_quota || 0), plan_started_at: row.plan_started_at || null });
+  })
+);
+
+apiRouter.get(
+  '/users/:id/music-count',
+  authRequired,
+  asyncHandler(async (req, res) => {
+    const targetId = String(req.params.id || '').trim();
+    if (!targetId) return bad(res, 400, 'ID inválido');
+    const requesterId = String(req.user.id);
+    const isProducer = String(req.profile && req.profile.cargo ? req.profile.cargo : '').toLowerCase() === 'produtor';
+    if (!isProducer && targetId !== requesterId) return bad(res, 403, 'Sem permissão');
+
+    const startRaw = req.query.start != null ? String(req.query.start) : null;
+    const endRaw = req.query.end != null ? String(req.query.end) : null;
+    const startDate = startRaw ? new Date(startRaw) : null;
+    const endDate = endRaw ? new Date(endRaw) : null;
+
+    if (startDate && Number.isNaN(startDate.getTime())) return bad(res, 400, 'Data inicial inválida');
+    if (endDate && Number.isNaN(endDate.getTime())) return bad(res, 400, 'Data final inválida');
+    if (startDate && endDate && startDate.getTime() > endDate.getTime()) return bad(res, 400, 'Intervalo de datas inválido');
+
+    const startIso = startDate ? startDate.toISOString() : null;
+    const endIso = endDate ? endDate.toISOString() : null;
+
+    const musicTable = await resolveMusicTable();
+    if (!musicTable) return ok(res, 0);
+
+    const count = await countByUserAndCreatedAt({ table: String(musicTable), userId: targetId, startIso, endIso });
+    return ok(res, count);
+  })
+);
+
+apiRouter.get(
   '/profiles',
   asyncHandler(async (req, res) => {
     const includePrivate = !!(req.headers.authorization || req.headers.Authorization);
@@ -718,6 +796,363 @@ apiRouter.put(
 );
 
 apiRouter.get(
+  '/songs/mine',
+  authRequired,
+  requireRole(['Artista', 'Produtor']),
+  asyncHandler(async (req, res) => {
+    const musicTable = await resolveMusicTable();
+    if (!musicTable) return ok(res, []);
+
+    const cols = await getTableColumns(musicTable);
+    const idCol = pickFirstExistingColumn(cols, ['id']);
+    const artistCol = pickFirstExistingColumn(cols, ['artista_id', 'artist_id', 'user_id', 'owner_id']);
+    const titleCol = pickFirstExistingColumn(cols, ['titulo', 'title', 'nome', 'name']);
+    const statusCol = pickFirstExistingColumn(cols, ['status', 'estado']);
+    const createdAtCol = pickFirstExistingColumn(cols, ['created_at', 'createdAt', 'data_criacao', 'created']);
+
+    if (!idCol || !artistCol) return ok(res, []);
+
+    const selectParts = [
+      `m.${qIdent(idCol)} as id`,
+      titleCol ? `m.${qIdent(titleCol)} as titulo` : `null::text as titulo`,
+      `m.${qIdent(artistCol)} as artista_id`,
+      cols.has('nome_artista') ? `m.${qIdent('nome_artista')} as nome_artista` : `null::text as nome_artista`,
+      cols.has('cover_url') ? `m.${qIdent('cover_url')} as cover_url` : `null::text as cover_url`,
+      cols.has('audio_url') ? `m.${qIdent('audio_url')} as audio_url` : `null::text as audio_url`,
+      cols.has('authorization_url') ? `m.${qIdent('authorization_url')} as authorization_url` : `null::text as authorization_url`,
+      statusCol ? `m.${qIdent(statusCol)} as status` : `null::text as status`,
+      cols.has('estilo') ? `m.${qIdent('estilo')} as estilo` : `null::text as estilo`,
+      cols.has('isrc') ? `m.${qIdent('isrc')} as isrc` : `null::text as isrc`,
+      cols.has('upc') ? `m.${qIdent('upc')} as upc` : `null::text as upc`,
+      cols.has('presave_link') ? `m.${qIdent('presave_link')} as presave_link` : `null::text as presave_link`,
+      cols.has('release_date') ? `m.${qIdent('release_date')} as release_date` : `null::timestamptz as release_date`,
+      cols.has('album_id') ? `m.${qIdent('album_id')} as album_id` : `null::uuid as album_id`,
+      cols.has('album_title') ? `m.${qIdent('album_title')} as album_title` : `null::text as album_title`,
+      createdAtCol ? `m.${qIdent(createdAtCol)} as created_at` : `null::timestamptz as created_at`
+    ];
+
+    const { rows } = await query(
+      `select ${selectParts.join(', ')} from ${musicTable} m where m.${qIdent(artistCol)}::text = $1 order by ${createdAtCol ? `m.${qIdent(createdAtCol)}` : `m.${qIdent(idCol)}`} desc limit 1000`,
+      [String(req.user.id)]
+    );
+    return ok(res, rows || []);
+  })
+);
+
+apiRouter.get(
+  '/songs/external-metrics',
+  authRequired,
+  asyncHandler(async (req, res) => {
+    const musicTable = await resolveMusicTable();
+    if (!musicTable) return ok(res, []);
+
+    const cols = await getTableColumns(musicTable);
+    const idCol = pickFirstExistingColumn(cols, ['id']);
+    const artistCol = pickFirstExistingColumn(cols, ['artista_id', 'artist_id', 'user_id', 'owner_id']);
+    if (!idCol || !artistCol) return ok(res, []);
+
+    const source = req.query.source != null ? String(req.query.source).trim() : 'manual';
+    const userId = String(req.user.id);
+
+    const { rows } = await query(
+      `select em.music_id, em.source, em.plays, em.listeners, em.revenue, em.updated_at
+         from music_external_metrics em
+         join ${musicTable} m on m.${qIdent(idCol)} = em.music_id
+        where m.${qIdent(artistCol)}::text = $1
+          and em.source = $2
+        order by em.updated_at desc`,
+      [userId, source]
+    );
+    return ok(res, rows || []);
+  })
+);
+
+apiRouter.get(
+  '/musics',
+  withPublicCache(
+    60000,
+    asyncHandler(async (req, res) => {
+      const musicTable = await resolveMusicTable();
+      if (!musicTable) return okPerf(req, res, []);
+
+      const cols = await getTableColumns(musicTable);
+      const idCol = pickFirstExistingColumn(cols, ['id']);
+      if (!idCol) return okPerf(req, res, []);
+
+      const artistCol = pickFirstExistingColumn(cols, ['artista_id', 'artist_id', 'user_id', 'owner_id']);
+      const titleCol = pickFirstExistingColumn(cols, ['titulo', 'title', 'nome', 'name']);
+      const statusCol = pickFirstExistingColumn(cols, ['status', 'estado']);
+      const createdAtCol = pickFirstExistingColumn(cols, ['created_at', 'createdAt', 'data_criacao', 'created']);
+
+      const selectParts = [
+        `m.${qIdent(idCol)} as id`,
+        titleCol ? `m.${qIdent(titleCol)} as titulo` : `null::text as titulo`,
+        artistCol ? `m.${qIdent(artistCol)} as artista_id` : `null::uuid as artista_id`,
+        cols.has('nome_artista') ? `m.${qIdent('nome_artista')} as nome_artista` : `pf.nome as nome_artista`,
+        cols.has('cover_url') ? `m.${qIdent('cover_url')} as cover_url` : `null::text as cover_url`,
+        cols.has('audio_url') ? `m.${qIdent('audio_url')} as audio_url` : `null::text as audio_url`,
+        statusCol ? `m.${qIdent(statusCol)} as status` : `null::text as status`,
+        cols.has('estilo') ? `m.${qIdent('estilo')} as estilo` : `null::text as estilo`,
+        cols.has('album_id') ? `m.${qIdent('album_id')} as album_id` : `null::uuid as album_id`,
+        cols.has('album_title') ? `m.${qIdent('album_title')} as album_title` : `null::text as album_title`,
+        createdAtCol ? `m.${qIdent(createdAtCol)} as created_at` : `null::timestamptz as created_at`
+      ];
+
+      const { limit, offset } = parsePagination(req, { defaultLimit: 50, maxLimit: 200 });
+
+      const where = [];
+      const params = [];
+
+      const status = req.query.status != null ? String(req.query.status).trim() : '';
+      if (status && statusCol) {
+        params.push(status);
+        where.push(`lower(m.${qIdent(statusCol)}) = lower($${params.length})`);
+      } else if (statusCol) {
+        where.push(`lower(m.${qIdent(statusCol)}) = any($1::text[])`);
+        params.push(['aprovado', 'approved']);
+      }
+
+      params.push(limit);
+      params.push(offset);
+
+      const orderBy = createdAtCol ? `m.${qIdent(createdAtCol)} desc` : `m.${qIdent(idCol)} desc`;
+      const sql = `
+        select ${selectParts.join(', ')}
+          from ${musicTable} m
+          ${artistCol ? `left join profiles pf on pf.id = m.${qIdent(artistCol)}` : 'left join profiles pf on 1=0'}
+         ${where.length ? `where ${where.join(' and ')}` : ''}
+         order by ${orderBy}
+         limit $${params.length - 1} offset $${params.length}
+      `;
+
+      const { rows } = await timedQuery(req, sql, params, 'musics.list');
+      return okPerf(req, res, rows || []);
+    })
+  )
+);
+
+apiRouter.get(
+  '/musics/:id',
+  withPublicCache(
+    60000,
+    asyncHandler(async (req, res) => {
+      const musicTable = await resolveMusicTable();
+      if (!musicTable) return bad(res, 404, 'Música não encontrada');
+
+      const cols = await getTableColumns(musicTable);
+      const idCol = pickFirstExistingColumn(cols, ['id']);
+      if (!idCol) return bad(res, 404, 'Música não encontrada');
+
+      const artistCol = pickFirstExistingColumn(cols, ['artista_id', 'artist_id', 'user_id', 'owner_id']);
+      const statusCol = pickFirstExistingColumn(cols, ['status', 'estado']);
+
+      const id = String(req.params.id || '').trim();
+      if (!id) return bad(res, 400, 'ID inválido');
+
+      const selectParts = ['m.*', artistCol ? 'pf.nome as profile_artist_name' : 'null::text as profile_artist_name'];
+      const { rows } = await query(
+        `select ${selectParts.join(', ')}
+           from ${musicTable} m
+           ${artistCol ? `left join profiles pf on pf.id = m.${qIdent(artistCol)}` : 'left join profiles pf on 1=0'}
+          where m.${qIdent(idCol)}::text = $1
+          limit 1`,
+        [id]
+      );
+      const row = rows[0] || null;
+      if (!row) return bad(res, 404, 'Música não encontrada');
+      if (statusCol) {
+        const st = String(row[statusCol] || '').toLowerCase();
+        if (!['aprovado', 'approved'].includes(st)) return bad(res, 404, 'Música não encontrada');
+      }
+      return ok(res, row);
+    })
+  )
+);
+
+apiRouter.post(
+  '/musics',
+  authRequired,
+  requireRole(['Artista', 'Produtor']),
+  asyncHandler(async (req, res) => {
+    const musicTable = await resolveMusicTable();
+    if (!musicTable) return bad(res, 404, 'Tabela de músicas não encontrada');
+
+    const cols = await getTableColumns(musicTable);
+    const idCol = pickFirstExistingColumn(cols, ['id']);
+    const artistCol = pickFirstExistingColumn(cols, ['artista_id', 'artist_id', 'user_id', 'owner_id']);
+    if (!idCol || !artistCol) return bad(res, 404, 'Tabela de músicas inválida');
+
+    const payload = req.body || {};
+    const userId = String(req.user.id);
+    const isProducer = String(req.profile && req.profile.cargo ? req.profile.cargo : '').toLowerCase() === 'produtor';
+
+    const artistId = payload.artista_id != null ? String(payload.artista_id).trim() : userId;
+    const titulo = payload.titulo != null ? String(payload.titulo).trim() : '';
+    if (!titulo) return bad(res, 400, 'Título é obrigatório');
+    if (!isProducer && artistId !== userId) return bad(res, 403, 'Sem permissão');
+
+    const insertCols = [];
+    const params = [];
+    const values = [];
+
+    const setCol = (name, value) => {
+      if (!cols.has(name)) return;
+      insertCols.push(name);
+      params.push(value);
+      values.push(`$${params.length}`);
+    };
+
+    setCol('id', crypto.randomUUID());
+    setCol(artistCol, artistId);
+    setCol('titulo', titulo);
+    setCol('nome_artista', payload.nome_artista != null ? String(payload.nome_artista) : null);
+    setCol('estilo', payload.estilo != null ? String(payload.estilo) : null);
+    setCol('cover_url', payload.cover_url != null ? String(payload.cover_url) : null);
+    setCol('audio_url', payload.audio_url != null ? String(payload.audio_url) : null);
+    setCol('authorization_url', payload.authorization_url != null ? String(payload.authorization_url) : null);
+    setCol('plataformas', Array.isArray(payload.plataformas) ? payload.plataformas : (payload.plataformas ? [payload.plataformas] : []));
+    setCol('status', payload.status != null ? String(payload.status) : 'pendente');
+    setCol('isrc', payload.isrc != null ? String(payload.isrc) : null);
+    setCol('composer', payload.composer != null ? String(payload.composer) : null);
+    setCol('producer', payload.producer != null ? payload.producer : null);
+    setCol('has_feat', payload.has_feat != null ? !!payload.has_feat : false);
+    setCol('feat_name', payload.feat_name != null ? String(payload.feat_name) : null);
+    setCol('feat_beatwap_artist_ids', Array.isArray(payload.feat_beatwap_artist_ids) ? payload.feat_beatwap_artist_ids : []);
+    setCol('is_beatwap_composer_partner', payload.is_beatwap_composer_partner != null ? !!payload.is_beatwap_composer_partner : false);
+    setCol('album_id', payload.album_id != null ? payload.album_id : null);
+    setCol('album_title', payload.album_title != null ? String(payload.album_title) : null);
+
+    const sql = `insert into ${musicTable} (${insertCols.map(qIdent).join(', ')}) values (${values.join(', ')}) returning *`;
+    const { rows } = await query(sql, params);
+    return ok(res, rows[0] || null);
+  })
+);
+
+apiRouter.post(
+  '/musics/batch',
+  authRequired,
+  requireRole(['Artista', 'Produtor']),
+  asyncHandler(async (req, res) => {
+    const musicTable = await resolveMusicTable();
+    if (!musicTable) return bad(res, 404, 'Tabela de músicas não encontrada');
+
+    const cols = await getTableColumns(musicTable);
+    const idCol = pickFirstExistingColumn(cols, ['id']);
+    const artistCol = pickFirstExistingColumn(cols, ['artista_id', 'artist_id', 'user_id', 'owner_id']);
+    if (!idCol || !artistCol) return bad(res, 404, 'Tabela de músicas inválida');
+
+    const userId = String(req.user.id);
+    const isProducer = String(req.profile && req.profile.cargo ? req.profile.cargo : '').toLowerCase() === 'produtor';
+    const items = Array.isArray(req.body?.musics) ? req.body.musics : [];
+    if (!items.length) return bad(res, 400, 'musics inválido');
+    if (items.length > 50) return bad(res, 400, 'Muitas músicas');
+
+    const client = await pool.connect();
+    try {
+      await client.query('begin');
+      const created = [];
+
+      for (const raw of items) {
+        const payload = raw && typeof raw === 'object' ? raw : {};
+        const artistId = payload.artista_id != null ? String(payload.artista_id).trim() : userId;
+        const titulo = payload.titulo != null ? String(payload.titulo).trim() : '';
+        if (!titulo) throw new Error('Título é obrigatório');
+        if (!isProducer && artistId !== userId) throw new Error('Sem permissão');
+
+        const insertCols = [];
+        const params = [];
+        const values = [];
+
+        const setCol = (name, value) => {
+          if (!cols.has(name)) return;
+          insertCols.push(name);
+          params.push(value);
+          values.push(`$${params.length}`);
+        };
+
+        setCol('id', crypto.randomUUID());
+        setCol(artistCol, artistId);
+        setCol('titulo', titulo);
+        setCol('nome_artista', payload.nome_artista != null ? String(payload.nome_artista) : null);
+        setCol('estilo', payload.estilo != null ? String(payload.estilo) : null);
+        setCol('cover_url', payload.cover_url != null ? String(payload.cover_url) : null);
+        setCol('audio_url', payload.audio_url != null ? String(payload.audio_url) : null);
+        setCol('authorization_url', payload.authorization_url != null ? String(payload.authorization_url) : null);
+        setCol('plataformas', Array.isArray(payload.plataformas) ? payload.plataformas : (payload.plataformas ? [payload.plataformas] : []));
+        setCol('status', payload.status != null ? String(payload.status) : 'pendente');
+        setCol('isrc', payload.isrc != null ? String(payload.isrc) : null);
+        setCol('composer', payload.composer != null ? String(payload.composer) : null);
+        setCol('producer', payload.producer != null ? payload.producer : null);
+        setCol('has_feat', payload.has_feat != null ? !!payload.has_feat : false);
+        setCol('feat_name', payload.feat_name != null ? String(payload.feat_name) : null);
+        setCol('feat_beatwap_artist_ids', Array.isArray(payload.feat_beatwap_artist_ids) ? payload.feat_beatwap_artist_ids : []);
+        setCol('is_beatwap_composer_partner', payload.is_beatwap_composer_partner != null ? !!payload.is_beatwap_composer_partner : false);
+        setCol('album_id', payload.album_id != null ? payload.album_id : null);
+        setCol('album_title', payload.album_title != null ? String(payload.album_title) : null);
+
+        const sql = `insert into ${musicTable} (${insertCols.map(qIdent).join(', ')}) values (${values.join(', ')}) returning *`;
+        const { rows } = await client.query(sql, params);
+        created.push(rows[0] || null);
+      }
+
+      await client.query('commit');
+      return ok(res, created.filter(Boolean));
+    } catch (e) {
+      await client.query('rollback');
+      return bad(res, 400, String(e && e.message ? e.message : e));
+    } finally {
+      client.release();
+    }
+  })
+);
+
+apiRouter.get(
+  '/musics/:id/external-metrics',
+  authRequired,
+  asyncHandler(async (req, res) => {
+    const musicId = String(req.params.id || '').trim();
+    if (!musicId) return bad(res, 400, 'ID inválido');
+
+    const source = req.query.source != null ? String(req.query.source).trim() : 'manual';
+    const { rows } = await query(
+      'select music_id, source, plays, listeners, revenue, updated_at from music_external_metrics where music_id = $1 and source = $2 limit 1',
+      [musicId, source]
+    );
+    return ok(res, rows[0] || { music_id: musicId, source, plays: 0, listeners: 0, revenue: 0, updated_at: null });
+  })
+);
+
+apiRouter.post(
+  '/musics/:id/external-metrics',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const musicId = String(req.params.id || '').trim();
+    if (!musicId) return bad(res, 400, 'ID inválido');
+
+    const payload = req.body || {};
+    const source = payload.source != null ? String(payload.source).trim() : (req.query.source != null ? String(req.query.source).trim() : 'manual');
+    const plays = clampInt(payload.plays, { min: 0, max: 2_000_000_000, fallback: 0 });
+    const listeners = clampInt(payload.listeners, { min: 0, max: 2_000_000_000, fallback: 0 });
+    const revenueRaw = payload.revenue == null ? 0 : Number(payload.revenue);
+    const revenue = Number.isFinite(revenueRaw) ? revenueRaw : 0;
+
+    const { rows } = await query(
+      `insert into music_external_metrics (music_id, source, plays, listeners, revenue, updated_at)
+       values ($1,$2,$3,$4,$5, now())
+       on conflict (music_id, source)
+       do update set plays = excluded.plays,
+                     listeners = excluded.listeners,
+                     revenue = excluded.revenue,
+                     updated_at = now()
+       returning music_id, source, plays, listeners, revenue, updated_at`,
+      [musicId, source, plays, listeners, revenue]
+    );
+    return ok(res, rows[0] || null);
+  })
+);
+
+apiRouter.get(
   '/admin/artist/:id/metrics',
   authRequired,
   asyncHandler(async (req, res) => {
@@ -884,6 +1319,82 @@ apiRouter.get(
 
     const { rows } = await timedQuery(req, sql, params, 'admin.musics.list');
     return okPerf(req, res, rows);
+  })
+);
+
+apiRouter.post(
+  '/admin/musics',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const musicTable = await resolveMusicTable();
+    if (!musicTable) return bad(res, 404, 'Tabela de músicas não encontrada');
+
+    const cols = await getTableColumns(musicTable);
+    const idCol = pickFirstExistingColumn(cols, ['id']);
+    if (!idCol) return bad(res, 404, 'Tabela de músicas inválida');
+
+    const payload = req.body || {};
+
+    const artistaId = payload.artista_id != null ? String(payload.artista_id).trim() : '';
+    const titulo = payload.titulo != null ? String(payload.titulo).trim() : '';
+    if (!artistaId || !titulo) return bad(res, 400, 'Dados inválidos');
+
+    const insertCols = [];
+    const params = [];
+    const values = [];
+
+    const setCol = (name, value) => {
+      if (!cols.has(name)) return;
+      insertCols.push(name);
+      params.push(value);
+      values.push(`$${params.length}`);
+    };
+
+    setCol('id', crypto.randomUUID());
+    setCol('artista_id', artistaId);
+    setCol('titulo', titulo);
+    setCol('nome_artista', payload.nome_artista != null ? String(payload.nome_artista) : null);
+    setCol('estilo', payload.estilo != null ? String(payload.estilo) : null);
+    setCol('cover_url', payload.cover_url != null ? String(payload.cover_url) : null);
+    setCol('audio_url', payload.audio_url != null ? String(payload.audio_url) : null);
+    setCol('authorization_url', payload.authorization_url != null ? String(payload.authorization_url) : null);
+    setCol('plataformas', Array.isArray(payload.plataformas) ? payload.plataformas : (payload.plataformas ? [payload.plataformas] : []));
+    setCol('status', payload.status != null ? String(payload.status) : 'pendente');
+    setCol('isrc', payload.isrc != null ? String(payload.isrc) : null);
+    setCol('composer', payload.composer != null ? String(payload.composer) : null);
+    setCol('producer', payload.producer != null ? payload.producer : null);
+    setCol('has_feat', payload.has_feat != null ? !!payload.has_feat : false);
+    setCol('feat_name', payload.feat_name != null ? String(payload.feat_name) : null);
+    setCol('feat_beatwap_artist_ids', Array.isArray(payload.feat_beatwap_artist_ids) ? payload.feat_beatwap_artist_ids : []);
+    setCol('is_beatwap_composer_partner', payload.is_beatwap_composer_partner != null ? !!payload.is_beatwap_composer_partner : false);
+    setCol('album_id', payload.album_id != null ? payload.album_id : null);
+    setCol('album_title', payload.album_title != null ? String(payload.album_title) : null);
+
+    const sql = `insert into ${musicTable} (${insertCols.map(qIdent).join(', ')}) values (${values.join(', ')}) returning *`;
+    const { rows } = await query(sql, params);
+    return ok(res, rows[0] || null);
+  })
+);
+
+apiRouter.delete(
+  '/admin/musics/:id',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const musicTable = await resolveMusicTable();
+    if (!musicTable) return bad(res, 404, 'Tabela de músicas não encontrada');
+
+    const cols = await getTableColumns(musicTable);
+    const idCol = pickFirstExistingColumn(cols, ['id']);
+    if (!idCol) return bad(res, 404, 'Tabela de músicas inválida');
+
+    const id = String(req.params.id || '').trim();
+    if (!id) return bad(res, 400, 'ID inválido');
+
+    const { rows } = await query(`delete from ${musicTable} where ${qIdent(idCol)}::text = $1 returning ${qIdent(idCol)} as id`, [id]);
+    if (!rows[0]) return bad(res, 404, 'Música não encontrada');
+    return ok(res, { ok: true });
   })
 );
 
@@ -1431,10 +1942,363 @@ apiRouter.delete(
   })
 );
 
+apiRouter.get(
+  '/analytics/artist/:id/events',
+  authRequired,
+  asyncHandler(async (req, res) => {
+    const targetId = String(req.params.id || '').trim();
+    if (!targetId) return bad(res, 400, 'ID inválido');
+    const requesterId = String(req.user.id);
+    const isProducer = String(req.profile && req.profile.cargo ? req.profile.cargo : '').toLowerCase() === 'produtor';
+    if (!isProducer && targetId !== requesterId) return bad(res, 403, 'Sem permissão');
+
+    const { limit, offset } = parsePagination(req, { defaultLimit: 500, maxLimit: 2000 });
+    const { rows } = await timedQuery(
+      req,
+      `select id, type, artist_id, music_id, duration_seconds, ip_hash, metadata, created_at
+         from analytics_events
+        where artist_id = $1
+        order by created_at desc
+        limit $2 offset $3`,
+      [targetId, limit, offset],
+      'analytics.artist_events'
+    );
+    return okPerf(req, res, rows);
+  })
+);
+
+apiRouter.get(
+  '/analytics/artist/:id/summary',
+  authRequired,
+  asyncHandler(async (req, res) => {
+    const targetId = String(req.params.id || '').trim();
+    if (!targetId) return bad(res, 400, 'ID inválido');
+    const requesterId = String(req.user.id);
+    const isProducer = String(req.profile && req.profile.cargo ? req.profile.cargo : '').toLowerCase() === 'produtor';
+    if (!isProducer && targetId !== requesterId) return bad(res, 403, 'Sem permissão');
+
+    const { rows } = await timedQuery(
+      req,
+      `select
+         count(*) filter (where type = 'music_play')::int as plays,
+         count(distinct ip_hash) filter (where type = 'music_play')::int as listeners,
+         coalesce(sum(duration_seconds) filter (where type = 'music_play'), 0)::int as time
+       from analytics_events
+       where artist_id = $1`,
+      [targetId],
+      'analytics.artist_summary'
+    );
+    return okPerf(req, res, rows[0] || { plays: 0, listeners: 0, time: 0 });
+  })
+);
+
 apiRouter.post(
   '/analytics',
   asyncHandler(async (req, res) => {
-    return ok(res, { ok: true });
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const type = String(body.type || '').trim();
+
+    const allowed =
+      type === 'music_play' ||
+      type === 'music_click_presave' ||
+      type === 'music_click_smartlink' ||
+      type.startsWith('artist_click_') ||
+      type === 'sponsor_click';
+
+    if (!allowed) return ok(res, { stored: false });
+
+    const artistId = body.artist_id != null ? String(body.artist_id).trim() : null;
+    const musicId = body.music_id != null ? String(body.music_id).trim() : null;
+    const ipHash = body.ip_hash != null ? String(body.ip_hash).trim() : null;
+    const metadata = body.metadata && typeof body.metadata === 'object' ? body.metadata : {};
+
+    let durationSeconds = null;
+    if (body.duration_seconds != null && body.duration_seconds !== '') {
+      durationSeconds = clampInt(body.duration_seconds, { min: 0, max: 24 * 60 * 60, fallback: 0 });
+    }
+
+    const id = crypto.randomUUID();
+    const { rows } = await query(
+      `insert into analytics_events (id, type, artist_id, music_id, duration_seconds, ip_hash, metadata)
+       values ($1,$2,$3::uuid,$4::uuid,$5,$6,$7::jsonb)
+       returning id, created_at`,
+      [id, type, artistId || null, musicId || null, durationSeconds, ipHash, metadata]
+    );
+
+    return ok(res, { stored: true, id: rows[0]?.id || id, created_at: rows[0]?.created_at || null });
+  })
+);
+
+apiRouter.get(
+  '/seller/artists',
+  authRequired,
+  requireRole(['Vendedor', 'Produtor']),
+  asyncHandler(async (req, res) => {
+    const { limit, offset } = parsePagination(req, { defaultLimit: 500, maxLimit: 2000 });
+    const q = req.query.q != null ? String(req.query.q).trim() : '';
+
+    const where = ["p.cargo = 'Artista'"];
+    const params = [];
+
+    if (q) {
+      params.push(`%${q.toLowerCase()}%`);
+      where.push(`lower(coalesce(p.nome, p.nome_completo_razao_social, '')) like $${params.length}`);
+    }
+
+    params.push(limit);
+    params.push(offset);
+
+    const { rows } = await query(
+      `select p.id, p.nome, p.nome_completo_razao_social, p.avatar_url, p.genero_musical, p.cidade, p.estado, p.celular, p.instagram_url,
+              c.cache_medio
+         from profiles p
+         left join seller_artist_cache c on c.artist_id = p.id
+        where ${where.join(' and ')}
+        order by p.created_at asc
+        limit $${params.length - 1} offset $${params.length}`,
+      params
+    );
+    return ok(res, rows || []);
+  })
+);
+
+apiRouter.patch(
+  '/seller/artists/:id/cache',
+  authRequired,
+  requireRole(['Vendedor', 'Produtor']),
+  asyncHandler(async (req, res) => {
+    const artistId = String(req.params.id || '').trim();
+    if (!artistId) return bad(res, 400, 'ID inválido');
+
+    const value = req.body?.value == null ? null : String(req.body.value).trim();
+    const cache = value === '' ? null : value;
+
+    const { rows } = await query(
+      `insert into seller_artist_cache (artist_id, cache_medio)
+       values ($1, $2)
+       on conflict (artist_id)
+       do update set cache_medio = excluded.cache_medio,
+                     updated_at = now()
+       returning artist_id, cache_medio, updated_at`,
+      [artistId, cache]
+    );
+    return ok(res, rows[0] || { artist_id: artistId, cache_medio: cache, updated_at: null });
+  })
+);
+
+apiRouter.get(
+  '/seller/artists/:id/events',
+  authRequired,
+  requireRole(['Vendedor', 'Produtor']),
+  asyncHandler(async (req, res) => {
+    const artistId = String(req.params.id || '').trim();
+    if (!artistId) return bad(res, 400, 'ID inválido');
+
+    const month = req.query.month != null ? String(req.query.month).trim() : '';
+    const m = month && /^\d{4}-\d{2}$/.test(month) ? month : null;
+    const baseDate = m ? new Date(`${m}-01T00:00:00.000Z`) : new Date();
+    if (Number.isNaN(baseDate.getTime())) return bad(res, 400, 'month inválido');
+
+    const start = new Date(Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth(), 1, 0, 0, 0));
+    const end = new Date(Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth() + 1, 1, 0, 0, 0));
+
+    const { rows } = await query(
+      `select id, artist_id, event_date, location, flyer_url, ticket_price_cents, purchase_contact, created_at
+         from public_events
+        where artist_id = $1
+          and event_date >= $2
+          and event_date < $3
+        order by event_date asc`,
+      [artistId, start.toISOString(), end.toISOString()]
+    );
+    return ok(res, rows || []);
+  })
+);
+
+apiRouter.get(
+  '/artist/events',
+  authRequired,
+  requireRole(['Artista']),
+  asyncHandler(async (req, res) => {
+    const artistId = String(req.user.id);
+    const { rows } = await query(
+      `select id, artist_id, title, date, type, notes, created_at
+         from artist_work_events
+        where artist_id = $1
+        order by date asc, created_at asc`,
+      [artistId]
+    );
+    return ok(res, rows || []);
+  })
+);
+
+apiRouter.post(
+  '/artist/events',
+  authRequired,
+  requireRole(['Artista']),
+  asyncHandler(async (req, res) => {
+    const artistId = String(req.user.id);
+    const title = String(req.body?.title || '').trim();
+    const date = String(req.body?.date || '').trim();
+    const type = String(req.body?.type || '').trim();
+    const notes = req.body?.notes == null ? null : String(req.body.notes);
+    if (!title || !date || !type) return bad(res, 400, 'Dados inválidos');
+
+    const { rows } = await query(
+      `insert into artist_work_events (artist_id, title, date, type, notes)
+       values ($1,$2,$3,$4,$5)
+       returning id, artist_id, title, date, type, notes, created_at`,
+      [artistId, title, date, type, notes]
+    );
+    return ok(res, rows[0] || null);
+  })
+);
+
+apiRouter.get(
+  '/artist/todos',
+  authRequired,
+  requireRole(['Artista']),
+  asyncHandler(async (req, res) => {
+    const artistId = String(req.user.id);
+    const { rows } = await query(
+      `select id, artist_id, title, due_date, status, created_at, updated_at
+         from artist_work_todos
+        where artist_id = $1
+        order by (case when status = 'concluido' then 1 else 0 end) asc, coalesce(due_date, now()::date) asc, created_at desc`,
+      [artistId]
+    );
+    return ok(res, rows || []);
+  })
+);
+
+apiRouter.post(
+  '/artist/todos',
+  authRequired,
+  requireRole(['Artista']),
+  asyncHandler(async (req, res) => {
+    const artistId = String(req.user.id);
+    const title = String(req.body?.title || '').trim();
+    const dueDate = req.body?.due_date ? String(req.body.due_date).trim() : null;
+    if (!title) return bad(res, 400, 'Título é obrigatório');
+
+    const { rows } = await query(
+      `insert into artist_work_todos (artist_id, title, due_date, status)
+       values ($1,$2,$3,'pendente')
+       returning id, artist_id, title, due_date, status, created_at, updated_at`,
+      [artistId, title, dueDate]
+    );
+    return ok(res, rows[0] || null);
+  })
+);
+
+apiRouter.post(
+  '/artist/todos/:id',
+  authRequired,
+  requireRole(['Artista']),
+  asyncHandler(async (req, res) => {
+    const artistId = String(req.user.id);
+    const id = String(req.params.id || '').trim();
+    const status = String(req.body?.status || '').trim();
+    if (!id || !status) return bad(res, 400, 'Dados inválidos');
+    if (!['pendente', 'em_andamento', 'concluido'].includes(status)) return bad(res, 400, 'Status inválido');
+
+    const { rows } = await query(
+      `update artist_work_todos
+          set status = $3,
+              updated_at = now()
+        where id = $1
+          and artist_id = $2
+        returning id, artist_id, title, due_date, status, created_at, updated_at`,
+      [id, artistId, status]
+    );
+    if (!rows[0]) return bad(res, 404, 'Tarefa não encontrada');
+    return ok(res, rows[0]);
+  })
+);
+
+apiRouter.get(
+  '/artist/finance/events',
+  authRequired,
+  asyncHandler(async (req, res) => {
+    return ok(res, []);
+  })
+);
+
+apiRouter.get(
+  '/artist/marketing/:id',
+  authRequired,
+  asyncHandler(async (req, res) => {
+    const artistId = String(req.params.id || '').trim();
+    if (!artistId) return bad(res, 400, 'ID inválido');
+    const requesterId = String(req.user.id);
+    const isProducer = String(req.profile && req.profile.cargo ? req.profile.cargo : '').toLowerCase() === 'produtor';
+    if (!isProducer && artistId !== requesterId) return bad(res, 403, 'Sem permissão');
+
+    const { rows } = await query('select artist_id, data, updated_at from marketing_data where artist_id = $1 limit 1', [artistId]);
+    if (!rows[0]) return ok(res, { artist_id: artistId, data: {}, updated_at: null });
+    return ok(res, rows[0]);
+  })
+);
+
+apiRouter.put(
+  '/artist/marketing/:id',
+  authRequired,
+  asyncHandler(async (req, res) => {
+    const artistId = String(req.params.id || '').trim();
+    if (!artistId) return bad(res, 400, 'ID inválido');
+    const requesterId = String(req.user.id);
+    const isProducer = String(req.profile && req.profile.cargo ? req.profile.cargo : '').toLowerCase() === 'produtor';
+    if (!isProducer && artistId !== requesterId) return bad(res, 403, 'Sem permissão');
+
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const patch = body && typeof body.data === 'object' ? body.data : body;
+
+    const { rows } = await query(
+      `insert into marketing_data (artist_id, data)
+       values ($1, $2::jsonb)
+       on conflict (artist_id)
+       do update set data = jsonb_strip_nulls(coalesce(marketing_data.data, '{}'::jsonb) || excluded.data),
+                     updated_at = now()
+       returning artist_id, data, updated_at`,
+      [artistId, patch]
+    );
+    return ok(res, rows[0] || { artist_id: artistId, data: patch, updated_at: null });
+  })
+);
+
+apiRouter.get(
+  '/marketing/:id',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const artistId = String(req.params.id || '').trim();
+    if (!artistId) return bad(res, 400, 'ID inválido');
+    const { rows } = await query('select artist_id, data, updated_at from marketing_data where artist_id = $1 limit 1', [artistId]);
+    if (!rows[0]) return ok(res, { artist_id: artistId, data: {}, updated_at: null });
+    return ok(res, rows[0]);
+  })
+);
+
+apiRouter.put(
+  '/marketing/:id',
+  authRequired,
+  requireRole(['Produtor']),
+  asyncHandler(async (req, res) => {
+    const artistId = String(req.params.id || '').trim();
+    if (!artistId) return bad(res, 400, 'ID inválido');
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const patch = body && typeof body.data === 'object' ? body.data : body;
+
+    const { rows } = await query(
+      `insert into marketing_data (artist_id, data)
+       values ($1, $2::jsonb)
+       on conflict (artist_id)
+       do update set data = jsonb_strip_nulls(coalesce(marketing_data.data, '{}'::jsonb) || excluded.data),
+                     updated_at = now()
+       returning artist_id, data, updated_at`,
+      [artistId, patch]
+    );
+    return ok(res, rows[0] || { artist_id: artistId, data: patch, updated_at: null });
   })
 );
 
@@ -1607,6 +2471,181 @@ apiRouter.get(
   )
 );
 
+function normalizeCompositionRow(row, { audioCol, coverCol, genreCol, descriptionCol, priceCol, feedbackCol }) {
+  if (!row) return null;
+  const out = { ...row };
+  if (audioCol && audioCol in row) out.audio_url = row[audioCol];
+  if (coverCol && coverCol in row) out.cover_url = row[coverCol];
+  if (genreCol && genreCol in row) out.genre = row[genreCol];
+  if (descriptionCol && descriptionCol in row) out.description = row[descriptionCol];
+  if (priceCol && priceCol in row) out.price = row[priceCol];
+  if (feedbackCol && feedbackCol in row) out.admin_feedback = row[feedbackCol];
+  return out;
+}
+
+apiRouter.post(
+  '/compositions',
+  authRequired,
+  requireRole(['Compositor', 'Produtor']),
+  asyncHandler(async (req, res) => {
+    const payload = req.body || {};
+    const userId = String(req.user.id);
+    const isProducer = String(req.profile && req.profile.cargo ? req.profile.cargo : '').toLowerCase() === 'produtor';
+
+    const composerId = String(payload.composer_id || userId).trim();
+    const title = String(payload.title || '').trim();
+    const status = payload.status != null ? String(payload.status).trim().toLowerCase() : 'pending';
+
+    if (!composerId || !title) return bad(res, 400, 'Dados inválidos');
+    if (!isProducer && composerId !== userId) return bad(res, 403, 'Sem permissão');
+    if (status && !['pending', 'approved', 'rejected'].includes(status)) return bad(res, 400, 'Status inválido');
+
+    const cols = await getTableColumns('public.compositions');
+    const audioCol = pickFirstExistingColumn(cols, ['audio_url', 'file_url', 'url']);
+    const coverCol = pickFirstExistingColumn(cols, ['cover_url', 'image_url']);
+    const genreCol = pickFirstExistingColumn(cols, ['genre', 'genero', 'genero_musical']);
+    const descriptionCol = pickFirstExistingColumn(cols, ['description', 'descricao']);
+    const priceCol = pickFirstExistingColumn(cols, ['price', 'preco', 'valor']);
+
+    const audioUrl = payload.audio_url != null ? String(payload.audio_url).trim() : (payload.file_url != null ? String(payload.file_url).trim() : null);
+    const coverUrl = payload.cover_url != null ? String(payload.cover_url).trim() : null;
+    const genre = payload.genre != null ? String(payload.genre).trim() : null;
+    const description = payload.description != null ? String(payload.description).trim() : null;
+    const price = payload.price == null || payload.price === '' ? null : Number(payload.price);
+    const safePrice = price == null || Number.isNaN(price) ? null : price;
+
+    const insertCols = ['composer_id', 'title', 'status'];
+    const params = [composerId, title, status || 'pending'];
+    const values = ['$1', '$2', '$3'];
+
+    if (audioCol && audioUrl) {
+      insertCols.push(audioCol);
+      params.push(audioUrl);
+      values.push(`$${params.length}`);
+    }
+    if (coverCol && coverUrl) {
+      insertCols.push(coverCol);
+      params.push(coverUrl);
+      values.push(`$${params.length}`);
+    }
+    if (genreCol && genre) {
+      insertCols.push(genreCol);
+      params.push(genre);
+      values.push(`$${params.length}`);
+    }
+    if (descriptionCol && description) {
+      insertCols.push(descriptionCol);
+      params.push(description);
+      values.push(`$${params.length}`);
+    }
+    if (priceCol) {
+      insertCols.push(priceCol);
+      params.push(safePrice);
+      values.push(`$${params.length}`);
+    }
+
+    const sql = `insert into compositions (${insertCols.map(qIdent).join(', ')}) values (${values.join(', ')}) returning *`;
+    const { rows } = await query(sql, params);
+    const row = rows[0] || null;
+    return ok(res, normalizeCompositionRow(row, { audioCol, coverCol, genreCol, descriptionCol, priceCol, feedbackCol: null }));
+  })
+);
+
+apiRouter.get(
+  '/composer/compositions',
+  asyncHandler(async (req, res, next) => {
+    const hasAuth = !!(req.headers.authorization || req.headers.Authorization);
+    if (hasAuth) return next();
+    const { limit, offset } = parsePagination(req, { defaultLimit: 20, maxLimit: 100 });
+    const status = req.query.status == null ? null : String(req.query.status).trim();
+    const baseSql = `
+      select c.id, c.composer_id, c.title, c.status, c.file_url, c.created_at,
+             coalesce(nullif(p.nome, ''), nullif(p.nome_completo_razao_social, '')) as composer_name,
+             p.celular as composer_phone,
+             p.avatar_url as composer_avatar_url
+        from compositions c
+        join profiles p on p.id = c.composer_id
+      ${status ? 'where c.status = $3' : ''}
+       order by c.created_at desc
+       limit $1 offset $2
+    `;
+    const args = status ? [limit, offset, status] : [limit, offset];
+    const { rows } = await timedQuery(req, baseSql, args, 'compositions.list.public');
+    return okPerf(req, res, rows);
+  })
+);
+
+apiRouter.get(
+  '/composer/compositions',
+  authRequired,
+  requireRole(['Compositor', 'Produtor']),
+  asyncHandler(async (req, res) => {
+    const userId = String(req.user.id);
+    const cols = await getTableColumns('public.compositions');
+    const audioCol = pickFirstExistingColumn(cols, ['audio_url', 'file_url', 'url']);
+    const coverCol = pickFirstExistingColumn(cols, ['cover_url', 'image_url']);
+    const genreCol = pickFirstExistingColumn(cols, ['genre', 'genero', 'genero_musical']);
+    const descriptionCol = pickFirstExistingColumn(cols, ['description', 'descricao']);
+    const priceCol = pickFirstExistingColumn(cols, ['price', 'preco', 'valor']);
+    const feedbackCol = pickFirstExistingColumn(cols, ['admin_feedback', 'feedback', 'rejection_reason']);
+
+    const select = [
+      'id',
+      'composer_id',
+      'title',
+      'status',
+      audioCol ? `${qIdent(audioCol)}` : 'null::text as file_url',
+      coverCol ? `${qIdent(coverCol)}` : 'null::text as cover_url',
+      genreCol ? `${qIdent(genreCol)}` : 'null::text as genre',
+      descriptionCol ? `${qIdent(descriptionCol)}` : 'null::text as description',
+      priceCol ? `${qIdent(priceCol)}` : 'null::numeric as price',
+      feedbackCol ? `${qIdent(feedbackCol)}` : 'null::text as admin_feedback',
+      'created_at'
+    ];
+    const { rows } = await query(
+      `select ${select.join(', ')} from compositions where composer_id = $1 order by created_at desc limit 500`,
+      [userId]
+    );
+    const out = (rows || []).map((r) => normalizeCompositionRow(r, { audioCol, coverCol, genreCol, descriptionCol, priceCol, feedbackCol }));
+    return ok(res, out);
+  })
+);
+
+apiRouter.get(
+  '/artist/compositions',
+  authRequired,
+  asyncHandler(async (req, res) => {
+    const userId = String(req.user.id);
+    const cols = await getTableColumns('public.compositions');
+    const audioCol = pickFirstExistingColumn(cols, ['audio_url', 'file_url', 'url']);
+    const coverCol = pickFirstExistingColumn(cols, ['cover_url', 'image_url']);
+    const genreCol = pickFirstExistingColumn(cols, ['genre', 'genero', 'genero_musical']);
+    const descriptionCol = pickFirstExistingColumn(cols, ['description', 'descricao']);
+    const priceCol = pickFirstExistingColumn(cols, ['price', 'preco', 'valor']);
+    const feedbackCol = pickFirstExistingColumn(cols, ['admin_feedback', 'feedback', 'rejection_reason']);
+
+    const select = [
+      'id',
+      'composer_id',
+      'title',
+      'status',
+      audioCol ? `${qIdent(audioCol)}` : 'null::text as file_url',
+      coverCol ? `${qIdent(coverCol)}` : 'null::text as cover_url',
+      genreCol ? `${qIdent(genreCol)}` : 'null::text as genre',
+      descriptionCol ? `${qIdent(descriptionCol)}` : 'null::text as description',
+      priceCol ? `${qIdent(priceCol)}` : 'null::numeric as price',
+      feedbackCol ? `${qIdent(feedbackCol)}` : 'null::text as admin_feedback',
+      'created_at'
+    ];
+    const { rows } = await query(
+      `select ${select.join(', ')} from compositions where composer_id = $1 order by created_at desc limit 500`,
+      [userId]
+    );
+    const out = (rows || []).map((r) => normalizeCompositionRow(r, { audioCol, coverCol, genreCol, descriptionCol, priceCol, feedbackCol }));
+    return ok(res, out);
+  })
+);
+
 apiRouter.get(
   '/compositions',
   asyncHandler(async (req, res) => {
@@ -1717,10 +2756,228 @@ apiRouter.get(
   )
 );
 
-apiRouter.get('/profiles/:id/musics', (req, res) => ok(res, []));
-apiRouter.get('/profiles/:id/feats', (req, res) => ok(res, []));
-apiRouter.get('/profiles/:id/produced-musics', (req, res) => ok(res, []));
-apiRouter.get('/profiles/:id/compositions', (req, res) => ok(res, []));
+apiRouter.get(
+  '/profiles/:id/musics',
+  withPublicCache(
+    60000,
+    asyncHandler(async (req, res) => {
+      const artistId = String(req.params.id || '').trim();
+      if (!artistId) return bad(res, 400, 'ID inválido');
+
+      const musicTable = await resolveMusicTable();
+      if (!musicTable) return okPerf(req, res, []);
+
+      const cols = await getTableColumns(musicTable);
+      const idCol = pickFirstExistingColumn(cols, ['id']);
+      const artistCol = pickFirstExistingColumn(cols, ['artista_id', 'artist_id', 'user_id', 'owner_id']);
+      const titleCol = pickFirstExistingColumn(cols, ['titulo', 'title', 'nome', 'name']);
+      const statusCol = pickFirstExistingColumn(cols, ['status', 'estado']);
+      const createdAtCol = pickFirstExistingColumn(cols, ['created_at', 'createdAt', 'data_criacao', 'created']);
+      if (!idCol || !artistCol) return okPerf(req, res, []);
+
+      const selectParts = [
+        `m.${qIdent(idCol)} as id`,
+        titleCol ? `m.${qIdent(titleCol)} as titulo` : `null::text as titulo`,
+        `m.${qIdent(artistCol)} as artista_id`,
+        cols.has('nome_artista') ? `m.${qIdent('nome_artista')} as nome_artista` : `pf.nome as nome_artista`,
+        cols.has('cover_url') ? `m.${qIdent('cover_url')} as cover_url` : `null::text as cover_url`,
+        cols.has('audio_url') ? `m.${qIdent('audio_url')} as audio_url` : `null::text as audio_url`,
+        cols.has('authorization_url') ? `m.${qIdent('authorization_url')} as authorization_url` : `null::text as authorization_url`,
+        statusCol ? `m.${qIdent(statusCol)} as status` : `null::text as status`,
+        cols.has('estilo') ? `m.${qIdent('estilo')} as estilo` : `null::text as estilo`,
+        cols.has('isrc') ? `m.${qIdent('isrc')} as isrc` : `null::text as isrc`,
+        cols.has('upc') ? `m.${qIdent('upc')} as upc` : `null::text as upc`,
+        cols.has('presave_link') ? `m.${qIdent('presave_link')} as presave_link` : `null::text as presave_link`,
+        cols.has('release_date') ? `m.${qIdent('release_date')} as release_date` : `null::timestamptz as release_date`,
+        cols.has('album_id') ? `m.${qIdent('album_id')} as album_id` : `null::uuid as album_id`,
+        cols.has('album_title') ? `m.${qIdent('album_title')} as album_title` : `null::text as album_title`,
+        createdAtCol ? `m.${qIdent(createdAtCol)} as created_at` : `null::timestamptz as created_at`
+      ];
+
+      const args = [artistId];
+      const where = [`m.${qIdent(artistCol)}::text = $1`];
+      if (statusCol) {
+        args.push(['aprovado', 'approved']);
+        where.push(`lower(m.${qIdent(statusCol)}) = any($2::text[])`);
+      }
+
+      const { rows } = await timedQuery(
+        req,
+        `select ${selectParts.join(', ')}
+           from ${musicTable} m
+           left join profiles pf on pf.id = m.${qIdent(artistCol)}
+          where ${where.join(' and ')}
+          order by ${createdAtCol ? `m.${qIdent(createdAtCol)}` : `m.${qIdent(idCol)}`} desc
+          limit 500`,
+        args,
+        'profiles.musics_public'
+      );
+      return okPerf(req, res, rows || []);
+    })
+  )
+);
+
+apiRouter.get(
+  '/profiles/:id/feats',
+  withPublicCache(
+    60000,
+    asyncHandler(async (req, res) => {
+      const artistId = String(req.params.id || '').trim();
+      if (!artistId) return bad(res, 400, 'ID inválido');
+
+      const musicTable = await resolveMusicTable();
+      if (!musicTable) return okPerf(req, res, []);
+
+      const cols = await getTableColumns(musicTable);
+      const idCol = pickFirstExistingColumn(cols, ['id']);
+      const titleCol = pickFirstExistingColumn(cols, ['titulo', 'title', 'nome', 'name']);
+      const statusCol = pickFirstExistingColumn(cols, ['status', 'estado']);
+      const createdAtCol = pickFirstExistingColumn(cols, ['created_at', 'createdAt', 'data_criacao', 'created']);
+      const featIdsCol = pickFirstExistingColumn(cols, ['feat_beatwap_artist_ids', 'feat_artist_ids', 'feat_ids']);
+      const hasFeatCol = pickFirstExistingColumn(cols, ['has_feat', 'feat', 'is_feat']);
+      if (!idCol) return okPerf(req, res, []);
+
+      const selectParts = [
+        `m.${qIdent(idCol)} as id`,
+        titleCol ? `m.${qIdent(titleCol)} as titulo` : `null::text as titulo`,
+        cols.has('artista_id') ? `m.${qIdent('artista_id')} as artista_id` : `null::uuid as artista_id`,
+        cols.has('nome_artista') ? `m.${qIdent('nome_artista')} as nome_artista` : `null::text as nome_artista`,
+        cols.has('cover_url') ? `m.${qIdent('cover_url')} as cover_url` : `null::text as cover_url`,
+        cols.has('audio_url') ? `m.${qIdent('audio_url')} as audio_url` : `null::text as audio_url`,
+        statusCol ? `m.${qIdent(statusCol)} as status` : `null::text as status`,
+        createdAtCol ? `m.${qIdent(createdAtCol)} as created_at` : `null::timestamptz as created_at`
+      ];
+
+      const where = [];
+      const params = [artistId];
+      if (featIdsCol) {
+        where.push(`m.${qIdent(featIdsCol)}::text ilike '%' || $1 || '%'`);
+      } else {
+        return okPerf(req, res, []);
+      }
+      if (hasFeatCol) where.push(`coalesce(m.${qIdent(hasFeatCol)}::boolean, false) = true`);
+      if (statusCol) {
+        params.push(['aprovado', 'approved']);
+        where.push(`lower(m.${qIdent(statusCol)}) = any($2::text[])`);
+      }
+
+      const { rows } = await timedQuery(
+        req,
+        `select ${selectParts.join(', ')}
+           from ${musicTable} m
+          where ${where.join(' and ')}
+          order by ${createdAtCol ? `m.${qIdent(createdAtCol)}` : `m.${qIdent(idCol)}`} desc
+          limit 500`,
+        params,
+        'profiles.feats_public'
+      );
+      return okPerf(req, res, rows || []);
+    })
+  )
+);
+
+apiRouter.get(
+  '/profiles/:id/produced-musics',
+  withPublicCache(
+    60000,
+    asyncHandler(async (req, res) => {
+      const producerId = String(req.params.id || '').trim();
+      if (!producerId) return bad(res, 400, 'ID inválido');
+
+      const musicTable = await resolveMusicTable();
+      if (!musicTable) return okPerf(req, res, []);
+
+      const cols = await getTableColumns(musicTable);
+      const idCol = pickFirstExistingColumn(cols, ['id']);
+      const producedByCol = pickFirstExistingColumn(cols, ['produced_by', 'producer_id']);
+      const titleCol = pickFirstExistingColumn(cols, ['titulo', 'title', 'nome', 'name']);
+      const statusCol = pickFirstExistingColumn(cols, ['status', 'estado']);
+      const createdAtCol = pickFirstExistingColumn(cols, ['created_at', 'createdAt', 'data_criacao', 'created']);
+      if (!idCol || !producedByCol) return okPerf(req, res, []);
+
+      const selectParts = [
+        `m.${qIdent(idCol)} as id`,
+        titleCol ? `m.${qIdent(titleCol)} as titulo` : `null::text as titulo`,
+        cols.has('artista_id') ? `m.${qIdent('artista_id')} as artista_id` : `null::uuid as artista_id`,
+        cols.has('nome_artista') ? `m.${qIdent('nome_artista')} as nome_artista` : `null::text as nome_artista`,
+        cols.has('cover_url') ? `m.${qIdent('cover_url')} as cover_url` : `null::text as cover_url`,
+        cols.has('audio_url') ? `m.${qIdent('audio_url')} as audio_url` : `null::text as audio_url`,
+        cols.has('authorization_url') ? `m.${qIdent('authorization_url')} as authorization_url` : `null::text as authorization_url`,
+        statusCol ? `m.${qIdent(statusCol)} as status` : `null::text as status`,
+        cols.has('estilo') ? `m.${qIdent('estilo')} as estilo` : `null::text as estilo`,
+        createdAtCol ? `m.${qIdent(createdAtCol)} as created_at` : `null::timestamptz as created_at`
+      ];
+
+      const args = [producerId];
+      const where = [`m.${qIdent(producedByCol)}::text = $1`];
+      if (statusCol) {
+        args.push(['aprovado', 'approved']);
+        where.push(`lower(m.${qIdent(statusCol)}) = any($2::text[])`);
+      }
+
+      const { rows } = await timedQuery(
+        req,
+        `select ${selectParts.join(', ')}
+           from ${musicTable} m
+          where ${where.join(' and ')}
+          order by ${createdAtCol ? `m.${qIdent(createdAtCol)}` : `m.${qIdent(idCol)}`} desc
+          limit 500`,
+        args,
+        'profiles.produced_musics_public'
+      );
+      return okPerf(req, res, rows || []);
+    })
+  )
+);
+
+apiRouter.get(
+  '/profiles/:id/compositions',
+  withPublicCache(
+    60000,
+    asyncHandler(async (req, res) => {
+      const composerId = String(req.params.id || '').trim();
+      if (!composerId) return bad(res, 400, 'ID inválido');
+
+      const cols = await getTableColumns('public.compositions');
+      const audioCol = pickFirstExistingColumn(cols, ['audio_url', 'file_url', 'url']);
+      const coverCol = pickFirstExistingColumn(cols, ['cover_url', 'image_url']);
+      const genreCol = pickFirstExistingColumn(cols, ['genre', 'genero', 'genero_musical']);
+      const descriptionCol = pickFirstExistingColumn(cols, ['description', 'descricao']);
+      const priceCol = pickFirstExistingColumn(cols, ['price', 'preco', 'valor']);
+
+      const select = [
+        'id',
+        'composer_id',
+        'title',
+        'status',
+        audioCol ? `${qIdent(audioCol)}` : 'null::text as file_url',
+        coverCol ? `${qIdent(coverCol)}` : 'null::text as cover_url',
+        genreCol ? `${qIdent(genreCol)}` : 'null::text as genre',
+        descriptionCol ? `${qIdent(descriptionCol)}` : 'null::text as description',
+        priceCol ? `${qIdent(priceCol)}` : 'null::numeric as price',
+        'created_at'
+      ];
+
+      const { rows } = await timedQuery(
+        req,
+        `select ${select.join(', ')}
+           from compositions
+          where composer_id::text = $1
+            and status = 'approved'
+          order by created_at desc
+          limit 200`,
+        [composerId],
+        'profiles.compositions_public'
+      );
+
+      const out = (rows || []).map((r) =>
+        normalizeCompositionRow(r, { audioCol, coverCol, genreCol, descriptionCol, priceCol, feedbackCol: null })
+      );
+      return okPerf(req, res, out);
+    })
+  )
+);
+
 apiRouter.get('/sellers/:id/stats', (req, res) => ok(res, null));
 
 apiRouter.get(
@@ -1845,20 +3102,38 @@ apiRouter.delete(
   })
 );
 
-apiRouter.post('/upload', authRequired, upload.single('file'), (req, res) => {
-  const bucket = safePathPart(req.body.bucket || 'misc');
-  const relative = `/uploads/${bucket}/${safePathPart(req.file.filename)}`;
+function ensureUploadDestination(req, res, next) {
+  const bucket = safePathPart(req.body.bucket || req.query.bucket || 'misc');
+  const rawFileName = safePathPart(req.body.fileName || req.query.fileName || '');
+  const nestedDir = rawFileName ? path.posix.dirname(rawFileName) : '';
+  const nestedParts = nestedDir && nestedDir !== '.' ? nestedDir.split('/').filter(Boolean) : [];
+  const dest = path.join(__dirname, '..', 'uploads', bucket, ...nestedParts);
+  ensureDir(dest);
+  next();
+}
+
+apiRouter.post('/upload', authRequired, ensureUploadDestination, upload.single('file'), (req, res) => {
+  if (!req.file || !req.file.filename) return bad(res, 400, 'Arquivo não enviado');
+  const bucket = safePathPart(req.body.bucket || req.query.bucket || 'misc');
+  const rawFileName = safePathPart(req.body.fileName || req.query.fileName || '');
+  const nestedDir = rawFileName ? path.posix.dirname(rawFileName) : '';
+  const nestedPath = nestedDir && nestedDir !== '.' ? `/${nestedDir}` : '';
+  const relative = `/uploads/${bucket}${nestedPath}/${safePathPart(req.file.filename)}`;
   return ok(res, { url: absoluteUploadsUrl(req, relative) });
 });
 
-apiRouter.post('/upload/single', authRequired, upload.single('file'), (req, res) => {
-  const bucket = safePathPart(req.body.bucket || 'misc');
-  const relative = `/uploads/${bucket}/${safePathPart(req.file.filename)}`;
+apiRouter.post('/upload/single', authRequired, ensureUploadDestination, upload.single('file'), (req, res) => {
+  if (!req.file || !req.file.filename) return bad(res, 400, 'Arquivo não enviado');
+  const bucket = safePathPart(req.body.bucket || req.query.bucket || 'misc');
+  const rawFileName = safePathPart(req.body.fileName || req.query.fileName || '');
+  const nestedDir = rawFileName ? path.posix.dirname(rawFileName) : '';
+  const nestedPath = nestedDir && nestedDir !== '.' ? `/${nestedDir}` : '';
+  const relative = `/uploads/${bucket}${nestedPath}/${safePathPart(req.file.filename)}`;
   return ok(res, { url: absoluteUploadsUrl(req, relative) });
 });
 
-apiRouter.post('/upload/multiple', authRequired, upload.array('files', 10), (req, res) => {
-  const bucket = safePathPart(req.body.bucket || 'misc');
+apiRouter.post('/upload/multiple', authRequired, ensureUploadDestination, upload.array('files', 10), (req, res) => {
+  const bucket = safePathPart(req.body.bucket || req.query.bucket || 'misc');
   const urls = (req.files || []).map((f) => absoluteUploadsUrl(req, `/uploads/${bucket}/${safePathPart(f.filename)}`));
   return ok(res, { urls });
 });

@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 function readEnv(name, { required = false, fallback = undefined } = {}) {
   const raw = process.env[name];
   if (raw == null || String(raw).trim() === '') {
