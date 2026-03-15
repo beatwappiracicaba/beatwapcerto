@@ -138,4 +138,9 @@ router.get('/sellers/:id/stats', async (req, res) => {
   return res.json({ leads: 0, closed: 0, revenue: 0 });
 });
 
+router.get('/profiles/artists/all', async (req, res) => {
+  const rows = await Profile.findAll({ where: { cargo: 'Artista' }, limit: 500, order: [['created_at', 'DESC']] });
+  return res.json(rows);
+});
+
 module.exports = router;

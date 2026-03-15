@@ -38,7 +38,7 @@ const Login = () => {
       const user = authApi.getUser();
       const cargo = user?.role ?? user?.cargo ?? null;
       addToast('Login realizado com sucesso!', 'success');
-      const target = result?.redirect || routeForRole(cargo);
+      const target = routeForRole(cargo) || result?.redirect || '/';
       navigate(target, { replace: true });
     } catch (err) {
       addToast(err.message || 'Credenciais inválidas.', 'error');

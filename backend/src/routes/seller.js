@@ -36,4 +36,8 @@ router.get('/leads/:id/history', authRequired, requireRole('Vendedor'), async (r
   return res.json([]);
 });
 
+router.get('/dashboard', authRequired, requireRole('Vendedor'), async (req, res) => {
+  return res.json({ shows_target: 10, current_shows: 0, revenue_target: 50000, current_revenue: 0 });
+});
+
 module.exports = router;
