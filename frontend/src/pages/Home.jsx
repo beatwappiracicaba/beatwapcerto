@@ -1032,6 +1032,62 @@ const Home = () => {
           </section>
         )}
 
+        {producers.length > 0 && (
+          <section className="py-20 px-6 bg-black/10">
+            <div className="max-w-7xl mx-auto">
+              <div className="text-center mb-12">
+                <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Produtores Parceiros</span></h2>
+                <p className="text-gray-400"><span>Profissionais disponíveis para seus projetos</span></p>
+              </div>
+              <div className="text-xs text-gray-400 mb-2 px-4 md:hidden">
+                Arraste para o lado e veja todos
+              </div>
+              <div className="relative -mx-6">
+                <div ref={composersRef} className="overflow-x-auto scroll-smooth whitespace-nowrap px-6 pb-2">
+                  <div className="flex gap-6 justify-center md:justify-start">
+                    {producers.map((producer, index) => (
+                      <div key={producer.id} className="flex-none w-[280px]">
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          whileInView={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="group bg-white/5 border rounded-xl overflow-hidden cursor-pointer transition-colors border-white/10 hover:border-beatwap-gold"
+                          onClick={() => navigate(`/profile/${producer.id}`)}
+                        >
+                          <div className="aspect-square bg-gray-800 relative overflow-hidden">
+                            {producer.avatar_url ? (
+                              <img 
+                                src={producer.avatar_url} 
+                                alt={producer.nome || producer.name || 'Produtor'} 
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                                <User size={64} className="text-white/20" />
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3 sm:p-4">
+                              <div className="w-full">
+                                <div className="text-white text-base sm:text-sm font-bold leading-snug">{producer.nome || producer.name || 'Produtor'}</div>
+                                <div className="text-xs sm:text-[11px] text-gray-300 flex items-center gap-2">
+                                  <span>Produtor</span>
+                                  <span className="hidden sm:flex items-center gap-1 text-beatwap-gold">
+                                    <Info size={14} /> <span>Ver Perfil</span>
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Composers Section */}
         {composers.length > 0 && (
           <section className="py-20 px-6 bg-black/20">
