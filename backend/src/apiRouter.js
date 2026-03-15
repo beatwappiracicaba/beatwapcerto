@@ -606,6 +606,25 @@ apiRouter.get('/events', withPublicCache(60000, asyncHandler(async (req, res) =>
   return ok(res, rows);
 })));
 
+// Compat: GET /seller/artist-events?artist_id=... — usado por frontend do vendedor
+apiRouter.get('/seller/artist-events', authRequired, requireRole(['Vendedor','Produtor']), asyncHandler(async (req, res) => {
+  const artistId = String(req.query.artist_id || '').trim();
+  if (!artistId) return bad(res, 400, 'artist_id é obrigatório');
+  const { limit, offset } = parsePagination(req, { defaultLimit: 50, maxLimit: 200 });
+  const { rows } = await timedQuery(
+    req,
+    `select id, artist_id, event_date, location, flyer_url, ticket_price_cents, purchase_contact, created_at
+       from public_events
+      where artist_id = $1
+        and event_date >= now()
+      order by event_date asc
+      limit $2 offset $3`,
+    [artistId, limit, offset],
+    'events.seller_by_artist'
+  );
+  return ok(res, rows);
+}));
+
 // GET /profiles/:id/events — eventos públicos de um artista
 apiRouter.get('/profiles/:id/events', withPublicCache(60000, asyncHandler(async (req, res) => {
   const artistId = String(req.params.id || '').trim();
@@ -799,6 +818,30 @@ apiRouter.post('/admin/users/:id/purge', authRequired, requireRole(['Produtor'])
   await timedQuery(req, 'delete from notifications where user_id = $1', [id], 'purge.notifications');
   await timedQuery(req, 'delete from profiles where id = $1', [id], 'purge.profile');
   return ok(res, { ok: true });
+}));
+
+// ------------ Users Compat ------------
+// GET /users/:id/quota — compat com clientes antigos
+apiRouter.get('/users/:id/quota', authRequired, asyncHandler(async (req, res) => {
+  const targetId = String(req.params.id || '').trim();
+  if (!targetId) return bad(res, 400, 'ID inválido');
+  const requesterId = String(req.user.id);
+  const isProducer = String(req.profile && req.profile.cargo ? req.profile.cargo : '').toLowerCase() === 'produtor';
+  if (!isProducer && targetId !== requesterId) return bad(res, 403, 'Sem permissão');
+  const { rows } = await timedQuery(
+    req,
+    'select id, plano, bonus_quota, plan_started_at from profiles where id = $1 limit 1',
+    [targetId],
+    'users.quota'
+  );
+  const row = rows[0] || null;
+  if (!row) return bad(res, 404, 'Usuário não encontrado');
+  return ok(res, {
+    id: row.id,
+    plano: row.plano || 'Avulso',
+    bonus_quota: Number(row.bonus_quota || 0),
+    plan_started_at: row.plan_started_at || null
+  });
 }));
 
 module.exports = { apiRouter };
