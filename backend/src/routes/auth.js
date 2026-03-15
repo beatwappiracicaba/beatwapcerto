@@ -30,7 +30,9 @@ router.post('/login', async (req, res) => {
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) return res.status(401).json({ ok: false, error: 'Credenciais inválidas' });
     const token = jwt.sign({ sub: user.id, email: user.email, cargo: user.cargo }, process.env.JWT_SECRET || 'devsecret', { expiresIn: '7d' });
-    return res.json({ ok: true, token });
+    const map = { Artista: '/dashboard', Compositor: '/dashboard', Vendedor: '/seller', Produtor: '/admin' };
+    const redirect = map[user.cargo] || '/dashboard';
+    return res.json({ ok: true, token, redirect });
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'Erro interno' });
   }
