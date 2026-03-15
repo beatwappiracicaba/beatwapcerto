@@ -1,26 +1,44 @@
-const http = require('http');
-const { createApp } = require('./app');
-const { config } = require('./config');
-const { cleanupExpiredEvents } = require('./db');
+const express = require('express');
+const path = require('path');
+const cors = require('cors');
+const dotenv = require('dotenv');
+const { sequelize } = require('./models');
 
-function startServer() {
-  const app = createApp();
-  const server = http.createServer(app);
-  server.listen(config.port, '0.0.0.0');
+dotenv.config();
 
-  cleanupExpiredEvents().catch(() => void 0);
-  const intervalMs = Number(process.env.EVENTS_CLEANUP_INTERVAL_MS || 30 * 60 * 1000);
-  if (Number.isFinite(intervalMs) && intervalMs > 0) {
-    setInterval(() => {
-      cleanupExpiredEvents().catch(() => void 0);
-    }, intervalMs);
+const app = express();
+app.use(cors({ origin: true, credentials: true }));
+app.use(express.json({ limit: '2mb' }));
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
+const publicRoutes = require('./routes/public');
+const authRoutes = require('./routes/auth');
+const dashboardRoutes = require('./routes/dashboard');
+const sellerRoutes = require('./routes/seller');
+const adminRoutes = require('./routes/admin');
+const uploadRoutes = require('./routes/upload');
+const notificationRoutes = require('./routes/notifications');
+
+app.use('/', publicRoutes);
+app.use('/auth', authRoutes);
+app.use('/dashboard', dashboardRoutes);
+app.use('/seller', sellerRoutes);
+app.use('/admin', adminRoutes);
+app.use('/upload', uploadRoutes);
+app.use('/notifications', notificationRoutes);
+
+app.get('/health', async (req, res) => {
+  try {
+    await sequelize.authenticate();
+    res.json({ ok: true, db: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: 'db_error' });
   }
+});
 
-  return server;
-}
-
-if (require.main === module) {
-  startServer();
-}
-
-module.exports = { startServer };
+const port = Number(process.env.PORT || 3000);
+sequelize.sync().then(() => {
+  app.listen(port, () => {
+    process.stdout.write(`API listening on ${port}\n`);
+  });
+});
