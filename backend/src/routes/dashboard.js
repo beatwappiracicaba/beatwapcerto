@@ -1,5 +1,7 @@
 const express = require('express');
 const { authRequired, requireRole } = require('../middleware/auth');
+const path = require('path');
+const fs = require('fs');
 const { Music, Composition, Profile } = require('../models');
 
 const router = express.Router();
