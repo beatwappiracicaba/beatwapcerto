@@ -59,6 +59,22 @@ router.get('/profiles/:id/posts', async (req, res) => {
   return res.json({ ok: true, posts });
 });
 
+router.get('/profiles/:id/compositions', async (req, res) => {
+  const profileId = String(req.params.id);
+  const profile = await Profile.findByPk(profileId);
+  if (!profile) return res.status(404).json({ ok: false, error: 'Não encontrado' });
+  const compositions = await Composition.findAll({ where: { profile_id: profileId }, limit: 50, order: [['created_at', 'DESC']] });
+  return res.json({ ok: true, compositions });
+});
+
+router.get('/profiles/:id/musics', async (req, res) => {
+  const profileId = String(req.params.id);
+  const profile = await Profile.findByPk(profileId);
+  if (!profile) return res.status(404).json({ ok: false, error: 'Não encontrado' });
+  const musics = await Music.findAll({ where: { profile_id: profileId }, limit: 50, order: [['created_at', 'DESC']] });
+  return res.json({ ok: true, musics });
+});
+
 router.get('/profile/:id', async (req, res) => {
   const profile = await Profile.findByPk(String(req.params.id));
   if (!profile) return res.status(404).json({ ok: false, error: 'Não encontrado' });
