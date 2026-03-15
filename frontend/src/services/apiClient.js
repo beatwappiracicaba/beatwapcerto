@@ -243,7 +243,18 @@ export const authApi = {
   async login(email, password) {
     const data = await apiClient.post('/auth/login', { email, password });
     localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data.user));
+    let user = data.user;
+    if (!user && data?.token) {
+      try {
+        const payloadRaw = String(data.token).split('.')[1] || '';
+        const normalized = payloadRaw.replace(/-/g, '+').replace(/_/g, '/');
+        const decoded = JSON.parse(atob(normalized));
+        user = { id: decoded?.sub || null, email: decoded?.email || null, cargo: decoded?.cargo || null };
+      } catch {
+        user = null;
+      }
+    }
+    if (user) localStorage.setItem('user', JSON.stringify(user));
     return data;
   },
   async register({ name, email, password, role, plano, plan }) {

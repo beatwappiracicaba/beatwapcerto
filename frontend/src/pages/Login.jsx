@@ -33,11 +33,12 @@ const Login = () => {
     }
     setLoading(true);
     try {
-      const { user } = await authApi.login(formData.email, formData.password);
+      const result = await authApi.login(formData.email, formData.password);
       await refreshProfile();
+      const user = authApi.getUser();
       const cargo = user?.role ?? user?.cargo ?? null;
       addToast('Login realizado com sucesso!', 'success');
-      const target = routeForRole(cargo);
+      const target = result?.redirect || routeForRole(cargo);
       navigate(target, { replace: true });
     } catch (err) {
       addToast(err.message || 'Credenciais inválidas.', 'error');
