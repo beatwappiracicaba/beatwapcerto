@@ -1,11 +1,46 @@
 const express = require('express');
-const { Profile, Album, Music, Composition, Release, PublicEvent } = require('../models');
+const { Profile, Album, Music, Composition, Release, PublicEvent, Sponsor } = require('../models');
 
 const router = express.Router();
 
-router.get('/', async (req, res) => {
+router.get('/home', async (req, res) => {
   const releases = await Release.findAll({ limit: 10, order: [['created_at', 'DESC']] });
+  const composers = await Profile.findAll({ where: { cargo: 'Compositor' }, limit: 12, order: [['created_at', 'DESC']] });
+  const sponsors = await Sponsor.findAll({ where: { active: true }, limit: 12, order: [['created_at', 'DESC']] });
+  return res.json({ ok: true, releases, composers, sponsors });
+});
+
+router.get('/releases', async (req, res) => {
+  const releases = await Release.findAll({ limit: 20, order: [['created_at', 'DESC']] });
   return res.json({ ok: true, releases });
+});
+
+router.get('/compositions', async (req, res) => {
+  const compositions = await Composition.findAll({ where: { approved: true }, limit: 20, order: [['created_at', 'DESC']] });
+  return res.json({ ok: true, compositions });
+});
+
+router.get('/projects', async (req, res) => {
+  return res.json({ ok: true, projects: [] });
+});
+
+router.get('/composers', async (req, res) => {
+  const rows = await Profile.findAll({ where: { cargo: 'Compositor' }, limit: 50, order: [['created_at', 'DESC']] });
+  return res.json({ ok: true, composers: rows });
+});
+
+router.get('/sponsors', async (req, res) => {
+  const rows = await Sponsor.findAll({ where: { active: true }, limit: 50, order: [['created_at', 'DESC']] });
+  return res.json({ ok: true, sponsors: rows });
+});
+
+router.get('/profiles', async (req, res) => {
+  const role = String(req.query.role || '').toLowerCase();
+  const map = { artist: 'Artista', producer: 'Produtor', seller: 'Vendedor', composer: 'Compositor' };
+  const cargo = map[role];
+  if (!cargo) return res.status(400).json({ ok: false, error: 'role inválido' });
+  const rows = await Profile.findAll({ where: { cargo }, limit: 50, order: [['created_at', 'DESC']] });
+  return res.json({ ok: true, profiles: rows });
 });
 
 router.get('/profile/:id', async (req, res) => {

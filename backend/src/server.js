@@ -19,13 +19,13 @@ const adminRoutes = require('./routes/admin');
 const uploadRoutes = require('./routes/upload');
 const notificationRoutes = require('./routes/notifications');
 
-app.use('/', publicRoutes);
-app.use('/auth', authRoutes);
-app.use('/dashboard', dashboardRoutes);
-app.use('/seller', sellerRoutes);
-app.use('/admin', adminRoutes);
-app.use('/upload', uploadRoutes);
-app.use('/notifications', notificationRoutes);
+app.use('/api', publicRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/seller', sellerRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/health', async (req, res) => {
   try {
