@@ -12,26 +12,26 @@ router.get('/home', async (req, res) => {
 
 router.get('/releases', async (req, res) => {
   const releases = await Release.findAll({ limit: 20, order: [['created_at', 'DESC']] });
-  return res.json({ ok: true, releases });
+  return res.json(releases);
 });
 
 router.get('/compositions', async (req, res) => {
   const compositions = await Composition.findAll({ where: { approved: true }, limit: 20, order: [['created_at', 'DESC']] });
-  return res.json({ ok: true, compositions });
+  return res.json(compositions);
 });
 
 router.get('/projects', async (req, res) => {
-  return res.json({ ok: true, projects: [] });
+  return res.json([]);
 });
 
 router.get('/composers', async (req, res) => {
   const rows = await Profile.findAll({ where: { cargo: 'Compositor' }, limit: 50, order: [['created_at', 'DESC']] });
-  return res.json({ ok: true, composers: rows });
+  return res.json(rows);
 });
 
 router.get('/sponsors', async (req, res) => {
   const rows = await Sponsor.findAll({ where: { active: true }, limit: 50, order: [['created_at', 'DESC']] });
-  return res.json({ ok: true, sponsors: rows });
+  return res.json(rows);
 });
 
 router.get('/profiles', async (req, res) => {
@@ -40,7 +40,7 @@ router.get('/profiles', async (req, res) => {
   const cargo = map[role];
   if (!cargo) return res.status(400).json({ ok: false, error: 'role inválido' });
   const rows = await Profile.findAll({ where: { cargo }, limit: 50, order: [['created_at', 'DESC']] });
-  return res.json({ ok: true, profiles: rows });
+  return res.json(rows);
 });
 
 router.get('/profiles/:id', async (req, res) => {
