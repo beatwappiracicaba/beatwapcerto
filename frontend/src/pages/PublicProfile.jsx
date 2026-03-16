@@ -670,7 +670,7 @@ const PublicProfile = () => {
                             setGalleryPosts(prev => prev.map(p => p.id === post.id ? { ...p, likes_count: likes } : p));
                           } catch (e2) {
                             console.error(e2);
-                            try { await fetchGalleryPosts(); } catch {}
+                            try { await fetchGalleryPosts(); } catch { void 0; }
                           }
                         }}
                         className="flex items-center gap-2 text-beatwap-gold hover:text-white transition-colors"

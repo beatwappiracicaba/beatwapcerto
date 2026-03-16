@@ -23,21 +23,24 @@ const canConvertToBackground = (img) => {
 };
 
 const wrapWithProtection = (img, withWatermark) => {
-  if (!img || img.closest('.bw-protect')) return;
+  if (!img) return;
   try {
     const cs = window.getComputedStyle(img);
     const hasAbsoluteClass = (img.className || '').includes('absolute');
     if (cs.position === 'absolute' || hasAbsoluteClass) {
       return;
     }
-  } catch { /* ignore */ }
-  const wrapper = document.createElement('span');
-  wrapper.className = 'bw-protect';
-  if (withWatermark) wrapper.classList.add('bw-watermark');
-  const parent = img.parentNode;
+  } catch { void 0; }
+  const parent = img.parentElement;
   if (!parent) return;
-  parent.insertBefore(wrapper, img);
-  wrapper.appendChild(img);
+  if (!parent.classList.contains('bw-protect')) {
+    parent.classList.add('bw-protect');
+  }
+  if (withWatermark) {
+    parent.classList.add('bw-watermark');
+  } else {
+    parent.classList.remove('bw-watermark');
+  }
 };
 
 const applyBasicGuards = (img) => {
@@ -122,9 +125,6 @@ export const ImageProtectionManager = () => {
       if (!img || isWhitelisted(img)) return;
       wrapWithProtection(img, withWatermark);
       applyBasicGuards(img);
-      if (canConvertToBackground(img)) {
-        convertToBackground(img);
-      }
       proxifySrc(img);
     };
 

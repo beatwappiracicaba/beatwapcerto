@@ -434,7 +434,7 @@ export const AdminArtists = () => {
                 if (window.matchMedia && window.matchMedia('(min-width: 1024px)').matches) {
                   window.__closeAdminSidebar?.();
                 }
-              } catch {}
+              } catch { void 0; }
               setIsManagerOpen(true);
             }}
             className="w-full md:w-auto whitespace-nowrap"

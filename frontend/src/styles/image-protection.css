@@ -5,7 +5,6 @@
 }
 .bw-protect {
   position: relative;
-  display: inline-block;
 }
 .bw-protect img {
   user-select: none;

@@ -51,7 +51,7 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
       if (window.matchMedia && window.matchMedia('(min-width: 1024px)').matches) {
         window.__closeAdminSidebar?.();
       }
-    } catch {}
+    } catch { void 0; }
     setShowUploadModal(true);
   };
 
