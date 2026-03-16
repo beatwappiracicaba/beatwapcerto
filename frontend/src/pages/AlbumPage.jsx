@@ -101,7 +101,7 @@ const AlbumPage = () => {
   return (
     <div className="min-h-screen flex flex-col bg-black">
       <Header />
-      <main className="flex-1 bg-gradient-to-b from-black via-black to-[#06060a]">
+      <main className="flex-1 bg-gradient-to-b from-black via-black to-[#06060a] pt-24 md:pt-28">
         <div className="max-w-5xl mx-auto px-4 py-10">
           <div className="flex items-center justify-between mb-6">
             <button
