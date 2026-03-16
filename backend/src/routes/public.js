@@ -363,7 +363,6 @@ router.post('/events', auth, async (req, res) => {
     res.status(500).json({ error: 'Erro interno' });
   }
 });
-});
 
 // Delete a public show event
 router.delete('/events/:id', auth, async (req, res) => {
