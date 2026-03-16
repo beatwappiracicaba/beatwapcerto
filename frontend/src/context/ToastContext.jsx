@@ -55,7 +55,6 @@ const Toast = ({ message, type, onClose }) => {
       initial={{ opacity: 0, x: 50, scale: 0.9 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: 20, scale: 0.9 }}
-      layout
       className={`bg-beatwap-graphite border ${borders[type]} p-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[300px] backdrop-blur-md`}
     >
       {icons[type]}
