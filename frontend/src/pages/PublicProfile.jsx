@@ -439,7 +439,7 @@ const PublicProfile = () => {
                   const linkHref = isUrl ? v : null;
                   const ticket = formatTicketPrice(ev.ticket_price_cents);
                   return (
-                    <div key={ev.id} className="flex-none w-[320px] md:w-[360px] bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                    <div key={ev.id} className="flex-none w-[380px] md:w-[440px] bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
                       <div className="aspect-square bg-gray-800 border-b border-white/10">
                         <img src={ev.flyer_url} alt="Flyer do show" className="w-full h-full object-cover" />
                       </div>
@@ -447,9 +447,14 @@ const PublicProfile = () => {
                         <div className="text-white font-bold">
                           {formatEventDate(ev.event_date)}
                         </div>
-                        <div className="flex items-start gap-2 text-gray-300 text-sm md:text-base leading-relaxed">
-                          <MapPin size={16} className="mt-0.5 text-gray-400" />
-                          <div className="flex-1 whitespace-normal break-words">{ev.location}</div>
+                        <div className="flex items-start gap-3 text-gray-300 text-base md:text-lg leading-relaxed break-words">
+                          <MapPin size={18} className="mt-0.5 text-gray-400 flex-shrink-0" />
+                          <div
+                            className="flex-1 whitespace-normal break-words overflow-visible"
+                            style={{ overflowWrap: 'anywhere' }}
+                          >
+                            {ev.location}
+                          </div>
                         </div>
                         {ticket && (
                           <div className="text-sm text-gray-300">
