@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
+const { Op } = require('sequelize');
 const { sequelize, Profile } = require('./models');
 
 dotenv.config();
@@ -56,12 +57,12 @@ app.listen(port, async () => {
     await seedUser('artista@beatwap.local', 'artista123', 'Artista', 'Artista Demo');
     await seedUser('vendedor@beatwap.local', 'vendedor123', 'Vendedor', 'Vendedor Demo');
     await seedUser('compositor@beatwap.local', 'compositor123', 'Compositor', 'Compositor Demo');
-    await Profile.destroy({ where: { email: [
+    await Profile.destroy({ where: { email: { [Op.in]: [
       'admin@beatwap.local',
       'artista@beatwap.local',
       'vendedor@beatwap.local',
       'compositor@beatwap.local'
-    ] } }).catch(() => {});
+    ] } } }).catch(() => {});
     await seedUser('alangodoygtr@gmail.com', '@Aggtr4907', 'Produtor', 'Alan Godoy');
     if (String(process.env.NODE_ENV).toLowerCase() === 'development') {
       const demoEmailsToRemove = [
@@ -70,7 +71,7 @@ app.listen(port, async () => {
         'composer@beatwap.com.br',
         'seller@beatwap.com.br'
       ];
-      await Profile.destroy({ where: { email: demoEmailsToRemove } }).catch(() => {});
+      await Profile.destroy({ where: { email: { [Op.in]: demoEmailsToRemove } } }).catch(() => {});
     }
     console.log(`API listening on ${port}`);
   } catch (e) {
