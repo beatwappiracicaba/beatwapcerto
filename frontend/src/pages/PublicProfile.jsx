@@ -439,15 +439,15 @@ const PublicProfile = () => {
                   const linkHref = isUrl ? v : null;
                   const ticket = formatTicketPrice(ev.ticket_price_cents);
                   return (
-                    <div key={ev.id} className="flex-none w-[380px] md:w-[440px] bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                    <div key={ev.id} className="flex-none w-[280px] sm:w-[320px] md:w-[440px] bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
                       <div className="aspect-square bg-gray-800 border-b border-white/10">
                         <img src={ev.flyer_url} alt="Flyer do show" className="w-full h-full object-cover" />
                       </div>
-                      <div className="p-6 space-y-4">
+                      <div className="p-4 md:p-6 space-y-3 md:space-y-4">
                         <div className="text-white font-bold">
                           {formatEventDate(ev.event_date)}
                         </div>
-                        <div className="flex items-start gap-3 text-gray-300 text-base md:text-lg leading-relaxed break-words">
+                        <div className="flex items-start gap-3 text-gray-300 text-sm md:text-base leading-relaxed break-words">
                           <MapPin size={18} className="mt-0.5 text-gray-400 flex-shrink-0" />
                           <div
                             className="flex-1 whitespace-normal break-words overflow-visible"
@@ -794,7 +794,7 @@ const PublicProfile = () => {
                 </button>
               </div>
             )}
-            <h2 className="text-2xl font-bold flex items-center gap-3">
+            <h2 className="text-xl md:text-2xl font-bold flex items-center gap-3 mb-4">
               <Music className="text-beatwap-gold" />
               {cargoLower === 'artista'
                 ? 'Músicas Lançadas'
@@ -834,7 +834,7 @@ const PublicProfile = () => {
                       </div>
                     </div>
                     <div className="p-4">
-                      <h3 className="font-bold text-lg truncate mb-1">{item.title || item.titulo}</h3>
+                      <h3 className="font-bold text-base md:text-lg mb-1 whitespace-normal break-words">{item.title || item.titulo}</h3>
                       <p className="text-sm text-beatwap-gold uppercase font-bold tracking-wider mb-3">{item.genre || item.estilo || item.style || 'Gênero'}</p>
                       
                       {(cargoLower === 'compositor' || (cargoLower === 'produtor' && producerTab === 'composicoes')) && phoneDigits && (
@@ -858,7 +858,7 @@ const PublicProfile = () => {
             )}
             {(cargoLower === 'compositor' || cargoLower === 'produtor' || cargoLower === 'artista') && (
               <div className="mt-10">
-                <h2 className="text-2xl font-bold flex items-center gap-3">
+                <h2 className="text-xl md:text-2xl font-bold flex items-center gap-3 mb-4">
                   <Music className="text-beatwap-gold" />
                   Composições Gravadas ({recordedMusics.length})
                 </h2>
@@ -891,7 +891,7 @@ const PublicProfile = () => {
                           </div>
                         </div>
                         <div className="p-4">
-                          <h3 className="font-bold text-lg truncate mb-1">{item.titulo}</h3>
+                          <h3 className="font-bold text-base md:text-lg mb-1 whitespace-normal break-words">{item.titulo}</h3>
                           <p className="text-sm text-beatwap-gold uppercase font-bold tracking-wider mb-3">{item.estilo || 'Gênero'}</p>
                         </div>
                       </motion.div>
