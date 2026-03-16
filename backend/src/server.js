@@ -53,10 +53,7 @@ app.listen(port, async () => {
       const hash = await bcrypt.hash(password, 10);
       return await Profile.create({ email, password_hash: hash, cargo, nome });
     }
-    await seedUser('admin@beatwap.local', 'admin123', 'Produtor', 'Admin Produtor');
-    await seedUser('artista@beatwap.local', 'artista123', 'Artista', 'Artista Demo');
-    await seedUser('vendedor@beatwap.local', 'vendedor123', 'Vendedor', 'Vendedor Demo');
-    await seedUser('compositor@beatwap.local', 'compositor123', 'Compositor', 'Compositor Demo');
+    // Remover perfis demo e semear usuário real
     await Profile.destroy({ where: { email: { [Op.in]: [
       'admin@beatwap.local',
       'artista@beatwap.local',
