@@ -120,3 +120,5 @@ dist
 # Backend uploads and env
 backend/uploads/
 uploads/
+backend/database.sqlite
+backend/backend/database.sqlite

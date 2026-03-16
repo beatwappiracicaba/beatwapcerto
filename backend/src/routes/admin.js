@@ -128,6 +128,14 @@ router.get('/musics', async (req, res) => {
   });
   res.json(list);
 });
+router.get('/admin/sellers', async (req, res) => {
+  try {
+    const raws = await Profile.findAll({ where: { cargo: 'Vendedor' } });
+    res.json(Array.isArray(raws) ? raws : []);
+  } catch {
+    res.json([]);
+  }
+});
 router.post('/musics', auth, async (req, res) => {
   try {
     const id = `music_${Date.now()}`;

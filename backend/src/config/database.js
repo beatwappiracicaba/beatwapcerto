@@ -19,9 +19,11 @@ if (dialect === 'postgres' || dialect === 'pg') {
     }
   );
 } else {
+  const backendDir = path.resolve(__dirname, '..', '..');
+  const storagePath = path.join(backendDir, 'database.sqlite');
   sequelize = new Sequelize({
     dialect: 'sqlite',
-    storage: path.join(process.cwd(), 'backend', 'database.sqlite'),
+    storage: storagePath,
     logging: false,
     define: { underscored: true, timestamps: true }
   });

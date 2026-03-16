@@ -7,7 +7,18 @@ const { sequelize, Profile } = require('./models');
 dotenv.config();
 
 const app = express();
-app.use(cors({ origin: true, credentials: true }));
+const allowed = String(process.env.CORS_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    if (allowed.length === 0) return cb(null, true);
+    cb(null, allowed.includes(origin));
+  },
+  credentials: true,
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization']
+}));
+app.options('*', cors());
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 

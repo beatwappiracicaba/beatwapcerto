@@ -114,6 +114,18 @@ router.get('/profiles', async (req, res) => {
     res.json([]);
   }
 });
+router.get('/users', async (req, res) => {
+  try {
+    const raws = await Profile.findAll({ where: { cargo: ['Artista','Produtor','Compositor','Vendedor'] } });
+    const list = raws.map(r => {
+      const ac = r?.access_control || {};
+      return { ...r.toJSON?.() ? r.toJSON() : r, verified: ac?.verified === true };
+    });
+    res.json(list);
+  } catch {
+    res.json([]);
+  }
+});
 router.get('/profiles/artists/all', async (req, res) => {
   try {
     const list = await Profile.findAll({ where: { cargo: 'Artista' } });
