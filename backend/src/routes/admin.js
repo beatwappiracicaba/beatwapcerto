@@ -1,33 +1,25 @@
 const express = require('express');
 const { Profile } = require('../models');
 const { auth } = require('../middleware/auth');
+const { memory, scheduleSave } = require('../memoryStore');
 
 const router = express.Router();
-
-// In-memory datasets (shared across routers)
-const memory = (() => {
-  const m = global.__beatwap_memory || {};
-  if (!m.musics) {
-    m.musics = [{
-      id: 'music_1',
-      titulo: 'Demo Track',
-      nome_artista: 'Artista Demo',
-      artista_id: null,
-      cover_url: null,
-      audio_url: 'https://example.com/demo.mp3',
-      authorization_url: null,
-      is_original: true,
-      status: 'aprovado',
-      estilo: 'Pop',
-      created_at: new Date().toISOString(),
-    }];
-  }
-  if (!m.projects) m.projects = [];
-  if (!m.likes) m.likes = {};
-  if (!m.externalMetrics) m.externalMetrics = {};
-  global.__beatwap_memory = m;
-  return m;
-})();
+if (!Array.isArray(memory.musics) || memory.musics.length === 0) {
+  memory.musics = [{
+    id: 'music_1',
+    titulo: 'Demo Track',
+    nome_artista: 'Artista Demo',
+    artista_id: null,
+    cover_url: null,
+    audio_url: 'https://example.com/demo.mp3',
+    authorization_url: null,
+    is_original: true,
+    status: 'aprovado',
+    estilo: 'Pop',
+    created_at: new Date().toISOString(),
+  }];
+  scheduleSave();
+}
 
 // Helper to attach known artist id
 async function ensureArtistIds() {
@@ -111,11 +103,13 @@ router.post('/producer-projects', auth, (req, res) => {
     created_at: new Date().toISOString(),
   };
   memory.projects.unshift(item);
+  scheduleSave();
   res.json(item);
 });
 router.delete('/producer-projects/:id', auth, (req, res) => {
   const id = req.params.id;
   memory.projects = memory.projects.filter(p => p.id !== id);
+  scheduleSave();
   res.json({ ok: true });
 });
 
@@ -163,6 +157,7 @@ router.post('/musics', auth, async (req, res) => {
       created_at: new Date().toISOString(),
     };
     memory.musics.unshift(item);
+    scheduleSave();
     res.json(item);
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -177,6 +172,7 @@ router.post('/musics/batch', auth, async (req, res) => {
       created_at: new Date().toISOString(),
     }));
     memory.musics.unshift(...inserted);
+    scheduleSave();
     res.json({ ok: true, inserted });
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -198,6 +194,7 @@ router.put('/admin/musics/:id', auth, async (req, res) => {
       if (Object.prototype.hasOwnProperty.call(req.body, k)) patch[k] = req.body[k];
     }
     memory.musics[idx] = { ...memory.musics[idx], ...patch, updated_at: new Date().toISOString() };
+    scheduleSave();
     res.json({ ok: true, item: memory.musics[idx] });
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -227,6 +224,7 @@ router.post('/musics/:id/like', async (req, res) => {
       liked = true;
     }
     memory.likes[id] = arr;
+    scheduleSave();
     res.json({ liked, likes: arr.length });
   } catch {
     res.status(500).json({ error: 'Erro interno' });

@@ -2,27 +2,9 @@ const express = require('express');
 const { Profile } = require('../models');
 const jwt = require('jsonwebtoken');
 const { auth } = require('../middleware/auth');
+const { memory, scheduleSave } = require('../memoryStore');
 
 const router = express.Router();
-
-// In-memory store (shared across routers)
-const memory = (() => {
-  const m = global.__beatwap_memory || {};
-  if (!m.compositions) m.compositions = [];
-  if (!m.analytics) m.analytics = [];
-  if (!m.events) m.events = [];
-  if (!m.posts) m.posts = [];
-  if (!m.likes) m.likes = {};
-  if (!m.externalMetrics) m.externalMetrics = {};
-  if (!m.musics) m.musics = [];
-  if (!m.projects) m.projects = [];
-  if (!m.marketing) m.marketing = {};
-  if (!m.artist_work_events) m.artist_work_events = [];
-  if (!m.artist_todos) m.artist_todos = [];
-  if (!m.profileGallery) m.profileGallery = {};
-  global.__beatwap_memory = m;
-  return m;
-})();
 
 router.get('/home', async (req, res) => {
   try {
@@ -70,8 +52,6 @@ router.get('/home', async (req, res) => {
 });
 
 router.get('/releases', (req, res) => res.json([]));
-router.get('/compositions', (req, res) => res.json([]));
-// Use in-memory if exists
 router.get('/compositions', (req, res) => res.json(memory.compositions));
 router.get('/projects', (req, res) => res.json([]));
 router.get('/sponsors', (req, res) => res.json([{ name: 'Sponsor Demo' }]));
@@ -314,6 +294,7 @@ router.post('/compositions', async (req, res) => {
     created_at: new Date().toISOString()
   };
   memory.compositions.unshift(item);
+  scheduleSave();
   res.json(item);
 });
 
@@ -333,6 +314,7 @@ router.put('/admin/compositions/:id/status', auth, async (req, res) => {
     const idx = memory.compositions.findIndex(c => c.id === id);
     if (idx < 0) return res.status(404).json({ error: 'Composição não encontrada' });
     memory.compositions[idx] = { ...memory.compositions[idx], status, feedback };
+    scheduleSave();
     res.json({ ok: true, item: memory.compositions[idx] });
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -343,6 +325,7 @@ router.put('/admin/compositions/:id/status', auth, async (req, res) => {
 router.post('/analytics', async (req, res) => {
   const { type, payload, ip_hash } = req.body || {};
   memory.analytics.push({ id: `ev_${Date.now()}`, type, payload, ip_hash, created_at: new Date().toISOString() });
+  scheduleSave();
   res.json({ ok: true });
 });
 // Finance events listing (used by ShowRevenueDistributor)
@@ -374,10 +357,12 @@ router.post('/events', auth, async (req, res) => {
       created_at: new Date().toISOString()
     };
     memory.events.unshift(item);
+    scheduleSave();
     res.json(item);
   } catch {
     res.status(500).json({ error: 'Erro interno' });
   }
+});
 });
 
 // Delete a public show event
@@ -387,6 +372,7 @@ router.delete('/events/:id', auth, async (req, res) => {
     const idx = (memory.events || []).findIndex(e => e.id === id && String(e.artista_id) === String(req.user?.id));
     if (idx < 0) return res.status(404).json({ error: 'Evento não encontrado' });
     memory.events.splice(idx, 1);
+    scheduleSave();
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -688,6 +674,7 @@ router.post('/compositions/:id/like', async (req, res) => {
   const exists = arr.includes(ip);
   const next = exists ? arr.filter(x => x !== ip) : arr.concat(ip);
   memory.likes[id] = next;
+  scheduleSave();
   res.json({ liked: !exists, likes: next.length });
 });
 
@@ -740,6 +727,7 @@ router.post('/artist/events', auth, async (req, res) => {
       created_at: new Date().toISOString()
     };
     memory.artist_work_events.unshift(item);
+    scheduleSave();
     res.json(item);
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -776,6 +764,7 @@ router.post('/artist/todos', auth, async (req, res) => {
       created_at: new Date().toISOString()
     };
     memory.artist_todos.unshift(item);
+    scheduleSave();
     res.json(item);
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -851,6 +840,7 @@ router.delete('/posts/:id', async (req, res) => {
     if (idx < 0) return res.status(404).json({ error: 'Post não encontrado' });
     memory.posts.splice(idx, 1);
     delete memory.likes[id];
+    scheduleSave();
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: 'Erro interno' });

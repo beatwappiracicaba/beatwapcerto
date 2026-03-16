@@ -114,15 +114,19 @@ export const AdminHome = () => {
             {(loadingProjects ? [] : projects).map((p) => (
               <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
                 <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center text-xs text-gray-300">
-                  {p.cover_url ? (
-                    <img src={p.cover_url} alt={p.title} className="w-full h-full object-cover" />
-                  ) : (() => {
-                      const isYT = (p.platform || '').toLowerCase() === 'youtube';
-                      const m = (p.url || '').match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
-                      const vid = m ? m[1] : null;
-                      return (isYT && vid)
-                        ? <img src={`https://img.youtube.com/vi/${vid}/mqdefault.jpg`} alt={p.title} className="w-full h-full object-cover" />
-                        : <img src={logo} alt="BeatWap" className="w-full h-full object-cover p-2" />;
+                  {(() => {
+                    const cover = String(p.cover_url || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
+                    const url = String(p.url || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
+                    const isYT = (p.platform || '').toLowerCase() === 'youtube';
+                    const m = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
+                    const vid = m ? m[1] : null;
+                    if (cover) {
+                      return <img src={cover} alt={p.title} className="w-full h-full object-cover" />;
+                    }
+                    if (isYT && vid) {
+                      return <img src={`https://img.youtube.com/vi/${vid}/mqdefault.jpg`} alt={p.title} className="w-full h-full object-cover" />;
+                    }
+                    return <img src={logo} alt="BeatWap" className="w-full h-full object-cover p-2" />;
                   })()}
                 </div>
                 <div className="flex-1">
@@ -130,7 +134,7 @@ export const AdminHome = () => {
                   <div className="text-xs text-gray-400">{p.platform}</div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <AnimatedButton onClick={() => window.open(p.url, '_blank')}>Abrir</AnimatedButton>
+                  <AnimatedButton onClick={() => window.open(String(p.url || '').trim().replace(/^[`'"]+|[`'"]+$/g, ''), '_blank')}>Abrir</AnimatedButton>
                   <AnimatedButton onClick={() => deleteProject(p.id)}>Excluir</AnimatedButton>
                 </div>
               </div>

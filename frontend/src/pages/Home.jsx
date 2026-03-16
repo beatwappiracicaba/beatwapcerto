@@ -82,6 +82,15 @@ const Home = () => {
   };
 
   const sanitizeUrl = (u) => String(u || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
+  const isVideoUrl = (u) => {
+    const x = (u || '').toLowerCase();
+    return /\.(mp4|webm|ogg|mov)(\?.*)?$/.test(x);
+  };
+  const getYoutubeId = (u) => {
+    const m = String(u || '').match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
+    return m ? m[1] : null;
+  };
+  const [fileVideoUrl, setFileVideoUrl] = useState(null);
   const enrichCompositionsFromProfiles = async (comps) => {
     const missingIds = new Set();
     (comps || []).forEach((c) => {
@@ -1065,35 +1074,55 @@ const Home = () => {
                       >
                         <div className="aspect-video bg-gray-800 relative overflow-hidden">
                           {(() => {
-                            const url = p.url || '';
-                            const isYT = (p.platform || '').toLowerCase() === 'youtube';
-                            let vid = null;
-                            if (isYT) {
-                              const m = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
-                              vid = m ? m[1] : null;
+                            const rawUrl = sanitizeUrl(p.url || '');
+                            const rawCover = sanitizeUrl(p.cover_url || '');
+                            const isYT = ((p.platform || '').toLowerCase() === 'youtube') || /youtu\.be|youtube\.com/.test(rawUrl);
+                            const vid = isYT ? getYoutubeId(rawUrl) : null;
+                            const isFileVideo = !isYT && isVideoUrl(rawUrl);
+                            const thumb = isYT && vid ? `https://img.youtube.com/vi/${vid}/hqdefault.jpg` : (rawCover || null);
+                            if (activeProjectVideo === p.id) {
+                              if (isYT && vid) {
+                                return (
+                                  <iframe
+                                    title={p.title}
+                                    src={`https://www.youtube.com/embed/${vid}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
+                                    className="absolute inset-0 w-full h-full"
+                                    allow="autoplay; encrypted-media; picture-in-picture"
+                                    allowFullScreen
+                                  />
+                                );
+                              }
+                              if (isFileVideo) {
+                                return (
+                                  <video
+                                    className="absolute inset-0 w-full h-full"
+                                    src={rawUrl}
+                                    poster={rawCover || undefined}
+                                    controls
+                                    autoPlay
+                                    playsInline
+                                  />
+                                );
+                              }
                             }
-                            const thumb = vid ? `https://img.youtube.com/vi/${vid}/hqdefault.jpg` : null;
-                            return activeProjectVideo === p.id && vid
-                              ? (
-                                <iframe
-                                  title={p.title}
-                                  src={`https://www.youtube.com/embed/${vid}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
-                                  className="absolute inset-0 w-full h-full"
-                                  allow="autoplay; encrypted-media; picture-in-picture"
-                                  allowFullScreen
-                                />
-                              )
-                              : (
-                                thumb
-                                  ? <img src={thumb} alt={p.title} className="w-full h-full object-cover" />
-                                  : <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm"><span>{p.platform || 'Projeto'}</span></div>
-                              );
+                            return thumb
+                              ? <img src={thumb} alt={p.title} className="w-full h-full object-cover" />
+                              : <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm"><span>{p.platform || 'Projeto'}</span></div>;
                           })()}
                           {activeProjectVideo !== p.id ? (
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <button 
                                 className="px-4 py-2 bg-beatwap-gold rounded-full text-black font-bold hover:bg-white"
-                                onClick={() => { setActiveProjectVideo(p.id); /* Evento desativado para evitar 400: producer_project_play */ }}
+                                onClick={() => {
+                                  const rawUrl = sanitizeUrl(p.url || '');
+                                  const isYT = ((p.platform || '').toLowerCase() === 'youtube') || /youtu\.be|youtube\.com/.test(rawUrl);
+                                  const isFileVideo = !isYT && isVideoUrl(rawUrl);
+                                  if (isFileVideo) {
+                                    setFileVideoUrl(rawUrl);
+                                  } else {
+                                    setActiveProjectVideo(p.id);
+                                  }
+                                }}
                               >
                                 <span>Assistir</span>
                               </button>
@@ -1124,6 +1153,26 @@ const Home = () => {
               </div>
             </div>
           </section>
+        )}
+
+        {fileVideoUrl && (
+          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+            <div className="relative">
+              <button
+                className="absolute -top-3 -right-3 w-9 h-9 rounded-full bg-black/70 border border-white/20 flex items-center justify-center text-white hover:bg-black"
+                onClick={() => setFileVideoUrl(null)}
+              >
+                <X size={18} />
+              </button>
+              <video
+                src={fileVideoUrl}
+                className="max-w-[90vw] max-h-[85vh] w-auto h-auto border-2 border-beatwap-gold rounded-xl"
+                controls
+                autoPlay
+                playsInline
+              />
+            </div>
+          </div>
         )}
 
         
