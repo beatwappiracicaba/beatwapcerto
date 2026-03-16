@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';
@@ -9,6 +9,7 @@ const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -31,6 +32,13 @@ const Header = () => {
       };
     }
   }, [mobileMenuOpen]);
+
+  // Ocultar header em páginas de álbum
+  const isAlbumPage = location.pathname.startsWith('/album/');
+  
+  if (isAlbumPage) {
+    return null;
+  }
 
   const scrollToSection = (id) => {
     setMobileMenuOpen(false);
