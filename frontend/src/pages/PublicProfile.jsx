@@ -439,17 +439,17 @@ const PublicProfile = () => {
                   const linkHref = isUrl ? v : null;
                   const ticket = formatTicketPrice(ev.ticket_price_cents);
                   return (
-                    <div key={ev.id} className="flex-none w-[280px] bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                    <div key={ev.id} className="flex-none w-[320px] md:w-[360px] bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
                       <div className="aspect-square bg-gray-800 border-b border-white/10">
                         <img src={ev.flyer_url} alt="Flyer do show" className="w-full h-full object-cover" />
                       </div>
-                      <div className="p-5 space-y-3">
+                      <div className="p-6 space-y-4">
                         <div className="text-white font-bold">
                           {formatEventDate(ev.event_date)}
                         </div>
-                        <div className="flex items-start gap-2 text-gray-300">
+                        <div className="flex items-start gap-2 text-gray-300 text-sm md:text-base leading-relaxed">
                           <MapPin size={16} className="mt-0.5 text-gray-400" />
-                          <div className="flex-1">{ev.location}</div>
+                          <div className="flex-1 whitespace-normal break-words">{ev.location}</div>
                         </div>
                         {ticket && (
                           <div className="text-sm text-gray-300">
