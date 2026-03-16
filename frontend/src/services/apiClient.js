@@ -326,16 +326,29 @@ export const eventApi = {
 
 export const uploadApi = {
   async uploadWithMeta(file, { fileName, bucket } = {}) {
-    const toDataUrl = (f) => new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = (e) => reject(e);
-      reader.readAsDataURL(f);
-    });
-    const dataUrl = await toDataUrl(file);
-    const payload = { fileName, bucket, dataUrl };
-    const result = await apiClient.post('/upload/base64', payload);
-    return result;
+    const token = localStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('file', file);
+    if (fileName) formData.append('fileName', fileName);
+    if (bucket) formData.append('bucket', bucket);
+    const runMultipart = async () => {
+      return apiClient.postForm('/upload/single', formData, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    };
+    try {
+      const res = await runMultipart();
+      if (res?.url) return res;
+      throw new Error('Falha multipart');
+    } catch {
+      const toDataUrl = (f) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (e) => reject(e);
+        reader.readAsDataURL(f);
+      });
+      const dataUrl = await toDataUrl(file);
+      const payload = { fileName, bucket, dataUrl };
+      return apiClient.post('/upload/base64', payload);
+    }
   },
   uploadFile: (file) => {
     const formData = new FormData();

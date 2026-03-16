@@ -7,7 +7,9 @@ const { sequelize, Profile } = require('./models');
 dotenv.config();
 
 const app = express();
-const allowed = String(process.env.CORS_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
+const defaultAllowed = ['https://www.beatwap.com.br', 'https://beatwap.com.br'];
+const envAllowed = String(process.env.CORS_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
+const allowed = envAllowed.length ? envAllowed : defaultAllowed;
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
