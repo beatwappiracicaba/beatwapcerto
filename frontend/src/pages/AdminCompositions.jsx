@@ -61,15 +61,38 @@ export const AdminCompositions = () => {
     }
   }, [fetchCompositions]);
 
+  const sanitizeUrl = (u) => {
+    const s = String(u || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
+    return s;
+  };
+  const canPlay = (u) => {
+    try {
+      const ext = (u.split('?')[0].split('#')[0].split('.').pop() || '').toLowerCase();
+      const audio = document.createElement('audio');
+      if (ext === 'mp3') return !!audio.canPlayType('audio/mpeg');
+      if (ext === 'm4a' || ext === 'aac') return !!audio.canPlayType('audio/mp4');
+      if (ext === 'ogg' || ext === 'oga') return !!audio.canPlayType('audio/ogg');
+      if (u.startsWith('data:audio/')) return true;
+      return true;
+    } catch { return true; }
+  };
   const togglePlay = (url, id) => {
+    const u = sanitizeUrl(url);
+    if (!u) return;
     if (playingId === id && audio) {
       audio.pause();
       setPlayingId(null);
       setAudio(null);
     } else {
       if (audio) audio.pause();
-      const newAudio = new Audio(url);
-      newAudio.play();
+      if (!canPlay(u)) {
+        addToast('Fonte de áudio não suportada', 'error');
+        return;
+      }
+      const newAudio = new Audio(u);
+      newAudio.play().catch(() => {
+        addToast('Não foi possível reproduzir o áudio', 'error');
+      });
       newAudio.onended = () => {
         setPlayingId(null);
         setAudio(null);
@@ -194,7 +217,7 @@ export const AdminCompositions = () => {
                     onClick={() => togglePlay(comp.audio_url, comp.id)}
                 >
                     {comp.cover_url ? (
-                    <img src={comp.cover_url} alt={comp.title} className="w-full h-full object-cover" />
+                    <img src={sanitizeUrl(comp.cover_url)} alt={comp.title} className="w-full h-full object-cover" />
                     ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-500">
                         <Music size={24} />

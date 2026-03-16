@@ -151,11 +151,12 @@ const PublicProfile = () => {
   };
 
   const togglePlay = (trackId, url, trackOwnerId) => {
-    if (!url) return;
+    const safe = sanitizeUrl(url);
+    if (!safe) return;
     
     if (playingTrack === trackId && audioElement) {
       if (audioElement.paused) {
-        audioElement.play();
+        audioElement.play().catch(() => {});
         setPlayStartTS(Date.now());
       } else {
         audioElement.pause();
@@ -172,7 +173,7 @@ const PublicProfile = () => {
       audioElement.pause();
     }
 
-    const audio = new Audio(url);
+    const audio = new Audio(safe);
     audio.onended = () => {
       if (playStartTS) {
          const duration = Math.max(0, Math.round((Date.now() - playStartTS) / 1000));
@@ -182,7 +183,7 @@ const PublicProfile = () => {
       setPlayingTrack(null);
       setAudioElement(null);
     };
-    audio.play();
+    audio.play().catch(() => {});
     setPlayStartTS(Date.now());
     setAudioElement(audio);
     setPlayingTrack(trackId);
@@ -278,7 +279,7 @@ const PublicProfile = () => {
             <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
               <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-beatwap-gold/20 bg-gray-800 shrink-0">
                 {profile.avatar_url ? (
-                  <img src={profile.avatar_url} alt={displayName} className="w-full h-full object-cover" />
+                  <img src={sanitizeUrl(profile.avatar_url)} alt={displayName} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-500">
                     <User size={64} />
@@ -815,7 +816,7 @@ const PublicProfile = () => {
                   >
                     <div className="aspect-square relative group cursor-pointer" onClick={() => togglePlay(item.id, item.audio_url || item.file_url)}>
                       {item.cover_url || item.image_url ? (
-                        <img src={item.cover_url || item.image_url} alt={item.title} className="w-full h-full object-cover" />
+                        <img src={sanitizeUrl(item.cover_url || item.image_url)} alt={item.title || item.titulo || 'Capa'} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gray-800 text-gray-600">
                           <Music size={40} />
@@ -872,7 +873,7 @@ const PublicProfile = () => {
                       >
                         <div className="aspect-square relative group cursor-pointer" onClick={() => togglePlay(item.id, item.audio_url, item.artista_id)}>
                           {item.cover_url ? (
-                            <img src={item.cover_url} alt={item.titulo} className="w-full h-full object-cover" />
+                            <img src={sanitizeUrl(item.cover_url)} alt={item.titulo} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-gray-800 text-gray-600">
                               <Music size={40} />

@@ -81,6 +81,7 @@ const Home = () => {
     }
   };
 
+  const sanitizeUrl = (u) => String(u || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
   const enrichCompositionsFromProfiles = async (comps) => {
     const missingIds = new Set();
     (comps || []).forEach((c) => {
@@ -921,11 +922,11 @@ const Home = () => {
                       >
                         <div 
                           className="aspect-square rounded-2xl overflow-hidden mb-4 relative shadow-lg cursor-pointer bg-gray-800"
-                          onClick={() => togglePlay(comp.id, comp.audio_url)}
+                          onClick={() => togglePlay(comp.id, sanitizeUrl(comp.audio_url))}
                         >
                           {comp.cover_url ? (
                             <img 
-                              src={comp.cover_url} 
+                              src={sanitizeUrl(comp.cover_url)} 
                               alt={comp.title} 
                               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
                             />
@@ -939,7 +940,7 @@ const Home = () => {
                               className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                togglePlay(comp.id, comp.audio_url);
+                                togglePlay(comp.id, sanitizeUrl(comp.audio_url));
                               }}
                             >
                               {playingTrack === comp.id && !isPaused
