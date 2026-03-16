@@ -47,6 +47,11 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
   const artistMusic = music.filter(m => m.artistId === artist?.id);
 
   const handleAddClick = () => {
+    try {
+      if (window.matchMedia && window.matchMedia('(min-width: 1024px)').matches) {
+        window.__closeAdminSidebar?.();
+      }
+    } catch {}
     setShowUploadModal(true);
   };
 
@@ -282,7 +287,7 @@ export const ArtistContentManager = ({ isOpen, onClose, artist }) => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[1000] flex items-center justify-center p-4"
       >
         <MusicUploadModal 
           isOpen={showUploadModal} 

@@ -57,14 +57,16 @@ export const ChatProvider = ({ children }) => {
           const hostname = typeof window !== 'undefined' && window.location ? String(window.location.hostname || '') : '';
           const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
           const candidates = [];
-          if (normalizedBaseUrl) candidates.push(normalizedBaseUrl);
           if (isLocalHost) {
             if (!candidates.includes('')) candidates.push('');
+            if (!candidates.includes('http://localhost:3011')) candidates.push('http://localhost:3011');
+            if (normalizedBaseUrl && !candidates.includes(normalizedBaseUrl)) candidates.push(normalizedBaseUrl);
             if (!candidates.includes('https://api.beatwap.com.br')) candidates.push('https://api.beatwap.com.br');
           } else {
             if (!candidates.includes('https://api.beatwap.com.br')) candidates.push('https://api.beatwap.com.br');
             const allowSameOriginApi = hostname === 'api.beatwap.com.br';
             if (allowSameOriginApi && !candidates.includes('')) candidates.push('');
+            if (normalizedBaseUrl && !candidates.includes(normalizedBaseUrl)) candidates.push(normalizedBaseUrl);
           }
 
           let res = null;

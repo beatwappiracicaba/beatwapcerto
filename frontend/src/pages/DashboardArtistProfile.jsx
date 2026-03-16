@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import Cropper from 'react-easy-crop';
+import { getCroppedImg } from '../utils/cropImage';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, MapPin, CreditCard, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Plus, Trash2, X } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
@@ -156,29 +158,30 @@ export const DashboardArtistProfile = () => {
   const handleSave = async () => {
     setLoading(true);
     try {
-      const dataToUpdate = {
-        nome: formData.nome,
-        nome_completo_razao_social: formData.nome_completo_razao_social,
-        cpf_cnpj: formData.cpf_cnpj,
-        celular: formData.celular,
-        instagram_url: formData.instagram_url,
-        site_url: formData.site_url,
-        youtube_url: formData.youtube_url,
-        spotify_url: formData.spotify_url,
-        deezer_url: formData.deezer_url,
-        tiktok_url: formData.tiktok_url,
-        genero_musical: formData.genero_musical,
-        tema: formData.tema,
-        cep: formData.cep,
-        logradouro: formData.logradouro,
-        complemento: formData.complemento,
-        bairro: formData.bairro,
-        cidade: formData.cidade,
-        estado: formData.estado
-      };
+      const clean = (v) => v != null && String(v).trim() !== '' ? String(v) : null;
+      const dataToUpdate = {};
+      const add = (k, v) => { const c = clean(v); if (c != null) dataToUpdate[k] = c; };
+      add('nome', formData.nome);
+      add('nome_completo_razao_social', formData.nome_completo_razao_social);
+      add('cpf_cnpj', formData.cpf_cnpj);
+      add('celular', formData.celular);
+      add('instagram_url', formData.instagram_url);
+      add('site_url', formData.site_url);
+      add('youtube_url', formData.youtube_url);
+      add('spotify_url', formData.spotify_url);
+      add('deezer_url', formData.deezer_url);
+      add('tiktok_url', formData.tiktok_url);
+      add('genero_musical', formData.genero_musical);
+      if (formData.tema) dataToUpdate.tema = formData.tema;
+      add('cep', formData.cep);
+      add('logradouro', formData.logradouro);
+      add('complemento', formData.complemento);
+      add('bairro', formData.bairro);
+      add('cidade', formData.cidade);
+      add('estado', formData.estado);
 
       // Criptografar dados sensíveis
-      const encryptedData = encryptFormFields(dataToUpdate, [
+      const encryptedData = encryptFormFields({ ...dataToUpdate }, [
         'cpf_cnpj', 
         'celular', 
         'cep', 
@@ -524,7 +527,7 @@ export const DashboardPublicProfile = () => {
     loadEvents();
   }, [profile?.id]);
 
-  const handleSavePublicProfile = async ({ name, bio, genre, socials, blob }) => {
+  const handleSavePublicProfile = async ({ name, bio, genre, socials, blob, phone, cep, logradouro, complemento, bairro, cidade, estado }) => {
     try {
       let avatar_url = null;
       if (blob) {
@@ -535,19 +538,32 @@ export const DashboardPublicProfile = () => {
         avatar_url = res?.avatar_url || null;
       }
 
-      const updateData = {
-        nome: name,
-        genero_musical: genre,
-        youtube_url: socials?.youtube || null,
-        spotify_url: socials?.spotify || null,
-        deezer_url: socials?.deezer || null,
-        tiktok_url: socials?.tiktok || null,
-        instagram_url: socials?.instagram || null,
-        site_url: socials?.site || null,
-      };
+      const updateData = {};
+      if (name) updateData.nome = name;
+      if (genre) updateData.genero_musical = genre;
       if (bio) updateData.bio = bio;
+      if (socials) {
+        if (socials.youtube) updateData.youtube_url = socials.youtube;
+        if (socials.spotify) updateData.spotify_url = socials.spotify;
+        if (socials.deezer) updateData.deezer_url = socials.deezer;
+        if (socials.tiktok) updateData.tiktok_url = socials.tiktok;
+        if (socials.instagram) updateData.instagram_url = socials.instagram;
+        if (socials.site) updateData.site_url = socials.site;
+      }
+      if (cidade) updateData.cidade = cidade;
+      if (estado) updateData.estado = estado;
       if (avatar_url) updateData.avatar_url = avatar_url;
-      await apiClient.put('/profile', updateData);
+
+      const sensitive = {};
+      if (phone) sensitive.celular = phone;
+      if (cep) sensitive.cep = cep;
+      if (logradouro) sensitive.logradouro = logradouro;
+      if (complemento) sensitive.complemento = complemento;
+      if (bairro) sensitive.bairro = bairro;
+      const encrypted = Object.keys(sensitive).length
+        ? encryptFormFields(sensitive, ['celular','cep','logradouro','complemento','bairro'])
+        : {};
+      await apiClient.put('/profile', { ...updateData, ...encrypted });
 
       await refreshProfile();
       addToast('Perfil público atualizado', 'success');
@@ -565,6 +581,7 @@ export const DashboardPublicProfile = () => {
       location: '',
       ticket_price: '',
       purchase_contact: '',
+      description: '',
       flyerFile: null,
       flyerPreviewUrl: ''
     });
@@ -578,16 +595,34 @@ export const DashboardPublicProfile = () => {
     setIsEventModalOpen(false);
   };
 
+  const flyerInputRef = useRef(null);
+  const [flyerDragOver, setFlyerDragOver] = useState(false);
+  const [flyerImageSrc, setFlyerImageSrc] = useState(null);
+  const [flyerOriginalFile, setFlyerOriginalFile] = useState(null);
+  const [flyerCrop, setFlyerCrop] = useState({ x: 0, y: 0 });
+  const [flyerZoom, setFlyerZoom] = useState(1);
+  const [flyerCroppedArea, setFlyerCroppedArea] = useState(null);
+
+  const setFlyerFile = (file) => {
+    if (!file) return;
+    if (!String(file.type || '').startsWith('image/')) {
+      addToast('Envie uma imagem (JPG/PNG/WebP)', 'warning');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFlyerImageSrc(String(reader.result || ''));
+      setFlyerOriginalFile(file);
+      setFlyerZoom(1);
+      setFlyerCrop({ x: 0, y: 0 });
+      setFlyerCroppedArea(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleEventFlyerChange = (e) => {
     const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
-    if (eventForm.flyerPreviewUrl) {
-      try { URL.revokeObjectURL(eventForm.flyerPreviewUrl); } catch { void 0; }
-    }
-    setEventForm((prev) => ({
-      ...prev,
-      flyerFile: file,
-      flyerPreviewUrl: file ? URL.createObjectURL(file) : ''
-    }));
+    if (file) setFlyerFile(file);
   };
 
   const handleCreateEvent = async () => {
@@ -607,10 +642,19 @@ export const DashboardPublicProfile = () => {
 
       setEventSaving(true);
 
-      const fd = new FormData();
-      fd.append('bucket', 'events');
-      fd.append('file', eventForm.flyerFile);
-      const uploadResp = await apiClient.postForm('/upload', fd, { timeoutMs: 60000, perAttemptTimeoutMs: 45000 });
+      const fileToDataUrl = (file) => new Promise((resolve, reject) => {
+        try {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        } catch (e) {
+          reject(e);
+        }
+      });
+      const dataUrl = await fileToDataUrl(eventForm.flyerFile);
+      const safeName = `${Date.now()}_${(eventForm.flyerFile.name || 'flyer').replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
+      const uploadResp = await apiClient.post('/upload/base64', { fileName: safeName, dataUrl }, { timeoutMs: 60000, perAttemptTimeoutMs: 45000 });
       const flyerUrl = uploadResp?.url || null;
       if (!flyerUrl) throw new Error('Falha no upload do flyer');
 
@@ -621,7 +665,8 @@ export const DashboardPublicProfile = () => {
         location: eventForm.location,
         flyer_url: flyerUrl,
         ticket_price: eventForm.ticket_price,
-        purchase_contact: eventForm.purchase_contact
+        purchase_contact: eventForm.purchase_contact,
+        description: eventForm.description
       }, { timeoutMs: 60000, perAttemptTimeoutMs: 45000 });
 
       addToast('Show publicado no seu perfil público!', 'success');
@@ -722,7 +767,7 @@ export const DashboardPublicProfile = () => {
                       <div className="w-full md:w-40 h-32 rounded-lg overflow-hidden bg-black/30 border border-white/10">
                         <img src={ev.flyer_url} alt="Flyer" className="w-full h-full object-cover" />
                       </div>
-                      <div className="flex-1 space-y-1">
+                      <div className="flex-1 space-y-2">
                         <div className="text-sm font-bold text-white">
                           {formatEventDate(ev.event_date)}
                         </div>
@@ -731,7 +776,36 @@ export const DashboardPublicProfile = () => {
                           <div className="text-xs text-gray-400">Ingresso: {formatTicketPrice(ev.ticket_price_cents)}</div>
                         )}
                         {ev.purchase_contact && (
-                          <div className="text-xs text-gray-400 break-words">Contato/Link: {ev.purchase_contact}</div>
+                          <div className="space-y-1">
+                            <div className="text-xs text-gray-400 break-words">Contato/Link: {ev.purchase_contact}</div>
+                            {(() => {
+                              const v = String(ev.purchase_contact || '').trim();
+                              const isUrl = /^https?:\/\//i.test(v);
+                              const digits = v.replace(/\D/g, '');
+                              const isPhone = !isUrl && digits.length >= 10;
+                              const waHref = isPhone ? `https://wa.me/${digits.startsWith('55') ? digits : `55${digits}`}` : null;
+                              const linkHref = isUrl ? v : null;
+                              return waHref ? (
+                                <a
+                                  href={waHref}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-green-500 text-white text-xs font-bold hover:bg-green-600 transition-colors w-full sm:w-auto"
+                                >
+                                  WhatsApp
+                                </a>
+                              ) : linkHref ? (
+                                <a
+                                  href={linkHref}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-blue-500 text-white text-xs font-bold hover:bg-blue-600 transition-colors w-full sm:w-auto"
+                                >
+                                  Abrir link
+                                </a>
+                              ) : null;
+                            })()}
+                          </div>
                         )}
                       </div>
                       <div className="flex md:flex-col gap-2 md:items-end">
@@ -771,6 +845,13 @@ export const DashboardPublicProfile = () => {
             instagram: profile?.instagram_url,
             site: profile?.site_url
           }}
+          currentPhone={decryptData(profile?.celular || '')}
+          currentCep={decryptData(profile?.cep || '')}
+          currentLogradouro={decryptData(profile?.logradouro || '')}
+          currentComplemento={decryptData(profile?.complemento || '')}
+          currentBairro={decryptData(profile?.bairro || '')}
+          currentCidade={profile?.cidade || ''}
+          currentEstado={profile?.estado || ''}
           onSave={handleSavePublicProfile}
           uploading={false}
         />
@@ -778,7 +859,7 @@ export const DashboardPublicProfile = () => {
         {isEventModalOpen && (
           <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/70" onClick={closeEventModal} />
-            <div className="relative w-full max-w-xl bg-[#121212] border border-white/10 rounded-2xl p-5 md:p-6">
+            <div className="relative w-full max-w-xl bg-[#121212] border border-white/10 rounded-2xl p-5 md:p-6 flex flex-col max-h-[90vh]">
               <div className="flex items-center justify-between mb-4">
                 <div className="font-bold text-white text-lg">Adicionar Show</div>
                 <button onClick={closeEventModal} className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10">
@@ -786,7 +867,7 @@ export const DashboardPublicProfile = () => {
                 </button>
               </div>
 
-              <div className="space-y-4">
+              <div className="flex-1 overflow-y-auto space-y-4 pb-4">
                 <label className="flex items-center gap-2 text-sm text-gray-300">
                   <input
                     type="checkbox"
@@ -835,22 +916,136 @@ export const DashboardPublicProfile = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Flyer do Show</div>
-                  <input type="file" accept="image/*" onChange={handleEventFlyerChange} className="w-full text-sm text-gray-300" />
-                  {eventForm.flyerPreviewUrl && (
-                    <div className="w-full h-56 rounded-xl overflow-hidden border border-white/10 bg-black/30">
-                      <img src={eventForm.flyerPreviewUrl} alt="Preview" className="w-full h-full object-cover" />
-                    </div>
-                  )}
+                  <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Descrição do Show (opcional)</div>
+                  <textarea
+                    value={eventForm.description}
+                    onChange={(e) => setEventForm((prev) => ({ ...prev, description: e.target.value }))}
+                    placeholder="Detalhes adicionais, atrações, observações..."
+                    className="w-full min-h-[90px] rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-beatwap-gold"
+                  />
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-2 sm:justify-end pt-2">
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Flyer do Show</div>
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setFlyerDragOver(true); }}
+                    onDragLeave={() => setFlyerDragOver(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setFlyerDragOver(false);
+                      const file = e.dataTransfer?.files?.[0] || null;
+                      if (file) setFlyerFile(file);
+                    }}
+                    onClick={() => flyerInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition ${
+                      flyerDragOver ? 'border-beatwap-gold bg-beatwap-gold/10' : 'border-white/10 hover:bg-white/5'
+                    }`}
+                  >
+                    {eventForm.flyerPreviewUrl ? (
+                      <div className="w-full h-56 rounded-xl overflow-hidden border border-white/10 bg-black/30">
+                        <img src={eventForm.flyerPreviewUrl} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="text-gray-400">
+                        Arraste e solte o flyer aqui, ou clique para selecionar
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    ref={flyerInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleEventFlyerChange}
+                    className="hidden"
+                  />
+                </div>
+
+                <div className="sticky bottom-0 bg-[#121212] pt-2">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
                   <AnimatedButton variant="secondary" onClick={closeEventModal} className="w-full sm:w-auto justify-center">
                     Cancelar
                   </AnimatedButton>
                   <AnimatedButton onClick={handleCreateEvent} isLoading={eventSaving} icon={Plus} className="w-full sm:w-auto justify-center">
                     Publicar
                   </AnimatedButton>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {flyerImageSrc && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4">
+            <div className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-xl overflow-hidden">
+              <div className="p-4 border-b border-white/10 flex justify-between items-center">
+                <div className="font-bold text-white text-lg">Ajustar flyer (1080 × 1080)</div>
+                <button
+                  onClick={() => { setFlyerImageSrc(null); setFlyerOriginalFile(null); setFlyerCroppedArea(null); }}
+                  className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10"
+                >
+                  <X size={18} className="text-gray-300" />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                <div
+                  className="relative w-full max-w-sm aspect-square bg-transparent rounded-xl overflow-hidden pointer-events-auto mx-auto"
+                  style={{ touchAction: 'none' }}
+                >
+                  <Cropper
+                    image={flyerImageSrc}
+                    crop={flyerCrop}
+                    zoom={flyerZoom}
+                    aspect={1}
+                    onCropChange={setFlyerCrop}
+                    onZoomChange={setFlyerZoom}
+                    onCropComplete={(_, pixels) => setFlyerCroppedArea(pixels)}
+                    cropShape="rect"
+                    showGrid={true}
+                    objectFit="cover"
+                    restrictPosition={false}
+                  />
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-xs text-gray-400">Zoom</span>
+                  <input
+                    type="range"
+                    min={1}
+                    max={3}
+                    step={0.1}
+                    value={flyerZoom}
+                    onChange={(e) => setFlyerZoom(parseFloat(e.target.value))}
+                    className="w-full accent-beatwap-gold h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => { setFlyerImageSrc(null); setFlyerOriginalFile(null); setFlyerCroppedArea(null); }}
+                    className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!flyerImageSrc || !flyerCroppedArea || !flyerOriginalFile) return;
+                      try {
+                        const blob = await getCroppedImg(flyerImageSrc, flyerCroppedArea, 1080, 1080);
+                        const file = new File([blob], (flyerOriginalFile.name || 'flyer_1080.jpg'), { type: blob.type || flyerOriginalFile.type });
+                        if (eventForm.flyerPreviewUrl) {
+                          try { URL.revokeObjectURL(eventForm.flyerPreviewUrl); } catch { void 0; }
+                        }
+                        const preview = URL.createObjectURL(blob);
+                        setEventForm((prev) => ({ ...prev, flyerFile: file, flyerPreviewUrl: preview }));
+                        setFlyerImageSrc(null);
+                        setFlyerOriginalFile(null);
+                        setFlyerCroppedArea(null);
+                      } catch (e) {
+                        addToast('Erro ao recortar a imagem.', 'error');
+                      }
+                    }}
+                    className="px-6 py-3 rounded-xl font-bold text-sm bg-beatwap-gold text-beatwap-black"
+                  >
+                    Confirmar (1080 × 1080)
+                  </button>
                 </div>
               </div>
             </div>

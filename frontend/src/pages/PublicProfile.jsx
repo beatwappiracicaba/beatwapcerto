@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { apiClient } from '../services/apiClient';
 import Header from '../components/landing/Header';
 import Footer from '../components/landing/Footer';
-import { User, Music, Instagram, Globe, MessageCircle, Play, Pause, ArrowLeft, Youtube, Target, DollarSign, Image, Video, MapPin, Calendar } from 'lucide-react';
+import { User, Music, Instagram, Globe, MessageCircle, Play, Pause, ArrowLeft, Youtube, Target, DollarSign, Image, Video, MapPin, Calendar, X } from 'lucide-react';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { decryptData } from '../utils/security';
 
@@ -16,6 +16,7 @@ const PublicProfile = () => {
   const [producerTab, setProducerTab] = useState('producoes');
   const [producerProductions, setProducerProductions] = useState([]);
   const [producerCompositions, setProducerCompositions] = useState([]);
+  const [recordedMusics, setRecordedMusics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
@@ -24,6 +25,21 @@ const PublicProfile = () => {
   const [sellerStats, setSellerStats] = useState(null);
   const [galleryPosts, setGalleryPosts] = useState([]);
   const [events, setEvents] = useState([]);
+  const [descOpen, setDescOpen] = useState({});
+  const [videoModalPost, setVideoModalPost] = useState(null);
+  const [galleryTab, setGalleryTab] = useState('all');
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    if (videoModalPost) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = prev || '';
+    }
+    return () => {
+      document.body.style.overflow = prev || '';
+    };
+  }, [videoModalPost]);
 
   useEffect(() => {
     if (id) {
@@ -87,7 +103,7 @@ const PublicProfile = () => {
       setLoading(true);
       
       // Fetch Profile
-      const profileData = await apiClient.get(`/profiles/${id}`);
+      const profileData = await apiClient.get(`/profiles/${id}`, { cache: false });
       setProfile(profileData);
 
       // Determine what to fetch based on role
@@ -122,7 +138,9 @@ const PublicProfile = () => {
         setProducerCompositions(compositionsData || []);
       } else {
         const musicData = await apiClient.get(`/profiles/${id}/compositions`);
+        const recorded = await apiClient.get(`/profiles/${id}/recorded-musics`);
         setItems(musicData || []);
+        setRecordedMusics(recorded || []);
       }
 
     } catch (error) {
@@ -194,14 +212,20 @@ const PublicProfile = () => {
     : items;
   const phoneDigits = profile.celular ? String(decryptData(profile.celular) || '').replace(/\D/g, '') : '';
 
+  const sanitizeUrl = (s) => String(s || '').replace(/[`"'<>]/g, '').trim();
   const getYoutubeVideoId = (url) => {
-    if (!url) return null;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
+    const safe = sanitizeUrl(url);
+    if (!safe) return null;
+    const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = safe.match(regExp);
+    return (match && match[2] && match[2].length === 11) ? match[2] : null;
   };
 
   const videoId = profile ? getYoutubeVideoId(profile.youtube_url) : null;
+  const getYoutubeThumb = (url) => {
+    const id = getYoutubeVideoId(url);
+    return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null;
+  };
   const formatTicketPrice = (cents) => {
     if (cents == null || !Number.isFinite(Number(cents))) return null;
     const n = Number(cents) / 100;
@@ -220,6 +244,23 @@ const PublicProfile = () => {
     const digits = v.replace(/\D/g, '');
     if (digits.length >= 10) return `https://wa.me/55${digits}?text=${encodeURIComponent('Olá! Tenho interesse no ingresso.')}`;
     return null;
+  };
+  const getEmbedUrl = (url) => {
+    if (!url) return null;
+    try {
+      const u = new URL(url);
+      if (u.hostname.includes('youtube.com')) {
+        const id = u.searchParams.get('v');
+        return id ? `https://www.youtube.com/embed/${id}` : null;
+      }
+      if (u.hostname.includes('youtu.be')) {
+        const id = u.pathname.replace('/', '');
+        return id ? `https://www.youtube.com/embed/${id}` : null;
+      }
+      return null;
+    } catch {
+      return null;
+    }
   };
 
   return (
@@ -380,58 +421,25 @@ const PublicProfile = () => {
             </div>
           )}
 
-          {/* Gallery / Moments Section */}
-          {galleryPosts.length > 0 && (
-            <div className="mb-12">
-              <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                <Image className="text-blue-400" />
-                Galeria & Momentos
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-[6px]">
-                {galleryPosts.map((post) => (
-                  <button
-                    key={post.id}
-                    type="button"
-                    onClick={() => window.open(post.link_url || post.media_url, '_blank', 'noopener,noreferrer')}
-                    className="group relative aspect-square overflow-hidden bg-black/40 border border-white/10"
-                  >
-                    {post.media_type === 'video' ? (
-                      <video
-                        src={post.media_url}
-                        muted
-                        playsInline
-                        preload="metadata"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <img src={post.media_url} alt={post.caption || 'Post'} className="w-full h-full object-cover" />
-                    )}
-                    <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      {post.media_type === 'video' ? (
-                        <Video className="text-white" />
-                      ) : (
-                        <Image className="text-white" />
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {cargoLower === 'artista' && events.length > 0 && (
             <div className="mb-12">
               <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
                 <Calendar className="text-beatwap-gold" />
                 Próximos Shows
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {events.map((ev) => {
-                  const buyHref = toBuyHref(ev.purchase_contact);
+              <div className="overflow-x-auto scroll-smooth whitespace-nowrap -mx-6 pl-14 pr-14 md:pl-16 md:pr-16 pb-2">
+                <div className="flex gap-6 justify-start">
+                {[...events].sort((a, b) => new Date(a.event_date) - new Date(b.event_date)).map((ev) => {
+                  const v = String(ev.purchase_contact || '').trim();
+                  const isUrl = /^https?:\/\//i.test(v);
+                  const digits = v.replace(/\D/g, '');
+                  const isPhone = !isUrl && digits.length >= 10;
+                  const waHref = isPhone ? `https://wa.me/${digits.startsWith('55') ? digits : `55${digits}`}` : null;
+                  const linkHref = isUrl ? v : null;
                   const ticket = formatTicketPrice(ev.ticket_price_cents);
                   return (
-                    <div key={ev.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-                      <div className="aspect-video bg-black/30 border-b border-white/10">
+                    <div key={ev.id} className="flex-none w-[280px] bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                      <div className="aspect-square bg-gray-800 border-b border-white/10">
                         <img src={ev.flyer_url} alt="Flyer do show" className="w-full h-full object-cover" />
                       </div>
                       <div className="p-5 space-y-3">
@@ -447,37 +455,287 @@ const PublicProfile = () => {
                             <span className="text-gray-400">Ingresso:</span> {ticket}
                           </div>
                         )}
-                        {ev.purchase_contact && (
-                          <div className="text-sm text-gray-300 break-words">
-                            <span className="text-gray-400">Contato/Link:</span>{' '}
-                            {buyHref ? (
-                              <a href={buyHref} target="_blank" rel="noopener noreferrer" className="text-beatwap-gold hover:underline">
-                                {ev.purchase_contact}
+                        {(waHref || linkHref) && (
+                          <div className="pt-2">
+                            {waHref ? (
+                              <a
+                                href={waHref}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-green-500 text-white font-bold hover:bg-green-600 transition-colors w-full"
+                              >
+                                WhatsApp
                               </a>
                             ) : (
-                              ev.purchase_contact
+                              <a
+                                href={linkHref}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-500 text-white font-bold hover:bg-blue-600 transition-colors w-full"
+                              >
+                                Abrir link
+                              </a>
                             )}
                           </div>
                         )}
-                        {buyHref && (
+                        {ev.description && (
                           <div className="pt-2">
-                            <a
-                              href={buyHref}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-beatwap-gold text-black font-bold hover:bg-white transition-colors w-full"
+                            <button
+                              onClick={() => setDescOpen((prev) => ({ ...prev, [ev.id]: !prev[ev.id] }))}
+                              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white/10 text-white font-bold hover:bg-white/20 transition-colors w-full"
                             >
-                              Comprar ingresso
-                            </a>
+                              {descOpen[ev.id] ? 'Ocultar descrição' : 'Ver descrição'}
+                            </button>
+                            {descOpen[ev.id] && (
+                              <div className="mt-2 p-3 rounded-xl bg-black/30 border border-white/10 text-sm text-gray-300 whitespace-pre-line">
+                                {ev.description}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
                     </div>
                   );
                 })}
+                </div>
               </div>
             </div>
           )}
+
+          {/* Gallery / Moments Section */}
+          {galleryPosts.length > 0 && (
+            <div className="mb-12">
+              <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                <Image className="text-blue-400" />
+                Galeria & Momentos
+              </h3>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {['all','video','image','link'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setGalleryTab(tab)}
+                    className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
+                      galleryTab === tab
+                        ? 'bg-beatwap-gold text-beatwap-black'
+                        : 'bg-white/5 text-gray-300 hover:bg-white/10'
+                    }`}
+                  >
+                    {tab === 'all' ? 'Últimos Posts' : tab === 'video' ? 'Vídeos' : tab === 'image' ? 'Fotos' : 'Outros'}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-[10px]">
+                {(galleryTab === 'all' ? galleryPosts : galleryPosts.filter(p => ((p.media_type === 'image') ? 'image' : (p.media_type === 'video' ? 'video' : 'link')) === galleryTab)).map((post) => (
+                  <div key={post.id} className="group relative overflow-hidden bg-black/40 border-2 border-beatwap-gold rounded-xl">
+                    {galleryTab === 'all' ? (
+                      <div
+                        className="relative w-full aspect-square bg-black cursor-pointer"
+                        onClick={() => {
+                          const nextTab = post.media_type === 'image' ? 'image' : (post.media_type === 'video' ? 'video' : 'link');
+                          setGalleryTab(nextTab);
+                          setVideoModalPost(post);
+                        }}
+                      >
+                        {post.media_type === 'link' ? (
+                          (() => {
+                            const embed = getEmbedUrl(post.link_url);
+                            if (embed) {
+                              return (
+                                <iframe
+                                  className="absolute inset-0 w-full h-full"
+                                  src={embed}
+                                  title="Link"
+                                  frameBorder="0"
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                  allowFullScreen
+                                />
+                              );
+                            } else {
+                              const id = getYoutubeVideoId(post.link_url);
+                              const primary = id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : (post.media_url || '');
+                              const fallback = id ? `https://img.youtube.com/vi/${id}/0.jpg` : (post.media_url || '');
+                              const placeholder = 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%221200%22 height=%221200%22><rect width=%22100%25%22 height=%22100%25%22 fill=%22%231a1a1a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ffd700%22 font-size=%2232%22 font-family=%22Arial%22>Prévia indisponível</text></svg>';
+                              return (
+                                <img
+                                  src={primary}
+                                  alt={post.caption || 'Link'}
+                                  className="absolute inset-0 w-full h-full object-cover"
+                                  onError={(e) => { try { if (e.currentTarget.src !== fallback) e.currentTarget.src = fallback; else e.currentTarget.src = placeholder; } catch { void 0; } }}
+                                />
+                              );
+                            }
+                          })()
+                        ) : post.media_type === 'video' ? (
+                          <video
+                            src={post.media_url}
+                            muted
+                            playsInline
+                            preload="metadata"
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                        ) : (
+                          <img
+                            src={post.media_url}
+                            alt={post.caption || 'Post'}
+                            className="absolute inset-0 w-full h-full object-cover"
+                            loading="lazy"
+                            onError={(e) => {
+                              try {
+                                const placeholder = 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%221200%22 height=%221200%22><rect width=%22100%25%22 height=%22100%25%22 fill=%22%231a1a1a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ffd700%22 font-size=%2236%22 font-family=%22Arial%22>Imagem indisponível</text></svg>';
+                                if (e.currentTarget.src !== placeholder) e.currentTarget.src = placeholder;
+                              } catch { void 0; }
+                            }}
+                          />
+                        )}
+                      </div>
+                    ) : post.media_type === 'video' ? (
+                      <div className="relative w-full aspect-[9/16] bg-black cursor-pointer" onClick={() => setVideoModalPost(post)}>
+                        <video
+                          src={post.media_url}
+                          muted
+                          playsInline
+                          preload="metadata"
+                          className="absolute inset-0 w-full h-full object-cover"
+                          controls
+                        />
+                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                          <Play className="text-white" />
+                        </div>
+                      </div>
+                    ) : post.media_type === 'link' && post.link_url ? (
+                      <div className="relative w-full aspect-video bg-black cursor-pointer" onClick={() => setVideoModalPost(post)}>
+                        {getEmbedUrl(post.link_url) ? (
+                          <iframe
+                            className="absolute inset-0 w-full h-full"
+                            src={getEmbedUrl(post.link_url)}
+                            title="Link"
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowFullScreen
+                          />
+                        ) : (
+                          (() => {
+                            const id = getYoutubeVideoId(post.link_url);
+                            const primary = id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : (post.media_url || '');
+                            const fallback = id ? `https://img.youtube.com/vi/${id}/0.jpg` : (post.media_url || '');
+                            const placeholder = 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%221200%22 height=%22675%22><rect width=%22100%25%22 height=%22100%25%22 fill=%22%231a1a1a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ffd700%22 font-size=%2232%22 font-family=%22Arial%22>Prévia indisponível</text></svg>';
+                            return (
+                              <img
+                                src={primary}
+                                alt={post.caption || 'Link'}
+                                className="absolute inset-0 w-full h-full object-cover"
+                                onError={(e) => { try { if (e.currentTarget.src !== fallback) e.currentTarget.src = fallback; else e.currentTarget.src = placeholder; } catch { void 0; } }}
+                              />
+                            );
+                          })()
+                        )}
+                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                          <Play className="text-white" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="relative w-full aspect-square bg-black cursor-pointer" onClick={() => setVideoModalPost(post)}>
+                        <img
+                          src={post.media_url}
+                          alt={post.caption || 'Post'}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          onClick={() => setVideoModalPost(post)}
+                          onError={(e) => {
+                            try {
+                              const placeholder = 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%221200%22 height=%221200%22><rect width=%22100%25%22 height=%22100%25%22 fill=%22%231a1a1a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ffd700%22 font-size=%2236%22 font-family=%22Arial%22>Imagem indisponível</text></svg>';
+                              if (e.currentTarget.src !== placeholder) e.currentTarget.src = placeholder;
+                            } catch { void 0; }
+                          }}
+                        />
+                      </div>
+                    )}
+                    <div className="p-3">
+                      {post.caption && <div className="text-sm text-white">{post.caption}</div>}
+                    </div>
+                    <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                      {post.media_type === 'video' ? (
+                        <Video className="text-white" />
+                      ) : (
+                        <Image className="text-white" />
+                      )}
+                    </div>
+                    <div className="px-3 py-2 border-t border-white/10 bg-black/30 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            const res = await apiClient.post(`/posts/${post.id}/like`, { ip_hash: ipHash || 'unknown' });
+                            const likes = Number(res?.likes || 0);
+                            setGalleryPosts(prev => prev.map(p => p.id === post.id ? { ...p, likes_count: likes } : p));
+                          } catch (e2) {
+                            console.error(e2);
+                            try { await fetchGalleryPosts(); } catch {}
+                          }
+                        }}
+                        className="flex items-center gap-2 text-beatwap-gold hover:text-white transition-colors"
+                      >
+                        <span>❤️</span>
+                        <span className="text-sm font-bold">{post.likes_count || 0}</span>
+                      </button>
+                      {post.link_url && (
+                        <a
+                          href={post.link_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-xs text-gray-300 hover:text-beatwap-gold underline"
+                        >
+                          Abrir link
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {videoModalPost && (
+            <div className="fixed inset-0 z-[100] bg-black/95" onClick={() => setVideoModalPost(null)}>
+              <button
+                onClick={() => setVideoModalPost(null)}
+                className="absolute top-4 right-4 p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10"
+              >
+                <X size={18} className="text-gray-300" />
+              </button>
+              <div className="w-screen h-screen flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                {getEmbedUrl(videoModalPost.link_url || videoModalPost.media_url) ? (
+                  <div className="relative w-[90vw] max-w-[90vw] max-h-[85vh] aspect-video border-2 border-beatwap-gold rounded-xl overflow-hidden bg-black">
+                    <iframe
+                      width="100%"
+                      height="100%"
+                      src={getEmbedUrl(videoModalPost.link_url || videoModalPost.media_url)}
+                      title="Vídeo"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  </div>
+                ) : videoModalPost.media_type === 'image' ? (
+                  <img
+                    src={videoModalPost.media_url}
+                    alt={videoModalPost.caption || 'Imagem'}
+                    className="max-w-[90vw] max-h-[85vh] w-auto h-auto border-2 border-beatwap-gold rounded-xl"
+                  />
+                ) : (
+                  <video
+                    src={videoModalPost.media_url}
+                    className="max-w-[90vw] max-h-[85vh] w-auto h-auto border-2 border-beatwap-gold rounded-xl"
+                    controls
+                    autoPlay
+                  />
+                )}
+              </div>
+            </div>
+          )}
+
+          
 
           {/* Compositions Grid */}
           <div className="space-y-8">
@@ -590,6 +848,50 @@ const PublicProfile = () => {
                     </div>
                   </motion.div>
                 ))}
+              </div>
+            )}
+            {(cargoLower === 'compositor' || cargoLower === 'produtor' || cargoLower === 'artista') && (
+              <div className="mt-10">
+                <h2 className="text-2xl font-bold flex items-center gap-3">
+                  <Music className="text-beatwap-gold" />
+                  Composições Gravadas ({recordedMusics.length})
+                </h2>
+                {recordedMusics.length === 0 ? (
+                  <div className="text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/10">
+                    <Music size={48} className="mx-auto mb-4 opacity-20" />
+                    <p className="text-gray-400">Nenhuma composição gravada encontrada.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {recordedMusics.map((item) => (
+                      <motion.div 
+                        key={item.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:bg-white/10 transition-colors group"
+                      >
+                        <div className="aspect-square relative group cursor-pointer" onClick={() => togglePlay(item.id, item.audio_url, item.artista_id)}>
+                          {item.cover_url ? (
+                            <img src={item.cover_url} alt={item.titulo} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gray-800 text-gray-600">
+                              <Music size={40} />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <button className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black hover:scale-110 transition-transform">
+                              {playingTrack === item.id && audioElement && !audioElement.paused ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="p-4">
+                          <h3 className="font-bold text-lg truncate mb-1">{item.titulo}</h3>
+                          <p className="text-sm text-beatwap-gold uppercase font-bold tracking-wider mb-3">{item.estilo || 'Gênero'}</p>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
               </>

@@ -12,6 +12,8 @@ export const DashboardArtistHome = () => {
   const { user, profile } = useAuth();
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [latestCompositions, setLatestCompositions] = useState([]);
+  const [canViewCompositions, setCanViewCompositions] = useState(false);
 
   const isCompositor = profile?.cargo && profile.cargo.toLowerCase().trim() === 'compositor';
 
@@ -27,12 +29,13 @@ export const DashboardArtistHome = () => {
       };
 
       try {
-        const legacy = await safeGet(`/admin/artist/${user.id}/metrics`, { total_plays: 0, ouvintes_mensais: 0, receita_estimada: 0 });
         const events = await safeGet(`/analytics/artist/${user.id}/events`, []);
         const shows = await safeGet('/artist/finance/events', []);
         const allMusics = await safeGet('/songs/mine', []);
+        const posts = await safeGet(`/profiles/${user.id}/posts`, []);
 
         const showRevenue = (shows || []).reduce((acc, curr) => acc + (Number(curr.artist_share) || 0), 0) || 0;
+        const totalLikes = (posts || []).reduce((acc, p) => acc + (Number(p.likes_count || 0)), 0);
 
         const musicIds = (allMusics || []).map(m => m.id);
         const musicMap = (allMusics || []).reduce((acc, m) => {
@@ -102,11 +105,9 @@ export const DashboardArtistHome = () => {
            topMusic = { ...musicMap[topMusicId], totalPlays: maxPlays };
         }
 
-        const basePlays = Number(legacy?.total_plays || 0);
-        const baseListeners = Number(legacy?.ouvintes_mensais || 0);
-        const finalPlays = basePlays + totalExternalPlays;
-        const finalListeners = baseListeners + totalExternalListeners; 
-        const finalStreamingRevenue = (Number(legacy?.receita_estimada || 0)) + totalExternalRevenue;
+        const finalPlays = totalExternalPlays;
+        const finalListeners = totalExternalListeners; 
+        const finalStreamingRevenue = totalExternalRevenue;
 
         setMetrics({ 
           total_plays: finalPlays, 
@@ -116,13 +117,34 @@ export const DashboardArtistHome = () => {
           visitas_perfil: agg.profile_views,
           cliques_sociais: agg.social_clicks,
           faturamento_shows: showRevenue,
+          curtidas_perfil_publico: totalLikes,
           topMusic
         });
       } finally {
         setLoading(false);
       }
     };
-    if (user) fetchMetrics();
+    const fetchLatestCompositions = async () => {
+      try {
+        const prof = await apiClient.get('/dashboard/profile');
+        const plan = String(prof?.plano || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const allowed = plan.includes('mensal') || plan.includes('anual') || plan.includes('vitalicio') || plan.includes('lifetime');
+        setCanViewCompositions(allowed);
+        if (!allowed) {
+          setLatestCompositions([]);
+          return;
+        }
+        const list = await apiClient.get('/compositions/latest?limit=12');
+        setLatestCompositions(Array.isArray(list) ? list : []);
+      } catch {
+        setLatestCompositions([]);
+        setCanViewCompositions(false);
+      }
+    };
+    if (user) {
+      fetchMetrics();
+      fetchLatestCompositions();
+    }
   }, [user]);
   return (
     <DashboardLayout>
@@ -139,6 +161,10 @@ export const DashboardArtistHome = () => {
           <Card>
             <div className="text-sm text-gray-400"><span>Receita Estimada (Streaming)</span></div>
             <div className="text-3xl font-bold"><span>{loading ? '...' : metrics?.receita_estimada ?? 0}</span></div>
+          </Card>
+          <Card>
+            <div className="text-sm text-gray-400"><span>Curtidas Perfil Público</span></div>
+            <div className="text-3xl font-bold"><span>{loading ? '...' : metrics?.curtidas_perfil_publico ?? 0}</span></div>
           </Card>
           <Card className="relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -189,6 +215,35 @@ export const DashboardArtistHome = () => {
              );
            })()}
         </Card>
+        {canViewCompositions && (
+          <Card className="col-span-1">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm text-gray-400"><span>Últimas Composições</span></div>
+              <div className="px-2 py-1 bg-beatwap-gold/10 rounded-lg text-beatwap-gold text-xs font-bold">Novas</div>
+            </div>
+            {latestCompositions.length === 0 ? (
+              <div className="text-sm text-gray-500">Nenhuma composição recente.</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {latestCompositions.map((item) => (
+                  <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                    <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
+                      {item.cover_url ? (
+                        <img src={item.cover_url} alt={item.titulo} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">Capa</div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-white font-bold text-sm truncate">{item.titulo}</div>
+                      <div className="text-gray-400 text-xs truncate">{item.nome_artista || 'Artista'}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
       </div>
       
     </DashboardLayout>

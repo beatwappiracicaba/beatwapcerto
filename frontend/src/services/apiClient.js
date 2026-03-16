@@ -3,6 +3,7 @@ import { API_BASE_URL } from '../config/apiConfig.js';
 const DEFAULT_TIMEOUT_MS_GET = 30000;
 const DEFAULT_TIMEOUT_MS_MUTATION = 45000;
 const PROD_FALLBACK_BASE_URL = 'https://api.beatwap.com.br';
+let LAST_BASE_URL = null;
 const inflightRequests = new Map();
 const responseCache = new Map();
 const DEBUG_API = (() => {
@@ -55,14 +56,21 @@ async function request(path, options = {}) {
   const normalizedBaseUrl = normalizedBaseUrlRaw.replace(/\/api\/?$/, '');
 
   const baseUrls = [];
-  if (normalizedBaseUrl) baseUrls.push(normalizedBaseUrl);
   if (isLocalHost) {
-    if (!baseUrls.includes('')) baseUrls.push('');
-    if (!baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
+    baseUrls.push('');
   } else {
     if (!baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
     const allowSameOriginApi = hostname === 'api.beatwap.com.br';
     if (allowSameOriginApi && !baseUrls.includes('')) baseUrls.push('');
+  }
+  if (!isLocalHost && LAST_BASE_URL) {
+    const idx = baseUrls.indexOf(LAST_BASE_URL);
+    if (idx > 0) {
+      baseUrls.splice(idx, 1);
+      baseUrls.unshift(LAST_BASE_URL);
+    } else if (idx < 0) {
+      baseUrls.unshift(LAST_BASE_URL);
+    }
   }
 
   const deadline = Number.isFinite(timeoutMs) && timeoutMs > 0 ? (Date.now() + timeoutMs) : null;
@@ -161,12 +169,14 @@ async function request(path, options = {}) {
           if (DEBUG_API || totalMs >= SLOW_API_MS) {
             console.log('[api] ok', { method, path, ms: totalMs, attempt: i + 1, url: result.url });
           }
+          LAST_BASE_URL = baseUrl;
           return result.data.data ?? null;
         }
         const totalMs = Date.now() - startedAt;
         if (DEBUG_API || totalMs >= SLOW_API_MS) {
           console.log('[api] ok', { method, path, ms: totalMs, attempt: i + 1, url: result.url });
         }
+        LAST_BASE_URL = baseUrl;
         return result.data;
       } catch (err) {
         const ms = Date.now() - attemptStart;
@@ -316,32 +326,16 @@ export const eventApi = {
 
 export const uploadApi = {
   async uploadWithMeta(file, { fileName, bucket } = {}) {
-    const formData = new FormData();
-    if (fileName) formData.append('fileName', fileName);
-    if (bucket) formData.append('bucket', bucket);
-    formData.append('file', file);
-
-    const token = localStorage.getItem('token');
-    const normalizedBaseUrl = (API_BASE_URL
-      ? String(API_BASE_URL)
-          .trim()
-          .replace(/^['"`\s]+|['"`\s]+$/g, '')
-          .replace(/\/+$/, '')
-      : ''
-    ).replace(/\/api\/?$/, '');
-    const apiBase = normalizedBaseUrl ? `${normalizedBaseUrl}/api` : '/api';
-
-    const res = await fetch(`${apiBase}/upload`, {
-      method: 'POST',
-      body: formData,
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    const toDataUrl = (f) => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (e) => reject(e);
+      reader.readAsDataURL(f);
     });
-
-    const text = await res.text();
-    let data = null;
-    try { data = text ? JSON.parse(text) : null; } catch { data = null; }
-    if (!res.ok) throw new Error((data && data.error) || res.statusText);
-    return data;
+    const dataUrl = await toDataUrl(file);
+    const payload = { fileName, bucket, dataUrl };
+    const result = await apiClient.post('/upload/base64', payload);
+    return result;
   },
   uploadFile: (file) => {
     const formData = new FormData();
@@ -351,8 +345,15 @@ export const uploadApi = {
     const hostname = typeof window !== 'undefined' && window.location ? String(window.location.hostname || '') : '';
     const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
     const baseUrls = [];
-    if (normalizedBaseUrl) baseUrls.push(normalizedBaseUrl);
-    if (isLocalHost && !baseUrls.includes('')) baseUrls.push('');
+    if (isLocalHost) {
+      if (!baseUrls.includes('')) baseUrls.push('');
+      if (!baseUrls.includes('http://localhost:3011')) baseUrls.push('http://localhost:3011');
+      if (!baseUrls.includes('http://localhost:3000')) baseUrls.push('http://localhost:3000');
+      if (!baseUrls.includes('http://localhost:3001')) baseUrls.push('http://localhost:3001');
+      if (normalizedBaseUrl && !baseUrls.includes(normalizedBaseUrl)) baseUrls.push(normalizedBaseUrl);
+    } else {
+      if (normalizedBaseUrl && !baseUrls.includes(normalizedBaseUrl)) baseUrls.push(normalizedBaseUrl);
+    }
     if (!baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
 
     const run = async () => {
@@ -398,8 +399,15 @@ export const uploadApi = {
     const hostname = typeof window !== 'undefined' && window.location ? String(window.location.hostname || '') : '';
     const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
     const baseUrls = [];
-    if (normalizedBaseUrl) baseUrls.push(normalizedBaseUrl);
-    if (isLocalHost && !baseUrls.includes('')) baseUrls.push('');
+    if (isLocalHost) {
+      if (!baseUrls.includes('')) baseUrls.push('');
+      if (!baseUrls.includes('http://localhost:3011')) baseUrls.push('http://localhost:3011');
+      if (!baseUrls.includes('http://localhost:3000')) baseUrls.push('http://localhost:3000');
+      if (!baseUrls.includes('http://localhost:3001')) baseUrls.push('http://localhost:3001');
+      if (normalizedBaseUrl && !baseUrls.includes(normalizedBaseUrl)) baseUrls.push(normalizedBaseUrl);
+    } else {
+      if (normalizedBaseUrl && !baseUrls.includes(normalizedBaseUrl)) baseUrls.push(normalizedBaseUrl);
+    }
     if (!baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
 
     const run = async () => {

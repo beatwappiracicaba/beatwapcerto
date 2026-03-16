@@ -12,6 +12,7 @@ import { useToast } from '../../context/ToastContext';
 export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = null }) => {
   const { user, profile } = useAuth();
   const { addToast } = useToast();
+  const MAX_AUDIO_BYTES = 35 * 1024 * 1024;
 
   const activeUser = targetArtist ? { id: targetArtist.id } : user;
   const isProducerMode = !!targetArtist;
@@ -42,6 +43,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
 
   const [errors, setErrors] = useState({});
   const [artistOptions, setArtistOptions] = useState([]);
+  const [composerOptions, setComposerOptions] = useState([]);
 
   useEffect(() => {
     const loadArtists = async () => {
@@ -49,6 +51,13 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       setArtistOptions(data || []);
     };
     loadArtists();
+  }, []);
+  useEffect(() => {
+    const loadComposers = async () => {
+      const data = await apiClient.get('/composers');
+      setComposerOptions(data || []);
+    };
+    loadComposers();
   }, []);
 
   useEffect(() => {
@@ -121,6 +130,11 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
         return;
       }
     } else if (type === 'audio_file') {
+      if (file.size > MAX_AUDIO_BYTES) {
+        setErrors(prev => ({ ...prev, audio: 'Arquivo de áudio muito grande. Máximo 35MB.' }));
+        addToast('Arquivo de áudio muito grande. Máximo 35MB.', 'error');
+        return;
+      }
       setPreviews(prev => ({ ...prev, audio: URL.createObjectURL(file) }));
       setFormData(prev => ({ ...prev, audio_files: [], is_album: false }));
     } else if (type === 'authorization_file') {
@@ -159,7 +173,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
   const addTrack = () => {
     setFormData(prev => ({ 
       ...prev, 
-      tracks: [...prev.tracks, { titulo: '', estilo: '', isrc: '', has_feat: false, feat_name: '', composer: '', producer: '', beatwap_feat_artist_ids: [], is_beatwap_composer_partner: false, audio_file: null, authorization_file: null }] 
+      tracks: [...prev.tracks, { titulo: '', estilo: '', isrc: '', has_feat: false, feat_name: '', composer: '', producer: '', beatwap_feat_artist_ids: [], is_beatwap_composer_partner: false, composer_partner_id: null, audio_file: null, authorization_file: null }] 
     }));
   };
   const removeTrack = (index) => {
@@ -178,6 +192,10 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
   const handleTrackFileChange = (index, e, field) => {
     const file = e.target.files?.[0] || null;
     if (!file) return;
+    if (field === 'audio_file' && file.size > MAX_AUDIO_BYTES) {
+      addToast('Arquivo de áudio da faixa muito grande. Máximo 35MB.', 'error');
+      return;
+    }
     updateTrackField(index, field, file);
   };
 
@@ -298,7 +316,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
               t.authorization_file ? uploadFile(t.authorization_file, 'music_docs') : Promise.resolve(null)
             ]);
             const comp = (t.composer || '').split(',').map(s => s.trim()).filter(Boolean).join(', ');
-            return { audioUrl: audioU, authUrl: authU, titulo: t.titulo, estilo: t.estilo, isrc: t.isrc, has_feat: t.has_feat, feat_name: t.feat_name, composer: comp, producer: t.producer, beatwap_feat_artist_ids: t.beatwap_feat_artist_ids || [], is_beatwap_composer_partner: !!t.is_beatwap_composer_partner };
+            return { audioUrl: audioU, authUrl: authU, titulo: t.titulo, estilo: t.estilo, isrc: t.isrc, has_feat: t.has_feat, feat_name: t.feat_name, composer: comp, producer: t.producer, beatwap_feat_artist_ids: t.beatwap_feat_artist_ids || [], is_beatwap_composer_partner: !!t.is_beatwap_composer_partner, composer_partner_id: t.is_beatwap_composer_partner ? (t.composer_partner_id || null) : null };
           })
         );
         const rows = trackUploads.map((tu) => ({
@@ -318,6 +336,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
           producer: tu.producer || null,
           feat_beatwap_artist_ids: tu.beatwap_feat_artist_ids || [],
           is_beatwap_composer_partner: tu.is_beatwap_composer_partner || false,
+          composer_partner_id: tu.composer_partner_id || null,
           album_id: albumId,
           album_title: formData.titulo
         }));
@@ -339,7 +358,8 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
           composer: ((formData.composer || '').split(',').map(s => s.trim()).filter(Boolean).join(', ')) || null,
           producer: formData.producer || null,
           feat_beatwap_artist_ids: formData.beatwap_feat_artist_ids || [],
-          is_beatwap_composer_partner: !!formData.is_beatwap_composer_partner
+          is_beatwap_composer_partner: !!formData.is_beatwap_composer_partner,
+          composer_partner_id: formData.is_beatwap_composer_partner ? (formData.composer_partner_id || null) : null
         });
       }
 
@@ -347,14 +367,10 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       onClose();
       addToast(formData.is_album ? 'Álbum enviado para análise!' : 'Música enviada para análise!', 'success');
     } catch (err) {
-      console.error('Erro ao enviar música:', {
-        message: err?.message,
-        details: err?.details,
-        hint: err?.hint,
-        code: err?.code
-      });
-      addToast(err?.message || 'Erro ao enviar música', 'error');
-      setErrors(prev => ({ ...prev, submit: err?.message || 'Erro ao enviar música. Tente novamente.' }));
+      const isPayloadTooLarge = Number(err?.status) === 413;
+      const msg = isPayloadTooLarge ? 'Arquivo muito grande para upload. Reduza para até 35MB.' : (err?.message || 'Erro ao enviar música');
+      addToast(msg, 'error');
+      setErrors(prev => ({ ...prev, submit: msg }));
     } finally {
       setLoading(false);
     }
@@ -435,7 +451,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -523,6 +539,21 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                       />
                       <label className="text-sm text-gray-300">Compositor é parceiro BeatWap</label>
                     </div>
+                    {formData.is_beatwap_composer_partner && (
+                      <div className="mb-3">
+                        <label className="text-sm font-medium text-gray-400">Selecionar compositor parceiro</label>
+                        <select
+                          className="mt-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-full"
+                          value={formData.composer_partner_id || ''}
+                          onChange={(e) => setFormData(prev => ({ ...prev, composer_partner_id: e.target.value }))}
+                        >
+                          <option value="">Selecione o compositor parceiro</option>
+                          {composerOptions.map(c => (
+                            <option key={c.id} value={c.id}>{c.nome || c.nome_completo_razao_social || 'Sem nome'}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     <div className="bg-white/5 border border-white/10 rounded-xl p-3">
                       <div className="flex items-center justify-between mb-2">
                         <label className="text-sm font-medium text-gray-400">Possui Feat?</label>
@@ -716,6 +747,21 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                           />
                           <label className="text-xs text-gray-300">Compositor é parceiro BeatWap</label>
                         </div>
+                        {t.is_beatwap_composer_partner && (
+                          <div className="mb-2">
+                            <label className="text-xs font-medium text-gray-400">Selecionar compositor parceiro</label>
+                            <select
+                              className="mt-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white w-full text-xs"
+                              value={t.composer_partner_id || ''}
+                              onChange={(e) => updateTrackField(idx, 'composer_partner_id', e.target.value)}
+                            >
+                              <option value="">Selecione o compositor parceiro</option>
+                              {composerOptions.map(c => (
+                                <option key={c.id} value={c.id}>{c.nome || c.nome_completo_razao_social || 'Sem nome'}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           <div className="flex items-center gap-3 p-3 bg-black/20 border border-white/10 rounded-xl">
                             <div className="p-2 bg-beatwap-gold/20 rounded-lg text-beatwap-gold">

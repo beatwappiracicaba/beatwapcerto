@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause, Check, FolderDown, CheckCircle2, ChevronDown, ChevronRight, Plus, Music } from 'lucide-react';
+import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause, Check, FolderDown, CheckCircle2, ChevronDown, ChevronRight, Plus, Music, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
@@ -152,6 +152,7 @@ export const AdminArtists = () => {
   const [isManagerOpen, setIsManagerOpen] = useState(false);
   const [isMarketingOpen, setIsMarketingOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [metricsForm, setMetricsForm] = useState({ plays: '', listeners: '', revenue: '', growth: '' });
   const [planForm, setPlanForm] = useState({ plano: 'Avulso', bonus_quota: 0, plan_started_at: '' });
   const [searchName, setSearchName] = useState('');
@@ -427,7 +428,17 @@ export const AdminArtists = () => {
               })
               .map(a => <option key={a.id} value={a.id}>{a.nome || a.nome_completo_razao_social || 'Sem nome'} ({a.cargo})</option>)}
           </select>
-          <AnimatedButton onClick={() => setIsManagerOpen(true)} className="w-full md:w-auto whitespace-nowrap">Enviar Música</AnimatedButton>
+          <AnimatedButton
+            onClick={() => {
+              try {
+                if (window.matchMedia && window.matchMedia('(min-width: 1024px)').matches) {
+                  window.__closeAdminSidebar?.();
+                }
+              } catch {}
+              setIsManagerOpen(true);
+            }}
+            className="w-full md:w-auto whitespace-nowrap"
+          >Enviar Música</AnimatedButton>
         </div>
       </Card>
       <Card className="space-y-4">
@@ -518,6 +529,7 @@ export const AdminArtists = () => {
               <div className="flex flex-col sm:flex-row sm:flex-wrap w-full sm:w-auto gap-2">
                 <AnimatedButton onClick={() => setIsProfileOpen(true)} className="w-full sm:w-auto justify-center">Editar Perfil</AnimatedButton>
                 <AnimatedButton onClick={() => setIsMarketingOpen(true)} variant="secondary" className="w-full sm:w-auto justify-center">Marketing</AnimatedButton>
+                <AnimatedButton onClick={() => setIsGalleryOpen(true)} variant="secondary" className="w-full sm:w-auto justify-center">Postagens Perfil Público</AnimatedButton>
               </div>
             </div>
           </motion.div>
@@ -639,6 +651,21 @@ export const AdminArtists = () => {
           uploading={false}
           showEmail={true}
         />
+      )}
+      {isGalleryOpen && selectedArtist && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <Card className="w-full max-w-4xl relative border border-white/10 shadow-2xl">
+            <button
+              onClick={() => setIsGalleryOpen(false)}
+              className="absolute top-4 right-4 p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10"
+            >
+              <X size={18} className="text-gray-300" />
+            </button>
+            <div className="pt-2">
+              <GalleryManager userId={selectedArtist} />
+            </div>
+          </Card>
+        </div>
       )}
     </AdminLayout>
   );
@@ -766,6 +793,7 @@ export const AdminMusics = () => {
 
     if (!upcVal) { addToast('Informe o UPC', 'error'); return; }
     if (isProduced && !producedBy) { addToast('Selecione o produtor responsável', 'error'); return; }
+    if (!isrcVal) { addToast('Informe o ISRC', 'error'); return; }
 
     await apiClient.put(`/admin/musics/${m.id}`, {
       status: 'aprovado',
@@ -774,6 +802,7 @@ export const AdminMusics = () => {
       release_date: releaseVal || null,
       is_beatwap_produced: isProduced,
       produced_by: isProduced ? producedBy : null,
+      producer_id: isProduced ? producedBy : null,
       show_on_home: showHome,
       isrc: isrcVal || null
     });
@@ -832,16 +861,26 @@ export const AdminMusics = () => {
 
     let approvedCount = 0;
     for (const m of group.tracks) {
+        const trackInputs = localInputs[m.id] || {};
+        const isrcVal = trackInputs.isrc || m.isrc || null;
+        if (!isrcVal) { addToast('Informe ISRC em todas as faixas pendentes', 'error'); return; }
+    }
+    for (const m of group.tracks) {
         if (m.status !== 'pendente') continue;
         
         const trackInputs = localInputs[m.id] || {};
         const isrcVal = trackInputs.isrc || m.isrc || null;
+        const isProduced = trackInputs.is_beatwap_produced || false;
+        const producedBy = trackInputs.produced_by || null;
         
         await apiClient.put(`/admin/musics/${m.id}`, {
             status: 'aprovado',
             upc: upcVal,
             presave_link: presaveVal || null,
             release_date: releaseVal || null,
+            is_beatwap_produced: isProduced,
+            produced_by: isProduced ? producedBy : null,
+            producer_id: isProduced ? producedBy : null,
             show_on_home: showHome,
             isrc: isrcVal || null
         });

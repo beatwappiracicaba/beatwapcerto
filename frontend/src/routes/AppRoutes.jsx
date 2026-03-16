@@ -48,7 +48,9 @@ export const AppRoutes = () => {
   const location = useLocation();
   const [splashMounted, setSplashMounted] = useState(true);
   const [splashMinDone, setSplashMinDone] = useState(false);
-  const { profile, loading } = useAuth();
+  const auth = useAuth() || {};
+  const profile = auth.profile || null;
+  const loading = auth.loading || false;
   
   useEffect(() => {
     const id = setTimeout(() => setSplashMinDone(true), 3500);

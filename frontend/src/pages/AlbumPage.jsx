@@ -106,8 +106,8 @@ const AlbumPage = () => {
           <div className="flex items-center justify-between mb-6">
             <button
               type="button"
-              onClick={() => navigate(-1)}
-              className="inline-flex items-center gap-2 text-sm text-gray-300 hover:text-white"
+              onClick={() => navigate('/')}
+              className="inline-flex items-center gap-2 text-sm text-gray-300 hover:text-white relative z-10"
             >
               <ArrowLeft size={16} />
               <span>Voltar</span>

@@ -24,6 +24,13 @@ const canConvertToBackground = (img) => {
 
 const wrapWithProtection = (img, withWatermark) => {
   if (!img || img.closest('.bw-protect')) return;
+  try {
+    const cs = window.getComputedStyle(img);
+    const hasAbsoluteClass = (img.className || '').includes('absolute');
+    if (cs.position === 'absolute' || hasAbsoluteClass) {
+      return;
+    }
+  } catch { /* ignore */ }
   const wrapper = document.createElement('span');
   wrapper.className = 'bw-protect';
   if (withWatermark) wrapper.classList.add('bw-watermark');
@@ -94,7 +101,8 @@ const proxifySrc = (img) => {
 };
 
 export const ImageProtectionManager = () => {
-  const { user } = useAuth();
+  const ctx = useAuth() || {};
+  const user = ctx.user || null;
   const observerRef = useRef(null);
 
   useEffect(() => {

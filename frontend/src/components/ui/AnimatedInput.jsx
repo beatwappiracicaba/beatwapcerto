@@ -20,7 +20,7 @@ export const AnimatedInput = ({
         )}
         <motion.input
           type={type}
-          value={value}
+          value={value ?? ''}
           onChange={onChange}
           placeholder={placeholder}
           className={`w-full bg-beatwap-graphite/50 border border-white/10 rounded-xl px-4 py-3 ${Icon ? 'pl-12' : ''} text-white placeholder-gray-600 focus:outline-none focus:border-beatwap-gold/50 transition-colors`}

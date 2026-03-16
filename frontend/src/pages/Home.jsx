@@ -12,7 +12,7 @@ import SpecialOffer from '../components/landing/SpecialOffer';
 import Contact from '../components/landing/Contact';
 import Footer from '../components/landing/Footer';
 import { apiClient } from '../services/apiClient';
-import { Play, Pause, BadgeCheck, Music, MessageCircle, ChevronLeft, ChevronRight, User, Info, X } from 'lucide-react';
+import { Play, Pause, BadgeCheck, Music, MessageCircle, ChevronLeft, ChevronRight, User, Info, X, Heart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Instagram, Globe, Youtube, Video } from 'lucide-react';
@@ -36,6 +36,7 @@ const Home = () => {
   const [ipHash, setIpHash] = useState(null);
   const [playStartTS, setPlayStartTS] = useState(null);
   const [activeProjectVideo, setActiveProjectVideo] = useState(null);
+  const [openDescriptionId, setOpenDescriptionId] = useState(null);
   const upcomingRef = useRef(null);
   const releasedRef = useRef(null);
   const compositionsRef = useRef(null);
@@ -68,6 +69,16 @@ const Home = () => {
     if (rest.length === 8) return `(${ddd}) ${rest.slice(0, 4)}-${rest.slice(4)}`;
     if (rest.length === 9) return `(${ddd}) ${rest.slice(0, 5)}-${rest.slice(5)}`;
     return `+${normalized}`;
+  };
+
+  const toggleCompositionLike = async (compId) => {
+    try {
+      const res = await apiClient.post(`/compositions/${compId}/like`, { ip_hash: ipHash || 'unknown' });
+      const { liked, likes } = res || {};
+      setLatestCompositions(prev => prev.map(c => c.id === compId ? { ...c, likes_count: likes, liked } : c));
+    } catch (error) {
+      console.error('Error toggling like:', error);
+    }
   };
 
   const enrichCompositionsFromProfiles = async (comps) => {
@@ -193,27 +204,8 @@ const Home = () => {
         cacheTtlMs: 15000
       });
 
-      const releases = (data && Array.isArray(data.releases)) ? data.releases : [];
-      const today = new Date();
-      const parsed = releases.map(r => {
-        const rd = r.release_date ? new Date(r.release_date) : null;
-        const isUpcoming = rd ? rd >= new Date(today.getFullYear(), today.getMonth(), today.getDate()) : false;
-        return { ...r, _rd: rd, _isUpcoming: isUpcoming };
-      });
-      const upcoming = parsed.filter(r => r._isUpcoming).sort((a, b) => (a._rd - b._rd));
-      const pastOrNoDate = parsed.filter(r => !r._isUpcoming).sort((a, b) => {
-        if (a._rd && b._rd) return b._rd - a._rd;
-        if (a._rd && !b._rd) return -1;
-        if (!a._rd && b._rd) return 1;
-        return new Date(b.created_at) - new Date(a.created_at);
-      });
-      const combined = [...upcoming, ...pastOrNoDate].slice(0, 8).map(r => {
-        const o = { ...r };
-        delete o._rd;
-        delete o._isUpcoming;
-        return o;
-      });
-      setLatestReleases(combined);
+      await fetchLatestReleases();
+      await fetchLatestProjects();
 
       const compositions = (data && Array.isArray(data.compositions)) ? data.compositions : [];
       const mapped = compositions.map(c => ({
@@ -227,7 +219,6 @@ const Home = () => {
         .then((enriched) => setLatestCompositions(enriched))
         .catch(() => void 0);
 
-      setLatestProjects((data && Array.isArray(data.projects)) ? data.projects : []);
       setComposers(sortProfilesOldestFirst((data && Array.isArray(data.composers)) ? data.composers : []));
       setSponsors((data && Array.isArray(data.sponsors)) ? data.sponsors : []);
       setArtists(sortProfilesOldestFirst((data && Array.isArray(data.artists)) ? data.artists : []));
@@ -256,9 +247,31 @@ const Home = () => {
 
   const fetchLatestReleases = async () => {
     try {
-      const data = await apiClient.get('/releases');
+      const data = await apiClient.get('/musics');
+      const approved = (data || []).filter(m => {
+        const s = String(m.status || '').toLowerCase();
+        return s === 'aprovado' || s === 'approved';
+      });
+      const mapped = approved.map(m => ({
+        id: m.id,
+        titulo: m.titulo,
+        nome_artista: m.nome_artista,
+        artista_id: m.artista_id,
+        cover_url: m.cover_url,
+        audio_url: m.audio_url,
+        preview_url: m.preview_url || m.audio_url,
+        presave_link: m.presave_link || null,
+        release_date: m.release_date || null,
+        album_id: m.album_id || null,
+        album_title: m.album_title || null,
+        created_at: m.created_at,
+        estilo: m.estilo,
+        is_beatwap_produced: !!m.is_beatwap_produced,
+        show_on_home: !!m.show_on_home
+      }));
+      // Ordenação semelhante ao fluxo anterior
       const today = new Date();
-      const parsed = (data || []).map(r => {
+      const parsed = mapped.map(r => {
         const rd = r.release_date ? new Date(r.release_date) : null;
         const isUpcoming = rd ? rd >= new Date(today.getFullYear(), today.getMonth(), today.getDate()) : false;
         return { ...r, _rd: rd, _isUpcoming: isUpcoming };
@@ -297,6 +310,16 @@ const Home = () => {
         .catch(() => void 0);
     } catch (error) {
       console.error('Error fetching compositions:', error);
+    }
+  };
+
+  const toggleMusicLike = async (musicId) => {
+    try {
+      const res = await apiClient.post(`/musics/${musicId}/like`, { ip_hash: ipHash || 'unknown' });
+      const { liked, likes } = res || {};
+      setLatestReleases(prev => prev.map(r => r.id === musicId ? { ...r, likes_count: likes, liked } : r));
+    } catch (error) {
+      console.error('Error toggling music like:', error);
     }
   };
 
@@ -356,8 +379,11 @@ const Home = () => {
 
   const fetchLatestProjects = async () => {
     try {
-      const data = await apiClient.get('/projects');
-      setLatestProjects(data || []);
+      const data = await apiClient.get('/producer-projects');
+      const mapped = (data || [])
+        .filter(p => p && p.published === true)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      setLatestProjects(mapped);
     } catch (error) {
       console.error('Error fetching producer projects:', error);
     }
@@ -663,6 +689,18 @@ const Home = () => {
                                       <div className="h-9" />
                                     )
                                   )}
+                                  {item.type === 'single' && (
+                                    <div className="mt-2">
+                                      <button
+                                        onClick={() => toggleMusicLike(item.id)}
+                                        className={`flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-lg transition-colors ${item.liked ? 'text-red-400 bg-red-400/10 hover:bg-red-400/20' : 'text-gray-300 bg-white/5 hover:bg-white/10'}`}
+                                      >
+                                        <Heart size={14} className={item.liked ? 'text-red-400' : 'text-gray-300'} />
+                                        <span>{item.liked ? 'Curtido' : 'Curtir'}</span>
+                                        <span className="ml-1">({item.likes_count || 0})</span>
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </motion.div>
@@ -817,6 +855,18 @@ const Home = () => {
                                       <span>{item.presave_link ? 'Smartlink' : (playingTrack === item.id && !isPaused ? 'Pausar' : 'Reproduzir')}</span>
                                     </AnimatedButton>
                                   )}
+                                  {item.type === 'single' && (
+                                    <div className="mt-2">
+                                      <button
+                                        onClick={() => toggleMusicLike(item.id)}
+                                        className={`flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-lg transition-colors ${item.liked ? 'text-red-400 bg-red-400/10 hover:bg-red-400/20' : 'text-gray-300 bg-white/5 hover:bg-white/10'}`}
+                                      >
+                                        <Heart size={14} className={item.liked ? 'text-red-400' : 'text-gray-300'} />
+                                        <span>{item.liked ? 'Curtido' : 'Curtir'}</span>
+                                        <span className="ml-1">({item.likes_count || 0})</span>
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </motion.div>
@@ -905,7 +955,29 @@ const Home = () => {
                         <h3 className="font-bold text-lg truncate"><span>{comp.title}</span></h3>
                         <p className="text-sm text-gray-400 truncate"><span>{comp.composer_name || 'Autor'}</span></p>
                         <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{comp.genre || 'Gênero'}</span></p>
+                        {Number.isFinite(Number(comp.price)) && (
+                          <div className="text-xs text-beatwap-gold mt-1 font-bold">R$ {comp.price}</div>
+                        )}
                         <div className="mt-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); toggleCompositionLike(comp.id); }}
+                              className={`flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-lg transition-colors ${comp.liked ? 'text-red-400 bg-red-400/10 hover:bg-red-400/20' : 'text-gray-300 bg-white/5 hover:bg-white/10'}`}
+                            >
+                              <Heart size={14} className={comp.liked ? 'text-red-400' : 'text-gray-300'} />
+                              <span>{comp.liked ? 'Curtido' : 'Curtir'}</span>
+                              <span className="ml-1">({comp.likes_count || 0})</span>
+                            </button>
+                          </div>
+                          {comp.description && String(comp.description).trim() !== '' && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setOpenDescriptionId(comp.id); }}
+                              className="mb-2 flex items-center gap-2 text-xs font-bold text-blue-400 bg-blue-400/10 px-3 py-2 rounded-lg hover:bg-blue-400/20 transition-colors w-full justify-center"
+                            >
+                              <Info size={14} />
+                              <span>Ver descrição</span>
+                            </button>
+                          )}
                           {comp.composer_phone ? (
                             <>
                               <div className="text-xs text-gray-400 text-center">
@@ -951,6 +1023,27 @@ const Home = () => {
           </section>
         )}
 
+        {openDescriptionId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
+            <div className="bg-[#121212] border border-white/10 rounded-2xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-white font-bold">Descrição da composição</div>
+                <button
+                  className="w-9 h-9 rounded-full bg-black/70 border border-white/20 flex items-center justify-center text-white hover:bg-black"
+                  onClick={() => setOpenDescriptionId(null)}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="text-gray-300 whitespace-pre-wrap text-sm">
+                {(() => {
+                  const c = latestCompositions.find((x) => x.id === openDescriptionId);
+                  return c && c.description ? String(c.description) : '';
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
         {/* Latest Producer Video Projects */}
         {latestProjects.length > 0 && (
           <section className="py-16 px-4 sm:px-6 bg-black/25">
@@ -1032,61 +1125,7 @@ const Home = () => {
           </section>
         )}
 
-        {producers.length > 0 && (
-          <section className="py-20 px-6 bg-black/10">
-            <div className="max-w-7xl mx-auto">
-              <div className="text-center mb-12">
-                <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Produtores Parceiros</span></h2>
-                <p className="text-gray-400"><span>Profissionais disponíveis para seus projetos</span></p>
-              </div>
-              <div className="text-xs text-gray-400 mb-2 px-4 md:hidden">
-                Arraste para o lado e veja todos
-              </div>
-              <div className="relative -mx-6">
-                <div ref={composersRef} className="overflow-x-auto scroll-smooth whitespace-nowrap px-6 pb-2">
-                  <div className="flex gap-6 justify-center md:justify-start">
-                    {producers.map((producer, index) => (
-                      <div key={producer.id} className="flex-none w-[280px]">
-                        <motion.div
-                          initial={{ opacity: 0, y: 20 }}
-                          whileInView={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.1 }}
-                          className="group bg-white/5 border rounded-xl overflow-hidden cursor-pointer transition-colors border-white/10 hover:border-beatwap-gold"
-                          onClick={() => navigate(`/profile/${producer.id}`)}
-                        >
-                          <div className="aspect-square bg-gray-800 relative overflow-hidden">
-                            {producer.avatar_url ? (
-                              <img 
-                                src={producer.avatar_url} 
-                                alt={producer.nome || producer.name || 'Produtor'} 
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
-                                <User size={64} className="text-white/20" />
-                              </div>
-                            )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3 sm:p-4">
-                              <div className="w-full">
-                                <div className="text-white text-base sm:text-sm font-bold leading-snug">{producer.nome || producer.name || 'Produtor'}</div>
-                                <div className="text-xs sm:text-[11px] text-gray-300 flex items-center gap-2">
-                                  <span>Produtor</span>
-                                  <span className="hidden sm:flex items-center gap-1 text-beatwap-gold">
-                                    <Info size={14} /> <span>Ver Perfil</span>
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </motion.div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
+        
 
         {/* Composers Section */}
         {composers.length > 0 && (
@@ -1100,8 +1139,8 @@ const Home = () => {
                 Arraste para o lado e veja todos
               </div>
               <div className="relative -mx-6">
-                <div ref={composersRef} className="overflow-x-auto scroll-smooth whitespace-nowrap px-6 pb-2">
-                  <div className="flex gap-6 justify-center md:justify-start">
+                <div ref={composersRef} className="overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2 no-scrollbar">
+                  <div className="flex gap-6 justify-start">
                   {composers.map((composer, index) => (
                     <div key={composer.id} className="flex-none w-[280px]">
                       <motion.div

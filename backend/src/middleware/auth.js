@@ -1,25 +1,16 @@
 const jwt = require('jsonwebtoken');
 
-function authRequired(req, res, next) {
+function auth(req, res, next) {
   try {
-    const header = req.headers.authorization || '';
-    const token = header.startsWith('Bearer ') ? header.slice(7) : header;
-    if (!token) return res.status(401).json({ ok: false, error: 'Não autenticado' });
+    const h = String(req.headers.authorization || '');
+    const token = h.startsWith('Bearer ') ? h.slice(7) : null;
+    if (!token) return res.status(401).json({ ok: false, error: 'Sem token' });
     const payload = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
-    req.user = payload;
+    req.user = { id: payload.sub, email: payload.email, cargo: payload.cargo };
     next();
-  } catch (e) {
+  } catch {
     return res.status(401).json({ ok: false, error: 'Token inválido' });
   }
 }
 
-function requireRole(roles) {
-  const allowed = new Set((Array.isArray(roles) ? roles : [roles]).map(r => String(r)));
-  return (req, res, next) => {
-    const cargo = req?.user?.cargo;
-    if (!cargo || !allowed.has(cargo)) return res.status(403).json({ ok: false, error: 'Acesso negado' });
-    next();
-  };
-}
-
-module.exports = { authRequired, requireRole };
+module.exports = { auth };

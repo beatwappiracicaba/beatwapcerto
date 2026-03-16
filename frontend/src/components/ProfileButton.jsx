@@ -59,16 +59,17 @@ export const ProfileButton = ({ profile }) => {
       }
 
       const updateData = {};
-      if (typeof name === 'string') updateData.nome = name;
-      if (typeof bio === 'string') updateData.bio = bio;
-      if (typeof genre === 'string') updateData.genero_musical = genre;
+      const clean = (v) => v != null && String(v).trim() !== '' ? String(v) : null;
+      if (typeof name === 'string' && clean(name)) updateData.nome = clean(name);
+      if (typeof bio === 'string' && clean(bio)) updateData.bio = clean(bio);
+      if (typeof genre === 'string' && clean(genre)) updateData.genero_musical = clean(genre);
       if (socials && typeof socials === 'object') {
-        updateData.youtube_url = socials.youtube || null;
-        updateData.spotify_url = socials.spotify || null;
-        updateData.deezer_url = socials.deezer || null;
-        updateData.tiktok_url = socials.tiktok || null;
-        updateData.instagram_url = socials.instagram || null;
-        updateData.site_url = socials.site || null;
+        const y = clean(socials.youtube); if (y) updateData.youtube_url = y;
+        const s = clean(socials.spotify); if (s) updateData.spotify_url = s;
+        const d = clean(socials.deezer); if (d) updateData.deezer_url = d;
+        const t = clean(socials.tiktok); if (t) updateData.tiktok_url = t;
+        const i = clean(socials.instagram); if (i) updateData.instagram_url = i;
+        const site = clean(socials.site); if (site) updateData.site_url = site;
       }
       if (avatar_url) updateData.avatar_url = avatar_url;
 

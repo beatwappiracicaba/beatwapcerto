@@ -19,6 +19,7 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
     genre: '',
     description: '',
     price: '',
+    hasPrice: false,
     cover_file: null,
     audio_file: null,
   });
@@ -200,7 +201,7 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
         title: formData.title,
         genre: formData.genre,
         description: formData.description,
-        price: formData.price ? parseFloat(formData.price) : null,
+        price: formData.hasPrice && formData.price ? parseFloat(formData.price) : null,
         cover_url: coverUrl,
         audio_url: audioUrl,
         status: 'pending'
@@ -285,13 +286,25 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
                   placeholder="Detalhes sobre a composição..."
                 />
               </div>
-              <AnimatedInput 
-                label="Preço Sugerido (R$) - Opcional" 
-                value={formData.price} 
-                onChange={(e) => setFormData({...formData, price: e.target.value})} 
-                placeholder="0.00"
-                type="number"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  id="comp-has-price"
+                  type="checkbox"
+                  className="accent-beatwap-gold"
+                  checked={formData.hasPrice}
+                  onChange={(e) => setFormData({ ...formData, hasPrice: e.target.checked })}
+                />
+                <label htmlFor="comp-has-price" className="text-sm font-bold text-gray-400">Exibir preço sugerido</label>
+              </div>
+              {formData.hasPrice && (
+                <AnimatedInput 
+                  label="Preço Sugerido (R$)" 
+                  value={formData.price} 
+                  onChange={(e) => setFormData({...formData, price: e.target.value})} 
+                  placeholder="0.00"
+                  type="number"
+                />
+              )}
             </div>
 
             {/* Audio Upload */}

@@ -1,9 +1,8 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import Cropper from 'react-easy-crop';
-import { motion, AnimatePresence } from 'framer-motion';
+// removed framer-motion to avoid unmount glitches
 import { X, Save, Check, Camera, User } from 'lucide-react';
-import { AnimatedButton } from './AnimatedButton';
 import { getCroppedImg } from '../../utils/cropImage';
 
 export const ProfileEditModal = ({ 
@@ -15,6 +14,13 @@ export const ProfileEditModal = ({
   currentBio, 
   currentGenre,
   currentSocials = {},
+  currentPhone,
+  currentCep,
+  currentLogradouro,
+  currentComplemento,
+  currentBairro,
+  currentCidade,
+  currentEstado,
   onSave, 
   uploading,
   showEmail = false
@@ -24,14 +30,20 @@ export const ProfileEditModal = ({
   const [bio, setBio] = useState(currentBio || '');
   const [genre, setGenre] = useState(currentGenre || '');
   const [socials, setSocials] = useState({
-    youtube: '',
-    spotify: '',
-    deezer: '',
-    tiktok: '',
-    instagram: '',
-    site: '',
-    ...currentSocials
+    youtube: currentSocials?.youtube || '',
+    spotify: currentSocials?.spotify || '',
+    deezer: currentSocials?.deezer || '',
+    tiktok: currentSocials?.tiktok || '',
+    instagram: currentSocials?.instagram || '',
+    site: currentSocials?.site || ''
   });
+  const [phone, setPhone] = useState(currentPhone || '');
+  const [cep, setCep] = useState(currentCep || '');
+  const [logradouro, setLogradouro] = useState(currentLogradouro || '');
+  const [complemento, setComplemento] = useState(currentComplemento || '');
+  const [bairro, setBairro] = useState(currentBairro || '');
+  const [cidade, setCidade] = useState(currentCidade || '');
+  const [estado, setEstado] = useState(currentEstado || '');
   
   const [imageSrc, setImageSrc] = useState(null); // Raw image for cropping
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -40,8 +52,17 @@ export const ProfileEditModal = ({
   
   const [previewUrl, setPreviewUrl] = useState(null); // Cropped image preview
   const [blobToUpload, setBlobToUpload] = useState(null); // Blob to upload
+  const [fileOriginal, setFileOriginal] = useState(null); // Original selected file (fallback if user doesn't crop)
 
   const fileInputRef = useRef(null);
+  
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        try { URL.revokeObjectURL(previewUrl); } catch { void 0; }
+      }
+    };
+  }, [previewUrl]);
 
   useEffect(() => {
     if (isOpen) {
@@ -57,9 +78,17 @@ export const ProfileEditModal = ({
         instagram: currentSocials?.instagram || '',
         site: currentSocials?.site || ''
       });
+      setPhone(currentPhone || '');
+      setCep(currentCep || '');
+      setLogradouro(currentLogradouro || '');
+      setComplemento(currentComplemento || '');
+      setBairro(currentBairro || '');
+      setCidade(currentCidade || '');
+      setEstado(currentEstado || '');
       setPreviewUrl(null);
       setBlobToUpload(null);
       setImageSrc(null);
+      setFileOriginal(null);
     }
   }, [isOpen, currentName, currentEmail, currentBio, currentGenre, currentSocials]);
 
@@ -72,6 +101,9 @@ export const ProfileEditModal = ({
       const file = e.target.files[0];
       const imageDataUrl = await readFile(file);
       setImageSrc(imageDataUrl);
+      setFileOriginal(file);
+      setPreviewUrl(null);
+      setBlobToUpload(null);
     }
   };
 
@@ -96,13 +128,15 @@ export const ProfileEditModal = ({
   };
 
   const handleSave = () => {
-    onSave({ 
-      name, 
+    const finalBlob = blobToUpload || fileOriginal || null;
+    onSave({
+      name,
       email,
-      bio, 
+      bio,
       genre,
       socials,
-      blob: blobToUpload 
+      phone,
+      blob: finalBlob
     });
   };
 
@@ -122,12 +156,8 @@ export const ProfileEditModal = ({
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
       <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm pointer-events-auto">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
+        <div
           className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
         >
           <div className="p-4 border-b border-white/10 flex justify-between items-center bg-beatwap-black">
@@ -178,9 +208,12 @@ export const ProfileEditModal = ({
                      >
                         Cancelar
                      </button>
-                     <AnimatedButton onClick={handleCropConfirm} icon={Check}>
+                     <button
+                        onClick={handleCropConfirm}
+                        className="px-6 py-3 rounded-xl font-bold text-sm bg-beatwap-gold text-beatwap-black"
+                     >
                         Confirmar Recorte
-                     </AnimatedButton>
+                     </button>
                 </div>
               </div>
             ) : (
@@ -312,6 +345,19 @@ export const ProfileEditModal = ({
                             />
                         </div>
                     </div>
+
+                    <div className="space-y-3 pt-2">
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Contato</label>
+                      <div className="grid grid-cols-1 gap-3">
+                        <input
+                          type="text"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors"
+                          placeholder="Celular (WhatsApp)"
+                        />
+                      </div>
+                    </div>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4 border-t border-white/10">
@@ -321,15 +367,18 @@ export const ProfileEditModal = ({
                      >
                         Cancelar
                      </button>
-                     <AnimatedButton onClick={handleSave} isLoading={uploading} icon={Save}>
+                     <button
+                        onClick={handleSave}
+                        disabled={uploading}
+                        className="px-6 py-3 rounded-xl font-bold text-sm bg-beatwap-gold text-beatwap-black disabled:opacity-60"
+                     >
                         Salvar Alterações
-                     </AnimatedButton>
+                     </button>
                 </div>
               </div>
             )}
           </div>
-        </motion.div>
+        </div>
       </div>
-    </AnimatePresence>
   );
 };

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { LayoutGrid, Users, User, Music, Menu, X, Settings, DollarSign, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -28,7 +28,8 @@ export const AdminLayout = ({ children }) => {
     admin_sponsors: true,
     admin_settings: true,
     admin_sellers: true,
-    admin_finance: true
+    admin_finance: true,
+    chat: true
   };
  
   const toggleSection = (key) => {
@@ -44,6 +45,17 @@ export const AdminLayout = ({ children }) => {
   const financeiroActive = location.pathname.startsWith('/admin/finance');
   const sistemaActive = location.pathname.startsWith('/admin/settings');
   const publicProfileActive = location.pathname.startsWith('/admin/public-profile');
+
+  // Expose a global helper to close the mobile sidebar from deep components
+  // Avoids prop drilling for simple UX adjustments
+  useEffect(() => {
+    try {
+      window.__closeAdminSidebar = () => setSidebarOpen(false);
+    } catch { /* ignore */ }
+    return () => {
+      try { delete window.__closeAdminSidebar; } catch { /* ignore */ }
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-[#0b0b0b] to-[#161616] text-white flex">
@@ -318,8 +330,8 @@ export const AdminLayout = ({ children }) => {
           <div className="space-y-6">{children}</div>
         </div>
       </main>
-      <ChatButton isAdmin={true} currentUserId={currentUserId} />
-      <ChatWindow isAdmin={true} currentUserId={currentUserId} />
+      {permissions.chat !== false && <ChatButton isAdmin={true} currentUserId={currentUserId} />}
+      {permissions.chat !== false && <ChatWindow isAdmin={true} currentUserId={currentUserId} />}
     </div>
   );
 };

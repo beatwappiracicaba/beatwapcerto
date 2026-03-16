@@ -55,7 +55,39 @@ const Register = () => {
     try {
       const capitalizedName = formData.name.replace(/\w\S*/g, (w) => (w.replace(/^\w/, (c) => c.toUpperCase())));
       const role = roleParam ? (roleParam.charAt(0).toUpperCase() + roleParam.slice(1).toLowerCase()) : 'Artista';
-      await authApi.register({ name: capitalizedName, email: formData.email, password: formData.password, role, plano: planParam });
+      const params = new URLSearchParams(location.search);
+      const getFlag = (k) => params.get(k) === '1';
+      let access_control = {};
+      const chat = getFlag('p_chat');
+      if (chat) access_control.chat = true;
+      if (role === 'Produtor') {
+        if (getFlag('p_admin_artists')) access_control.admin_artists = true;
+        if (getFlag('p_admin_composers')) access_control.admin_composers = true;
+        if (getFlag('p_admin_sellers')) access_control.admin_sellers = true;
+        if (getFlag('p_admin_musics')) access_control.admin_musics = true;
+        if (getFlag('p_admin_compositions')) access_control.admin_compositions = true;
+        if (getFlag('p_admin_sponsors')) access_control.admin_sponsors = true;
+        if (getFlag('p_admin_settings')) access_control.admin_settings = true;
+        if (getFlag('p_admin_finance')) access_control.admin_finance = true;
+        if (getFlag('p_marketing')) access_control.marketing = true;
+      } else if (role === 'Vendedor') {
+        if (getFlag('p_seller_artists')) access_control.seller_artists = true;
+        if (getFlag('p_seller_calendar')) access_control.seller_calendar = true;
+        if (getFlag('p_seller_leads')) access_control.seller_leads = true;
+        if (getFlag('p_seller_finance')) access_control.seller_finance = true;
+        if (getFlag('p_seller_proposals')) access_control.seller_proposals = true;
+        if (getFlag('p_seller_communications')) access_control.seller_communications = true;
+      } else if (role === 'Compositor') {
+        if (getFlag('p_compositions')) access_control.compositions = true;
+        if (getFlag('p_marketing')) access_control.marketing = true;
+        if (getFlag('p_finance')) access_control.finance = true;
+      } else {
+        if (getFlag('p_musics')) access_control.musics = true;
+        if (getFlag('p_work')) access_control.work = true;
+        if (getFlag('p_marketing')) access_control.marketing = true;
+        if (getFlag('p_finance')) access_control.finance = true;
+      }
+      await authApi.register({ name: capitalizedName, email: formData.email, password: formData.password, role, plano: planParam, access_control });
       addToast('Conta criada com sucesso! Faça login para continuar.', 'success');
       navigate('/login');
     } catch (error) {
