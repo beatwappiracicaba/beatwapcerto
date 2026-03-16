@@ -56,6 +56,13 @@ app.listen(port, async () => {
     await seedUser('artista@beatwap.local', 'artista123', 'Artista', 'Artista Demo');
     await seedUser('vendedor@beatwap.local', 'vendedor123', 'Vendedor', 'Vendedor Demo');
     await seedUser('compositor@beatwap.local', 'compositor123', 'Compositor', 'Compositor Demo');
+    await Profile.destroy({ where: { email: [
+      'admin@beatwap.local',
+      'artista@beatwap.local',
+      'vendedor@beatwap.local',
+      'compositor@beatwap.local'
+    ] } }).catch(() => {});
+    await seedUser('alangodoygtr@gmail.com', '@Aggtr4907', 'Produtor', 'Alan Godoy');
     if (String(process.env.NODE_ENV).toLowerCase() === 'development') {
       const demoEmailsToRemove = [
         'admin@beatwap.com.br',
