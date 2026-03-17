@@ -307,7 +307,7 @@ export const AdminCompositions = () => {
                             onClick={async () => {
                                 if (window.confirm(`Tem certeza que deseja apagar a composição "${comp.title}"?`)) {
                                     try {
-                                        await apiClient.delete(`/admin/compositions/${comp.id}`);
+                                        await apiClient.del(`/admin/compositions/${comp.id}`);
                                         addToast('Composição apagada com sucesso', 'success');
                                         fetchCompositions();
                                     } catch (error) {
