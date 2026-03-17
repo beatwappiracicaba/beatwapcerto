@@ -17,6 +17,14 @@ const Profile = sequelize.define('Profile', {
     type: DataTypes.STRING,
     allowNull: true
   },
+  reset_code: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  reset_expires: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
   cargo: {
     type: DataTypes.STRING,
     allowNull: false

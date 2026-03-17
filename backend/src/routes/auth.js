@@ -1,9 +1,19 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { Profile } = require('../models');
+const crypto = require('crypto');
+const { Profile, Invite } = require('../models');
+const { auth } = require('../middleware/auth');
+const { sendInviteEmail, sendCodeEmail } = require('../services/mailer');
 
 const router = express.Router();
+
+function generateToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+function generateCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 router.post('/register', async (req, res) => {
   try {
@@ -90,6 +100,120 @@ router.post('/login', async (req, res) => {
     const redirect = map[user.cargo] || '/';
     return res.json({ ok: true, token, user: { id: user.id, email: user.email, cargo: user.cargo, nome: user.nome }, redirect });
   } catch (e) {
+    return res.status(500).json({ ok: false, error: 'Erro interno' });
+  }
+});
+
+router.post('/admin/create-invite', auth, async (req, res) => {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ ok: false, error: 'Sem permissão' });
+    const email = String(req.body.email || '').trim().toLowerCase();
+    if (!email) return res.status(400).json({ ok: false, error: 'Email obrigatório' });
+    const token = generateToken();
+    const ttl = Number(process.env.INVITE_TTL_HOURS || 24);
+    const expires_at = new Date(Date.now() + ttl * 60 * 60 * 1000);
+    const invite = await Invite.create({
+      email,
+      token,
+      expires_at,
+      created_by: req.user.id
+    });
+    await sendInviteEmail(email, token).catch(() => {});
+    return res.json({ ok: true, invite: { id: invite.id, email, token, expires_at } });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: 'Erro interno' });
+  }
+});
+
+router.get('/invite/:token', async (req, res) => {
+  try {
+    const token = String(req.params.token || '').trim();
+    const invite = await Invite.findOne({ where: { token } });
+    if (!invite || invite.used || new Date(invite.expires_at) < new Date()) {
+      return res.status(404).json({ ok: false, error: 'Token inválido' });
+    }
+    return res.json({ ok: true, email: invite.email, expires_at: invite.expires_at });
+  } catch {
+    return res.status(500).json({ ok: false, error: 'Erro interno' });
+  }
+});
+
+router.post('/register-with-invite', async (req, res) => {
+  try {
+    const token = String(req.body.token || '').trim();
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const password = String(req.body.password || '');
+    const nome = String(req.body.nome || req.body.name || '').trim();
+    const cargo = String(req.body.cargo || req.body.role || '').trim() || 'Artista';
+    if (!token || !email || !password || !nome) return res.status(400).json({ ok: false, error: 'Campos obrigatórios' });
+    const invite = await Invite.findOne({ where: { token } });
+    if (!invite || invite.used || new Date(invite.expires_at) < new Date() || invite.email.toLowerCase() !== email) {
+      return res.status(400).json({ ok: false, error: 'Convite inválido' });
+    }
+    const exists = await Profile.findOne({ where: { email } });
+    if (exists) return res.status(400).json({ ok: false, error: 'Email já cadastrado' });
+    const hash = await bcrypt.hash(password, 10);
+    const user = await Profile.create({
+      email,
+      password_hash: hash,
+      cargo,
+      nome,
+      access_control: { verified: true, chat: true }
+    });
+    invite.used = true;
+    await invite.save();
+    const jwtToken = jwt.sign({ sub: user.id, email: user.email, cargo: user.cargo }, process.env.JWT_SECRET || 'devsecret', { expiresIn: '7d' });
+    return res.json({ ok: true, token: jwtToken, user: { id: user.id, email: user.email, cargo: user.cargo, nome: user.nome } });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: 'Erro interno' });
+  }
+});
+
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    if (!email) return res.json({ ok: true });
+    const user = await Profile.findOne({ where: { email } });
+    if (!user) return res.json({ ok: true });
+    const code = generateCode();
+    user.reset_code = code;
+    user.reset_expires = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+    await sendCodeEmail(email, code).catch(() => {});
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ ok: false, error: 'Erro interno' });
+  }
+});
+
+router.post('/verify-reset-code', async (req, res) => {
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const code = String(req.body.code || '').trim();
+    const user = await Profile.findOne({ where: { email } });
+    const valid = !!user && user.reset_code === code && new Date(user.reset_expires) > new Date();
+    if (!valid) return res.status(400).json({ ok: false, error: 'Código inválido' });
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ ok: false, error: 'Erro interno' });
+  }
+});
+
+router.post('/reset-password', async (req, res) => {
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const code = String(req.body.code || '').trim();
+    const password = String(req.body.password || '');
+    const user = await Profile.findOne({ where: { email } });
+    const valid = !!user && user.reset_code === code && new Date(user.reset_expires) > new Date();
+    if (!valid) return res.status(400).json({ ok: false, error: 'Código inválido' });
+    const hash = await bcrypt.hash(password, 10);
+    user.password_hash = hash;
+    user.reset_code = null;
+    user.reset_expires = null;
+    await user.save();
+    return res.json({ ok: true });
+  } catch {
     return res.status(500).json({ ok: false, error: 'Erro interno' });
   }
 });
