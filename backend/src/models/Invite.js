@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 
 const Invite = sequelize.define('Invite', {
   id: {
@@ -35,5 +36,9 @@ const Invite = sequelize.define('Invite', {
   tableName: 'invites',
   underscored: true
 });
+
+Invite.generateToken = function () {
+  return crypto.randomBytes(32).toString('hex');
+};
 
 module.exports = { Invite };

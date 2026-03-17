@@ -1,4 +1,4 @@
-const { Invite } = require('../src/models');
+const crypto = require('crypto');
 const { sendInviteEmail } = require('../src/services/mailer');
 
 (async () => {
@@ -8,7 +8,7 @@ const { sendInviteEmail } = require('../src/services/mailer');
     process.exit(1);
   }
   try {
-    const token = Invite.generateToken();
+    const token = crypto.randomBytes(32).toString('hex');
     await sendInviteEmail(email, token);
     console.log(`Convite enviado para ${email}`);
   } catch (e) {

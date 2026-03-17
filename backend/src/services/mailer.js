@@ -1,3 +1,4 @@
+require('dotenv').config();
 const nodemailer = require('nodemailer');
 
 function createTransport() {
@@ -6,6 +7,7 @@ function createTransport() {
   const secure = port === 465;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
+  const enableDebug = !!process.env.SMTP_DEBUG;
   if (!user || !pass) {
     console.warn('SMTP_USER/SMTP_PASS not set. Email sending will fail.');
   }
@@ -13,7 +15,9 @@ function createTransport() {
     host,
     port,
     secure,
-    auth: { user, pass }
+    auth: { user, pass },
+    logger: enableDebug,
+    debug: enableDebug
   });
 }
 
@@ -53,19 +57,37 @@ function codeTemplate(code) {
 async function sendInviteEmail(email, token) {
   const base = process.env.APP_PUBLIC_URL || 'https://www.beatwap.com.br';
   const link = `${base}/register/invite?token=${token}`;
-  return transporter.sendMail({
+  const info = await transporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
     to: email,
     subject: 'Convite para cadastro',
     html: inviteTemplate(link)
   });
+  console.log('invite-email', {
+    to: email,
+    messageId: info && info.messageId,
+    accepted: info && info.accepted,
+    rejected: info && info.rejected,
+    response: info && info.response
+  });
+  return info;
 }
 
 async function sendCodeEmail(email, code) {
-  return transporter.sendMail({
+  const info = await transporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
     to: email,
     subject: 'Seu código de verificação',
     html: codeTemplate(code)
   });
+  console.log('code-email', {
+    to: email,
+    messageId: info && info.messageId,
+    accepted: info && info.accepted,
+    rejected: info && info.rejected,
+    response: info && info.response
+  });
+  return info;
 }
 
 module.exports = {
