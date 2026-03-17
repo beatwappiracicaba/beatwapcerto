@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause, Check, FolderDown, CheckCircle2, ChevronDown, ChevronRight, Plus, Music, X } from 'lucide-react';
+import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause, Check, FolderDown, CheckCircle2, ChevronDown, ChevronRight, Plus, Music, X, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
@@ -830,6 +830,19 @@ export const AdminMusics = () => {
     load();
   };
 
+  const deleteMusic = async (m) => {
+    const ok = window.confirm('Apagar esta música aprovada? Esta ação remove do banco de dados.');
+    if (!ok) return;
+    try {
+      await apiClient.delete(`/admin/musics/${m.id}`);
+      addToast('Música apagada com sucesso', 'success');
+      load();
+    } catch (e) {
+      console.error(e);
+      addToast('Erro ao apagar música', 'error');
+    }
+  };
+
   const downloadAlbum = async (group) => {
     const zip = new JSZip();
     const folder = zip.folder(group.title.replace(/[^a-z0-9]/gi, '_'));
@@ -1012,6 +1025,14 @@ export const AdminMusics = () => {
               {m.isrc && <div className="text-[11px] px-2 py-1 rounded-full bg-white/10 text-white border border-white/10">ISRC: {m.isrc}</div>}
               {m.presave_link && <div className="text-[11px] px-2 py-1 rounded-full bg-white/10 text-white border border-white/10">Pré-save disponível</div>}
               {m.release_date && <div className="text-[11px] px-2 py-1 rounded-full bg-white/10 text-white border border-white/10">Lançamento: {m.release_date}</div>}
+              <AnimatedButton 
+                onClick={() => deleteMusic(m)}
+                className="!py-1 !px-2 text-[10px]"
+                variant="danger"
+              >
+                <Trash2 size={14} />
+                Apagar
+              </AnimatedButton>
             </div>
           )}
         </div>

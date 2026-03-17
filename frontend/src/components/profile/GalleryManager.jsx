@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../../utils/cropImage';
 import { apiClient, uploadApi } from '../../services/apiClient';
+import { connectRealtime, subscribe, unsubscribe } from '../../services/realtime';
 import { Card } from '../ui/Card';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
@@ -66,6 +67,35 @@ export const GalleryManager = ({ userId }) => {
   useEffect(() => {
     fetchPosts();
   }, [fetchPosts]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const socket = connectRealtime('https://api.beatwap.com.br');
+    const room = `profile:${userId}`;
+    subscribe(room);
+    const onPostCreated = (item) => {
+      if (!item) return;
+      if (String(item.user_id || '') !== String(userId)) return;
+      setPosts(prev => [item, ...prev]);
+    };
+    const onPostDeleted = (payload) => {
+      if (!payload?.id) return;
+      setPosts(prev => prev.filter(p => p.id !== payload.id));
+    };
+    const onPostLikes = (payload) => {
+      if (!payload?.id) return;
+      setPosts(prev => prev.map(p => p.id === payload.id ? { ...p, likes_count: Number(payload.likes || 0) } : p));
+    };
+    socket.on('posts.created', onPostCreated);
+    socket.on('posts.deleted', onPostDeleted);
+    socket.on('posts.likes.updated', onPostLikes);
+    return () => {
+      unsubscribe(room);
+      socket.off('posts.created', onPostCreated);
+      socket.off('posts.deleted', onPostDeleted);
+      socket.off('posts.likes.updated', onPostLikes);
+    };
+  }, [userId]);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];

@@ -6,10 +6,8 @@ let connectedBase = null;
 export function connectRealtime(baseUrl) {
   const url = baseUrl || 'https://api.beatwap.com.br';
   if (socket && connectedBase === url) return socket;
-  if (socket) {
-    try { socket.disconnect(); } catch {}
-    socket = null;
-  }
+  if (socket && typeof socket.disconnect === 'function') socket.disconnect();
+  socket = null;
   socket = io(url, {
     withCredentials: true,
     transports: ['websocket', 'polling']

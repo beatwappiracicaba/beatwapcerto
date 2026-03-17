@@ -66,10 +66,11 @@ export const AdminSettings = () => {
       setArtists(prev => prev.map(a => (a.id === id ? { ...a, access_control: evt?.access_control || a.access_control } : a)));
     };
     const rooms = artists.map(a => `profile:${a.id}`);
-    rooms.forEach(r => subscribe(r, handler));
+    rooms.forEach(r => subscribe(r));
+    socket.on('profiles.access_control.updated', handler);
     return () => {
-      rooms.forEach(r => unsubscribe(r, handler));
-      try { socket.off('connect', null); } catch {}
+      rooms.forEach(r => unsubscribe(r));
+      socket.off('profiles.access_control.updated', handler);
     };
   }, [artists.map(a => a.id).join(',')]);
 

@@ -302,6 +302,24 @@ export const AdminCompositions = () => {
                             )}
                         </>
                     )}
+                    {comp.status === 'approved' && (
+                        <AnimatedButton 
+                            onClick={async () => {
+                                if (window.confirm(`Tem certeza que deseja apagar a composição "${comp.title}"?`)) {
+                                    try {
+                                        await apiClient.delete(`/admin/compositions/${comp.id}`);
+                                        addToast('Composição apagada com sucesso', 'success');
+                                        fetchCompositions();
+                                    } catch (error) {
+                                        addToast('Erro ao apagar composição', 'error');
+                                    }
+                                }
+                            }}
+                            className="bg-red-600 hover:bg-red-700 border-none text-white w-full justify-center"
+                        >
+                            <X size={16} className="mr-2" /> Apagar
+                        </AnimatedButton>
+                    )}
                     <a 
                         href={comp.audio_url} 
                         target="_blank" 

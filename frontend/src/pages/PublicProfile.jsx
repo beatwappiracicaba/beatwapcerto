@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { apiClient } from '../services/apiClient';
+import { connectRealtime, subscribe, unsubscribe } from '../services/realtime';
 import Header from '../components/landing/Header';
 import Footer from '../components/landing/Footer';
 import { User, Music, Instagram, Globe, MessageCircle, Play, Pause, ArrowLeft, Youtube, Target, DollarSign, Image, Video, MapPin, Calendar, X } from 'lucide-react';
@@ -45,6 +46,61 @@ const PublicProfile = () => {
     if (id) {
       fetchGalleryPosts();
     }
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    const socket = connectRealtime('https://api.beatwap.com.br');
+    const room = `profile:${id}`;
+    subscribe(room);
+    const onPostCreated = (item) => {
+      if (!item) return;
+      if (String(item.user_id || '') === String(id)) {
+        setGalleryPosts(prev => [item, ...prev]);
+      }
+    };
+    const onPostDeleted = (payload) => {
+      if (!payload?.id) return;
+      setGalleryPosts(prev => prev.filter(p => p.id !== payload.id));
+    };
+    const onPostLikes = (payload) => {
+      if (!payload?.id) return;
+      setGalleryPosts(prev => prev.map(p => p.id === payload.id ? { ...p, likes_count: Number(payload.likes || 0) } : p));
+    };
+    const onEventCreated = (ev) => {
+      if (ev && String(ev.artista_id || '') === String(id)) {
+        setEvents(prev => [ev, ...prev]);
+      }
+    };
+    const onEventUpdated = (ev) => {
+      if (!ev?.id) return;
+      setEvents(prev => prev.map(e => e.id === ev.id ? ev : e));
+    };
+    const onEventDeleted = (payload) => {
+      if (!payload?.id) return;
+      setEvents(prev => prev.filter(e => e.id !== payload.id));
+    };
+    const onMusicLikes = (payload) => {
+      if (!payload?.id) return;
+      setItems(prev => prev.map(m => m.id === payload.id ? { ...m, likes_count: Number(payload.likes || 0) } : m));
+    };
+    socket.on('posts.created', onPostCreated);
+    socket.on('posts.deleted', onPostDeleted);
+    socket.on('posts.likes.updated', onPostLikes);
+    socket.on('events.created', onEventCreated);
+    socket.on('events.updated', onEventUpdated);
+    socket.on('events.deleted', onEventDeleted);
+    socket.on('musics.likes.updated', onMusicLikes);
+    return () => {
+      unsubscribe(room);
+      socket.off('posts.created', onPostCreated);
+      socket.off('posts.deleted', onPostDeleted);
+      socket.off('posts.likes.updated', onPostLikes);
+      socket.off('events.created', onEventCreated);
+      socket.off('events.updated', onEventUpdated);
+      socket.off('events.deleted', onEventDeleted);
+      socket.off('musics.likes.updated', onMusicLikes);
+    };
   }, [id]);
 
   const fetchGalleryPosts = async () => {
