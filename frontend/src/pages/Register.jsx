@@ -26,6 +26,11 @@ const Register = () => {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
+    const token = params.get('token') || '';
+    if (token) {
+      navigate(`/register/invite?token=${encodeURIComponent(token)}`, { replace: true });
+      return;
+    }
     const name = params.get('name') || '';
     const email = params.get('email') || '';
     const role = params.get('role') || '';
