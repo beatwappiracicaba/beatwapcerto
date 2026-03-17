@@ -8,7 +8,6 @@ import { Play, Pause, Music, MessageCircle, ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { decryptData } from '../utils/security';
 
-// Helper functions
 const buildWhatsAppHref = (rawPhone, title) => {
   const raw = decryptData(rawPhone);
   const digits = String(raw || '').replace(/\D/g, '');
