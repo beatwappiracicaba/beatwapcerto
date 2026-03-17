@@ -56,7 +56,35 @@ function codeTemplate(code) {
 
 async function sendInviteEmail(email, token) {
   const base = process.env.APP_PUBLIC_URL || 'https://www.beatwap.com.br';
-  const link = `${base}/register/invite?token=${token}`;
+  const useQuery = String(process.env.INVITE_LINK_STYLE || '').toLowerCase() === 'query';
+  let link;
+  if (useQuery) {
+    const role = process.env.REG_ROLE || 'Artista';
+    const plano = process.env.REG_PLANO || 'Sem Plano';
+    const name = (() => {
+      const local = String(email).split('@')[0] || '';
+      return local
+        .replace(/[._-]+/g, ' ')
+        .split(' ')
+        .filter(Boolean)
+        .map(s => s.charAt(0).toUpperCase() + s.slice(1))
+        .join(' ');
+    })();
+    const params = new URLSearchParams({
+      name,
+      email,
+      role,
+      plano,
+      p_chat: '1',
+      p_musics: '1',
+      p_work: '1',
+      p_marketing: '1',
+      p_finance: '1'
+    });
+    link = `${base}/register?${params.toString()}`;
+  } else {
+    link = `${base}/register/invite?token=${token}`;
+  }
   const info = await transporter.sendMail({
     from: process.env.SMTP_FROM || process.env.SMTP_USER,
     to: email,
