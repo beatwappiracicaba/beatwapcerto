@@ -14,7 +14,7 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-app.set('trust proxy', true);
+app.set('trust proxy', '127.0.0.1');
 const defaultAllowed = ['https://www.beatwap.com.br', 'https://beatwap.com.br'];
 const envAllowed = String(process.env.CORS_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
 const allowed = envAllowed.length ? envAllowed : defaultAllowed;
