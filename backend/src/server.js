@@ -14,7 +14,7 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-app.set('trust proxy', '127.0.0.1');
+app.set('trust proxy', false);
 const defaultAllowed = ['https://www.beatwap.com.br', 'https://beatwap.com.br'];
 const envAllowed = String(process.env.CORS_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
 const allowed = envAllowed.length ? envAllowed : defaultAllowed;
@@ -26,7 +26,8 @@ const limiter = rateLimit({
   windowMs: 60 * 1000,
   max: 120,
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  keyGenerator: (req, _res) => String(req.headers['x-real-ip'] || req.ip || '')
 });
 app.use(limiter);
 app.use(cors({
