@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { Profile, Invite } = require('../models');
 const { auth } = require('../middleware/auth');
 const { sendInviteEmail, sendCodeEmail } = require('../services/mailer');
+const { logAudit } = require('../services/auditLogger');
 
 const router = express.Router();
 
@@ -90,16 +91,62 @@ router.post('/login', async (req, res) => {
   try {
     const email = String(req.body.email || '').trim().toLowerCase();
     const password = String(req.body.password || '');
-    if (!email || !password) return res.status(400).json({ ok: false, error: 'Campos obrigatórios' });
+    if (!email || !password) {
+      await logAudit({
+        action: 'auth.login',
+        email,
+        status: 'missing_fields',
+        ip: String(req.headers['x-real-ip'] || req.ip || ''),
+        user_agent: String(req.headers['user-agent'] || '')
+      });
+      return res.status(400).json({ ok: false, error: 'Campos obrigatórios' });
+    }
     const user = await Profile.findOne({ where: { email } });
-    if (!user || !user.password_hash) return res.status(401).json({ ok: false, error: 'Credenciais inválidas' });
+    if (!user || !user.password_hash) {
+      await logAudit({
+        action: 'auth.login',
+        email,
+        status: 'user_not_found',
+        ip: String(req.headers['x-real-ip'] || req.ip || ''),
+        user_agent: String(req.headers['user-agent'] || '')
+      });
+      return res.status(401).json({ ok: false, error: 'Credenciais inválidas' });
+    }
     const ok = await bcrypt.compare(password, user.password_hash);
-    if (!ok) return res.status(401).json({ ok: false, error: 'Credenciais inválidas' });
+    if (!ok) {
+      await logAudit({
+        action: 'auth.login',
+        email,
+        user_id: user.id,
+        status: 'invalid_password',
+        ip: String(req.headers['x-real-ip'] || req.ip || ''),
+        user_agent: String(req.headers['user-agent'] || '')
+      });
+      return res.status(401).json({ ok: false, error: 'Credenciais inválidas' });
+    }
     const token = jwt.sign({ sub: user.id, email: user.email, cargo: user.cargo }, process.env.JWT_SECRET || 'devsecret', { expiresIn: '7d' });
     const map = { Artista: '/dashboard-artista', Compositor: '/dashboard-compositor', Vendedor: '/dashboard-vendedor', Produtor: '/dashboard-produtor' };
     const redirect = map[user.cargo] || '/';
+    await logAudit({
+      action: 'auth.login',
+      email,
+      user_id: user.id,
+      status: 'success',
+      ip: String(req.headers['x-real-ip'] || req.ip || ''),
+      user_agent: String(req.headers['user-agent'] || '')
+    });
     return res.json({ ok: true, token, user: { id: user.id, email: user.email, cargo: user.cargo, nome: user.nome }, redirect });
   } catch (e) {
+    try {
+      await logAudit({
+        action: 'auth.login',
+        email: String(req.body.email || '').trim().toLowerCase(),
+        status: 'exception',
+        ip: String(req.headers['x-real-ip'] || req.ip || ''),
+        user_agent: String(req.headers['user-agent'] || ''),
+        details: { message: e?.message || 'error' }
+      });
+    } catch {}
     return res.status(401).json({ ok: false, error: 'Credenciais inválidas' });
   }
 });

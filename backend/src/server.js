@@ -9,6 +9,7 @@ const http = require('http');
 const { Op } = require('sequelize');
 const { sequelize, Profile } = require('./models');
 const { setIO } = require('./realtime');
+const { setupSentry, useSentryErrorHandler } = require('./monitoring/sentry');
 
 dotenv.config();
 
@@ -43,6 +44,8 @@ app.use(cors({
 app.options('*', cors());
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
+
+setupSentry(app);
 
 // Realtime (Socket.IO)
 const { Server } = require('socket.io');
@@ -80,6 +83,8 @@ app.use('/api', require('./routes/dashboard'));
 app.use('/api', require('./routes/chat'));
 app.use('/api', require('./routes/admin'));
 app.use('/api', require('./routes/upload'));
+
+useSentryErrorHandler(app);
 
 const port = Number(process.env.PORT || 3011);
 server.listen(port, async () => {
