@@ -14,6 +14,9 @@ import { LoadingScreen } from '../components/LoadingScreen';
 import Home from '../pages/Home';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
+import RegisterInvite from '../pages/RegisterInvite';
+import InviteInvalid from '../pages/InviteInvalid';
+import ResetPassword from '../pages/ResetPassword';
 import AuthCallback from '../pages/AuthCallback';
 import Terms from '../pages/Terms';
 import Privacy from '../pages/Privacy';
@@ -119,6 +122,9 @@ export const AppRoutes = () => {
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/register/invite" element={<RegisterInvite />} />
+          <Route path="/register/invite-invalid" element={<InviteInvalid />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
         </Route>
         
         {/* Rota de Callback para Confirmação de Email */}
