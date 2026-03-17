@@ -100,7 +100,7 @@ router.post('/login', async (req, res) => {
     const redirect = map[user.cargo] || '/';
     return res.json({ ok: true, token, user: { id: user.id, email: user.email, cargo: user.cargo, nome: user.nome }, redirect });
   } catch (e) {
-    return res.status(500).json({ ok: false, error: 'Erro interno' });
+    return res.status(401).json({ ok: false, error: 'Credenciais inválidas' });
   }
 });
 
