@@ -322,6 +322,23 @@ router.put('/admin/compositions/:id/status', auth, async (req, res) => {
   }
 });
 
+// Delete composition
+router.delete('/admin/compositions/:id', auth, async (req, res) => {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+    const id = req.params.id;
+    const idx = memory.compositions.findIndex(c => c.id === id);
+    if (idx < 0) return res.status(404).json({ error: 'Composição não encontrada' });
+    
+    const deletedComposition = memory.compositions.splice(idx, 1)[0];
+    scheduleSave();
+    emitEvent('compositions.deleted', { id, item: deletedComposition }, `composition:${id}`);
+    res.json({ ok: true, message: 'Composição apagada com sucesso' });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 // Analytics events (tracking)
 router.post('/analytics', async (req, res) => {
   const { type, payload, ip_hash } = req.body || {};

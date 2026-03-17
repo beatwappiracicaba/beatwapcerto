@@ -208,6 +208,22 @@ router.put('/musics/:id', auth, async (req, res) => {
   return router.handle(req, res);
 });
 
+// Delete music
+router.delete('/admin/musics/:id', auth, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const idx = memory.musics.findIndex(m => m.id === id);
+    if (idx < 0) return res.status(404).json({ error: 'Música não encontrada' });
+    
+    const deletedMusic = memory.musics.splice(idx, 1)[0];
+    scheduleSave();
+    emitEvent('musics.deleted', { id, item: deletedMusic }, `music:${id}`);
+    res.json({ ok: true, message: 'Música apagada com sucesso' });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 // Toggle like for a music
 router.post('/musics/:id/like', async (req, res) => {
   try {
