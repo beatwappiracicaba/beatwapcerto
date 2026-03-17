@@ -52,7 +52,7 @@ function codeTemplate(code) {
 
 async function sendInviteEmail(email, token) {
   const base = process.env.APP_PUBLIC_URL || 'https://www.beatwap.com.br';
-  const link = `${base}/register?token=${token}`;
+  const link = `${base}/register/invite?token=${token}`;
   return transporter.sendMail({
     to: email,
     subject: 'Convite para cadastro',
