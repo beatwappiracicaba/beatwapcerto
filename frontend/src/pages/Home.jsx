@@ -932,8 +932,9 @@ const Home = () => {
                 Arraste para o lado e veja todas
               </div>
 
-              <div ref={compositionsRef} className="overflow-x-auto scroll-smooth whitespace-nowrap -mx-6 pl-14 pr-14 md:pl-16 md:pr-16 pb-2 snap-x snap-mandatory">
+              <div ref={compositionsRef} className="overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2 snap-x snap-mandatory">
                 <div className="flex gap-6 justify-center md:justify-start">
+                  <div className="flex-none md:hidden w-[calc(50vw-140px)]" aria-hidden="true"></div>
                   {latestCompositions.map((comp, index) => (
                     <div key={comp.id} className="flex-none w-[280px] snap-center">
                       <motion.div 
