@@ -2,16 +2,33 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
+const helmet = require('helmet');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
+const http = require('http');
 const { Op } = require('sequelize');
 const { sequelize, Profile } = require('./models');
+const { setIO } = require('./realtime');
 
 dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
 app.set('trust proxy', true);
 const defaultAllowed = ['https://www.beatwap.com.br', 'https://beatwap.com.br'];
 const envAllowed = String(process.env.CORS_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
 const allowed = envAllowed.length ? envAllowed : defaultAllowed;
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
+app.use(compression());
+const limiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+app.use(limiter);
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
@@ -25,6 +42,27 @@ app.use(cors({
 app.options('*', cors());
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
+
+// Realtime (Socket.IO)
+const { Server } = require('socket.io');
+const io = new Server(server, {
+  cors: {
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      if (allowed.length === 0) return cb(null, true);
+      cb(null, allowed.includes(origin));
+    },
+    credentials: true
+  },
+  transports: ['websocket', 'polling']
+});
+setIO(io);
+io.on('connection', (socket) => {
+  const ch = socket.handshake.query?.channel;
+  if (ch) socket.join(String(ch));
+  socket.on('subscribe', (room) => socket.join(String(room)));
+  socket.on('unsubscribe', (room) => socket.leave(String(room)));
+});
 
 app.get('/health', async (req, res) => {
   try {
@@ -43,7 +81,7 @@ app.use('/api', require('./routes/admin'));
 app.use('/api', require('./routes/upload'));
 
 const port = Number(process.env.PORT || 3011);
-app.listen(port, async () => {
+server.listen(port, async () => {
   try {
     await sequelize.sync();
     // Seed default users if missing
