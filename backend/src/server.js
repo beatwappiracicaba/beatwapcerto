@@ -53,27 +53,9 @@ app.listen(port, async () => {
       const hash = await bcrypt.hash(password, 10);
       return await Profile.create({ email, password_hash: hash, cargo, nome });
     }
-    // Remover perfis demo e semear usuário real
-    const before = await Profile.count();
-    console.log('[startup] profiles count before purge:', before);
-    await Profile.destroy({ where: { email: { [Op.in]: [
-      'admin@beatwap.local',
-      'artista@beatwap.local',
-      'vendedor@beatwap.local',
-      'compositor@beatwap.local'
-    ] } } }).catch(() => {});
-    const seeded = await seedUser('alangodoygtr@gmail.com', '@Aggtr4907', 'Produtor', 'Alan Godoy');
-    await Profile.destroy({ where: { id: { [Op.ne]: seeded.id } } }).catch(() => {});
-    const after = await Profile.count();
-    console.log('[startup] profiles count after purge:', after, 'seeded id:', seeded.id);
-    if (String(process.env.NODE_ENV).toLowerCase() === 'development') {
-      const demoEmailsToRemove = [
-        'admin@beatwap.com.br',
-        'artist@beatwap.com.br',
-        'composer@beatwap.com.br',
-        'seller@beatwap.com.br'
-      ];
-      await Profile.destroy({ where: { email: { [Op.in]: demoEmailsToRemove } } }).catch(() => {});
+    const count = await Profile.count();
+    if (count === 0) {
+      await seedUser('alangodoygtr@gmail.com', '@Aggtr4907', 'Produtor', 'Alan Godoy');
     }
     console.log(`API listening on ${port}`);
   } catch (e) {

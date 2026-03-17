@@ -32,7 +32,8 @@ router.get('/dashboard/profile', auth, async (req, res) => {
       bairro: user.bairro,
       cidade: user.cidade,
       estado: user.estado,
-      plano: user.plano
+      plano: user.plano,
+      access_control: user.access_control || null
     });
   } catch (e) {
     res.status(500).json({ error: 'Erro interno' });
@@ -68,7 +69,8 @@ router.get('/profile', auth, async (req, res) => {
       bairro: user.bairro,
       cidade: user.cidade,
       estado: user.estado,
-      plano: user.plano
+      plano: user.plano,
+      access_control: user.access_control || null
     });
   } catch (e) {
     res.status(500).json({ error: 'Erro interno' });
