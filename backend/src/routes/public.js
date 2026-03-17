@@ -153,8 +153,31 @@ router.get('/profiles/:id', async (req, res) => {
       return res.json(mock);
     }
     res.json(user);
-  } catch {
-    res.status(500).json({ error: 'Erro interno' });
+  } catch (e) {
+    try {
+      const ownerId = String(req.params.id);
+      const hasProducerWork = memory.compositions.some(c => String(c.producer_id) === ownerId);
+      const hasComposerWork = memory.compositions.some(c => String(c.composer_id) === ownerId);
+      const cargo = hasProducerWork ? 'Produtor' : (hasComposerWork ? 'Compositor' : 'Compositor');
+      const mock = {
+        id: ownerId,
+        cargo,
+        nome: 'Perfil Público',
+        bio: null,
+        avatar_url: null,
+        genero_musical: null,
+        instagram_url: null,
+        youtube_url: null,
+        tiktok_url: null,
+        deezer_url: null,
+        spotify_url: null,
+        site_url: null,
+        access_control: { verified: false }
+      };
+      return res.json(mock);
+    } catch {
+      return res.status(500).json({ error: 'Erro interno' });
+    }
   }
 });
 
