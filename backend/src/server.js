@@ -64,7 +64,7 @@ io.on('connection', (socket) => {
   socket.on('unsubscribe', (room) => socket.leave(String(room)));
 });
 
-app.get('/health', async (req, res) => {
+app.get(['/health', '/api/health'], async (req, res) => {
   try {
     await sequelize.authenticate();
     return res.json({ ok: true, db: true });
