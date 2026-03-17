@@ -41,6 +41,9 @@ export const AdminSettings = () => {
     p_seller_communications: true
   });
   const [inviteLink, setInviteLink] = useState('');
+  const [invites, setInvites] = useState([]);
+  const [invLoading, setInvLoading] = useState(false);
+  const [invFilter, setInvFilter] = useState('pending');
   
   // Artists Management State
   const [artists, setArtists] = useState([]);
@@ -58,6 +61,62 @@ export const AdminSettings = () => {
   useEffect(() => {
     fetchArtists();
   }, []);
+
+  useEffect(() => {
+    fetchInvites();
+  }, []);
+
+  const fetchInvites = async () => {
+    setInvLoading(true);
+    try {
+      const data = await apiClient.get(`/auth/admin/invites`);
+      setInvites(Array.isArray(data?.invites) ? data.invites : []);
+    } catch (e) {
+      addToast('Erro ao carregar convites', 'error');
+    } finally {
+      setInvLoading(false);
+    }
+  };
+
+  const copyInvite = (token) => {
+    const url = `${window.location.origin}/register/invite?token=${encodeURIComponent(token)}`;
+    navigator.clipboard.writeText(url).then(() => {
+      addToast('Link de convite copiado.', 'success');
+    }).catch(() => {
+      addToast('Não foi possível copiar o link.', 'error');
+    });
+  };
+
+  const resendInvite = async (id) => {
+    try {
+      await apiClient.post(`/auth/admin/invites/${id}/resend`);
+      addToast('Convite reenviado.', 'success');
+    } catch (e) {
+      addToast(e?.message || 'Falha ao reenviar convite', 'error');
+    }
+  };
+
+  const regenerateInvite = async (id) => {
+    try {
+      await apiClient.post(`/auth/admin/invites/${id}/regenerate`);
+      addToast('Convite regenerado e enviado.', 'success');
+      fetchInvites();
+    } catch (e) {
+      addToast(e?.message || 'Falha ao regenerar convite', 'error');
+    }
+  };
+
+  const deleteInvite = async (id) => {
+    const ok = window.confirm('Excluir este convite?');
+    if (!ok) return;
+    try {
+      await apiClient.delete(`/auth/admin/invites/${id}`);
+      setInvites(prev => prev.filter(i => i.id !== id));
+      addToast('Convite excluído.', 'success');
+    } catch (e) {
+      addToast(e?.message || 'Falha ao excluir convite', 'error');
+    }
+  };
 
   useEffect(() => {
     const socket = connectRealtime('https://api.beatwap.com.br');
@@ -522,6 +581,76 @@ export const AdminSettings = () => {
                 <li>Para usuários existentes, use a seção &quot;Gerenciar Permissões&quot; abaixo.</li>
               </ul>
             </div>
+          </div>
+        </Card>
+
+        <Card className="space-y-6">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-lg md:text-xl font-bold">
+              <Settings size={20} className="text-beatwap-gold" />
+              Convites Enviados
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-1 flex gap-1">
+              {['pending','expired','used','all'].map(f => (
+                <button
+                  key={f}
+                  onClick={() => setInvFilter(f)}
+                  className={`px-3 py-1.5 text-xs rounded-xl font-bold ${
+                    invFilter === f ? 'bg-beatwap-gold text-black' : 'bg-white/5 text-gray-300 hover:bg-white/10'
+                  }`}
+                >
+                  {f === 'pending' ? 'Pendentes' : f === 'expired' ? 'Expirados' : f === 'used' ? 'Usados' : 'Todos'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-black/20 overflow-hidden">
+            {invLoading ? (
+              <div className="text-center py-8 text-gray-500">Carregando convites...</div>
+            ) : invites.filter(i => invFilter === 'all' ? true : i.status === invFilter).length === 0 ? (
+              <div className="text-center py-8 text-gray-500">Nenhum convite.</div>
+            ) : (
+              <div className="divide-y divide-white/10">
+                {invites
+                  .filter(i => invFilter === 'all' ? true : i.status === invFilter)
+                  .map(inv => (
+                  <div key={inv.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-bold text-white truncate">{inv.email}</div>
+                      <div className="text-xs text-gray-400">
+                        Expira: {new Date(inv.expires_at).toLocaleString()} •
+                        <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] border ${inv.status==='pending' ? 'text-green-400 border-green-500/30 bg-green-500/10' : inv.status==='expired' ? 'text-yellow-300 border-yellow-500/30 bg-yellow-500/10' : 'text-gray-300 border-white/10 bg-white/5'}`}>
+                          {inv.status === 'pending' ? 'Pendente' : inv.status === 'expired' ? 'Expirado' : 'Usado'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <AnimatedButton onClick={() => copyInvite(inv.token)} className="px-3">
+                        Copiar Link
+                      </AnimatedButton>
+                      <AnimatedButton onClick={() => resendInvite(inv.id)} className="px-3" disabled={inv.status !== 'pending'}>
+                        Reenviar
+                      </AnimatedButton>
+                      <AnimatedButton onClick={() => regenerateInvite(inv.id)} className="px-3" variant="secondary">
+                        Regenerar
+                      </AnimatedButton>
+                      <button
+                        onClick={() => deleteInvite(inv.id)}
+                        className="p-2 rounded-xl bg-red-500/10 border border-red-500/20 hover:bg-red-500/20"
+                        title="Excluir"
+                      >
+                        <Trash2 size={16} className="text-red-400" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end">
+            <AnimatedButton onClick={fetchInvites} isLoading={invLoading}>
+              Atualizar lista
+            </AnimatedButton>
           </div>
         </Card>
 
