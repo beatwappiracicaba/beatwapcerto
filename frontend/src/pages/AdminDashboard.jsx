@@ -834,7 +834,7 @@ export const AdminMusics = () => {
     const ok = window.confirm('Apagar esta música aprovada? Esta ação remove do banco de dados.');
     if (!ok) return;
     try {
-      await apiClient.delete(`/admin/musics/${m.id}`);
+      await apiClient.del(`/admin/musics/${m.id}`);
       addToast('Música apagada com sucesso', 'success');
       load();
     } catch (e) {
