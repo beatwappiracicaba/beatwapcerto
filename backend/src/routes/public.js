@@ -769,9 +769,9 @@ router.post('/artist/todos', auth, async (req, res) => {
     };
     memory.artist_todos.unshift(item);
     scheduleSave();
-    res.json(item);
     emitEvent('todos.created', item, `profile:${item.artista_id || ''}`);
     res.json(item);
+  } catch {
     res.status(500).json({ error: 'Erro interno' });
   }
 });
