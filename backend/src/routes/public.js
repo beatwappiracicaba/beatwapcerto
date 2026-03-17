@@ -1,5 +1,6 @@
 const express = require('express');
 const { Profile } = require('../models');
+const { emitEvent } = require('../realtime');
 const jwt = require('jsonwebtoken');
 const { auth } = require('../middleware/auth');
 const { memory, scheduleSave } = require('../memoryStore');
@@ -358,6 +359,7 @@ router.post('/events', auth, async (req, res) => {
     };
     memory.events.unshift(item);
     scheduleSave();
+    emitEvent('events.created', item, `profile:${artista_id}`);
     res.json(item);
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -370,8 +372,9 @@ router.delete('/events/:id', auth, async (req, res) => {
     const id = req.params.id;
     const idx = (memory.events || []).findIndex(e => e.id === id && String(e.artista_id) === String(req.user?.id));
     if (idx < 0) return res.status(404).json({ error: 'Evento não encontrado' });
-    memory.events.splice(idx, 1);
+    const removed = memory.events.splice(idx, 1)[0];
     scheduleSave();
+    emitEvent('events.deleted', { id }, `profile:${removed?.artista_id || req.user?.id || ''}`);
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -588,6 +591,7 @@ router.put('/events/:id', async (req, res) => {
     };
     const next = { ...prev, ...payload, updated_at: new Date().toISOString() };
     memory.events[idx] = next;
+    emitEvent('events.updated', next, `profile:${next?.artista_id || ''}`);
     res.json(next);
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -615,6 +619,7 @@ router.post('/artist/finance/events/:id/receipts', async (req, res) => {
       updated_at: new Date().toISOString()
     };
     memory.events[idx] = next;
+    emitEvent('events.updated', next, `profile:${next?.artista_id || ''}`);
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -765,10 +770,12 @@ router.post('/artist/todos', auth, async (req, res) => {
     memory.artist_todos.unshift(item);
     scheduleSave();
     res.json(item);
-  } catch {
+    emitEvent('todos.created', item, `profile:${item.artista_id || ''}`);
+    res.json(item);
     res.status(500).json({ error: 'Erro interno' });
   }
 });
+
 
 router.post('/artist/todos/:id/status', auth, async (req, res) => {
   try {
@@ -779,6 +786,7 @@ router.post('/artist/todos/:id/status', auth, async (req, res) => {
     const idx = (memory.artist_todos || []).findIndex(t => t.id === id && String(t.artista_id) === String(req.user?.id));
     if (idx < 0) return res.status(404).json({ error: 'Tarefa não encontrada' });
     memory.artist_todos[idx] = { ...memory.artist_todos[idx], status, updated_at: new Date().toISOString() };
+    emitEvent('todos.updated', memory.artist_todos[idx], `profile:${req.user?.id || ''}`);
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -825,6 +833,7 @@ router.post('/posts', async (req, res) => {
       memory.profileGallery[key][bucket].unshift(item);
     }
     const arr = Array.isArray(memory.likes[id]) ? memory.likes[id] : [];
+    emitEvent('posts.created', item, user_id ? `profile:${user_id}` : null);
     res.json({ ...item, likes_count: arr.length });
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -837,9 +846,10 @@ router.delete('/posts/:id', async (req, res) => {
     const id = req.params.id;
     const idx = memory.posts.findIndex(p => p.id === id);
     if (idx < 0) return res.status(404).json({ error: 'Post não encontrado' });
-    memory.posts.splice(idx, 1);
+    const removed = memory.posts.splice(idx, 1)[0];
     delete memory.likes[id];
     scheduleSave();
+    emitEvent('posts.deleted', { id, user_id: removed?.user_id || null }, removed?.user_id ? `profile:${removed.user_id}` : null);
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -856,6 +866,7 @@ router.post('/posts/:id/like', async (req, res) => {
   const exists = arr.includes(ip);
   const next = exists ? arr.filter(x => x !== ip) : arr.concat(ip);
   memory.likes[id] = next;
+  emitEvent('posts.likes.updated', { id, likes: next.length });
   res.json({ liked: !exists, likes: next.length });
 });
 
@@ -961,6 +972,7 @@ router.put('/marketing/:id', auth, async (req, res) => {
     const id = String(req.params.id || '').trim();
     const payload = req.body || {};
     memory.marketing[id] = { ...(memory.marketing[id] || {}), ...payload, saved_at: new Date().toISOString() };
+    emitEvent('marketing.updated', { id, data: memory.marketing[id] }, `profile:${id}`);
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: 'Erro ao salvar' });

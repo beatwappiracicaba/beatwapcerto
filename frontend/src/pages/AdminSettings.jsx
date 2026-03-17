@@ -6,6 +6,7 @@ import { AdminLayout } from '../components/AdminLayout';
 import { useToast } from '../context/ToastContext';
 import { Mail, User, Settings, Shield, Search, Save, Check, Loader, Trash2, X } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
+import { connectRealtime, subscribe, unsubscribe } from '../services/realtime';
 
 export const AdminSettings = () => {
   const { addToast } = useToast();
@@ -56,6 +57,21 @@ export const AdminSettings = () => {
   useEffect(() => {
     fetchArtists();
   }, []);
+
+  useEffect(() => {
+    const socket = connectRealtime('https://api.beatwap.com.br');
+    const handler = (evt) => {
+      const id = evt?.id;
+      if (!id) return;
+      setArtists(prev => prev.map(a => (a.id === id ? { ...a, access_control: evt?.access_control || a.access_control } : a)));
+    };
+    const rooms = artists.map(a => `profile:${a.id}`);
+    rooms.forEach(r => subscribe(r, handler));
+    return () => {
+      rooms.forEach(r => unsubscribe(r, handler));
+      try { socket.off('connect', null); } catch {}
+    };
+  }, [artists.map(a => a.id).join(',')]);
 
   const fetchArtists = async () => {
     setLoadingArtists(true);

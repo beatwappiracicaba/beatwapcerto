@@ -195,6 +195,7 @@ router.put('/admin/musics/:id', auth, async (req, res) => {
     }
     memory.musics[idx] = { ...memory.musics[idx], ...patch, updated_at: new Date().toISOString() };
     scheduleSave();
+    emitEvent('musics.updated', { id, item: memory.musics[idx] }, `music:${id}`);
     res.json({ ok: true, item: memory.musics[idx] });
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -225,6 +226,7 @@ router.post('/musics/:id/like', async (req, res) => {
     }
     memory.likes[id] = arr;
     scheduleSave();
+    emitEvent('musics.likes.updated', { id, likes: arr.length }, `music:${id}`);
     res.json({ liked, likes: arr.length });
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -232,6 +234,8 @@ router.post('/musics/:id/like', async (req, res) => {
 });
 
 // Update access control for a profile (multiple aliases supported)
+const { emitEvent } = require('../realtime');
+
 async function updateAccessControlById(id, data, res) {
   try {
     const payload = data?.access_control && typeof data.access_control === 'object'
@@ -239,6 +243,7 @@ async function updateAccessControlById(id, data, res) {
       : data;
     await Profile.update({ access_control: payload }, { where: { id } });
     const user = await Profile.findByPk(id);
+    emitEvent('profiles.access_control.updated', { id, access_control: user?.access_control || null }, `profile:${id}`);
     return res.json({ ok: true, profile: user });
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'Erro interno' });
