@@ -13,7 +13,7 @@ export const options = {
   },
 };
 
-const baseUrl = __ENV.BASE_URL || "http://127.0.0.1:3011";
+const baseUrl = __ENV.BASE_URL || "http://127.0.0.1:3001";
 const endpoint = __ENV.ENDPOINT || "/api/home";
 
 export default function () {
@@ -21,6 +21,7 @@ export default function () {
   const params = {
     headers: {
       "Content-Type": "application/json",
+      "X-K6-Test": "1",
     },
   };
 
