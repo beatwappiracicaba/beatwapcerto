@@ -6,7 +6,32 @@ import { apiClient } from '../services/apiClient';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Play, Pause, Music, MessageCircle, ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { decryptData, formatWhatsAppPhone, sanitizeUrl, buildWhatsAppHref } from '../utils/formatters';
+import { decryptData } from '../utils/security';
+
+// Helper functions
+const buildWhatsAppHref = (rawPhone, title) => {
+  const raw = decryptData(rawPhone);
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (!digits) return null;
+  const phone = digits.startsWith('55') ? digits : `55${digits}`;
+  const text = encodeURIComponent(`Olá, vi sua composição "${title}" na BeatWap e gostaria de saber mais.`);
+  return `https://wa.me/${phone}?text=${text}`;
+};
+
+const formatWhatsAppPhone = (rawPhone) => {
+  const raw = decryptData(rawPhone);
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (!digits) return null;
+  const normalized = digits.startsWith('55') ? digits : `55${digits}`;
+  const national = normalized.startsWith('55') ? normalized.slice(2) : normalized;
+  const ddd = national.slice(0, 2);
+  const rest = national.slice(2);
+  if (rest.length === 8) return `(${ddd}) ${rest.slice(0, 4)}-${rest.slice(4)}`;
+  if (rest.length === 9) return `(${ddd}) ${rest.slice(0, 5)}-${rest.slice(5)}`;
+  return `+${normalized}`;
+};
+
+const sanitizeUrl = (u) => String(u || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
 
 const AllCompositions = () => {
   const navigate = useNavigate();
