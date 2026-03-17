@@ -4,8 +4,9 @@ const { sendInviteEmail } = require('../src/services/mailer');
 
 (async () => {
   const email = process.argv[2];
+  const plano = process.argv[3]; // opcional: plano explícito
   if (!email) {
-    console.log('Uso: node scripts/test-invite.js <email>');
+    console.log('Uso: node scripts/test-invite.js <email> [plano]');
     process.exit(1);
   }
   try {
@@ -18,8 +19,8 @@ const { sendInviteEmail } = require('../src/services/mailer');
       used: false,
       created_by: null
     });
-    await sendInviteEmail(email, token);
-    console.log(`Convite enviado para ${email}`);
+    const info = await sendInviteEmail(email, token, { plano });
+    console.log(`Convite enviado para ${email} (${plano || 'plano padrão'})`);
   } catch (e) {
     console.error('Erro ao enviar:', e);
     process.exit(1);

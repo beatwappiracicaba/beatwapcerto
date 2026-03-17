@@ -23,6 +23,14 @@ function createTransport() {
 
 const transporter = createTransport();
 
+function getPlansFromEnv() {
+  const raw = process.env.REG_PLANS || '';
+  return raw
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
 function inviteTemplate(link) {
   return `
   <div style="font-family: Arial; background:#0f172a; padding:40px; color:#fff; text-align:center;">
@@ -54,14 +62,20 @@ function codeTemplate(code) {
   `;
 }
 
-async function sendInviteEmail(email, token) {
+async function sendInviteEmail(email, token, opts = {}) {
   const base = process.env.APP_PUBLIC_URL || 'https://www.beatwap.com.br';
   const useQuery = String(process.env.INVITE_LINK_STYLE || '').toLowerCase() === 'query';
   let link;
   if (useQuery) {
-    const role = process.env.REG_ROLE || 'Artista';
-    const plano = process.env.REG_PLANO || 'Sem Plano';
+    const role = opts.role || process.env.REG_ROLE || 'Artista';
+    // Plano: usa opts.plano, senão REG_PLANO (fallback), validando contra REG_PLANS se definido
+    const allowed = getPlansFromEnv();
+    let plano = opts.plano || process.env.REG_PLANO || 'Sem Plano';
+    if (allowed.length > 0 && !allowed.includes(plano)) {
+      plano = allowed[0];
+    }
     const name = (() => {
+      if (opts.name && String(opts.name).trim()) return String(opts.name).trim();
       const local = String(email).split('@')[0] || '';
       return local
         .replace(/[._-]+/g, ' ')
@@ -75,11 +89,11 @@ async function sendInviteEmail(email, token) {
       email,
       role,
       plano,
-      p_chat: '1',
-      p_musics: '1',
-      p_work: '1',
-      p_marketing: '1',
-      p_finance: '1'
+      p_chat: opts.p_chat != null ? String(+!!opts.p_chat) : '1',
+      p_musics: opts.p_musics != null ? String(+!!opts.p_musics) : '1',
+      p_work: opts.p_work != null ? String(+!!opts.p_work) : '1',
+      p_marketing: opts.p_marketing != null ? String(+!!opts.p_marketing) : '1',
+      p_finance: opts.p_finance != null ? String(+!!opts.p_finance) : '1'
     });
     link = `${base}/register?${params.toString()}`;
   } else {

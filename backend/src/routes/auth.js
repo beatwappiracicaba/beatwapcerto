@@ -156,6 +156,14 @@ router.post('/admin/create-invite', auth, async (req, res) => {
     if (req.user.cargo !== 'Produtor') return res.status(403).json({ ok: false, error: 'Sem permissão' });
     const email = String(req.body.email || '').trim().toLowerCase();
     if (!email) return res.status(400).json({ ok: false, error: 'Email obrigatório' });
+    const plano = req.body.plano ? String(req.body.plano).trim() : undefined;
+    const role = req.body.role ? String(req.body.role).trim() : undefined;
+    const name = req.body.name ? String(req.body.name).trim() : undefined;
+    const p_chat = req.body.p_chat != null ? !!req.body.p_chat : undefined;
+    const p_musics = req.body.p_musics != null ? !!req.body.p_musics : undefined;
+    const p_work = req.body.p_work != null ? !!req.body.p_work : undefined;
+    const p_marketing = req.body.p_marketing != null ? !!req.body.p_marketing : undefined;
+    const p_finance = req.body.p_finance != null ? !!req.body.p_finance : undefined;
     const token = generateToken();
     const ttl = Number(process.env.INVITE_TTL_HOURS || 24);
     const expires_at = new Date(Date.now() + ttl * 60 * 60 * 1000);
@@ -165,7 +173,8 @@ router.post('/admin/create-invite', auth, async (req, res) => {
       expires_at,
       created_by: req.user.id
     });
-    await sendInviteEmail(email, token).catch(err => console.error('Erro ao enviar convite:', err));
+    await sendInviteEmail(email, token, { plano, role, name, p_chat, p_musics, p_work, p_marketing, p_finance })
+      .catch(err => console.error('Erro ao enviar convite:', err));
     return res.json({ ok: true, invite: { id: invite.id, email, token, expires_at } });
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'Erro interno' });
