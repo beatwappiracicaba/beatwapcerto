@@ -26,6 +26,7 @@ import { DashboardArtistHome, DashboardArtistMusics, DashboardArtistChat } from 
 import { DashboardMarketing } from '../pages/DashboardMarketing';
 import DashboardWork from '../pages/DashboardWork';
 import { DashboardArtistProfile, DashboardPublicProfile } from '../pages/DashboardArtistProfile';
+import AllCompositions from '../pages/AllCompositions';
 import { AdminHome, AdminArtists, AdminComposers, AdminMusics, AdminChat, AdminProfile, AdminPublicProfile } from '../pages/AdminDashboard';
 import { AdminSellers } from '../pages/AdminSellers';
 import { AdminFinance } from '../pages/AdminFinance';
@@ -115,6 +116,7 @@ export const AppRoutes = () => {
       <Routes location={location}>
         {/* Public Route - Landing Page */}
         <Route path="/" element={profile ? <Navigate to={routeForRole(profile?.cargo)} replace /> : <Home />} />
+        <Route path="/composicoes" element={<AllCompositions />} />
         <Route path="/profile/:id" element={<PublicProfile />} />
         <Route path="/album/:id" element={<AlbumPage />} />
         

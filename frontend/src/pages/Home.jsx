@@ -223,7 +223,11 @@ const Home = () => {
         composer_id: c?.composer_id || c?.composerId || c?.user_id || c?.userId || c?.profile_id || c?.profileId,
         composer_name: decryptData(c?.composer_name || c?.author_name || c?.nome_autor || c?.nome_compositor || c?.nome || '') || 'Autor',
         composer_phone: c?.composer_phone || c?.celular || c?.whatsapp || c?.phone || null
-      }));
+      })).sort((a, b) => {
+        const da = new Date(a.created_at || a.createdAt || 0).getTime();
+        const db = new Date(b.created_at || b.createdAt || 0).getTime();
+        return db - da;
+      });
       setLatestCompositions(mapped);
       enrichCompositionsFromProfiles(mapped)
         .then((enriched) => setLatestCompositions(enriched))
@@ -313,7 +317,11 @@ const Home = () => {
         composer_id: c?.composer_id || c?.composerId || c?.user_id || c?.userId || c?.profile_id || c?.profileId,
         composer_name: decryptData(c?.composer_name || c?.author_name || c?.nome_autor || c?.nome_compositor || c?.nome || '') || 'Autor',
         composer_phone: c?.composer_phone || c?.celular || c?.whatsapp || c?.phone || null
-      }));
+      })).sort((a, b) => {
+        const da = new Date(a.created_at || a.createdAt || 0).getTime();
+        const db = new Date(b.created_at || b.createdAt || 0).getTime();
+        return db - da;
+      });
       setLatestCompositions(mapped);
       enrichCompositionsFromProfiles(mapped)
         .then((enriched) => setLatestCompositions(enriched))
@@ -913,16 +921,21 @@ const Home = () => {
               <div className="text-center mb-12">
                 <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Últimas Composições Lançadas</span></h2>
                 <p className="text-gray-400"><span>Obras exclusivas de nossos compositores parceiros</span></p>
+                <div className="mt-4 flex justify-center">
+                  <AnimatedButton onClick={() => navigate('/composicoes')}>
+                    Ver todas as composições
+                  </AnimatedButton>
+                </div>
               </div>
 
               <div className="text-xs text-gray-400 mb-2 px-4 md:hidden">
                 Arraste para o lado e veja todas
               </div>
 
-              <div ref={compositionsRef} className="overflow-x-auto scroll-smooth whitespace-nowrap -mx-6 pl-14 pr-14 md:pl-16 md:pr-16 pb-2">
+              <div ref={compositionsRef} className="overflow-x-auto scroll-smooth whitespace-nowrap -mx-6 pl-14 pr-14 md:pl-16 md:pr-16 pb-2 snap-x snap-mandatory">
                 <div className="flex gap-6 justify-center md:justify-start">
                   {latestCompositions.map((comp, index) => (
-                    <div key={comp.id} className="flex-none w-[280px]">
+                    <div key={comp.id} className="flex-none w-[280px] snap-center">
                       <motion.div 
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
