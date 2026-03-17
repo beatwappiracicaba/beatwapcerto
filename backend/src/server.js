@@ -84,7 +84,7 @@ app.use('/api', require('./routes/upload'));
 const port = Number(process.env.PORT || 3011);
 server.listen(port, async () => {
   try {
-    await sequelize.sync();
+    await sequelize.sync({ alter: true });
     // Seed default users if missing
     async function seedUser(email, password, cargo, nome) {
       const existing = await Profile.findOne({ where: { email } });

@@ -218,4 +218,77 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
+router.get('/admin/invites', auth, async (req, res) => {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ ok: false, error: 'Sem permissão' });
+    const statusFilter = String(req.query.status || '').trim().toLowerCase();
+    const list = await Invite.findAll({ order: [['createdAt', 'DESC']] });
+    const now = new Date();
+    const mapped = list.map(i => {
+      const expired = new Date(i.expires_at) <= now;
+      const status = i.used ? 'used' : (expired ? 'expired' : 'pending');
+      return {
+        id: i.id,
+        email: i.email,
+        token: i.token,
+        expires_at: i.expires_at,
+        used: i.used,
+        created_by: i.created_by,
+        status
+      };
+    });
+    const filtered = statusFilter ? mapped.filter(m => m.status === statusFilter) : mapped;
+    return res.json({ ok: true, invites: filtered });
+  } catch {
+    return res.status(500).json({ ok: false, error: 'Erro interno' });
+  }
+});
+
+router.post('/admin/invites/:id/resend', auth, async (req, res) => {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ ok: false, error: 'Sem permissão' });
+    const id = String(req.params.id || '').trim();
+    const invite = await Invite.findByPk(id);
+    if (!invite) return res.status(404).json({ ok: false, error: 'Convite não encontrado' });
+    if (invite.used) return res.status(400).json({ ok: false, error: 'Convite já utilizado' });
+    const now = new Date();
+    if (new Date(invite.expires_at) <= now) return res.status(400).json({ ok: false, error: 'Convite expirado' });
+    await sendInviteEmail(invite.email, invite.token).catch(() => {});
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ ok: false, error: 'Erro interno' });
+  }
+});
+
+router.post('/admin/invites/:id/regenerate', auth, async (req, res) => {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ ok: false, error: 'Sem permissão' });
+    const id = String(req.params.id || '').trim();
+    const invite = await Invite.findByPk(id);
+    if (!invite) return res.status(404).json({ ok: false, error: 'Convite não encontrado' });
+    if (invite.used) return res.status(400).json({ ok: false, error: 'Convite já utilizado' });
+    invite.token = generateToken();
+    const ttl = Number(process.env.INVITE_TTL_HOURS || 24);
+    invite.expires_at = new Date(Date.now() + ttl * 60 * 60 * 1000);
+    await invite.save();
+    await sendInviteEmail(invite.email, invite.token).catch(() => {});
+    return res.json({ ok: true, invite: { id: invite.id, token: invite.token, expires_at: invite.expires_at } });
+  } catch {
+    return res.status(500).json({ ok: false, error: 'Erro interno' });
+  }
+});
+
+router.delete('/admin/invites/:id', auth, async (req, res) => {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ ok: false, error: 'Sem permissão' });
+    const id = String(req.params.id || '').trim();
+    const invite = await Invite.findByPk(id);
+    if (!invite) return res.status(404).json({ ok: false, error: 'Convite não encontrado' });
+    await invite.destroy();
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ ok: false, error: 'Erro interno' });
+  }
+});
+
 module.exports = router;
