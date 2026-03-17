@@ -7,7 +7,9 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "db:migrate": "node scripts/migrate.js",
-    "db:seed": "node scripts/seed.js"
+    "db:seed": "node scripts/seed.js",
+    "clear-invites": "node scripts/clear-invites.js",
+    "test-invite": "node scripts/test-invite.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
