@@ -118,6 +118,7 @@ dist
 .pnp.*
 
 # Backend uploads and env
+/backend/memory-store.json
 backend/uploads/
 uploads/
 backend/database.sqlite

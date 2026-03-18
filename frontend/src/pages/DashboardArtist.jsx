@@ -6,7 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { MusicUploadModal } from '../components/artist/MusicUploadModal';
-import { Plus, DollarSign, Folder, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, DollarSign, Folder, ChevronDown, ChevronRight, MessageCircle } from 'lucide-react';
+import { decryptData } from '../utils/security';
 
 export const DashboardArtistHome = () => {
   const { user, profile } = useAuth();
@@ -17,7 +18,69 @@ export const DashboardArtistHome = () => {
 
   const isCompositor = profile?.cargo && profile.cargo.toLowerCase().trim() === 'compositor';
 
+  const buildWhatsAppHref = useCallback((rawPhone, title) => {
+    const raw = decryptData(rawPhone);
+    const digits = String(raw || '').replace(/\D/g, '');
+    if (!digits) return null;
+    const phone = digits.startsWith('55') ? digits : `55${digits}`;
+    const text = encodeURIComponent(`Olá, vi sua composição "${title}" na BeatWap e gostaria de saber mais.`);
+    return `https://wa.me/${phone}?text=${text}`;
+  }, []);
+
+  const formatWhatsAppPhone = useCallback((rawPhone) => {
+    const raw = decryptData(rawPhone);
+    const digits = String(raw || '').replace(/\D/g, '');
+    if (!digits) return null;
+    const normalized = digits.startsWith('55') ? digits : `55${digits}`;
+    const national = normalized.startsWith('55') ? normalized.slice(2) : normalized;
+    const ddd = national.slice(0, 2);
+    const rest = national.slice(2);
+    if (rest.length === 8) return `(${ddd}) ${rest.slice(0, 4)}-${rest.slice(4)}`;
+    if (rest.length === 9) return `(${ddd}) ${rest.slice(0, 5)}-${rest.slice(5)}`;
+    return `+${normalized}`;
+  }, []);
+
+  const enrichCompositionsFromProfiles = useCallback(async (comps) => {
+    const missingIds = new Set();
+    (comps || []).forEach((c) => {
+      const authorId = c?.composer_id;
+      if (!authorId) return;
+      const hasName = !!(c?.composer_name && c.composer_name !== 'Autor');
+      const hasPhone = !!formatWhatsAppPhone(c?.composer_phone);
+      if (!hasName || !hasPhone) missingIds.add(String(authorId));
+    });
+    const ids = Array.from(missingIds);
+    if (!ids.length) return comps;
+
+    const results = await Promise.allSettled(
+      ids.map((id) => apiClient.get(`/profiles/${id}`, { cache: true, cacheTtlMs: 15000 }))
+    );
+    const byId = new Map();
+    results.forEach((r) => {
+      if (r.status !== 'fulfilled') return;
+      const p = r.value;
+      if (!p?.id) return;
+      byId.set(String(p.id), p);
+    });
+
+    return (comps || []).map((c) => {
+      const authorId = c?.composer_id;
+      const p = authorId ? byId.get(String(authorId)) : null;
+      if (!p) return c;
+
+      const name =
+        (c?.composer_name && c.composer_name !== 'Autor')
+          ? c.composer_name
+          : (decryptData(p.nome) || decryptData(p.nome_completo_razao_social) || 'Autor');
+
+      const phone = c?.composer_phone || p.celular || p.phone || null;
+
+      return { ...c, composer_name: name, composer_phone: phone };
+    });
+  }, [formatWhatsAppPhone]);
+
   useEffect(() => {
+
     const fetchMetrics = async () => {
       const safeGet = async (url, fallback) => {
         try {
@@ -132,15 +195,29 @@ export const DashboardArtistHome = () => {
           // Fallback: public compositions list (approved handled server-side when using /home; otherwise map client-side)
           const home = await apiClient.get('/home', { cache: true, cacheTtlMs: 15000 });
           const comps = Array.isArray(home?.compositions) ? home.compositions : [];
-          list = comps.map(c => ({
-            id: c.id,
-            titulo: c.title || c.titulo || 'Sem título',
-            nome_artista: c.composer_name || c.nome_compositor || 'Compositor',
-            cover_url: c.cover_url || null,
-            created_at: c.created_at
-          })).slice(0, 12);
+          list = comps.slice(0, 12);
         }
-        setLatestCompositions(Array.isArray(list) ? list : []);
+        const mapped = (Array.isArray(list) ? list : []).map((c) => {
+          const title = c?.title || c?.titulo || 'Sem título';
+          const composer_id = c?.composer_id || c?.composerId || c?.composer_partner_id || c?.composer_partnerId || c?.user_id || c?.userId || c?.profile_id || c?.profileId || null;
+          const composer_name_raw = c?.composer_name || c?.author_name || c?.nome_autor || c?.nome_compositor || c?.nome_artista || c?.nome || '';
+          const composer_name = decryptData(composer_name_raw) || 'Autor';
+          const composer_phone = c?.composer_phone || c?.celular || c?.whatsapp || c?.phone || null;
+          return {
+            ...c,
+            title,
+            titulo: title,
+            composer_id,
+            composer_name,
+            composer_phone,
+            cover_url: c?.cover_url || null,
+            created_at: c?.created_at
+          };
+        });
+        setLatestCompositions(mapped);
+        enrichCompositionsFromProfiles(mapped)
+          .then((enriched) => setLatestCompositions(enriched))
+          .catch(() => void 0);
         setCanViewCompositions(true);
       } catch {
         setLatestCompositions([]);
@@ -151,7 +228,7 @@ export const DashboardArtistHome = () => {
       fetchMetrics();
       fetchLatestCompositions();
     }
-  }, [user]);
+  }, [user, enrichCompositionsFromProfiles]);
   return (
     <DashboardLayout>
       {!isCompositor && (
@@ -232,17 +309,37 @@ export const DashboardArtistHome = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {latestCompositions.map((item) => (
-                  <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
-                    <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
+                  <div key={item.id} className="rounded-xl bg-white/5 border border-white/10 p-4 hover:bg-white/10 transition-colors">
+                    <div className="w-full aspect-square rounded-xl overflow-hidden bg-gray-800">
                       {item.cover_url ? (
-                        <img src={item.cover_url} alt={item.titulo} className="w-full h-full object-cover" />
+                        <img src={item.cover_url} alt={item.titulo || item.title} className="w-full h-full object-cover" draggable={false} style={{ userSelect: 'none' }} />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">Capa</div>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-white font-bold text-sm truncate">{item.titulo}</div>
-                      <div className="text-gray-400 text-xs truncate">{item.nome_artista || 'Artista'}</div>
+                    <div className="mt-3">
+                      <div className="text-white font-bold text-sm truncate">{item.titulo || item.title}</div>
+                      <div className="text-gray-400 text-xs truncate">{item.composer_name || 'Autor'}</div>
+                      {item.composer_phone ? (
+                        <>
+                          <div className="mt-2 text-xs text-gray-400">
+                            {formatWhatsAppPhone(item.composer_phone) || 'WhatsApp não informado'}
+                          </div>
+                          <button
+                            onClick={() => {
+                              const href = buildWhatsAppHref(item.composer_phone, item.titulo || item.title || 'Composição');
+                              if (!href) return;
+                              window.open(href, '_blank');
+                            }}
+                            className="mt-2 flex items-center gap-2 text-xs font-bold text-green-400 bg-green-400/10 px-3 py-2 rounded-lg hover:bg-green-400/20 transition-colors w-full justify-center"
+                          >
+                            <MessageCircle size={14} />
+                            Chamar no WhatsApp
+                          </button>
+                        </>
+                      ) : (
+                        <div className="mt-2 text-xs text-gray-500">WhatsApp não informado</div>
+                      )}
                     </div>
                   </div>
                 ))}

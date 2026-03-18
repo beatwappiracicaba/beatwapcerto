@@ -1167,30 +1167,55 @@ router.get('/compositions/latest', async (req, res) => {
       if (out.length >= limit) break;
       const composerId = m.composer_partner_id;
       let allowed = false;
+      let composer = null;
       try {
-        const composer = await Profile.findByPk(composerId);
+        composer = await Profile.findByPk(composerId);
         const planRaw = String(composer?.plano || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         if (planRaw.includes('mensal') || planRaw.includes('anual') || planRaw.includes('vitalicio') || planRaw.includes('lifetime')) {
           allowed = true;
         }
       } catch { allowed = false; }
       if (!allowed) continue;
-      out.push(m);
+      out.push({
+        ...m,
+        composer_id: composerId,
+        composer_name: composer?.nome || composer?.nome_completo_razao_social || null,
+        composer_phone: composer?.celular || null
+      });
     }
     if (out.length > 0) return res.json(out);
     // Fallback: use public compositions (approved) if no partner-recorded musics were found
-    const fallback = (memory.compositions || [])
+    const comps = (memory.compositions || [])
       .filter(c => String(c.status).toLowerCase() === 'approved')
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      .slice(0, limit)
-      .map(c => ({
-        id: c.id,
-        titulo: c.title || c.titulo || 'Sem título',
-        nome_artista: c.composer_name || c.nome_compositor || 'Compositor',
-        cover_url: c.cover_url || null,
-        audio_url: c.audio_url || null,
-        created_at: c.created_at
-      }));
+      .slice(0, limit);
+    const ids = Array.from(new Set(comps.map(c => c?.composer_id).filter(Boolean).map(String)));
+    let byId = new Map();
+    try {
+      if (ids.length) {
+        const rows = await Profile.findAll({ where: { id: ids } });
+        byId = new Map((rows || []).map(r => [String(r.id), r]));
+      }
+    } catch { byId = new Map(); }
+
+    const fallback = comps.map(c => {
+      const p = c?.composer_id ? byId.get(String(c.composer_id)) : null;
+      const composer_name = c?.composer_name || c?.author_name || c?.nome_autor || c?.nome_compositor || p?.nome || p?.nome_completo_razao_social || null;
+      const composer_phone = c?.composer_phone || c?.celular || c?.whatsapp || c?.phone || p?.celular || null;
+      const title = c?.title || c?.titulo || 'Sem título';
+      return {
+        ...c,
+        title,
+        titulo: title,
+        composer_id: c?.composer_id || null,
+        composer_name,
+        composer_phone,
+        nome_artista: composer_name || 'Compositor',
+        cover_url: c?.cover_url || null,
+        audio_url: c?.audio_url || null,
+        created_at: c?.created_at
+      };
+    });
     res.json(fallback);
   } catch {
     res.json([]);
