@@ -766,12 +766,13 @@ router.get('/artist/events', async (req, res) => {
         const payload = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
         userId = payload?.sub || null;
       }
-    } catch { userId = null; }
+    } catch (err) { console.error(err); userId = null; }
     if (!userId) return res.json([]);
     const arr = (memory.artist_work_events || []).filter(e => String(e.artista_id) === String(userId));
     res.json(arr);
-  } catch {
-    res.json([]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro interno" });
   }
 });
 
