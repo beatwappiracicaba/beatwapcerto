@@ -12,6 +12,7 @@ const state = {
   queue: [],
   notifications: [],
   streams: new Set(),
+  aiHistory: [],
 };
 
 function nowIso() {
@@ -149,6 +150,66 @@ router.post('/notifications/:id/read', auth, async (req, res) => {
 router.post('/notifications/read-all', auth, async (req, res) => {
   state.notifications = state.notifications.map(n => String(n.recipient_id) === String(req.user.id) ? { ...n, read: true } : n);
   res.json({ ok: true });
+});
+
+// AI Assistant (history + chat)
+router.get('/ai/history', auth, (req, res) => {
+  const uid = String(req.user?.id || '');
+  const rows = state.aiHistory.filter(h => String(h.user_id) === uid).slice(-100);
+  res.json(rows);
+});
+router.post('/ai/history', auth, (req, res) => {
+  const uid = String(req.user?.id || '');
+  const role = String(req.body?.role || '').toLowerCase() === 'assistant' ? 'assistant' : 'user';
+  const content = String(req.body?.content || '');
+  const item = {
+    id: `ai_${Date.now()}_${Math.floor(Math.random()*1000)}`,
+    user_id: uid,
+    role,
+    content,
+    created_at: nowIso(),
+  };
+  state.aiHistory.push(item);
+  res.json(item);
+});
+router.post('/ai/history/clear', auth, (req, res) => {
+  const uid = String(req.user?.id || '');
+  state.aiHistory = state.aiHistory.filter(h => String(h.user_id) !== uid);
+  res.json({ ok: true });
+});
+router.post('/ai/chat', auth, async (req, res) => {
+  try {
+    const apiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_KEY || '';
+    if (!apiKey) return res.status(500).json({ error: 'OPENAI_API_KEY ausente no servidor' });
+    const messages = Array.isArray(req.body?.messages) ? req.body.messages : [];
+    const payload = {
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      messages: messages.map(m => ({ role: m.role, content: String(m.content || '') })).slice(-30),
+      temperature: 0.6,
+      top_p: 0.95,
+      n: 1,
+      stream: false,
+    };
+    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    const json = await r.json();
+    if (!r.ok) {
+      const msg = json?.error?.message || r.statusText || 'Falha na IA';
+      return res.status(r.status).json({ error: msg });
+    }
+    const reply = json?.choices?.[0]?.message?.content || '';
+    const uid = String(req.user?.id || '');
+    state.aiHistory.push({ id: `ai_${Date.now()}r`, user_id: uid, role: 'assistant', content: reply, created_at: nowIso() });
+    return res.json({ reply });
+  } catch (e) {
+    return res.status(500).json({ error: 'Erro ao consultar IA' });
+  }
 });
 
 // Chats
