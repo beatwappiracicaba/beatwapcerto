@@ -197,12 +197,16 @@ async function request(path, options = {}) {
           });
         }
         last = err;
-        const retriable = err?.code === 'ETIMEDOUT'
+        // Evitar loop infinito em falhas de CORS/preflight (TypeError/Fetched blocked)
+        const isCorsBlocked = (err instanceof TypeError) && /fetch|network|Failed to fetch|TypeError/i.test(String(err?.message || ''));
+        const retriable = (!isCorsBlocked) && (
+            err?.code === 'ETIMEDOUT'
           || err?.name === 'AbortError'
           || err instanceof TypeError
           || (err?.code === 'ENONJSON')
           || (Number(err?.status) === 404)
-          || (Number(err?.status) === 405);
+          || (Number(err?.status) === 405)
+        );
         const hasNext = i < baseUrls.length - 1;
         if (DEBUG_API) {
           console.warn('[api] attempt failed', {
