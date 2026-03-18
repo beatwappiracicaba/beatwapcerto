@@ -1,5 +1,6 @@
 const express = require('express');
 const { auth } = require('../middleware/auth');
+const { Op } = require('sequelize');
 const { Profile } = require('../models');
 
 const router = express.Router();
@@ -151,21 +152,71 @@ router.post('/notifications/read-all', auth, async (req, res) => {
 });
 
 // Chats
-router.get('/chats', (req, res) => {
-  const withMessages = state.chats.map(c => ({
-    ...c,
-    messages: state.messages.filter(m => m.chat_id === c.id),
-  }));
-  res.json(withMessages);
+router.get('/chats', async (req, res) => {
+  // Backfill participant names/avatars if missing
+  const enriched = [];
+  for (const c of state.chats) {
+    const ids = Array.isArray(c.participant_ids) ? c.participant_ids : [];
+    let names = Array.isArray(c.participant_names) ? [...c.participant_names] : [];
+    let avatars = Array.isArray(c.participant_avatars) ? [...c.participant_avatars] : [];
+    if (names.length !== ids.length || avatars.length !== ids.length || names.some(n => !n)) {
+      try {
+        const rows = ids.length
+          ? await Profile.findAll({ where: { id: { [Op.in]: ids } } })
+          : [];
+        const byId = new Map(rows.map(r => [String(r.id), r]));
+        names = ids.map(id => {
+          const p = byId.get(String(id));
+          return p?.nome || p?.nome_completo_razao_social || 'Usuário';
+        });
+        avatars = ids.map(id => {
+          const p = byId.get(String(id));
+          return p?.avatar_url || null;
+        });
+      } catch {
+        names = ids.map(() => 'Usuário');
+        avatars = ids.map(() => null);
+      }
+      // Cache back into state
+      c.participant_names = names;
+      c.participant_avatars = avatars;
+    }
+    enriched.push({
+      ...c,
+      participant_names: names,
+      participant_avatars: avatars,
+      messages: state.messages.filter(m => m.chat_id === c.id),
+    });
+  }
+  res.json(enriched);
 });
-router.post('/chats', (req, res) => {
+router.post('/chats', async (req, res) => {
   const id = `c_${Date.now()}`;
   const participant_ids = Array.isArray(req.body?.participant_ids) ? req.body.participant_ids : [];
+  let participant_names = [];
+  let participant_avatars = [];
+  try {
+    if (participant_ids.length) {
+      const rows = await Profile.findAll({ where: { id: { [Op.in]: participant_ids } } });
+      const byId = new Map(rows.map(r => [String(r.id), r]));
+      participant_names = participant_ids.map(pid => {
+        const p = byId.get(String(pid));
+        return p?.nome || p?.nome_completo_razao_social || 'Usuário';
+      });
+      participant_avatars = participant_ids.map(pid => {
+        const p = byId.get(String(pid));
+        return p?.avatar_url || null;
+      });
+    }
+  } catch {
+    participant_names = participant_ids.map(() => 'Usuário');
+    participant_avatars = participant_ids.map(() => null);
+  }
   const chat = {
     id,
     participant_ids,
-    participant_names: [],
-    participant_avatars: [],
+    participant_names,
+    participant_avatars,
     metadata: req.body?.metadata || {},
     status: 'open',
     assigned_to: null,
