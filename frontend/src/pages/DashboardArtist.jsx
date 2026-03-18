@@ -13,7 +13,7 @@ export const DashboardArtistHome = () => {
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [latestCompositions, setLatestCompositions] = useState([]);
-  const [canViewCompositions, setCanViewCompositions] = useState(false);
+  const [canViewCompositions, setCanViewCompositions] = useState(true);
 
   const isCompositor = profile?.cargo && profile.cargo.toLowerCase().trim() === 'compositor';
 
@@ -126,19 +126,25 @@ export const DashboardArtistHome = () => {
     };
     const fetchLatestCompositions = async () => {
       try {
-        const prof = await apiClient.get('/dashboard/profile');
-        const plan = String(prof?.plano || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        const allowed = plan.includes('mensal') || plan.includes('anual') || plan.includes('vitalicio') || plan.includes('lifetime');
-        setCanViewCompositions(allowed);
-        if (!allowed) {
-          setLatestCompositions([]);
-          return;
+        // Primary source: latest partner-recorded compositions
+        let list = await apiClient.get('/compositions/latest?limit=12');
+        if (!Array.isArray(list) || list.length === 0) {
+          // Fallback: public compositions list (approved handled server-side when using /home; otherwise map client-side)
+          const home = await apiClient.get('/home', { cache: true, cacheTtlMs: 15000 });
+          const comps = Array.isArray(home?.compositions) ? home.compositions : [];
+          list = comps.map(c => ({
+            id: c.id,
+            titulo: c.title || c.titulo || 'Sem título',
+            nome_artista: c.composer_name || c.nome_compositor || 'Compositor',
+            cover_url: c.cover_url || null,
+            created_at: c.created_at
+          })).slice(0, 12);
         }
-        const list = await apiClient.get('/compositions/latest?limit=12');
         setLatestCompositions(Array.isArray(list) ? list : []);
+        setCanViewCompositions(true);
       } catch {
         setLatestCompositions([]);
-        setCanViewCompositions(false);
+        setCanViewCompositions(true);
       }
     };
     if (user) {

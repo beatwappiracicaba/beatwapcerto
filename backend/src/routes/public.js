@@ -1177,7 +1177,21 @@ router.get('/compositions/latest', async (req, res) => {
       if (!allowed) continue;
       out.push(m);
     }
-    res.json(out);
+    if (out.length > 0) return res.json(out);
+    // Fallback: use public compositions (approved) if no partner-recorded musics were found
+    const fallback = (memory.compositions || [])
+      .filter(c => String(c.status).toLowerCase() === 'approved')
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, limit)
+      .map(c => ({
+        id: c.id,
+        titulo: c.title || c.titulo || 'Sem título',
+        nome_artista: c.composer_name || c.nome_compositor || 'Compositor',
+        cover_url: c.cover_url || null,
+        audio_url: c.audio_url || null,
+        created_at: c.created_at
+      }));
+    res.json(fallback);
   } catch {
     res.json([]);
   }
