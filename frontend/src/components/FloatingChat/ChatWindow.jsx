@@ -56,6 +56,7 @@ export const ChatWindow = ({ currentUserId }) => {
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'ia'
+  const lastMarkedRef = useRef(null);
 
   const AUTO_HELP_QUESTIONS = {
     'Artista': [
@@ -139,10 +140,17 @@ export const ChatWindow = ({ currentUserId }) => {
 
   useEffect(() => {
     const id = activeChatId;
-    if (isOpen && id) {
-      markChatRead(id);
+    if (!isOpen || !id) return;
+    if (lastMarkedRef.current === id) return;
+    lastMarkedRef.current = id;
+    markChatRead(id);
+  }, [isOpen, activeChatId]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      lastMarkedRef.current = null;
     }
-  }, [isOpen, activeChatId, markChatRead]);
+  }, [isOpen]);
 
   useEffect(() => {
     const key = `chatDraft:${activeChatId || 'new'}`;

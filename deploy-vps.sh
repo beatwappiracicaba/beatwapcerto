@@ -141,6 +141,11 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Access-Control-Allow-Origin \$http_origin always;
+    add_header Vary "Origin" always;
+    add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS" always;
+    add_header Access-Control-Allow-Headers "Origin, Content-Type, Authorization, X-Requested-With, Accept" always;
+    add_header Access-Control-Allow-Credentials "true" always;
     
     # Rate limiting
     limit_req_zone \$binary_remote_addr zone=api:10m rate=10r/s;
@@ -165,11 +170,38 @@ server {
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
+        if (\$request_method = 'OPTIONS') {
+            return 204;
+        }
     }
     
     location /health {
         access_log off;
         proxy_pass http://localhost:$PORT/health;
+    }
+    location /api/ {
+        limit_req zone=api burst=20 nodelay;
+        proxy_pass http://localhost:$PORT;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection '';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        
+        add_header Access-Control-Allow-Origin \$http_origin always;
+        add_header Vary "Origin" always;
+        add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Origin, Content-Type, Authorization, X-Requested-With, Accept" always;
+        add_header Access-Control-Allow-Credentials "true" always;
+        
+        if (\$request_method = 'OPTIONS') {
+            return 204;
+        }
     }
 }
 EOF
