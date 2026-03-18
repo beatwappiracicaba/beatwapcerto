@@ -400,15 +400,15 @@ export const ChatProvider = ({ children }) => {
         const participantIds = chat.participant_ids || [];
         let otherId = null;
         if (participantIds.length > 0) {
-          otherId = participantIds.find(id => id !== user.id) || chat.owner_id || participantIds[0];
+          otherId = participantIds.find(id => String(id) !== String(user.id)) || chat.owner_id || participantIds[0];
         }
 
         const artistName = chat.participant_names?.find((name, idx) => 
-          chat.participant_ids[idx] === otherId
+          String(chat.participant_ids[idx]) === String(otherId)
         ) || `Usuário #${String(otherId || '').slice(0,4)}...`;
         
         const artistAvatarUrl = chat.participant_avatars?.find((avatar, idx) => 
-          chat.participant_ids[idx] === otherId
+          String(chat.participant_ids[idx]) === String(otherId)
         ) || null;
 
         return {
@@ -435,6 +435,26 @@ export const ChatProvider = ({ children }) => {
       });
 
       setChats(formattedChats);
+      
+      const needEnrich = formattedChats
+        .filter(c => (!c.artistName || /^Usuário\s+#/i.test(c.artistName)) && c.artistId)
+        .slice(0, 5);
+      if (needEnrich.length) {
+        Promise.all(needEnrich.map(async c => {
+          try {
+            const p = await apiClient.get(`/profiles/${c.artistId}`, { cache: false });
+            const name = p?.nome || p?.nome_completo_razao_social || null;
+            const avatar = p?.avatar_url || null;
+            if (name || avatar) {
+              setChats(prev => prev.map(x => x.id === c.id ? {
+                ...x,
+                artistName: name || x.artistName,
+                artistAvatarUrl: avatar ?? x.artistAvatarUrl
+              } : x));
+            }
+          } catch (e) { void e; }
+        })).catch(() => {});
+      }
     } catch (error) {
       console.error('Error fetching chats:', error);
     } finally {
