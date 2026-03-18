@@ -88,8 +88,14 @@ async function request(path, options = {}) {
       const fetchOptions = { ...(options || {}) };
       delete fetchOptions.timeoutMs;
       delete fetchOptions.perAttemptTimeoutMs;
+      const customCache = fetchOptions.cache;
       delete fetchOptions.cache;
       delete fetchOptions.cacheTtlMs;
+      if (typeof customCache === 'string' && customCache) {
+        fetchOptions.cache = customCache;
+      } else if (method === 'GET' || method === 'HEAD') {
+        fetchOptions.cache = 'no-store';
+      }
 
       const apiBase = baseUrl ? `${baseUrl}/api` : '/api';
       url = `${apiBase}${path}`;
