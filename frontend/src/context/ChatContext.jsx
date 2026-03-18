@@ -19,6 +19,7 @@ export const ChatProvider = ({ children }) => {
   const streamAbortRef = useRef(null);
   const streamOkRef = useRef(false);
   const streamRetryRef = useRef(0);
+  const streamConnectingRef = useRef(false);
   const refreshTimerRef = useRef(null);
 
   useEffect(() => {
@@ -37,6 +38,8 @@ export const ChatProvider = ({ children }) => {
       };
 
       const connectStream = async () => {
+        if (streamConnectingRef.current) return;
+        streamConnectingRef.current = true;
         const token = localStorage.getItem('token');
         if (!token) return;
 
@@ -47,6 +50,7 @@ export const ChatProvider = ({ children }) => {
           try { controller.abort(); } catch { void 0; }
         }, 25000);
 
+        let nextDelayMs = 0;
         try {
           const normalizedBaseUrl = API_BASE_URL
             ? String(API_BASE_URL)
@@ -84,6 +88,11 @@ export const ChatProvider = ({ children }) => {
                 signal: controller.signal,
               });
               if (res.ok && res.body) break;
+              if (res && (res.status === 401 || res.status === 403)) {
+                const err = new Error('AUTH');
+                err.code = 'AUTH';
+                throw err;
+              }
               if (res.status === 404 && i < candidates.length - 1) continue;
               break;
             } catch (e) {
@@ -196,11 +205,16 @@ export const ChatProvider = ({ children }) => {
         } catch (e) {
           clearTimeout(connectTimeoutId);
           if (controller.signal.aborted) return;
+          const isAuth = String((e && e.code) || '').toUpperCase() === 'AUTH' || String((e && e.message) || '').toUpperCase() === 'AUTH';
+          const base = isAuth ? 60000 : 1000 * Math.max(1, Math.pow(2, streamRetryRef.current));
+          const jitter = Math.floor(Math.random() * 500);
+          nextDelayMs = Math.min(60000, base) + jitter;
         } finally {
+          streamConnectingRef.current = false;
           clearTimeout(connectTimeoutId);
           streamOkRef.current = false;
           if (!controller.signal.aborted) {
-            const retry = Math.min(10000, 1000 * Math.max(1, streamRetryRef.current + 1));
+            const retry = nextDelayMs || Math.min(10000, 1000 * Math.max(1, streamRetryRef.current + 1));
             streamRetryRef.current += 1;
             setTimeout(() => {
               if (streamAbortRef.current?.signal?.aborted) return;
