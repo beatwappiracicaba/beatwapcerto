@@ -323,4 +323,59 @@ router.put('/admin/profiles/:id', auth, async (req, res) => {
   }
 });
 
+// Sponsors CRUD (in-memory)
+router.post('/sponsors', async (req, res) => {
+  try {
+    const name = String(req.body?.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'Nome obrigatório' });
+    const item = {
+      id: `sponsor_${Date.now()}`,
+      name,
+      instagram_url: req.body?.instagram_url || null,
+      site_url: req.body?.site_url || null,
+      logo_url: req.body?.logo_data || null,
+      active: true,
+      created_by: req.body?.created_by || null,
+      created_at: new Date().toISOString()
+    };
+    if (!Array.isArray(memory.sponsors)) memory.sponsors = [];
+    memory.sponsors.unshift(item);
+    scheduleSave();
+    res.json(item);
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.put('/sponsors/:id', async (req, res) => {
+  try {
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ error: 'ID inválido' });
+    const idx = Array.isArray(memory.sponsors) ? memory.sponsors.findIndex(s => s.id === id) : -1;
+    if (idx < 0) return res.status(404).json({ error: 'Patrocinador não encontrado' });
+    const allowed = ['name','instagram_url','site_url','logo_url','active'];
+    const patch = {};
+    for (const k of allowed) {
+      if (Object.prototype.hasOwnProperty.call(req.body, k)) patch[k] = req.body[k];
+    }
+    memory.sponsors[idx] = { ...memory.sponsors[idx], ...patch, updated_at: new Date().toISOString() };
+    scheduleSave();
+    res.json({ ok: true, item: memory.sponsors[idx] });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.delete('/sponsors/:id', async (req, res) => {
+  try {
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ error: 'ID inválido' });
+    memory.sponsors = Array.isArray(memory.sponsors) ? memory.sponsors.filter(s => s.id !== id) : [];
+    scheduleSave();
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 module.exports = router;

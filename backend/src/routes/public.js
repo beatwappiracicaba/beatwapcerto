@@ -55,7 +55,23 @@ router.get('/home', async (req, res) => {
 router.get('/releases', (req, res) => res.json([]));
 router.get('/compositions', (req, res) => res.json(memory.compositions));
 router.get('/projects', (req, res) => res.json([]));
-router.get('/sponsors', (req, res) => res.json([{ name: 'Sponsor Demo' }]));
+router.get('/sponsors', (req, res) => {
+  try {
+    const list = Array.isArray(memory.sponsors) ? memory.sponsors : [];
+    const activeOnly = list.filter(s => s && s.active !== false);
+    const payload = activeOnly.map(s => ({
+      id: s.id,
+      name: s.name,
+      instagram_url: s.instagram_url || null,
+      site_url: s.site_url || null,
+      logo_url: s.logo_url || null,
+      active: s.active !== false
+    }));
+    res.json(payload);
+  } catch {
+    res.json([]);
+  }
+});
 router.get('/composers', async (req, res) => {
   try {
     const composers = await Profile.findAll({ where: { cargo: 'Compositor' } });

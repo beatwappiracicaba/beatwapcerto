@@ -17,6 +17,7 @@ function ensureDefaults(m) {
   if (!m.artist_work_events) m.artist_work_events = [];
   if (!m.artist_todos) m.artist_todos = [];
   if (!m.profileGallery) m.profileGallery = {};
+  if (!m.sponsors) m.sponsors = [];
   return m;
 }
 
@@ -87,4 +88,3 @@ module.exports = {
   scheduleSave,
   storagePath
 };
-

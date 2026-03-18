@@ -2217,6 +2217,7 @@ export const AdminSponsors = () => {
   };
   const toggleActive = async (id, active) => {
     try {
+      if (!id) { addToast('ID inválido', 'error'); return; }
       await apiClient.put(`/sponsors/${id}`, { active });
       loadSponsors();
     } catch {
@@ -2225,6 +2226,7 @@ export const AdminSponsors = () => {
   };
   const deleteSponsor = async (id) => {
     try {
+      if (!id) { addToast('ID inválido', 'error'); return; }
       await apiClient.del(`/sponsors/${id}`);
       addToast('Patrocinador/Parceria removida', 'success');
       loadSponsors();
