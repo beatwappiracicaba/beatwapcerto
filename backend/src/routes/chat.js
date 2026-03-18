@@ -273,6 +273,15 @@ router.post('/messages', auth, (req, res) => {
   res.json(message);
 });
 
+// Typing indicator broadcast
+router.post('/typing', auth, (req, res) => {
+  const chat_id = req.body?.chat_id || req.body?.chatId;
+  const is_typing = !!(req.body?.is_typing ?? req.body?.isTyping);
+  if (!chat_id) return res.status(400).json({ error: 'chat_id obrigatório' });
+  emitStreamEvent('typing', { chat_id, user_id: req.user?.id || null, is_typing });
+  res.json({ ok: true });
+});
+
 // Notifications
 router.get('/notifications', auth, (req, res) => {
   const list = state.notifications.filter(n => !n.recipient_id || n.recipient_id === req.user.id);

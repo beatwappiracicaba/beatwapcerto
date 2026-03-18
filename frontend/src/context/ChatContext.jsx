@@ -118,10 +118,79 @@ export const ChatProvider = ({ children }) => {
                 if (line.startsWith('event:')) event = line.slice('event:'.length).trim();
                 else if (line.startsWith('data:')) data += (data ? '\n' : '') + line.slice('data:'.length).trim();
               }
+              let payload = null;
+              try { payload = data ? JSON.parse(data) : null; } catch { payload = null; }
 
-              if (event === 'chat_update') scheduleRefresh({ chats: true, queue: false });
-              if (event === 'queue_update') scheduleRefresh({ chats: false, queue: true });
-              if (event === 'connected') scheduleRefresh({ chats: true, queue: true });
+              if (event === 'hello' || event === 'connected') {
+                scheduleRefresh({ chats: true, queue: true });
+                continue;
+              }
+              if (event === 'ping') {
+                continue;
+              }
+              if (event === 'chat' || event === 'chat_update') {
+                scheduleRefresh({ chats: true, queue: false });
+                continue;
+              }
+              if (event === 'queue' || event === 'queue_update') {
+                scheduleRefresh({ chats: false, queue: true });
+                continue;
+              }
+              if (event === 'typing' && payload && payload.chat_id) {
+                const chatId = payload.chat_id;
+                const fromUserId = payload.user_id;
+                const isTyping = !!payload.is_typing;
+                if (!user || String(fromUserId) === String(user.id)) continue;
+                setTypingState(prev => ({ ...prev, [chatId]: isTyping }));
+                try {
+                  const timeouts = typingTimeoutsRef.current || {};
+                  if (timeouts[chatId]) clearTimeout(timeouts[chatId]);
+                  if (isTyping) {
+                    timeouts[chatId] = setTimeout(() => {
+                      setTypingState(prev => ({ ...prev, [chatId]: false }));
+                      delete timeouts[chatId];
+                      typingTimeoutsRef.current = { ...timeouts };
+                    }, 2500);
+                    typingTimeoutsRef.current = { ...timeouts };
+                  }
+                } catch { /* noop */ }
+                continue;
+              }
+              if (event === 'message' && payload && payload.chat_id && payload.message) {
+                const chatId = payload.chat_id;
+                const m = payload.message;
+                setChats(prev => {
+                  const idxChat = prev.findIndex(c => c.id === chatId);
+                  if (idxChat < 0) {
+                    scheduleRefresh({ chats: true, queue: false });
+                    return prev;
+                  }
+                  const isOwn = user && String(m.sender_id) === String(user.id);
+                  const newMsg = {
+                    id: m.id,
+                    chat_id: chatId,
+                    sender_id: m.sender_id,
+                    receiver_id: m.receiver_id || null,
+                    content: m.content || m.message || '',
+                    created_at: m.created_at,
+                    sender: isOwn ? 'me' : 'artist', // ajuste simples; será recalculado em fetch
+                    text: m.content || m.message || '',
+                    read: false,
+                    metadata: m.metadata || {}
+                  };
+                  const updated = [...prev];
+                  const chat = { ...updated[idxChat] };
+                  chat.messages = Array.isArray(chat.messages) ? [...chat.messages, newMsg] : [newMsg];
+                  chat.lastMessage = newMsg.text;
+                  chat.lastMessageTime = newMsg.created_at;
+                  if (!isOpen || activeChatId !== chatId) {
+                    chat.unreadCount = Math.max(1, Number(chat.unreadCount || 0) + (isOwn ? 0 : 1));
+                  }
+                  updated[idxChat] = chat;
+                  return updated;
+                });
+                continue;
+              }
             }
           }
         } catch (e) {
@@ -501,17 +570,23 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  const sendTypingStatus = (chatId, isTyping) => {
+  const sendTypingStatus = async (chatId, isTyping) => {
     try {
       if (!chatId || !user) return;
-      if (!channelRef.current) return;
-      channelRef.current.send({
-        type: 'broadcast',
-        event: 'typing',
-        payload: { chatId, userId: user.id, isTyping }
-      });
+      setTypingState(prev => ({ ...prev, [chatId]: !!isTyping }));
+      const timeouts = typingTimeoutsRef.current || {};
+      if (timeouts[chatId]) clearTimeout(timeouts[chatId]);
+      if (isTyping) {
+        timeouts[chatId] = setTimeout(() => {
+          setTypingState(prev => ({ ...prev, [chatId]: false }));
+          delete timeouts[chatId];
+          typingTimeoutsRef.current = { ...timeouts };
+        }, 2000);
+        typingTimeoutsRef.current = { ...timeouts };
+      }
+      await apiClient.post('/typing', { chat_id: chatId, is_typing: !!isTyping });
     } catch (error) {
-      console.error('Error sending typing status:', error);
+      // silencioso
     }
   };
 
