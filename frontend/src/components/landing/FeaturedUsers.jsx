@@ -24,15 +24,54 @@ const UserCard = ({ user, type, onSelect }) => {
 
   const avatarUrl = getAvatarUrl(user);
   const isVerified = !!(user && (user.verified === true || user?.access_control?.verified === true));
+  const featured = user?.access_control?.featured && typeof user.access_control.featured === 'object' ? user.access_control.featured : null;
+  const isFeaturedActive = (() => {
+    if (!featured) return false;
+    if (featured.enabled === false) return false;
+    const endsAt = featured.ends_at || featured.until || featured.end_at || null;
+    if (!endsAt) return true;
+    const t = new Date(endsAt).getTime();
+    return Number.isFinite(t) ? t > Date.now() : false;
+  })();
+  const featuredLevel = String(featured?.level || '').toLowerCase();
+  const featuredLabel = featuredLevel === 'top' ? 'Destaque Top' : featuredLevel === 'pro' ? 'Destaque Pro' : featuredLevel === 'basic' ? 'Destaque' : 'Destaque';
+  const featuredTint =
+    featuredLevel === 'top'
+      ? 'from-beatwap-gold/30 via-yellow-400/20 to-transparent'
+      : featuredLevel === 'pro'
+        ? 'from-purple-500/30 via-pink-500/20 to-transparent'
+        : 'from-beatwap-gold/20 via-beatwap-gold/10 to-transparent';
+  const featuredBorder =
+    featuredLevel === 'top'
+      ? 'border-beatwap-gold shadow-[0_0_0_1px_rgba(255,200,0,0.25),0_0_30px_rgba(255,200,0,0.18)]'
+      : featuredLevel === 'pro'
+        ? 'border-purple-400/60 shadow-[0_0_0_1px_rgba(168,85,247,0.22),0_0_30px_rgba(168,85,247,0.14)]'
+        : 'border-beatwap-gold/70 shadow-[0_0_0_1px_rgba(255,200,0,0.18),0_0_24px_rgba(255,200,0,0.10)]';
 
   return (
     <motion.div
       whileHover={{ y: -5 }}
-      className={`bg-white/5 border rounded-xl overflow-hidden cursor-pointer transition-colors group ${
-        isVerified ? 'border-beatwap-gold' : 'border-white/10 hover:border-beatwap-gold'
+      className={`bg-white/5 border rounded-xl overflow-hidden cursor-pointer transition-colors group relative ${
+        isFeaturedActive ? featuredBorder : (isVerified ? 'border-beatwap-gold' : 'border-white/10 hover:border-beatwap-gold')
       }`}
       onClick={() => onSelect(user)}
     >
+      {isFeaturedActive && (
+        <>
+          <motion.div
+            aria-hidden="true"
+            className="absolute -inset-2 rounded-[18px] pointer-events-none"
+            style={{ background: 'transparent' }}
+            animate={{ opacity: [0.35, 0.7, 0.35], scale: [1, 1.02, 1] }}
+            transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <div className={`absolute inset-0 rounded-[18px] bg-gradient-to-r ${featuredTint}`} />
+          </motion.div>
+          <div className="absolute top-3 left-3 z-10 px-2 py-1 rounded-full text-[10px] font-extrabold bg-black/70 border border-white/10 text-white">
+            {featuredLabel}
+          </div>
+        </>
+      )}
       <div className="aspect-square bg-gray-800 relative overflow-hidden">
         {avatarUrl ? (
           <img 

@@ -58,6 +58,12 @@ export const AdminSettings = () => {
   const [purgeAcknowledge, setPurgeAcknowledge] = useState(false);
   const [purgeLoading, setPurgeLoading] = useState(false);
   const [purgePin, setPurgePin] = useState('');
+  const [featuredPlansAdmin, setFeaturedPlansAdmin] = useState(null);
+  const [featuredPlansDraft, setFeaturedPlansDraft] = useState(null);
+  const [featuredPlansSaving, setFeaturedPlansSaving] = useState(false);
+  const [hitAdmin, setHitAdmin] = useState(null);
+  const [hitDraft, setHitDraft] = useState(null);
+  const [hitSaving, setHitSaving] = useState(false);
 
   const validEmail = String(form.email).trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
 
@@ -69,6 +75,11 @@ export const AdminSettings = () => {
     fetchInvites();
   }, []);
 
+  useEffect(() => {
+    fetchFeaturedPlansAdmin();
+    fetchHitAdmin();
+  }, []);
+
   const fetchInvites = async () => {
     setInvLoading(true);
     try {
@@ -78,6 +89,115 @@ export const AdminSettings = () => {
       addToast('Erro ao carregar convites', 'error');
     } finally {
       setInvLoading(false);
+    }
+  };
+
+  const fetchFeaturedPlansAdmin = async () => {
+    try {
+      const data = await apiClient.get('/admin/featured-plans');
+      setFeaturedPlansAdmin(data || null);
+      setFeaturedPlansDraft(data ? JSON.parse(JSON.stringify(data)) : null);
+    } catch {
+      setFeaturedPlansAdmin(null);
+      setFeaturedPlansDraft(null);
+    }
+  };
+
+  const saveFeaturedPlansAdmin = async () => {
+    if (!featuredPlansDraft) return;
+    setFeaturedPlansSaving(true);
+    try {
+      const res = await apiClient.put('/admin/featured-plans', featuredPlansDraft);
+      const next = res?.featured_plans || featuredPlansDraft;
+      setFeaturedPlansAdmin(next);
+      setFeaturedPlansDraft(next ? JSON.parse(JSON.stringify(next)) : null);
+      addToast('Configuração de destaque salva.', 'success');
+    } catch (e) {
+      addToast(e?.message || 'Erro ao salvar destaque', 'error');
+    } finally {
+      setFeaturedPlansSaving(false);
+    }
+  };
+
+  const fetchHitAdmin = async () => {
+    try {
+      const data = await apiClient.get('/admin/hit-of-week');
+      setHitAdmin(data || null);
+      setHitDraft(data ? { ...data } : null);
+    } catch {
+      setHitAdmin(null);
+      setHitDraft(null);
+    }
+  };
+
+  const saveHitAdmin = async () => {
+    if (!hitDraft) return;
+    setHitSaving(true);
+    try {
+      const res = await apiClient.put('/admin/hit-of-week', {
+        theme: hitDraft.theme,
+        starts_at: hitDraft.starts_at || null,
+        ends_at: hitDraft.ends_at || null,
+        entry_fee: hitDraft.entry_fee
+      });
+      const next = res?.hit || hitDraft;
+      setHitAdmin(next);
+      setHitDraft(next ? { ...next } : null);
+      addToast('Desafio atualizado.', 'success');
+    } catch (e) {
+      addToast(e?.message || 'Erro ao salvar desafio', 'error');
+    } finally {
+      setHitSaving(false);
+    }
+  };
+
+  const setHitEntryPaid = async (entryId, paid) => {
+    try {
+      const res = await apiClient.post(`/admin/hit-of-week/entries/${entryId}/mark-paid`, { paid });
+      const entry = res?.entry || null;
+      if (!entry) return;
+      setHitAdmin((prev) => {
+        if (!prev || !Array.isArray(prev.entries)) return prev;
+        return { ...prev, entries: prev.entries.map((e) => (e.id === entryId ? entry : e)) };
+      });
+      setHitDraft((prev) => {
+        if (!prev || !Array.isArray(prev.entries)) return prev;
+        return { ...prev, entries: prev.entries.map((e) => (e.id === entryId ? entry : e)) };
+      });
+    } catch (e) {
+      addToast(e?.message || 'Erro ao atualizar pagamento', 'error');
+    }
+  };
+
+  const setHitWinner = async (entryId) => {
+    try {
+      const res = await apiClient.post('/admin/hit-of-week/winner', { winner_entry_id: entryId || null });
+      const next = res?.hit || null;
+      if (next) {
+        setHitAdmin(next);
+        setHitDraft({ ...next });
+      }
+      addToast('Vencedor atualizado.', 'success');
+    } catch (e) {
+      addToast(e?.message || 'Erro ao definir vencedor', 'error');
+    }
+  };
+
+  const applyFeaturedToUser = async (userId, level) => {
+    const id = String(userId || '').trim();
+    if (!id) return;
+    setSavingId(id);
+    try {
+      const res = await apiClient.post(`/admin/profiles/${id}/featured`, { level });
+      const updated = res?.profile || null;
+      if (updated?.id) {
+        setArtists((prev) => prev.map((a) => (String(a.id) === String(updated.id) ? { ...a, ...updated } : a)));
+        addToast('Destaque atualizado.', 'success');
+      }
+    } catch (e) {
+      addToast(e?.message || 'Erro ao aplicar destaque', 'error');
+    } finally {
+      setSavingId(null);
     }
   };
 
@@ -773,6 +893,216 @@ export const AdminSettings = () => {
         </Card>
 
         <Card className="space-y-6">
+          <div className="flex items-center gap-2 text-lg md:text-xl font-bold">
+            <Settings size={20} className="text-beatwap-gold" />
+            Monetização (Home)
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+            <div className="rounded-2xl border p-4 sm:p-6 shadow-xl space-y-4 bg-white/5 border-white/10 w-full overflow-hidden">
+              <div className="text-base md:text-lg font-bold">Destaque Pago</div>
+
+              <div className="space-y-2">
+                <div className="text-sm text-gray-300">Frase do botão</div>
+                <input
+                  value={featuredPlansDraft?.cta || ''}
+                  onChange={(e) => setFeaturedPlansDraft((prev) => prev ? { ...prev, cta: e.target.value } : prev)}
+                  className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
+                  placeholder="Apareça primeiro e aumente suas chances de ser descoberto"
+                />
+              </div>
+
+              {(['basic','pro','top']).map((k) => (
+                <div key={k} className="rounded-xl bg-black/20 border border-white/10 p-4 space-y-3">
+                  <div className="text-sm font-extrabold text-white">
+                    {featuredPlansDraft?.plans?.[k]?.label || (k === 'top' ? 'Destaque Top' : k === 'pro' ? 'Destaque Pro' : 'Destaque Básico')}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <div className="text-xs text-gray-400">Preço (R$)</div>
+                      <input
+                        type="number"
+                        min="0"
+                        value={featuredPlansDraft?.plans?.[k]?.price ?? ''}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setFeaturedPlansDraft((prev) => {
+                            if (!prev) return prev;
+                            const plans = { ...(prev.plans || {}) };
+                            const plan = { ...(plans[k] || {}) };
+                            plan.price = v === '' ? '' : Number(v);
+                            plans[k] = plan;
+                            return { ...prev, plans };
+                          });
+                        }}
+                        className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-xs text-gray-400">Duração (horas)</div>
+                      <input
+                        type="number"
+                        min="0"
+                        value={featuredPlansDraft?.plans?.[k]?.duration_hours ?? ''}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setFeaturedPlansDraft((prev) => {
+                            if (!prev) return prev;
+                            const plans = { ...(prev.plans || {}) };
+                            const plan = { ...(plans[k] || {}) };
+                            plan.duration_hours = v === '' ? '' : Number(v);
+                            plans[k] = plan;
+                            return { ...prev, plans };
+                          });
+                        }}
+                        className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-xs text-gray-400">Fixado no topo</div>
+                      <button
+                        type="button"
+                        className={`w-full px-3 py-2 rounded-lg border text-sm font-bold transition-colors ${
+                          featuredPlansDraft?.plans?.[k]?.pinned ? 'bg-beatwap-gold text-black border-beatwap-gold' : 'bg-black/20 text-gray-300 border-white/10 hover:border-white/20'
+                        }`}
+                        onClick={() => {
+                          setFeaturedPlansDraft((prev) => {
+                            if (!prev) return prev;
+                            const plans = { ...(prev.plans || {}) };
+                            const plan = { ...(plans[k] || {}) };
+                            plan.pinned = !(plan.pinned === true);
+                            plans[k] = plan;
+                            return { ...prev, plans };
+                          });
+                        }}
+                      >
+                        {featuredPlansDraft?.plans?.[k]?.pinned ? 'Sim' : 'Não'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div className="flex items-center justify-end gap-2">
+                <AnimatedButton onClick={fetchFeaturedPlansAdmin} variant="outline">
+                  Recarregar
+                </AnimatedButton>
+                <AnimatedButton onClick={saveFeaturedPlansAdmin} isLoading={featuredPlansSaving}>
+                  Salvar Destaque
+                </AnimatedButton>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border p-4 sm:p-6 shadow-xl space-y-4 bg-white/5 border-white/10 w-full overflow-hidden">
+              <div className="text-base md:text-lg font-bold">Hit da Semana BeatWap</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1 sm:col-span-2">
+                  <div className="text-xs text-gray-400">Tema</div>
+                  <input
+                    value={hitDraft?.theme || ''}
+                    onChange={(e) => setHitDraft((prev) => prev ? { ...prev, theme: e.target.value } : prev)}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
+                    placeholder="Hit da Semana BeatWap"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs text-gray-400">Início (ISO ou vazio)</div>
+                  <input
+                    value={hitDraft?.starts_at || ''}
+                    onChange={(e) => setHitDraft((prev) => prev ? { ...prev, starts_at: e.target.value } : prev)}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
+                    placeholder="2026-03-19T00:00:00.000Z"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs text-gray-400">Fim (ISO ou vazio)</div>
+                  <input
+                    value={hitDraft?.ends_at || ''}
+                    onChange={(e) => setHitDraft((prev) => prev ? { ...prev, ends_at: e.target.value } : prev)}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
+                    placeholder="2026-03-26T00:00:00.000Z"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs text-gray-400">Taxa (R$)</div>
+                  <input
+                    type="number"
+                    min="0"
+                    value={hitDraft?.entry_fee ?? ''}
+                    onChange={(e) => setHitDraft((prev) => prev ? { ...prev, entry_fee: e.target.value === '' ? '' : Number(e.target.value) } : prev)}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs text-gray-400">Inscrições</div>
+                  <div className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200">
+                    {Array.isArray(hitAdmin?.entries) ? hitAdmin.entries.length : 0}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2">
+                <AnimatedButton onClick={fetchHitAdmin} variant="outline">
+                  Recarregar
+                </AnimatedButton>
+                <AnimatedButton onClick={saveHitAdmin} isLoading={hitSaving}>
+                  Salvar Desafio
+                </AnimatedButton>
+              </div>
+
+              {Array.isArray(hitAdmin?.entries) && hitAdmin.entries.length > 0 && (
+                <div className="rounded-2xl border border-white/10 bg-black/20 overflow-hidden">
+                  <div className="max-h-[320px] overflow-auto">
+                    <div className="divide-y divide-white/10">
+                      {hitAdmin.entries.map((e) => (
+                        <div key={e.id} className="p-3 flex flex-col gap-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="text-sm font-extrabold text-white truncate">{e.title || 'Música'}</div>
+                              <div className="text-xs text-gray-400 truncate">{e.profile_email || e.profile_id || 'Sem perfil'}</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors ${
+                                  e.paid ? 'bg-green-500/15 text-green-300 border-green-400/30' : 'bg-black/20 text-gray-300 border-white/10 hover:border-white/20'
+                                }`}
+                                onClick={() => setHitEntryPaid(e.id, !e.paid)}
+                              >
+                                {e.paid ? 'Pago' : 'Não pago'}
+                              </button>
+                              <button
+                                type="button"
+                                className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors ${
+                                  hitAdmin?.winner_entry_id === e.id ? 'bg-beatwap-gold text-black border-beatwap-gold' : 'bg-black/20 text-gray-300 border-white/10 hover:border-white/20'
+                                }`}
+                                onClick={() => setHitWinner(e.id)}
+                              >
+                                {hitAdmin?.winner_entry_id === e.id ? 'Vencedor' : 'Definir vencedor'}
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <a
+                              href={e.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-beatwap-gold hover:underline truncate"
+                            >
+                              {e.url}
+                            </a>
+                            <div className="text-[10px] text-gray-500">{e.created_at ? new Date(e.created_at).toLocaleString() : ''}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+
+        <Card className="space-y-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex items-center gap-2 text-xl font-bold">
               <Shield size={20} className="text-beatwap-gold" />
@@ -1151,6 +1481,67 @@ export const AdminSettings = () => {
                               }`} />
                             </div>
                           </button>
+
+                          {(() => {
+                            const f = artist?.access_control?.featured && typeof artist.access_control.featured === 'object' ? artist.access_control.featured : null;
+                            const enabled = !!(f && f.enabled !== false);
+                            const level = String(f?.level || '').toLowerCase();
+                            const endsAt = f?.ends_at || f?.until || null;
+                            const endsText = endsAt ? (() => {
+                              const t = new Date(endsAt);
+                              const ms = t.getTime();
+                              if (!Number.isFinite(ms)) return null;
+                              return t.toLocaleString();
+                            })() : null;
+                            const label = level === 'top' ? 'Destaque Top' : level === 'pro' ? 'Destaque Pro' : level === 'basic' ? 'Destaque Básico' : 'Destaque';
+
+                            return (
+                              <div className="w-full rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="text-left">
+                                    <div className="text-sm font-extrabold text-white leading-tight">Impulsionar na Home</div>
+                                    <div className="text-xs text-gray-400">
+                                      {enabled ? `${label}${endsText ? ` • até ${endsText}` : ''}` : 'Sem destaque'}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={savingId === artist.id}
+                                    className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-xs font-extrabold text-white hover:border-beatwap-gold transition-colors disabled:opacity-60"
+                                    onClick={() => applyFeaturedToUser(artist.id, 'basic')}
+                                  >
+                                    Destaque Básico
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={savingId === artist.id}
+                                    className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-xs font-extrabold text-white hover:border-purple-400 transition-colors disabled:opacity-60"
+                                    onClick={() => applyFeaturedToUser(artist.id, 'pro')}
+                                  >
+                                    Destaque Pro
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={savingId === artist.id}
+                                    className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-xs font-extrabold text-white hover:border-beatwap-gold transition-colors disabled:opacity-60"
+                                    onClick={() => applyFeaturedToUser(artist.id, 'top')}
+                                  >
+                                    Destaque Top
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={savingId === artist.id}
+                                    className="px-3 py-2 rounded-xl border border-white/10 bg-black/30 text-xs font-extrabold text-gray-300 hover:border-white/20 transition-colors disabled:opacity-60"
+                                    onClick={() => applyFeaturedToUser(artist.id, 'off')}
+                                  >
+                                    Remover
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })()}
 
                           <AnimatedButton
                             onClick={() => savePermissions(artist)}

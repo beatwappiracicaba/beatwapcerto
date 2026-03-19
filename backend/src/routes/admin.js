@@ -279,6 +279,161 @@ router.put('/profiles/:id/accesscontrol', auth, async (req, res) => {
   return updateAccessControlById(req.params.id, req.body, res);
 });
 
+router.get('/admin/hit-of-week', auth, async (req, res) => {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+    const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
+    if (!hit) return res.json(null);
+    res.json(hit);
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.put('/admin/hit-of-week', auth, async (req, res) => {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+    const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
+    if (!hit) return res.status(400).json({ error: 'Desafio indisponível' });
+
+    const theme = Object.prototype.hasOwnProperty.call(req.body, 'theme') ? String(req.body.theme || '').trim() : null;
+    const starts_at = Object.prototype.hasOwnProperty.call(req.body, 'starts_at') ? (req.body.starts_at || null) : null;
+    const ends_at = Object.prototype.hasOwnProperty.call(req.body, 'ends_at') ? (req.body.ends_at || null) : null;
+    const entry_fee = Object.prototype.hasOwnProperty.call(req.body, 'entry_fee') ? Number(req.body.entry_fee) : null;
+
+    if (theme !== null) hit.theme = theme || hit.theme;
+    if (starts_at !== null) hit.starts_at = starts_at;
+    if (ends_at !== null) hit.ends_at = ends_at;
+    if (entry_fee !== null && Number.isFinite(entry_fee) && entry_fee >= 0) hit.entry_fee = entry_fee;
+
+    hit.updated_at = new Date().toISOString();
+    scheduleSave();
+    emitEvent('hit_of_week.updated', { hit }, 'public:hit_of_week');
+    res.json({ ok: true, hit });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.post('/admin/hit-of-week/entries/:entryId/mark-paid', auth, async (req, res) => {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+    const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
+    if (!hit || !Array.isArray(hit.entries)) return res.status(400).json({ error: 'Desafio indisponível' });
+    const entryId = String(req.params.entryId || '').trim();
+    const paid = req.body?.paid === false ? false : true;
+    const idx = hit.entries.findIndex(e => String(e?.id || '') === entryId);
+    if (idx < 0) return res.status(404).json({ error: 'Inscrição não encontrada' });
+    hit.entries[idx].paid = paid;
+    hit.updated_at = new Date().toISOString();
+    scheduleSave();
+    emitEvent('hit_of_week.entry.updated', { entry: hit.entries[idx] }, 'public:hit_of_week');
+    res.json({ ok: true, entry: hit.entries[idx] });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.post('/admin/hit-of-week/winner', auth, async (req, res) => {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+    const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
+    if (!hit) return res.status(400).json({ error: 'Desafio indisponível' });
+    const winner_entry_id = String(req.body?.winner_entry_id || '').trim() || null;
+    hit.winner_entry_id = winner_entry_id;
+    hit.updated_at = new Date().toISOString();
+    scheduleSave();
+    emitEvent('hit_of_week.winner.updated', { winner_entry_id }, 'public:hit_of_week');
+    res.json({ ok: true, hit });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.get('/admin/featured-plans', auth, async (req, res) => {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+    const fp = memory.featured_plans && typeof memory.featured_plans === 'object' ? memory.featured_plans : null;
+    res.json(fp);
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.put('/admin/featured-plans', auth, async (req, res) => {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+    const fp = memory.featured_plans && typeof memory.featured_plans === 'object' ? memory.featured_plans : null;
+    if (!fp) return res.status(400).json({ error: 'Configuração indisponível' });
+    if (Object.prototype.hasOwnProperty.call(req.body, 'cta')) {
+      fp.cta = String(req.body.cta || '').trim() || fp.cta;
+    }
+    const inputPlans = req.body?.plans && typeof req.body.plans === 'object' ? req.body.plans : null;
+    if (inputPlans) {
+      Object.keys(fp.plans || {}).forEach((k) => {
+        if (!Object.prototype.hasOwnProperty.call(inputPlans, k)) return;
+        const pIn = inputPlans[k];
+        if (!pIn || typeof pIn !== 'object') return;
+        if (Object.prototype.hasOwnProperty.call(pIn, 'label')) fp.plans[k].label = String(pIn.label || '').trim() || fp.plans[k].label;
+        if (Object.prototype.hasOwnProperty.call(pIn, 'price')) {
+          const price = Number(pIn.price);
+          if (Number.isFinite(price) && price >= 0) fp.plans[k].price = price;
+        }
+        if (Object.prototype.hasOwnProperty.call(pIn, 'duration_hours')) {
+          const dh = Number(pIn.duration_hours);
+          if (Number.isFinite(dh) && dh >= 0) fp.plans[k].duration_hours = dh;
+        }
+        if (Object.prototype.hasOwnProperty.call(pIn, 'pinned')) fp.plans[k].pinned = pIn.pinned === true;
+      });
+    }
+    fp.updated_at = new Date().toISOString();
+    scheduleSave();
+    emitEvent('featured_plans.updated', { featured_plans: fp }, 'public:featured_plans');
+    res.json({ ok: true, featured_plans: fp });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.post('/admin/profiles/:id/featured', auth, async (req, res) => {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ error: 'ID inválido' });
+    const user = await Profile.findByPk(id);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+    const fp = memory.featured_plans && typeof memory.featured_plans === 'object' ? memory.featured_plans : null;
+    const level = String(req.body?.level || '').toLowerCase().trim();
+    const now = Date.now();
+    const ac = (user.access_control && typeof user.access_control === 'object') ? { ...user.access_control } : {};
+
+    if (!level || level === 'off' || level === 'none' || level === 'remove') {
+      ac.featured = { enabled: false, level: null, starts_at: null, ends_at: null, pinned: false };
+    } else {
+      const plan = fp?.plans?.[level] || null;
+      if (!plan) return res.status(400).json({ error: 'Plano de destaque inválido' });
+      const hours = Number(plan.duration_hours);
+      const ms = Number.isFinite(hours) ? Math.max(0, hours) * 60 * 60 * 1000 : 0;
+      const endsAt = ms ? new Date(now + ms).toISOString() : null;
+      ac.featured = {
+        enabled: true,
+        level: plan.level || level,
+        starts_at: new Date(now).toISOString(),
+        ends_at: endsAt,
+        pinned: plan.pinned === true
+      };
+    }
+
+    await Profile.update({ access_control: ac }, { where: { id } });
+    const updated = await Profile.findByPk(id);
+    emitEvent('profiles.featured.updated', { id, access_control: updated?.access_control || null }, `profile:${id}`);
+    res.json({ ok: true, profile: updated });
+  } catch (e) {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 // Purge user account (requires confirmation string)
 router.post('/admin/users/:id/purge', auth, async (req, res) => {
   try {

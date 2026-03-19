@@ -17,11 +17,13 @@ import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Instagram, Globe, Youtube, Video } from 'lucide-react';
 import { decryptData } from '../utils/security';
+import { useAuth } from '../context/AuthContext';
  
 
 const Home = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const [latestReleases, setLatestReleases] = useState([]);
   const [latestCompositions, setLatestCompositions] = useState([]);
   const [latestProjects, setLatestProjects] = useState([]);
@@ -30,6 +32,11 @@ const Home = () => {
   const [artists, setArtists] = useState([]);
   const [producers, setProducers] = useState([]);
   const [sellers, setSellers] = useState([]);
+  const [featuredPlans, setFeaturedPlans] = useState(null);
+  const [hitOfWeek, setHitOfWeek] = useState(null);
+  const [hitEntryTitle, setHitEntryTitle] = useState('');
+  const [hitEntryUrl, setHitEntryUrl] = useState('');
+  const [hitSubmitting, setHitSubmitting] = useState(false);
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
   const [activeSponsorMenu, setActiveSponsorMenu] = useState(null);
@@ -215,6 +222,48 @@ const Home = () => {
     return arr.sort((a, b) => toMs(a?.created_at) - toMs(b?.created_at));
   };
 
+  const featuredWeight = (lvl) => {
+    const x = String(lvl || '').toLowerCase();
+    if (x === 'top') return 3;
+    if (x === 'pro') return 2;
+    if (x === 'basic') return 1;
+    return 0;
+  };
+  const isFeaturedActive = (row) => {
+    const f = row?.access_control?.featured && typeof row.access_control.featured === 'object' ? row.access_control.featured : null;
+    if (!f) return false;
+    if (f.enabled === false) return false;
+    const endsAt = f.ends_at || f.until || f.end_at || null;
+    if (!endsAt) return true;
+    const t = new Date(endsAt).getTime();
+    return Number.isFinite(t) ? t > Date.now() : false;
+  };
+  const sortProfilesWithFeaturedFirst = (items) => {
+    const arr = Array.isArray(items) ? items.slice() : [];
+    const toMs = (v) => {
+      if (!v) return Number.POSITIVE_INFINITY;
+      const t = new Date(v).getTime();
+      return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
+    };
+    return arr.sort((a, b) => {
+      const fa = isFeaturedActive(a);
+      const fb = isFeaturedActive(b);
+      if (fa !== fb) return fa ? -1 : 1;
+      if (fa && fb) {
+        const wa = featuredWeight(a?.access_control?.featured?.level);
+        const wb = featuredWeight(b?.access_control?.featured?.level);
+        if (wa !== wb) return wb - wa;
+        const pa = a?.access_control?.featured?.pinned === true;
+        const pb = b?.access_control?.featured?.pinned === true;
+        if (pa !== pb) return pb ? 1 : -1;
+        const ea = new Date(a?.access_control?.featured?.ends_at || a?.access_control?.featured?.until || 0).getTime();
+        const eb = new Date(b?.access_control?.featured?.ends_at || b?.access_control?.featured?.until || 0).getTime();
+        if (Number.isFinite(ea) && Number.isFinite(eb) && ea !== eb) return eb - ea;
+      }
+      return toMs(a?.created_at) - toMs(b?.created_at);
+    });
+  };
+
   const fetchHomeData = async () => {
     try {
       const data = await apiClient.get('/home', {
@@ -228,7 +277,7 @@ const Home = () => {
       await fetchLatestProjects();
 
       const normalize = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const filterNoAvulso = (arr) => (Array.isArray(arr) ? arr : []).filter(p => !normalize(p?.plano).includes('avulso'));
+      const filterNoAvulso = (arr) => (Array.isArray(arr) ? arr : []).filter(p => isFeaturedActive(p) || !normalize(p?.plano).includes('avulso'));
 
       const compositions = (data && Array.isArray(data.compositions)) ? data.compositions : [];
       const mapped = compositions.map(c => ({
@@ -247,11 +296,13 @@ const Home = () => {
         .then((enriched) => setLatestCompositions(enriched))
         .catch(() => void 0);
 
-      setComposers(sortProfilesOldestFirst(filterNoAvulso((data && Array.isArray(data.composers)) ? data.composers : [])));
+      setFeaturedPlans((data && data.featured_plans) ? data.featured_plans : null);
+      setHitOfWeek((data && data.hit_of_week) ? data.hit_of_week : null);
+      setComposers(sortProfilesWithFeaturedFirst(filterNoAvulso((data && Array.isArray(data.composers)) ? data.composers : [])));
       setSponsors((data && Array.isArray(data.sponsors)) ? data.sponsors : []);
-      setArtists(sortProfilesOldestFirst(filterNoAvulso((data && Array.isArray(data.artists)) ? data.artists : [])));
-      setProducers(sortProfilesOldestFirst((data && Array.isArray(data.producers)) ? data.producers : []));
-      setSellers(sortProfilesOldestFirst((data && Array.isArray(data.sellers)) ? data.sellers : []));
+      setArtists(sortProfilesWithFeaturedFirst(filterNoAvulso((data && Array.isArray(data.artists)) ? data.artists : [])));
+      setProducers(sortProfilesWithFeaturedFirst((data && Array.isArray(data.producers)) ? data.producers : []));
+      setSellers(sortProfilesWithFeaturedFirst((data && Array.isArray(data.sellers)) ? data.sellers : []));
     } catch (error) {
       console.warn('Home endpoint falhou; carregando via endpoints individuais:', error);
       try {
@@ -470,10 +521,39 @@ const Home = () => {
       const data = await apiClient.get('/composers');
       const normalize = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       const mapped = (data || []).map(s => ({ ...s, name: s.nome || s.nome_completo_razao_social || '' }));
-      const filtered = mapped.filter(s => !normalize(s?.plano).includes('avulso'));
-      setComposers(sortProfilesOldestFirst(filtered));
+      const filtered = mapped.filter(s => isFeaturedActive(s) || !normalize(s?.plano).includes('avulso'));
+      setComposers(sortProfilesWithFeaturedFirst(filtered));
     } catch (error) {
       console.error('Error fetching composers:', error);
+    }
+  };
+
+  const submitHitOfWeek = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    const title = String(hitEntryTitle || '').trim();
+    const url = String(hitEntryUrl || '').trim();
+    if (!title) {
+      window.alert('Informe o nome da música.');
+      return;
+    }
+    if (!url) {
+      window.alert('Informe o link da música (YouTube, Drive, etc.).');
+      return;
+    }
+    setHitSubmitting(true);
+    try {
+      await apiClient.post('/hit-of-week/entries', { title, url });
+      setHitEntryTitle('');
+      setHitEntryUrl('');
+      setHitOfWeek((prev) => prev ? { ...prev, entries_count: (Number(prev.entries_count) || 0) + 1 } : prev);
+      window.alert('Inscrição enviada! Aguarde a confirmação do produtor.');
+    } catch (e) {
+      window.alert(e?.message || 'Erro ao enviar inscrição');
+    } finally {
+      setHitSubmitting(false);
     }
   };
 
@@ -482,6 +562,142 @@ const Home = () => {
       <Header />
       <main>
         <Hero />
+        {(() => {
+          const all = []
+            .concat(Array.isArray(artists) ? artists : [])
+            .concat(Array.isArray(composers) ? composers : [])
+            .concat(Array.isArray(producers) ? producers : [])
+            .concat(Array.isArray(sellers) ? sellers : []);
+
+          const byId = new Map();
+          for (const p of all) {
+            if (p?.id) byId.set(String(p.id), p);
+          }
+
+          const list = Array.from(byId.values())
+            .filter(isFeaturedActive)
+            .sort((a, b) => {
+              const wa = featuredWeight(a?.access_control?.featured?.level);
+              const wb = featuredWeight(b?.access_control?.featured?.level);
+              if (wa !== wb) return wb - wa;
+              const pa = a?.access_control?.featured?.pinned === true;
+              const pb = b?.access_control?.featured?.pinned === true;
+              if (pa !== pb) return pb ? 1 : -1;
+              const ea = new Date(a?.access_control?.featured?.ends_at || a?.access_control?.featured?.until || 0).getTime();
+              const eb = new Date(b?.access_control?.featured?.ends_at || b?.access_control?.featured?.until || 0).getTime();
+              if (Number.isFinite(ea) && Number.isFinite(eb) && ea !== eb) return eb - ea;
+              const ca = new Date(a?.created_at || a?.createdAt || 0).getTime();
+              const cb = new Date(b?.created_at || b?.createdAt || 0).getTime();
+              return cb - ca;
+            })
+            .slice(0, 12);
+
+          if (list.length === 0) return null;
+
+          const roleLabel = (p) => String(p?.cargo || p?.role || '').trim() || 'Perfil';
+          const levelLabel = (p) => {
+            const lvl = String(p?.access_control?.featured?.level || '').toLowerCase();
+            if (lvl === 'top') return 'Destaque Top';
+            if (lvl === 'pro') return 'Destaque Pro';
+            return 'Destaque';
+          };
+          const tint = (p) => {
+            const lvl = String(p?.access_control?.featured?.level || '').toLowerCase();
+            if (lvl === 'top') return 'from-beatwap-gold/35 via-yellow-400/20 to-transparent';
+            if (lvl === 'pro') return 'from-purple-500/35 via-pink-500/20 to-transparent';
+            return 'from-beatwap-gold/25 via-beatwap-gold/10 to-transparent';
+          };
+          const border = (p) => {
+            const lvl = String(p?.access_control?.featured?.level || '').toLowerCase();
+            if (lvl === 'top') return 'border-beatwap-gold shadow-[0_0_0_1px_rgba(255,200,0,0.25),0_0_30px_rgba(255,200,0,0.18)]';
+            if (lvl === 'pro') return 'border-purple-400/60 shadow-[0_0_0_1px_rgba(168,85,247,0.22),0_0_30px_rgba(168,85,247,0.14)]';
+            return 'border-beatwap-gold/70 shadow-[0_0_0_1px_rgba(255,200,0,0.18),0_0_24px_rgba(255,200,0,0.10)]';
+          };
+
+          return (
+            <section className="py-14 px-6 bg-black/10 border-b border-white/5 overflow-hidden">
+              <div className="max-w-7xl mx-auto">
+                <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3 mb-8">
+                  <div>
+                    <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Perfis Impulsionados</h2>
+                    <p className="text-sm text-gray-400">Apareça no topo e seja descoberto mais rápido</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = document.getElementById('destaque-pago');
+                      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-extrabold text-white hover:border-beatwap-gold hover:text-beatwap-gold transition-colors"
+                  >
+                    Ver planos de destaque
+                    <Info size={14} />
+                  </button>
+                </div>
+
+                <div className="relative -mx-6">
+                  <div className="overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2 no-scrollbar">
+                    <div className="flex gap-6 justify-start">
+                      {list.map((p, idx) => (
+                        <div key={p.id} className="flex-none w-[280px]">
+                          <motion.button
+                            type="button"
+                            initial={{ opacity: 0, y: 10 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: idx * 0.06 }}
+                            className={`group relative w-full text-left rounded-2xl border bg-white/5 overflow-hidden cursor-pointer ${border(p)}`}
+                            onClick={() => navigate(`/profile/${p.id}`)}
+                          >
+                            <motion.div
+                              aria-hidden="true"
+                              className="absolute -inset-2 rounded-[22px] pointer-events-none"
+                              animate={{ opacity: [0.35, 0.75, 0.35], scale: [1, 1.03, 1] }}
+                              transition={{ duration: 2.1, repeat: Infinity, ease: 'easeInOut' }}
+                            >
+                              <div className={`absolute inset-0 rounded-[22px] bg-gradient-to-r ${tint(p)}`} />
+                            </motion.div>
+                            <div className="absolute top-3 left-3 z-10 px-2 py-1 rounded-full text-[10px] font-extrabold bg-black/70 border border-white/10 text-white">
+                              {levelLabel(p)}
+                            </div>
+
+                            <div className="aspect-square bg-gray-800 relative overflow-hidden">
+                              {p.avatar_url ? (
+                                <img
+                                  src={p.avatar_url}
+                                  alt={p.nome || p.nome_completo_razao_social || 'Perfil'}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                                  <User size={64} className="text-white/20" />
+                                </div>
+                              )}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-100 transition-opacity flex items-end p-4">
+                                <div className="w-full">
+                                  <div className="text-white text-base font-extrabold leading-snug truncate">
+                                    {decryptData(p.nome) || decryptData(p.nome_completo_razao_social) || p.nome || p.nome_completo_razao_social || 'Perfil'}
+                                  </div>
+                                  <div className="text-xs text-gray-300 flex items-center gap-2">
+                                    <span>{roleLabel(p)}</span>
+                                    <span className="flex items-center gap-1 text-beatwap-gold">
+                                      <Info size={14} />
+                                      <span>Ver Perfil</span>
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </motion.button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          );
+        })()}
         <section className="relative py-16 px-4 sm:px-6 bg-gradient-to-r from-beatwap-gold/10 via-black to-beatwap-gold/5 border-y border-white/5 overflow-hidden">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_55%)]" />
           <div className="relative max-w-6xl mx-auto grid md:grid-cols-[3fr,2fr] gap-10 items-center">
@@ -1221,17 +1437,52 @@ const Home = () => {
               <div className="relative -mx-6">
                 <div ref={composersRef} className="overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2 no-scrollbar">
                   <div className="flex gap-6 justify-start">
-                  {composers.map((composer, index) => (
-                    <div key={composer.id} className="flex-none w-[280px]">
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className={`group bg-white/5 border rounded-xl overflow-hidden cursor-pointer transition-colors ${
-                          composer?.verified === true || composer?.access_control?.verified === true ? 'border-beatwap-gold' : 'border-white/10 hover:border-beatwap-gold'
-                        }`}
-                        onClick={() => navigate(`/profile/${composer.id}`)}
-                      >
+                  {composers.map((composer, index) => {
+                    const isVerified = composer?.verified === true || composer?.access_control?.verified === true;
+                    const featured = composer?.access_control?.featured && typeof composer.access_control.featured === 'object' ? composer.access_control.featured : null;
+                    const isFeatured = isFeaturedActive(composer);
+                    const featuredLevel = String(featured?.level || '').toLowerCase();
+                    const featuredLabel = featuredLevel === 'top' ? 'Destaque Top' : featuredLevel === 'pro' ? 'Destaque Pro' : featuredLevel === 'basic' ? 'Destaque' : 'Destaque';
+                    const featuredTint =
+                      featuredLevel === 'top'
+                        ? 'from-beatwap-gold/30 via-yellow-400/20 to-transparent'
+                        : featuredLevel === 'pro'
+                          ? 'from-purple-500/30 via-pink-500/20 to-transparent'
+                          : 'from-beatwap-gold/20 via-beatwap-gold/10 to-transparent';
+                    const featuredBorder =
+                      featuredLevel === 'top'
+                        ? 'border-beatwap-gold shadow-[0_0_0_1px_rgba(255,200,0,0.25),0_0_30px_rgba(255,200,0,0.18)]'
+                        : featuredLevel === 'pro'
+                          ? 'border-purple-400/60 shadow-[0_0_0_1px_rgba(168,85,247,0.22),0_0_30px_rgba(168,85,247,0.14)]'
+                          : 'border-beatwap-gold/70 shadow-[0_0_0_1px_rgba(255,200,0,0.18),0_0_24px_rgba(255,200,0,0.10)]';
+
+                    return (
+                      <div key={composer.id} className="flex-none w-[280px]">
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          whileInView={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className={`group bg-white/5 border rounded-xl overflow-hidden cursor-pointer transition-colors relative ${
+                            isFeatured ? featuredBorder : (isVerified ? 'border-beatwap-gold' : 'border-white/10 hover:border-beatwap-gold')
+                          }`}
+                          onClick={() => navigate(`/profile/${composer.id}`)}
+                        >
+                          {isFeatured && (
+                            <>
+                              <motion.div
+                                aria-hidden="true"
+                                className="absolute -inset-2 rounded-[18px] pointer-events-none"
+                                style={{ background: 'transparent' }}
+                                animate={{ opacity: [0.35, 0.7, 0.35], scale: [1, 1.02, 1] }}
+                                transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                              >
+                                <div className={`absolute inset-0 rounded-[18px] bg-gradient-to-r ${featuredTint}`} />
+                              </motion.div>
+                              <div className="absolute top-3 left-3 z-10 px-2 py-1 rounded-full text-[10px] font-extrabold bg-black/70 border border-white/10 text-white">
+                                {featuredLabel}
+                              </div>
+                            </>
+                          )}
                         <div className="aspect-square bg-gray-800 relative overflow-hidden">
                           {composer.avatar_url ? (
                             <img 
@@ -1244,7 +1495,7 @@ const Home = () => {
                               <User size={64} className="text-white/20" />
                             </div>
                           )}
-                          {(composer?.verified === true || composer?.access_control?.verified === true) && (
+                          {isVerified && (
                             <div className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/70 border border-beatwap-gold flex items-center justify-center">
                               <BadgeCheck size={18} className="text-beatwap-gold" />
                             </div>
@@ -1261,9 +1512,10 @@ const Home = () => {
                             </div>
                           </div>
                         </div>
-                      </motion.div>
-                    </div>
-                  ))}
+                        </motion.div>
+                      </div>
+                    );
+                  })}
                   </div>
                 </div>
                 <button
@@ -1376,6 +1628,155 @@ const Home = () => {
         )}
 
         <FeaturedUsers artists={artists} producers={producers} sellers={sellers} />
+
+        {(() => {
+          const fp = featuredPlans && typeof featuredPlans === 'object' ? featuredPlans : null;
+          const plans = fp?.plans && typeof fp.plans === 'object' ? fp.plans : {
+            basic: { level: 'basic', label: 'Destaque Básico', price: 10, duration_hours: 24 },
+            pro: { level: 'pro', label: 'Destaque Pro', price: 25, duration_hours: 72 },
+            top: { level: 'top', label: 'Destaque Top', price: 50, duration_hours: 168 }
+          };
+          const cta = String(fp?.cta || 'Apareça primeiro e aumente suas chances de ser descoberto');
+          const order = ['basic', 'pro', 'top'];
+          return (
+            <section id="destaque-pago" className="py-16 px-6 bg-black/25 border-y border-white/5">
+              <div className="max-w-7xl mx-auto">
+                <div className="text-center mb-10">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3">
+                    <span>💰 Destaque Pago</span>
+                  </h2>
+                  <p className="text-gray-300 max-w-3xl mx-auto">
+                    <span>{cta}</span>
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+                  {order.map((key) => {
+                    const p = plans?.[key] || {};
+                    const level = String(p.level || key);
+                    const label = String(p.label || key);
+                    const price = Number(p.price) || 0;
+                    const hours = Number(p.duration_hours) || 0;
+                    const days = hours >= 24 ? Math.round(hours / 24) : 0;
+                    const durationText = hours === 24 ? '24 horas' : (days ? `${days} dias` : `${hours} horas`);
+                    const accent =
+                      level === 'top'
+                        ? 'border-beatwap-gold/60 hover:border-beatwap-gold'
+                        : level === 'pro'
+                          ? 'border-purple-400/40 hover:border-purple-400/70'
+                          : 'border-white/10 hover:border-beatwap-gold/50';
+                    const badge =
+                      level === 'top'
+                        ? 'MÁXIMA EXPOSIÇÃO'
+                        : level === 'pro'
+                          ? 'MAIS VISIBILIDADE'
+                          : 'APAREÇA ACIMA';
+
+                    return (
+                      <div key={key} className={`bg-white/5 border ${accent} rounded-2xl p-6 transition-colors`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="text-sm font-extrabold text-white">{label}</div>
+                          <div className="text-[10px] font-bold text-black bg-beatwap-gold px-2 py-1 rounded-full">{badge}</div>
+                        </div>
+                        <div className="text-3xl font-extrabold text-white mb-2">R$ {price}</div>
+                        <div className="text-xs text-gray-400 mb-4">Duração: {durationText}</div>
+                        <ul className="space-y-2 text-sm text-gray-300 mb-6">
+                          <li>Aparece primeiro</li>
+                          <li>Mais visualizações</li>
+                          <li>Mais chances de clique</li>
+                        </ul>
+                        <AnimatedButton
+                          className="w-full bg-beatwap-gold text-black hover:bg-white"
+                          onClick={() => {
+                            const email = user?.email ? ` Email: ${user.email}` : '';
+                            const msg = `Olá! Quero impulsionar meu perfil com ${label} (R$ ${price}).${email}`;
+                            window.open(`https://wa.me/5519981083497?text=${encodeURIComponent(msg)}`, '_blank');
+                          }}
+                        >
+                          Impulsionar Perfil
+                        </AnimatedButton>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+          );
+        })()}
+
+        <section id="hit-da-semana" className="py-16 px-6 bg-gradient-to-b from-black/10 to-black/40 border-b border-white/5">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3">
+                <span>🔥 Hit da Semana BeatWap</span>
+              </h2>
+              <p className="text-gray-300 max-w-3xl mx-auto">
+                <span>Sua música pode ser a próxima a estourar</span>
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                <div className="text-sm text-gray-300 mb-2">
+                  Tema da semana: <span className="text-white font-bold">{hitOfWeek?.theme || 'Hit da Semana BeatWap'}</span>
+                </div>
+                <div className="text-sm text-gray-300 mb-4">
+                  Taxa: <span className="text-beatwap-gold font-extrabold">R$ {Number(hitOfWeek?.entry_fee) || 10}</span> por participação
+                </div>
+                <ul className="space-y-2 text-sm text-gray-300 mb-6">
+                  <li>🏆 Música destaque da semana</li>
+                  <li>🎧 Divulgação na plataforma</li>
+                  <li>🎤 Chance de produção</li>
+                  <li>📲 Divulgação no Instagram</li>
+                </ul>
+
+                <div className="space-y-3">
+                  <input
+                    value={hitEntryTitle}
+                    onChange={(e) => setHitEntryTitle(e.target.value)}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-beatwap-gold"
+                    placeholder="Nome da música"
+                  />
+                  <input
+                    value={hitEntryUrl}
+                    onChange={(e) => setHitEntryUrl(e.target.value)}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-beatwap-gold"
+                    placeholder="Link (YouTube, Drive, etc.)"
+                  />
+                  <AnimatedButton
+                    className="w-full bg-beatwap-gold text-black hover:bg-white disabled:opacity-60"
+                    onClick={submitHitOfWeek}
+                    disabled={hitSubmitting}
+                  >
+                    {hitSubmitting ? 'Enviando...' : 'Enviar música'}
+                  </AnimatedButton>
+                  <div className="text-xs text-gray-400">
+                    Inscrições enviadas: {Number(hitOfWeek?.entries_count) || 0}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-black/40 border border-white/10 rounded-2xl p-6">
+                <div className="text-sm font-extrabold text-white mb-3">Como funciona</div>
+                <ul className="space-y-2 text-sm text-gray-300 mb-6">
+                  <li>Toda semana um novo tema</li>
+                  <li>Envie sua música e concorra a destaque</li>
+                  <li>O produtor escolhe o vencedor (ou abre votação)</li>
+                  <li>Repete toda semana</li>
+                </ul>
+
+                <div className="text-sm font-extrabold text-white mb-3">Ideias de tema</div>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {['Sofrência que dói', 'Música de bar', 'Pisadinha apaixonada', 'Refrão chiclete', 'História de traição'].map((t) => (
+                    <span key={t} className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-200">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
         <HowItWorks />
         <Benefits />
         <ShowProduction />

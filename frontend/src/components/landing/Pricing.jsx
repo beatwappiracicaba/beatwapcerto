@@ -80,11 +80,11 @@ const Pricing = () => {
     let link = '';
 
     if (userType === 'artist') {
-        if (planKey === 'mensal') { price = 'R$ 100,00'; name = 'Plano Mensal (Artista)'; link = 'https://mpago.la/13HdzTe'; }
-        if (planKey === 'anual') { price = 'R$ 600,00'; name = 'Plano Anual (Artista)'; link = 'https://mpago.la/13wuYRF'; }
+        if (planKey === 'mensal') { price = 'R$ 100,00'; name = 'Plano Profissional (Artista)'; link = 'https://mpago.la/13HdzTe'; }
+        if (planKey === 'anual') { price = 'R$ 600,00'; name = 'Plano Elite (Artista)'; link = 'https://mpago.la/13wuYRF'; }
     } else {
-        if (planKey === 'mensal') { price = 'R$ 50,00'; name = 'Plano Mensal (Compositor)'; link = ''; }
-        if (planKey === 'anual') { price = 'R$ 600,00'; name = 'Plano Anual (Compositor)'; link = ''; }
+        if (planKey === 'mensal') { price = 'R$ 100,00'; name = 'Plano Destaque (Compositor)'; link = ''; }
+        if (planKey === 'anual') { price = 'R$ 600,00'; name = 'Plano Pro (Compositor)'; link = ''; }
     }
 
     setCustomCheckoutData({
@@ -120,7 +120,9 @@ const Pricing = () => {
             Escolha seu <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">Plano Ideal</span>
           </h2>
           <p className="text-xl text-gray-400 max-w-2xl mx-auto mb-8">
-            Potencialize sua carreira com as ferramentas certas.
+            {userType === 'artist'
+              ? 'Lance suas músicas, conecte com profissionais e leve sua carreira para o próximo nível'
+              : 'Mostre suas músicas, conecte com artistas e transforme ideias em lançamentos'}
           </p>
 
           {/* User Type Toggle */}
@@ -153,8 +155,8 @@ const Pricing = () => {
               <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center mb-4 text-purple-400">
                 <Music size={24} />
               </div>
-              <h3 className="text-xl font-bold text-white">Plano Avulso</h3>
-              <p className="text-gray-400 text-sm mt-1">Pague apenas pelo que usar</p>
+              <h3 className="text-xl font-bold text-white">{userType === 'artist' ? 'Iniciante' : 'Descoberta'}</h3>
+              <p className="text-gray-400 text-sm mt-1">{userType === 'artist' ? 'Pague apenas quando quiser lançar' : 'Mostre suas músicas quando quiser'}</p>
             </div>
 
             <div className="mb-6 bg-black/40 p-4 rounded-xl border border-white/5">
@@ -187,23 +189,27 @@ const Pricing = () => {
             <ul className="space-y-3 mb-8 flex-grow">
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-green-500 flex-shrink-0" />
-                <span>Upload de {parseInt(avulsoQuantity, 10) || 0} {userType === 'artist' ? 'música(s)' : 'composição(ões)'}</span>
+                <span>{userType === 'artist' ? 'Lance sua música na plataforma' : 'Publique sua composição'}</span>
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-yellow-500 flex-shrink-0" />
-                <span>Chat restrito (Apenas Produtores)</span>
+                <span>Chat com produtores</span>
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-yellow-500 flex-shrink-0" />
-                <span>Sem perfil público na Home</span>
+                <span>{userType === 'artist' ? 'Distribuição opcional para plataformas digitais' : 'Visibilidade dentro da plataforma'}</span>
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-yellow-500 flex-shrink-0" />
-                <span>Capa cobrada: R$ 50 por capa</span>
+                <span>Ideal para testar a plataforma</span>
+              </li>
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-yellow-500 flex-shrink-0" />
+                <span>{userType === 'artist' ? 'Música adicional: R$ 50' : 'Composição adicional: R$ 10'}</span>
               </li>
               <li className="flex gap-3 text-sm text-gray-500">
                 <User size={16} className="text-gray-600 flex-shrink-0" />
-                <span>Sem acesso a Mentoria</span>
+                <span>{userType === 'artist' ? 'Capa profissional: R$ 50' : 'Capa: R$ 50'}</span>
               </li>
             </ul>
 
@@ -221,13 +227,13 @@ const Pricing = () => {
               <div className="w-12 h-12 bg-beatwap-gold/20 rounded-xl flex items-center justify-center mb-4 text-beatwap-gold">
                 <Star size={24} />
               </div>
-              <h3 className="text-xl font-bold text-white">Mensal</h3>
-              <p className="text-gray-400 text-sm mt-1">Mentoria e visibilidade constante</p>
+              <h3 className="text-xl font-bold text-white">{userType === 'artist' ? 'Profissional' : 'Destaque'}</h3>
+              <p className="text-gray-400 text-sm mt-1">{userType === 'artist' ? 'Visibilidade + lançamentos constantes' : 'Seja encontrado por artistas'}</p>
             </div>
 
             <div className="mb-6 flex items-end justify-center sm:justify-start gap-2">
               <span className="text-4xl font-bold text-white leading-none">
-                R$ {userType === 'artist' ? '100' : '50'}
+                R$ {userType === 'artist' ? '100' : '100'}
               </span>
               <span className="text-gray-400 text-sm pb-1">/mês</span>
             </div>
@@ -237,37 +243,37 @@ const Pricing = () => {
                 <Check size={16} className="text-beatwap-gold flex-shrink-0" />
                 <span>
                   {userType === 'artist'
-                    ? '2 uploads de músicas/mês inclusos'
-                    : '2 uploads de composições/mês inclusos'}
+                    ? 'Lance até 2 músicas por mês'
+                    : 'Publique até 2 composições por mês'}
                 </span>
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-beatwap-gold flex-shrink-0" />
                 <span>
                   {userType === 'artist'
-                    ? 'Upload extra de música: R$ 40'
-                    : 'Upload extra de composição: R$ 10'}
+                    ? 'Converse com artistas, produtores e compositores'
+                    : 'Converse direto com artistas e produtores'}
                 </span>
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-beatwap-gold flex-shrink-0" />
-                <span>Chat Liberado (Todos)</span>
+                <span>Acesso à mentoria e direcionamento</span>
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-beatwap-gold flex-shrink-0" />
-                <span>Acesso a Mentoria & Marketing</span>
+                <span>{userType === 'artist' ? 'Capas gratuitas para suas músicas' : 'Capas gratuitas'}</span>
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-beatwap-gold flex-shrink-0" />
-                <span>Sem Assistente IA</span>
+                <span>{userType === 'artist' ? 'Seu perfil em destaque para ser encontrado' : 'Perfil em destaque para artistas te encontrarem'}</span>
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-beatwap-gold flex-shrink-0" />
-                <span>Capas gratuitas (sem custo)</span>
+                <span>{userType === 'artist' ? 'Mais chances de conexão e parcerias' : 'Mais visibilidade'}</span>
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-beatwap-gold flex-shrink-0" />
-                <span>Perfil público na Home</span>
+                <span>{userType === 'artist' ? 'Ideal pra quem quer crescer de verdade' : 'Perfeito pra quem quer ter música gravada'}</span>
               </li>
             </ul>
 
@@ -282,8 +288,8 @@ const Pricing = () => {
               <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mb-4 text-blue-400">
                 <CreditCard size={24} />
               </div>
-              <h3 className="text-xl font-bold text-white">Anual</h3>
-              <p className="text-gray-400 text-sm mt-1">Economia e longo prazo</p>
+              <h3 className="text-xl font-bold text-white">{userType === 'artist' ? 'Elite' : 'Pro'}</h3>
+              <p className="text-gray-400 text-sm mt-1">{userType === 'artist' ? 'Foco total em crescimento e oportunidades' : 'Máxima visibilidade e oportunidades'}</p>
             </div>
 
             <div className="mb-6 flex items-end justify-center sm:justify-start gap-2">
@@ -298,17 +304,17 @@ const Pricing = () => {
                 <Check size={16} className="text-blue-400 flex-shrink-0" />
                 <span>
                   {userType === 'artist'
-                    ? '24 uploads de músicas/ano (total)'
-                    : '24 uploads de composições/ano (total)'}
+                    ? 'Lance até 24 músicas por ano'
+                    : 'Publique até 24 composições por ano'}
                 </span>
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-blue-400 flex-shrink-0" />
-                <span>Todos benefícios do Mensal</span>
+                <span>{userType === 'artist' ? 'Acesso completo ao chat (network total)' : 'Chat liberado com todos'}</span>
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-blue-400 flex-shrink-0" />
-                <span>Chat & Mentoria Full</span>
+                <span>{userType === 'artist' ? 'Mentoria completa + marketing' : 'Mentoria completa + estratégia'}</span>
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-blue-400 flex-shrink-0" />
@@ -316,11 +322,15 @@ const Pricing = () => {
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-blue-400 flex-shrink-0" />
-                <span>Capas gratuitas (sem custo)</span>
+                <span>Capas profissionais gratuitas</span>
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-blue-400 flex-shrink-0" />
-                <span>Perfil verificado na Home</span>
+                <span>{userType === 'artist' ? 'Perfil com máxima visibilidade' : 'Perfil com destaque máximo'}</span>
+              </li>
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-blue-400 flex-shrink-0" />
+                <span>{userType === 'artist' ? 'Pra quem quer viver da música' : 'Pra quem quer transformar composição em carreira'}</span>
               </li>
             </ul>
 

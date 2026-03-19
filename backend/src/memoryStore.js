@@ -18,6 +18,46 @@ function ensureDefaults(m) {
   if (!m.artist_todos) m.artist_todos = [];
   if (!m.profileGallery) m.profileGallery = {};
   if (!m.sponsors) m.sponsors = [];
+  if (!m.featured_plans || typeof m.featured_plans !== 'object') {
+    m.featured_plans = {
+      cta: 'Apareça primeiro e aumente suas chances de ser descoberto',
+      plans: {
+        basic: { level: 'basic', label: 'Destaque Básico', price: 10, duration_hours: 24, pinned: false },
+        pro: { level: 'pro', label: 'Destaque Pro', price: 25, duration_hours: 72, pinned: false },
+        top: { level: 'top', label: 'Destaque Top', price: 50, duration_hours: 168, pinned: true }
+      },
+      updated_at: new Date().toISOString()
+    };
+  } else {
+    if (!m.featured_plans.cta) m.featured_plans.cta = 'Apareça primeiro e aumente suas chances de ser descoberto';
+    if (!m.featured_plans.plans || typeof m.featured_plans.plans !== 'object') m.featured_plans.plans = {};
+    const p = m.featured_plans.plans;
+    if (!p.basic) p.basic = { level: 'basic', label: 'Destaque Básico', price: 10, duration_hours: 24, pinned: false };
+    if (!p.pro) p.pro = { level: 'pro', label: 'Destaque Pro', price: 25, duration_hours: 72, pinned: false };
+    if (!p.top) p.top = { level: 'top', label: 'Destaque Top', price: 50, duration_hours: 168, pinned: true };
+    if (!m.featured_plans.updated_at) m.featured_plans.updated_at = new Date().toISOString();
+  }
+  if (!m.hit_of_week || typeof m.hit_of_week !== 'object') {
+    m.hit_of_week = {
+      id: `hit_${Date.now()}`,
+      theme: 'Hit da Semana BeatWap',
+      starts_at: null,
+      ends_at: null,
+      entry_fee: 10,
+      entries: [],
+      winner_entry_id: null,
+      updated_at: new Date().toISOString()
+    };
+  } else {
+    if (!m.hit_of_week.id) m.hit_of_week.id = `hit_${Date.now()}`;
+    if (!m.hit_of_week.theme) m.hit_of_week.theme = 'Hit da Semana BeatWap';
+    if (!Object.prototype.hasOwnProperty.call(m.hit_of_week, 'starts_at')) m.hit_of_week.starts_at = null;
+    if (!Object.prototype.hasOwnProperty.call(m.hit_of_week, 'ends_at')) m.hit_of_week.ends_at = null;
+    if (!Object.prototype.hasOwnProperty.call(m.hit_of_week, 'entry_fee')) m.hit_of_week.entry_fee = 10;
+    if (!Array.isArray(m.hit_of_week.entries)) m.hit_of_week.entries = [];
+    if (!Object.prototype.hasOwnProperty.call(m.hit_of_week, 'winner_entry_id')) m.hit_of_week.winner_entry_id = null;
+    if (!m.hit_of_week.updated_at) m.hit_of_week.updated_at = new Date().toISOString();
+  }
   return m;
 }
 

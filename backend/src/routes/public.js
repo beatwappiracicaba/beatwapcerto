@@ -9,29 +9,99 @@ const router = express.Router();
 
 router.get('/home', async (req, res) => {
   try {
-    const producersRaw = await Profile.findAll({ where: { cargo: 'Produtor' }, limit: 6 });
-    const sellersRaw = await Profile.findAll({ where: { cargo: 'Vendedor' }, limit: 6 });
-    const artistsRaw = await Profile.findAll({ where: { cargo: 'Artista' }, limit: 6 });
-    const composersRaw = await Profile.findAll({ where: { cargo: 'Compositor' }, limit: 6 });
+    const nowMs = Date.now();
+    const featuredWeight = (lvl) => {
+      const x = String(lvl || '').toLowerCase();
+      if (x === 'top') return 3;
+      if (x === 'pro') return 2;
+      if (x === 'basic') return 1;
+      return 0;
+    };
+    const isFeaturedActive = (row) => {
+      const ac = row?.access_control || {};
+      const f = ac?.featured && typeof ac.featured === 'object' ? ac.featured : null;
+      if (!f) return false;
+      if (f.enabled === false) return false;
+      const endsAt = f.ends_at || f.until || f.end_at || null;
+      if (!endsAt) return true;
+      const t = new Date(endsAt).getTime();
+      return Number.isFinite(t) ? t > nowMs : false;
+    };
+    const sortWithFeaturedFirst = (items) => {
+      const arr = Array.isArray(items) ? items.slice() : [];
+      return arr.sort((a, b) => {
+        const fa = isFeaturedActive(a);
+        const fb = isFeaturedActive(b);
+        if (fa !== fb) return fa ? -1 : 1;
+        if (fa && fb) {
+          const wa = featuredWeight(a?.access_control?.featured?.level);
+          const wb = featuredWeight(b?.access_control?.featured?.level);
+          if (wa !== wb) return wb - wa;
+          const pa = a?.access_control?.featured?.pinned === true;
+          const pb = b?.access_control?.featured?.pinned === true;
+          if (pa !== pb) return pb ? 1 : -1;
+          const ea = new Date(a?.access_control?.featured?.ends_at || a?.access_control?.featured?.until || 0).getTime();
+          const eb = new Date(b?.access_control?.featured?.ends_at || b?.access_control?.featured?.until || 0).getTime();
+          if (Number.isFinite(ea) && Number.isFinite(eb) && ea !== eb) return eb - ea;
+        }
+        const ca = new Date(a?.createdAt || a?.created_at || 0).getTime();
+        const cb = new Date(b?.createdAt || b?.created_at || 0).getTime();
+        return cb - ca;
+      });
+    };
+    const takeDistinctById = (items, limit) => {
+      const out = [];
+      const seen = new Set();
+      for (const it of items || []) {
+        const id = String(it?.id || '');
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        out.push(it);
+        if (out.length >= limit) break;
+      }
+      return out;
+    };
+
+    const producersRaw = await Profile.findAll({ where: { cargo: 'Produtor' } });
+    const sellersRaw = await Profile.findAll({ where: { cargo: 'Vendedor' } });
+    const artistsRaw = await Profile.findAll({ where: { cargo: 'Artista' } });
+    const composersRaw = await Profile.findAll({ where: { cargo: 'Compositor' } });
     const addDerived = (row) => {
       const ac = row?.access_control || {};
       return { ...row.toJSON?.() ? row.toJSON() : row, verified: ac?.verified === true };
     };
-    const producers = producersRaw.map(addDerived);
-    const sellers = sellersRaw.map(addDerived);
-    const artists = artistsRaw.map(addDerived);
-    const composers = composersRaw.map(addDerived);
+    const producers = takeDistinctById(sortWithFeaturedFirst(producersRaw.map(addDerived)), 30);
+    const sellers = takeDistinctById(sortWithFeaturedFirst(sellersRaw.map(addDerived)), 30);
+    const artists = takeDistinctById(sortWithFeaturedFirst(artistsRaw.map(addDerived)), 30);
+    const composers = takeDistinctById(sortWithFeaturedFirst(composersRaw.map(addDerived)), 30);
     const compositionsApproved = memory.compositions.filter(c => String(c.status).toLowerCase() === 'approved').map(c => {
       const arr = Array.isArray(memory.likes[c.id]) ? memory.likes[c.id] : [];
       return { ...c, likes_count: arr.length };
     });
+    const featuredPlans = memory.featured_plans && typeof memory.featured_plans === 'object' ? memory.featured_plans : null;
+    const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
+    const publicHit = hit ? {
+      id: hit.id,
+      theme: hit.theme,
+      starts_at: hit.starts_at || null,
+      ends_at: hit.ends_at || null,
+      entry_fee: Number(hit.entry_fee) || 10,
+      entries_count: Array.isArray(hit.entries) ? hit.entries.length : 0,
+      winner_entry_id: hit.winner_entry_id || null,
+      updated_at: hit.updated_at || null
+    } : null;
     return res.json({
       hero: { title: 'Beatwap', subtitle: 'Plataforma musical' },
-      producers, sellers, artists, composers,
+      producers: producers.slice(0, 6),
+      sellers: sellers.slice(0, 6),
+      artists: artists.slice(0, 6),
+      composers: composers.slice(0, 6),
       releases: [],
       compositions: compositionsApproved,
       projects: [],
-      sponsors: []
+      sponsors: [],
+      hit_of_week: publicHit,
+      featured_plans: featuredPlans
     });
   } catch {
     const compositionsApproved = memory.compositions.filter(c => String(c.status).toLowerCase() === 'approved').map(c => {
@@ -47,8 +117,70 @@ router.get('/home', async (req, res) => {
       releases: [],
       compositions: compositionsApproved,
       projects: [],
-      sponsors: []
+      sponsors: [],
+      hit_of_week: null,
+      featured_plans: null
     });
+  }
+});
+
+router.get('/hit-of-week', async (req, res) => {
+  try {
+    const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
+    if (!hit) return res.json(null);
+    res.json({
+      id: hit.id,
+      theme: hit.theme,
+      starts_at: hit.starts_at || null,
+      ends_at: hit.ends_at || null,
+      entry_fee: Number(hit.entry_fee) || 10,
+      entries_count: Array.isArray(hit.entries) ? hit.entries.length : 0,
+      winner_entry_id: hit.winner_entry_id || null,
+      updated_at: hit.updated_at || null
+    });
+  } catch {
+    res.json(null);
+  }
+});
+
+router.post('/hit-of-week/entries', auth, async (req, res) => {
+  try {
+    const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
+    if (!hit) return res.status(400).json({ error: 'Desafio indisponível' });
+
+    const now = Date.now();
+    const starts = hit.starts_at ? new Date(hit.starts_at).getTime() : null;
+    const ends = hit.ends_at ? new Date(hit.ends_at).getTime() : null;
+    if (Number.isFinite(starts) && starts && now < starts) {
+      return res.status(400).json({ error: 'Desafio ainda não começou' });
+    }
+    if (Number.isFinite(ends) && ends && now > ends) {
+      return res.status(400).json({ error: 'Desafio encerrado' });
+    }
+
+    const title = String(req.body?.title || '').trim();
+    const url = String(req.body?.url || '').trim();
+    if (!title) return res.status(400).json({ error: 'Título obrigatório' });
+    if (!url) return res.status(400).json({ error: 'Link obrigatório' });
+
+    const entry = {
+      id: `hit_entry_${Date.now()}`,
+      hit_id: hit.id,
+      profile_id: req.user?.id || null,
+      profile_email: req.user?.email || null,
+      title,
+      url,
+      paid: false,
+      created_at: new Date().toISOString()
+    };
+    if (!Array.isArray(hit.entries)) hit.entries = [];
+    hit.entries.unshift(entry);
+    hit.updated_at = new Date().toISOString();
+    scheduleSave();
+    emitEvent('hit_of_week.entry.created', { entry }, 'public:hit_of_week');
+    res.json({ ok: true, entry });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
   }
 });
 
