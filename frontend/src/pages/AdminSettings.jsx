@@ -50,6 +50,7 @@ export const AdminSettings = () => {
   const [loadingArtists, setLoadingArtists] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('Artista');
+  const [selectedUserId, setSelectedUserId] = useState(null);
   const [savingId, setSavingId] = useState(null);
   const [purgeTarget, setPurgeTarget] = useState(null);
   const [purgeConfirm, setPurgeConfirm] = useState('');
@@ -109,12 +110,19 @@ export const AdminSettings = () => {
   const deleteInvite = async (id) => {
     const ok = window.confirm('Excluir este convite?');
     if (!ok) return;
+    const prev = invites;
+    setInvites(prev => prev.filter(i => i.id !== id));
     try {
       await apiClient.delete(`/auth/admin/invites/${id}`);
-      setInvites(prev => prev.filter(i => i.id !== id));
       addToast('Convite excluído.', 'success');
     } catch (e) {
-      addToast(e?.message || 'Falha ao excluir convite', 'error');
+      const msg = String(e?.message || '').toLowerCase();
+      if (msg.includes('not found') || msg.includes('404')) {
+        addToast('Convite removido localmente.', 'success');
+      } else {
+        setInvites(prev);
+        addToast(e?.message || 'Falha ao excluir convite', 'error');
+      }
     }
   };
 
@@ -370,6 +378,7 @@ export const AdminSettings = () => {
 
   const filteredArtists = artists.filter(a => 
     a.cargo === activeTab &&
+    (!selectedUserId || String(a.id) === String(selectedUserId)) &&
     ((a.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
      (a.nome_completo_razao_social || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
      (a.email || '').toLowerCase().includes(searchTerm.toLowerCase()))
@@ -590,12 +599,12 @@ export const AdminSettings = () => {
               <Settings size={20} className="text-beatwap-gold" />
               Convites Enviados
             </div>
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-1 flex gap-1">
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-1 flex gap-1 overflow-x-auto whitespace-nowrap">
               {['pending','expired','used','all'].map(f => (
                 <button
                   key={f}
                   onClick={() => setInvFilter(f)}
-                  className={`px-3 py-1.5 text-xs rounded-xl font-bold ${
+                  className={`px-3 py-1.5 text-xs rounded-xl font-bold shrink-0 ${
                     invFilter === f ? 'bg-beatwap-gold text-black' : 'bg-white/5 text-gray-300 hover:bg-white/10'
                   }`}
                 >
@@ -671,6 +680,22 @@ export const AdminSettings = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full bg-black/20 border border-white/10 rounded-full pl-9 pr-4 py-2 text-sm text-white focus:border-beatwap-gold outline-none"
                 />
+              </div>
+              <div className="w-full md:hidden">
+                <select
+                  className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
+                  onChange={(e) => setSelectedUserId(e.target.value || null)}
+                >
+                  <option value="">Selecionar usuário ({roleLabel(activeTab)})</option>
+                  {artists
+                    .filter(a => a.cargo === activeTab)
+                    .sort((a,b) => (a.nome || a.nome_completo_razao_social || '').localeCompare(b.nome || b.nome_completo_razao_social || ''))
+                    .map(a => (
+                      <option key={a.id} value={a.id}>
+                        {a.nome || a.nome_completo_razao_social || a.email || `#${a.id}`}
+                      </option>
+                    ))}
+                </select>
               </div>
             </div>
           </div>

@@ -100,7 +100,8 @@ const AllCompositions = () => {
         ? c.composer_name
         : ((decryptData(p.nome) || decryptData(p.nome_completo_razao_social)) || (p.nome || p.nome_completo_razao_social) || 'Autor');
       const phone = c?.composer_phone || p.celular || p.phone || null;
-      return { ...c, composer_name: name, composer_phone: phone };
+      const avatar = p.avatar_url || p.avatar || null;
+      return { ...c, composer_name: name, composer_phone: phone, composer_avatar: avatar };
     });
   };
 
@@ -135,12 +136,14 @@ const AllCompositions = () => {
           id: key,
           name: c.composer_name || 'Compositor',
           phone: c.composer_phone || null,
+          avatar: c.composer_avatar || null,
           items: [],
         });
       }
       const g = byComposer.get(key);
       if (!g.name && c.composer_name) g.name = c.composer_name;
       if (!g.phone && c.composer_phone) g.phone = c.composer_phone;
+      if (!g.avatar && c.composer_avatar) g.avatar = c.composer_avatar;
       g.items.push(c);
     });
     const arr = Array.from(byComposer.values());
@@ -256,7 +259,7 @@ const AllCompositions = () => {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {folders.map((folder, idx) => {
-                  const cover = sanitizeUrl(folder.items[0]?.cover_url);
+                  const cover = sanitizeUrl(folder.avatar);
                   const count = folder.items.length;
                   return (
                     <div key={folder.id} className="p-4 rounded-2xl bg-white/5 border border-white/10">
@@ -273,8 +276,8 @@ const AllCompositions = () => {
                           {cover ? (
                             <img src={cover} alt={folder.name} className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-500">
-                              <Music size={40} />
+                            <div className="w-full h-full flex items-center justify-center text-black bg-gradient-to-br from-beatwap-gold to-yellow-600 text-2xl font-extrabold">
+                              {(folder.name || 'C').charAt(0).toUpperCase()}
                             </div>
                           )}
                           <div className="absolute right-2 top-2 text-xs font-bold px-2 py-1 rounded-lg bg-black/60 text-white border border-white/10">
