@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../utils/cropImage';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -481,6 +482,7 @@ export const DashboardArtistProfile = () => {
 
 export const DashboardPublicProfile = () => {
   const { profile, refreshProfile } = useAuth();
+  const navigate = useNavigate();
   const { addToast } = useToast();
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
   const [events, setEvents] = useState([]);
@@ -498,6 +500,29 @@ export const DashboardPublicProfile = () => {
   });
 
   const isArtist = String(profile?.cargo || '').toLowerCase().trim() === 'artista';
+  const planRaw = String(profile?.plano || '');
+  const planNorm = planRaw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const planAllowsPublicProfile = planNorm.includes('mensal') || planNorm.includes('anual') || planNorm.includes('vitalicio') || planNorm.includes('lifetime');
+
+  if (!(planAllowsPublicProfile || profile?.cargo === 'Vendedor')) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-3xl mx-auto space-y-6">
+          <Card className="space-y-4 p-6">
+            <div className="text-xl font-bold text-white">Ative seu Perfil Público</div>
+            <div className="text-sm text-gray-300">
+              Recurso disponível nos planos Mensal e Anual. Faça upgrade para publicar sua página e aparecer na Home.
+            </div>
+            <div className="flex gap-2">
+              <AnimatedButton onClick={() => navigate('/dashboard/profile')} className="justify-center">
+                Ir para Plano
+              </AnimatedButton>
+            </div>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   const loadEvents = async () => {
     if (!isArtist) return;
