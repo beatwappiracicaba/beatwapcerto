@@ -155,6 +155,7 @@ export const AdminSettings = () => {
           chat: true,
           finance: true,
           musics: true,
+          public_profile: true,
           work: true,
           marketing: true,
           verified: false,
@@ -457,14 +458,14 @@ export const AdminSettings = () => {
     const forced = {};
     const locked = {};
     if (!(isArtist || isComposer)) return { forced, locked };
-    const keys = isArtist ? ['musics','compositions','work','marketing','finance','chat'] : ['compositions','marketing','finance','chat'];
+    const keys = isArtist ? ['musics','compositions','work','marketing','finance','chat','public_profile'] : ['compositions','marketing','finance','chat','public_profile'];
     let allow = [];
     if (!nplan || nplan.includes('sem')) {
       allow = [];
     } else if (nplan.includes('avulso')) {
       allow = isComposer ? ['compositions','chat'] : ['musics','chat'];
     } else if (nplan.includes('mensal') || nplan.includes('anual') || nplan.includes('vital')) {
-      allow = isComposer ? ['compositions','marketing','finance','chat'] : ['musics','compositions','work','marketing','finance','chat'];
+      allow = isComposer ? ['compositions','marketing','finance','chat','public_profile'] : ['musics','compositions','work','marketing','finance','chat','public_profile'];
     }
     keys.forEach((k) => {
       forced[k] = allow.includes(k);
@@ -969,6 +970,16 @@ export const AdminSettings = () => {
                                       handlePermissionChange(artist.id, 'chat', !artist.access_control.chat);
                                     }}
                                   />
+                                  <PermissionPill
+                                    enabled={getPermState(artist, 'public_profile').enabled}
+                                    locked={getPermState(artist, 'public_profile').locked}
+                                    label="Perfil Público"
+                                    onClick={() => {
+                                      const s = getPermState(artist, 'public_profile');
+                                      if (s.locked) return;
+                                      handlePermissionChange(artist.id, 'public_profile', !artist.access_control.public_profile);
+                                    }}
+                                  />
                                 </div>
                               </div>
                             </>
@@ -979,6 +990,7 @@ export const AdminSettings = () => {
                                 <div className="flex flex-wrap gap-2">
                                   {[
                                     { key: 'musics', label: 'Músicas' },
+                                { key: 'compositions', label: 'Composições' },
                                     { key: 'work', label: 'Agenda / Afazeres' },
                                     { key: 'marketing', label: 'Marketing' },
                                     { key: 'finance', label: 'Financeiro' },
@@ -1008,6 +1020,16 @@ export const AdminSettings = () => {
                                       const s = getPermState(artist, 'chat');
                                       if (s.locked) return;
                                       handlePermissionChange(artist.id, 'chat', !artist.access_control.chat);
+                                    }}
+                                  />
+                                  <PermissionPill
+                                    enabled={getPermState(artist, 'public_profile').enabled}
+                                    locked={getPermState(artist, 'public_profile').locked}
+                                    label="Perfil Público"
+                                    onClick={() => {
+                                      const s = getPermState(artist, 'public_profile');
+                                      if (s.locked) return;
+                                      handlePermissionChange(artist.id, 'public_profile', !artist.access_control.public_profile);
                                     }}
                                   />
                                 </div>

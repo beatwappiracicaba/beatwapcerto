@@ -32,7 +32,8 @@ export const DashboardLayout = ({ children }) => {
     work: !isCompositor, 
     marketing: true, 
     chat: true,
-    finance: true
+    finance: true,
+    public_profile: true
   };
   let permissions = { ...defaultPermissions, ...(profile?.access_control || {}) };
   let allowAI = true;
@@ -45,24 +46,24 @@ export const DashboardLayout = ({ children }) => {
       allowAI = false;
     } else if (normalizedPlan.includes('avulso')) {
       if (isCompositor) {
-        permissions = { ...permissions, musics: false, compositions: true, work: false, marketing: false, finance: false, chat: true };
+        permissions = { ...permissions, musics: false, compositions: true, work: false, marketing: false, finance: false, chat: true, public_profile: false };
       } else {
-        permissions = { ...permissions, musics: true, compositions: false, work: false, marketing: false, finance: false, chat: true };
+        permissions = { ...permissions, musics: true, compositions: false, work: false, marketing: false, finance: false, chat: true, public_profile: false };
       }
       allowAI = false;
     } else if (normalizedPlan.includes('mensal')) {
       if (isCompositor) {
-        permissions = { ...permissions, musics: false, compositions: true, chat: true };
+        permissions = { ...permissions, musics: false, compositions: true, chat: true, public_profile: true };
         allowAI = false;
       } else {
-        permissions = { ...permissions, musics: true, compositions: true, work: true, marketing: true, chat: true, finance: true };
+        permissions = { ...permissions, musics: true, compositions: true, work: true, marketing: true, chat: true, finance: true, public_profile: true };
         allowAI = false;
       }
     } else if (normalizedPlan.includes('anual')) {
       if (isCompositor) {
-        permissions = { ...permissions, musics: false, compositions: true, chat: true };
+        permissions = { ...permissions, musics: false, compositions: true, chat: true, public_profile: true };
       } else {
-        permissions = { ...permissions, musics: true, compositions: true, work: true, marketing: true, chat: true, finance: true };
+        permissions = { ...permissions, musics: true, compositions: true, work: true, marketing: true, chat: true, finance: true, public_profile: true };
       }
       allowAI = true;
     }
@@ -96,6 +97,7 @@ export const DashboardLayout = ({ children }) => {
     if (path.includes('/dashboard/work') && permissions.work === false) return false;
     if (path.includes('/dashboard/marketing') && permissions.marketing === false) return false;
     if (path.includes('/dashboard/finance') && permissions.finance === false) return false;
+    if (path.includes('/dashboard/gestao/perfil-publico') && (!planAllowsPublicProfile || permissions.public_profile === false)) return false;
     return true;
   };
 
@@ -284,7 +286,7 @@ export const DashboardLayout = ({ children }) => {
                     }`}
                   >
                     <div className="mt-1 space-y-1">
-                      {planAllowsPublicProfile ? (
+                    {planAllowsPublicProfile && permissions.public_profile !== false ? (
                         <NavLink
                           to="/dashboard/gestao/perfil-publico"
                           className={({ isActive }) =>
@@ -443,17 +445,28 @@ export const DashboardLayout = ({ children }) => {
                   }`}
                 >
                   <div className="mt-1 space-y-1">
-                    <NavLink
-                      to="/dashboard/gestao/perfil-publico"
-                      className={({ isActive }) =>
-                        `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
-                          isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
-                        }`
-                      }
-                    >
-                      <User size={14} />
-                      <span>Perfil Público</span>
-                    </NavLink>
+                    {planAllowsPublicProfile && permissions.public_profile !== false ? (
+                      <NavLink
+                        to="/dashboard/gestao/perfil-publico"
+                        className={({ isActive }) =>
+                          `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
+                            isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
+                          }`
+                        }
+                      >
+                        <User size={14} />
+                        <span>Perfil Público</span>
+                      </NavLink>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={openUpgradeModal}
+                        className="w-full text-left flex items-center gap-2 px-5 py-2 rounded-xl transition-colors hover:bg-white/5 text-gray-400"
+                      >
+                        <User size={14} />
+                        <span>Perfil Público</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
