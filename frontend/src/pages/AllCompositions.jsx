@@ -52,20 +52,56 @@ const AllCompositions = () => {
   const fetchAll = async () => {
     try {
       const data = await apiClient.get('/compositions');
-      const mapped = (data || []).map(c => ({
-        ...c,
-        composer_id: c?.composer_id || c?.composerId || c?.user_id || c?.userId || c?.profile_id || c?.profileId,
-        composer_name: decryptData(c?.composer_name || c?.author_name || c?.nome_autor || c?.nome_compositor || c?.nome || '') || 'Autor',
-        composer_phone: c?.composer_phone || c?.celular || c?.whatsapp || c?.phone || null
-      })).sort((a, b) => {
+      const mapped = (data || []).map(c => {
+        const rawName = c?.composer_name || c?.author_name || c?.nome_autor || c?.nome_compositor || c?.nome || '';
+        const decName = decryptData(rawName);
+        return {
+          ...c,
+          composer_id: c?.composer_id || c?.composerId || c?.user_id || c?.userId || c?.profile_id || c?.profileId,
+          composer_name: decName || rawName || 'Autor',
+          composer_phone: c?.composer_phone || c?.celular || c?.whatsapp || c?.phone || null
+        };
+      }).sort((a, b) => {
         const da = new Date(a.created_at || a.createdAt || 0).getTime();
         const db = new Date(b.created_at || b.createdAt || 0).getTime();
         return db - da;
       });
-      setList(mapped);
+      const enriched = await enrichFromProfiles(mapped);
+      setList(enriched || mapped);
     } catch {
       setList([]);
     }
+  };
+
+  const enrichFromProfiles = async (comps) => {
+    const missing = new Set();
+    (comps || []).forEach((c) => {
+      const id = c?.composer_id;
+      if (!id) return;
+      const hasName = !!(c?.composer_name && c.composer_name !== 'Autor');
+      const hasPhone = !!formatWhatsAppPhone(c?.composer_phone);
+      if (!hasName || !hasPhone) missing.add(String(id));
+    });
+    const ids = Array.from(missing);
+    if (!ids.length) return comps;
+    const results = await Promise.allSettled(ids.map((id) => apiClient.get(`/profiles/${id}`, { cache: true, cacheTtlMs: 15000 })));
+    const byId = new Map();
+    results.forEach((r) => {
+      if (r.status !== 'fulfilled') return;
+      const p = r.value;
+      if (!p?.id) return;
+      byId.set(String(p.id), p);
+    });
+    return (comps || []).map((c) => {
+      const id = c?.composer_id;
+      const p = id ? byId.get(String(id)) : null;
+      if (!p) return c;
+      const name = (c?.composer_name && c.composer_name !== 'Autor')
+        ? c.composer_name
+        : ((decryptData(p.nome) || decryptData(p.nome_completo_razao_social)) || (p.nome || p.nome_completo_razao_social) || 'Autor');
+      const phone = c?.composer_phone || p.celular || p.phone || null;
+      return { ...c, composer_name: name, composer_phone: phone };
+    });
   };
 
   const togglePlay = (id, url) => {

@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { MusicUploadModal } from '../components/artist/MusicUploadModal';
-import { Plus, DollarSign, Folder, ChevronDown, ChevronRight, MessageCircle } from 'lucide-react';
+import { Plus, DollarSign, Folder, ChevronDown, ChevronRight, MessageCircle, Play, Pause } from 'lucide-react';
 import { decryptData } from '../utils/security';
 
 export const DashboardArtistHome = () => {
@@ -15,8 +15,13 @@ export const DashboardArtistHome = () => {
   const [loading, setLoading] = useState(true);
   const [latestCompositions, setLatestCompositions] = useState([]);
   const [canViewCompositions, setCanViewCompositions] = useState(true);
+  const [playingTrack, setPlayingTrack] = useState(null);
+  const [audioElement, setAudioElement] = useState(null);
+  const [isPaused, setIsPaused] = useState(false);
 
   const isCompositor = profile?.cargo && profile.cargo.toLowerCase().trim() === 'compositor';
+
+  const sanitizeUrl = (u) => String(u || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
 
   const buildWhatsAppHref = useCallback((rawPhone, title) => {
     const dec = decryptData(rawPhone);
@@ -214,6 +219,7 @@ export const DashboardArtistHome = () => {
             composer_name,
             composer_phone,
             cover_url: c?.cover_url || null,
+            audio_url: c?.audio_url || null,
             created_at: c?.created_at
           };
         });
@@ -232,6 +238,28 @@ export const DashboardArtistHome = () => {
       fetchLatestCompositions();
     }
   }, [user, enrichCompositionsFromProfiles]);
+
+  const togglePlay = (id, url) => {
+    if (!url) return;
+    if (playingTrack === id && audioElement) {
+      if (isPaused) {
+        audioElement.play();
+        setIsPaused(false);
+      } else {
+        audioElement.pause();
+        setIsPaused(true);
+      }
+      return;
+    }
+    if (audioElement) {
+      audioElement.pause();
+    }
+    const audio = new Audio(url);
+    audio.play().catch(() => {});
+    setAudioElement(audio);
+    setIsPaused(false);
+    setPlayingTrack(id);
+  };
   return (
     <DashboardLayout>
       {!isCompositor && (
@@ -315,12 +343,28 @@ export const DashboardArtistHome = () => {
                   const safeCover = String(item.cover_url || '').replace(/^[`'"]+|[`'"]+$/g, '').trim();
                   return (
                   <div key={item.id} className="rounded-xl bg-white/5 border border-white/10 p-4 hover:bg-white/10 transition-colors">
-                    <div className="w-full aspect-square rounded-xl overflow-hidden bg-gray-800">
+                    <div
+                      className="w-full aspect-square rounded-xl overflow-hidden bg-gray-800 relative cursor-pointer"
+                      onClick={() => togglePlay(item.id, sanitizeUrl(item.audio_url))}
+                    >
                       {safeCover ? (
                         <img src={safeCover} alt={item.titulo || item.title} className="w-full h-full object-cover" draggable={false} style={{ userSelect: 'none' }} />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">Capa</div>
                       )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button
+                          className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePlay(item.id, sanitizeUrl(item.audio_url));
+                          }}
+                        >
+                          {playingTrack === item.id && !isPaused
+                            ? <Pause fill="currentColor" className="ml-1" />
+                            : <Play fill="currentColor" className="ml-1" />}
+                        </button>
+                      </div>
                     </div>
                     <div className="mt-3">
                       <div className="text-white font-bold text-sm truncate">{item.titulo || item.title}</div>
