@@ -48,15 +48,12 @@ export const DashboardArtistHome = () => {
   }, []);
 
   const enrichCompositionsFromProfiles = useCallback(async (comps) => {
-    const missingIds = new Set();
+    const idsSet = new Set();
     (comps || []).forEach((c) => {
       const authorId = c?.composer_id;
-      if (!authorId) return;
-      const hasName = !!(c?.composer_name && c.composer_name !== 'Autor');
-      const hasPhone = !!formatWhatsAppPhone(c?.composer_phone);
-      if (!hasName || !hasPhone) missingIds.add(String(authorId));
+      if (authorId) idsSet.add(String(authorId));
     });
-    const ids = Array.from(missingIds);
+    const ids = Array.from(idsSet);
     if (!ids.length) return comps;
 
     const results = await Promise.allSettled(
@@ -70,7 +67,14 @@ export const DashboardArtistHome = () => {
       byId.set(String(p.id), p);
     });
 
-    return (comps || []).map((c) => {
+    const filtered = (comps || []).filter((c) => {
+      const p = c?.composer_id ? byId.get(String(c.composer_id)) : null;
+      if (!p) return true;
+      const plan = String(p.plano || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return !plan.includes('avulso');
+    });
+
+    return filtered.map((c) => {
       const authorId = c?.composer_id;
       const p = authorId ? byId.get(String(authorId)) : null;
       if (!p) return c;
