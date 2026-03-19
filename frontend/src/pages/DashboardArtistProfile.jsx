@@ -503,8 +503,10 @@ export const DashboardPublicProfile = () => {
   const planRaw = String(profile?.plano || '');
   const planNorm = planRaw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
   const planAllowsPublicProfile = planNorm.includes('mensal') || planNorm.includes('anual') || planNorm.includes('vitalicio') || planNorm.includes('lifetime');
+  const planOverride = !!profile?.access_control?.plan_override;
+  const permPublicProfile = profile?.access_control?.public_profile !== false;
 
-  if (!(planAllowsPublicProfile || profile?.cargo === 'Vendedor')) {
+  if (!((planAllowsPublicProfile || planOverride) && permPublicProfile) && profile?.cargo !== 'Vendedor') {
     return (
       <DashboardLayout>
         <div className="max-w-3xl mx-auto space-y-6">

@@ -159,6 +159,7 @@ export const AdminSettings = () => {
           work: true,
           marketing: true,
           verified: false,
+          plan_override: false,
           admin_artists: true,
           admin_composers: true,
           admin_musics: true,
@@ -318,9 +319,11 @@ export const AdminSettings = () => {
     try {
       const policy = planPolicyFor(artist);
       const enforced = { ...(artist.access_control || {}) };
-      Object.keys(policy.forced || {}).forEach((k) => {
-        enforced[k] = !!policy.forced[k];
-      });
+      if (!enforced.plan_override) {
+        Object.keys(policy.forced || {}).forEach((k) => {
+          enforced[k] = !!policy.forced[k];
+        });
+      }
       const payload = { access_control: enforced };
       try {
         await apiClient.put(`/profiles/${artist.id}/access-control`, payload);
@@ -453,12 +456,19 @@ export const AdminSettings = () => {
   const planPolicyFor = (artist) => {
     const role = artist?.cargo || '';
     const nplan = normalize(artist?.plano || '');
+    const override = !!artist?.access_control?.plan_override;
     const isArtist = role === 'Artista';
     const isComposer = role === 'Compositor';
     const forced = {};
     const locked = {};
     if (!(isArtist || isComposer)) return { forced, locked };
     const keys = isArtist ? ['musics','compositions','work','marketing','finance','chat','public_profile'] : ['compositions','marketing','finance','chat','public_profile'];
+    if (override) {
+      keys.forEach((k) => {
+        locked[k] = false;
+      });
+      return { forced, locked };
+    }
     let allow = [];
     if (!nplan || nplan.includes('sem')) {
       allow = [];
@@ -1039,6 +1049,45 @@ export const AdminSettings = () => {
                         </div>
 
                         <div className="lg:col-span-3 space-y-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = !artist?.access_control?.plan_override;
+                              const updated = {
+                                ...artist,
+                                access_control: {
+                                  ...(artist.access_control || {}),
+                                  plan_override: next,
+                                },
+                              };
+                              setArtists((prev) => prev.map((a) => (a.id === artist.id ? updated : a)));
+                            }}
+                            disabled={savingId === artist.id}
+                            className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border transition-colors ${
+                              artist?.access_control?.plan_override
+                                ? 'bg-blue-500/10 border-blue-400/30 hover:bg-blue-500/15'
+                                : 'bg-black/20 border-white/10 hover:border-white/20'
+                            } ${savingId === artist.id ? 'opacity-60 cursor-not-allowed' : ''}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${
+                                artist?.access_control?.plan_override ? 'border-blue-400/30 bg-blue-500/10' : 'border-white/10 bg-white/5'
+                              }`}>
+                                <Lock size={16} className={artist?.access_control?.plan_override ? 'text-blue-400' : 'text-gray-400'} />
+                              </div>
+                              <div className="text-left">
+                                <div className="text-sm font-extrabold text-white leading-tight">Override bloqueios do plano</div>
+                                <div className="text-xs text-gray-400">{artist?.access_control?.plan_override ? 'Ativo' : 'Inativo'}</div>
+                              </div>
+                            </div>
+                            <div className={`w-11 h-6 rounded-full p-1 transition-colors ${
+                              artist?.access_control?.plan_override ? 'bg-blue-500' : 'bg-white/10'
+                            }`}>
+                              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                                artist?.access_control?.plan_override ? 'translate-x-5' : 'translate-x-0'
+                              }`} />
+                            </div>
+                          </button>
                           <button
                             type="button"
                             onClick={() => toggleVerified(artist)}

@@ -26,6 +26,7 @@ export const DashboardLayout = ({ children }) => {
     normalizedPlan.includes('vitalicio') ||
     normalizedPlan.includes('lifetime');
   const isLifetime = normalizedPlan.includes('vitalicio') || normalizedPlan.includes('lifetime');
+  const planOverride = !!profile?.access_control?.plan_override;
   const defaultPermissions = { 
     musics: !isCompositor, 
     compositions: isCompositor,
@@ -37,7 +38,7 @@ export const DashboardLayout = ({ children }) => {
   };
   let permissions = { ...defaultPermissions, ...(profile?.access_control || {}) };
   let allowAI = true;
-  if (!isProdutor && !isVendedor) {
+  if (!isProdutor && !isVendedor && !planOverride) {
     if (isLifetime) {
       permissions = { ...permissions, musics: true, compositions: true, work: true, marketing: true, chat: true, finance: true };
       allowAI = true;
@@ -445,7 +446,7 @@ export const DashboardLayout = ({ children }) => {
                   }`}
                 >
                   <div className="mt-1 space-y-1">
-                    {planAllowsPublicProfile && permissions.public_profile !== false ? (
+                    {(permissions.public_profile !== false) && (planAllowsPublicProfile || planOverride) ? (
                       <NavLink
                         to="/dashboard/gestao/perfil-publico"
                         className={({ isActive }) =>
