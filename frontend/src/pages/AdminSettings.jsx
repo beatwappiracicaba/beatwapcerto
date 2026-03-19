@@ -57,6 +57,7 @@ export const AdminSettings = () => {
   const [purgeConfirm, setPurgeConfirm] = useState('');
   const [purgeAcknowledge, setPurgeAcknowledge] = useState(false);
   const [purgeLoading, setPurgeLoading] = useState(false);
+  const [purgePin, setPurgePin] = useState('');
 
   const validEmail = String(form.email).trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
 
@@ -374,6 +375,7 @@ export const AdminSettings = () => {
     setPurgeTarget(artist);
     setPurgeConfirm('');
     setPurgeAcknowledge(false);
+    setPurgePin('');
   };
 
   const closePurgeModal = () => {
@@ -381,6 +383,7 @@ export const AdminSettings = () => {
     setPurgeTarget(null);
     setPurgeConfirm('');
     setPurgeAcknowledge(false);
+    setPurgePin('');
   };
 
   const purgeAccount = async () => {
@@ -392,6 +395,10 @@ export const AdminSettings = () => {
     }
     if (!purgeAcknowledge) {
       addToast('Confirme que você entende que esta ação é permanente.', 'error');
+      return;
+    }
+    if (String(purgePin || '').trim() !== '18084907') {
+      addToast('PIN incorreto', 'error');
       return;
     }
     setPurgeLoading(true);
@@ -459,28 +466,48 @@ export const AdminSettings = () => {
     const override = !!artist?.access_control?.plan_override;
     const isArtist = role === 'Artista';
     const isComposer = role === 'Compositor';
+    const isProducer = role === 'Produtor';
+    const isSeller = role === 'Vendedor';
     const forced = {};
     const locked = {};
-    if (!(isArtist || isComposer)) return { forced, locked };
-    const keys = isArtist ? ['musics','compositions','work','marketing','finance','chat','public_profile'] : ['compositions','marketing','finance','chat','public_profile'];
+    // Define keys by role
+    const keys =
+      isArtist
+        ? ['musics','compositions','work','marketing','finance','chat','public_profile']
+        : isComposer
+          ? ['compositions','marketing','finance','chat','public_profile']
+          : isProducer
+            ? ['admin_artists','admin_composers','admin_sellers','admin_musics','admin_compositions','admin_sponsors','admin_settings','admin_finance','marketing','chat']
+            : isSeller
+              ? ['seller_artists','seller_calendar','seller_leads','seller_finance','seller_proposals','seller_communications','chat']
+              : [];
+    if (!keys.length) return { forced, locked };
     if (override) {
       keys.forEach((k) => {
         locked[k] = false;
       });
       return { forced, locked };
     }
-    let allow = [];
-    if (!nplan || nplan.includes('sem')) {
-      allow = [];
-    } else if (nplan.includes('avulso')) {
-      allow = isComposer ? ['compositions','chat'] : ['musics','chat'];
-    } else if (nplan.includes('mensal') || nplan.includes('anual') || nplan.includes('vital')) {
-      allow = isComposer ? ['compositions','marketing','finance','chat','public_profile'] : ['musics','compositions','work','marketing','finance','chat','public_profile'];
+    // For Artist/Composer, apply plan-based allowlist; for others, lock to current state
+    if (isArtist || isComposer) {
+      let allow = [];
+      if (!nplan || nplan.includes('sem')) {
+        allow = [];
+      } else if (nplan.includes('avulso')) {
+        allow = isComposer ? ['compositions','chat'] : ['musics','chat'];
+      } else if (nplan.includes('mensal') || nplan.includes('anual') || nplan.includes('vital')) {
+        allow = isComposer ? ['compositions','marketing','finance','chat','public_profile'] : ['musics','compositions','work','marketing','finance','chat','public_profile'];
+      }
+      keys.forEach((k) => {
+        forced[k] = allow.includes(k);
+        locked[k] = true;
+      });
+    } else {
+      keys.forEach((k) => {
+        forced[k] = artist?.access_control?.[k] !== false;
+        locked[k] = true;
+      });
     }
-    keys.forEach((k) => {
-      forced[k] = allow.includes(k);
-      locked[k] = true;
-    });
     return { forced, locked };
   };
   const getPermState = (artist, key) => {
@@ -1191,6 +1218,14 @@ export const AdminSettings = () => {
                 className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-beatwap-gold outline-none"
               />
 
+              <input
+                type="password"
+                value={purgePin}
+                onChange={(e) => setPurgePin(e.target.value)}
+                placeholder="PIN (PIM)"
+                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-beatwap-gold outline-none"
+              />
+
               <label className="flex items-start gap-3 p-3 rounded-2xl bg-black/20 border border-white/10 cursor-pointer">
                 <input
                   type="checkbox"
@@ -1212,7 +1247,7 @@ export const AdminSettings = () => {
                   onClick={purgeAccount}
                   variant="danger"
                   isLoading={purgeLoading}
-                  disabled={String(purgeConfirm || '').trim() !== `APAGAR ${purgeTarget.email}` || !purgeAcknowledge}
+                  disabled={String(purgeConfirm || '').trim() !== `APAGAR ${purgeTarget.email}` || !purgeAcknowledge || String(purgePin || '').trim() !== '18084907'}
                   className="px-4"
                 >
                   Apagar definitivamente
