@@ -62,6 +62,27 @@ function codeTemplate(code) {
   `;
 }
 
+function resetPasswordTemplate(link) {
+  return `
+  <div style="font-family: Inter, Arial; background:#0b0b0f; padding:48px 24px; color:#e5e7eb;">
+    <div style="max-width:600px;margin:0 auto;background:#11121a;border:1px solid #1f2335;border-radius:16px;overflow:hidden;">
+      <div style="padding:28px 28px 0;">
+        <h1 style="margin:0;font-size:24px;line-height:1.3;color:#c084fc;">Redefinição de Senha</h1>
+        <p style="margin:12px 0 0;color:#9ca3af;">Recebemos uma solicitação para redefinir sua senha.</p>
+      </div>
+      <div style="padding:24px 28px;">
+        <a href="${link}"
+           style="display:inline-block;padding:14px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;">
+           Redefinir Senha
+        </a>
+        <p style="margin:16px 0 0;font-size:12px;color:#9ca3af;">Se não foi você, ignore este email.</p>
+      </div>
+      <div style="height:4px;background:linear-gradient(90deg,#7c3aed,#a78bfa);"></div>
+    </div>
+  </div>
+  `;
+}
+
 async function sendInviteEmail(email, token, opts = {}) {
   const base = process.env.APP_PUBLIC_URL || 'https://www.beatwap.com.br';
   const useQuery = String(process.env.INVITE_LINK_STYLE || '').toLowerCase() === 'query';
@@ -132,8 +153,26 @@ async function sendCodeEmail(email, code) {
   return info;
 }
 
+async function sendPasswordResetEmail(email, link) {
+  const info = await transporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to: email,
+    subject: 'Redefinição de Senha',
+    html: resetPasswordTemplate(link)
+  });
+  console.log('reset-email', {
+    to: email,
+    messageId: info && info.messageId,
+    accepted: info && info.accepted,
+    rejected: info && info.rejected,
+    response: info && info.response
+  });
+  return info;
+}
+
 module.exports = {
   transporter,
   sendInviteEmail,
-  sendCodeEmail
+  sendCodeEmail,
+  sendPasswordResetEmail
 };

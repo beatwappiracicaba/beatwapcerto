@@ -1,44 +1,47 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Card } from '../components/ui/Card';
 import { useToast } from '../context/ToastContext';
 import { apiClient } from '../services/apiClient';
-import { Mail, Hash, Lock, RefreshCw } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { AuthLayout } from '../components/AuthLayout';
 
 export default function ResetPassword() {
   const { addToast } = useToast();
-  const [email, setEmail] = useState('');
+  const navigate = useNavigate();
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
-  const [step, setStep] = useState(1);
+  const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const requestCode = async () => {
-    try {
-      setLoading(true);
-      await apiClient.post('/auth/forgot-password', { email });
-      addToast('Enviamos um código para seu email, se existir uma conta.', 'success');
-      setStep(2);
-    } catch (e) {
-      addToast(e?.message || 'Erro ao solicitar código', 'error');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const c = params.get('code') || '';
+    setCode(c);
+  }, []);
+
+  const submit = async () => {
+    if (!password || password.length < 6) {
+      addToast('A senha deve ter pelo menos 6 caracteres', 'error');
+      return;
     }
-  };
-
-  const resendCode = requestCode;
-
-  const verifyAndReset = async () => {
+    if (password !== confirm) {
+      addToast('As senhas não conferem', 'error');
+      return;
+    }
     try {
       setLoading(true);
-      await apiClient.post('/auth/verify-reset-code', { email, code });
-      await apiClient.post('/auth/reset-password', { email, code, password });
-      addToast('Senha alterada com sucesso!', 'success');
-      setStep(3);
+      const resp = await apiClient.post('/auth/reset-password', { code, newPassword: password });
+      if (resp?.success) {
+        addToast('Senha redefinida com sucesso', 'success');
+        navigate('/login');
+      } else {
+        addToast(resp?.message || 'Código inválido ou expirado', 'error');
+      }
     } catch (e) {
-      addToast(e?.message || 'Código inválido', 'error');
+      addToast(e?.message || 'Código inválido ou expirado', 'error');
     } finally {
       setLoading(false);
     }
@@ -48,54 +51,27 @@ export default function ResetPassword() {
     <AuthLayout>
       <div className="max-w-md mx-auto">
         <Card className="space-y-5">
-          <div className="text-center text-xl font-extrabold text-white">Recuperar senha</div>
-          {step === 1 && (
-            <>
-              <AnimatedInput
-                label="Email"
-                type="email"
-                icon={Mail}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="seu@email.com"
-              />
-              <AnimatedButton onClick={requestCode} isLoading={loading} className="w-full justify-center">
-                Enviar código
-              </AnimatedButton>
-            </>
-          )}
-          {step === 2 && (
-            <>
-              <AnimatedInput
-                label="Código"
-                icon={Hash}
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="6 dígitos"
-              />
-              <AnimatedInput
-                label="Nova senha"
-                type="password"
-                icon={Lock}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
-              />
-              <div className="flex gap-2">
-                <AnimatedButton onClick={verifyAndReset} isLoading={loading} className="flex-1 justify-center">
-                  Trocar senha
-                </AnimatedButton>
-                <AnimatedButton onClick={resendCode} variant="secondary" isLoading={loading} className="flex-1 justify-center">
-                  <RefreshCw size={16} className="mr-2" /> Reenviar código
-                </AnimatedButton>
-              </div>
-            </>
-          )}
-          {step === 3 && (
-            <div className="text-center text-green-400">
-              Senha alterada. Faça login com sua nova senha.
-            </div>
-          )}
+          <div className="text-center text-xl font-extrabold text-white">Redefinir senha</div>
+          <div className="text-xs text-gray-400 text-center -mt-3">Insira sua nova senha</div>
+          <AnimatedInput
+            label="Nova senha"
+            type="password"
+            icon={Lock}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Mínimo 6 caracteres"
+          />
+          <AnimatedInput
+            label="Confirmar senha"
+            type="password"
+            icon={Lock}
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="Repita a senha"
+          />
+          <AnimatedButton onClick={submit} isLoading={loading} className="w-full justify-center">
+            Redefinir Senha
+          </AnimatedButton>
         </Card>
       </div>
     </AuthLayout>

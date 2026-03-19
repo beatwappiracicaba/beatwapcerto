@@ -4,8 +4,9 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { Profile, Invite } = require('../models');
 const { auth } = require('../middleware/auth');
-const { sendInviteEmail, sendCodeEmail } = require('../services/mailer');
+const { sendInviteEmail, sendCodeEmail, sendPasswordResetEmail } = require('../services/mailer');
 const { logAudit } = require('../services/auditLogger');
+const { v4: uuidv4 } = require('uuid');
 
 const router = express.Router();
 
@@ -228,17 +229,24 @@ router.post('/register-with-invite', async (req, res) => {
 router.post('/forgot-password', async (req, res) => {
   try {
     const email = String(req.body.email || '').trim().toLowerCase();
-    if (!email) return res.json({ ok: true });
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email não cadastrado' });
+    }
     const user = await Profile.findOne({ where: { email } });
-    if (!user) return res.json({ ok: true });
-    const code = generateCode();
+    if (!user) {
+      return res.json({ success: false, message: 'Email não cadastrado' });
+    }
+    const code = uuidv4();
+    const expires = new Date(Date.now() + 60 * 60 * 1000);
     user.reset_code = code;
-    user.reset_expires = new Date(Date.now() + 10 * 60 * 1000);
+    user.reset_expires = expires;
     await user.save();
-    await sendCodeEmail(email, code).catch(() => {});
-    return res.json({ ok: true });
+    const base = process.env.APP_PUBLIC_URL || 'https://www.beatwap.com.br';
+    const link = `${base.replace(/\/+$/, '')}/reset-password?code=${encodeURIComponent(code)}`;
+    await sendPasswordResetEmail(email, link).catch(() => {});
+    return res.json({ success: true, message: 'Email de redefinição enviado' });
   } catch {
-    return res.status(500).json({ ok: false, error: 'Erro interno' });
+    return res.status(500).json({ success: false, message: 'Erro interno' });
   }
 });
 
@@ -257,20 +265,24 @@ router.post('/verify-reset-code', async (req, res) => {
 
 router.post('/reset-password', async (req, res) => {
   try {
-    const email = String(req.body.email || '').trim().toLowerCase();
     const code = String(req.body.code || '').trim();
-    const password = String(req.body.password || '');
-    const user = await Profile.findOne({ where: { email } });
+    const newPassword = String(req.body.newPassword || req.body.password || '').trim();
+    if (!code || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Código inválido ou expirado' });
+    }
+    const user = await Profile.findOne({ where: { reset_code: code } });
     const valid = !!user && user.reset_code === code && new Date(user.reset_expires) > new Date();
-    if (!valid) return res.status(400).json({ ok: false, error: 'Código inválido' });
-    const hash = await bcrypt.hash(password, 10);
+    if (!valid) {
+      return res.status(400).json({ success: false, message: 'Código inválido ou expirado' });
+    }
+    const hash = await bcrypt.hash(newPassword, 10);
     user.password_hash = hash;
     user.reset_code = null;
     user.reset_expires = null;
     await user.save();
-    return res.json({ ok: true });
+    return res.json({ success: true, message: 'Senha redefinida com sucesso' });
   } catch {
-    return res.status(500).json({ ok: false, error: 'Erro interno' });
+    return res.status(500).json({ success: false, message: 'Erro interno' });
   }
 });
 

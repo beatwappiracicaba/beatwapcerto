@@ -17,6 +17,7 @@ import Register from '../pages/Register';
 import RegisterInvite from '../pages/RegisterInvite';
 import InviteInvalid from '../pages/InviteInvalid';
 import ResetPassword from '../pages/ResetPassword';
+import ForgotPassword from '../pages/ForgotPassword';
 import AuthCallback from '../pages/AuthCallback';
 import Terms from '../pages/Terms';
 import Privacy from '../pages/Privacy';
@@ -126,6 +127,7 @@ export const AppRoutes = () => {
           <Route path="/register" element={<Register />} />
           <Route path="/register/invite" element={<RegisterInvite />} />
           <Route path="/register/invite-invalid" element={<InviteInvalid />} />
+          <Route path="/forgot" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
         </Route>
         
