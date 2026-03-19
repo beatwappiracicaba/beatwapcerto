@@ -18,7 +18,12 @@ export const DashboardLayout = ({ children }) => {
   const [openSections, setOpenSections] = useState({ trabalhos: false, trabalhoSeller: false, financeiroSeller: false, gestao: false });
 
   const plan = String(profile?.plano || '');
-  const normalizedPlan = plan.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const normalizedPlan = plan.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const planAllowsPublicProfile =
+    normalizedPlan.includes('mensal') ||
+    normalizedPlan.includes('anual') ||
+    normalizedPlan.includes('vitalicio') ||
+    normalizedPlan.includes('lifetime');
   const isLifetime = normalizedPlan.includes('vitalicio') || normalizedPlan.includes('lifetime');
   const defaultPermissions = { 
     musics: !isCompositor, 
@@ -77,7 +82,7 @@ export const DashboardLayout = ({ children }) => {
   );
   const financeiroSellerActive = location.pathname.startsWith('/seller/finance');
   const gestaoActive = location.pathname.startsWith('/dashboard/gestao');
-  const showGestao = (!normalizedPlan.includes('avulso')) && !isVendedor && (isCompositor || !isCompositor);
+  const showGestao = planAllowsPublicProfile && !isVendedor;
 
   const hasAccess = () => {
     if (isVendedor) return true; // Vendedor has access to their specific routes (handled by router)

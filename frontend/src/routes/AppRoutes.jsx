@@ -112,8 +112,12 @@ export const AppRoutes = () => {
   const isProdutor = profile?.cargo === 'Produtor';
   const isCompositor = profile?.cargo === 'Compositor';
   const isVendedor = profile?.cargo === 'Vendedor';
-  const planNorm = String(profile?.plano || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const isAvulsoPlan = planNorm.includes('avulso');
+  const planNorm = String(profile?.plano || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const planAllowsPublicProfile =
+    planNorm.includes('mensal') ||
+    planNorm.includes('anual') ||
+    planNorm.includes('vitalicio') ||
+    planNorm.includes('lifetime');
 
   return (
       <Routes location={location}>
@@ -140,7 +144,7 @@ export const AppRoutes = () => {
         <Route path="/dashboard/musics" element={isArtista ? <DashboardArtistMusics /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/compositions" element={(isArtista || isCompositor) ? <DashboardCompositions /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/profile" element={(isArtista || isCompositor || isVendedor) ? <DashboardArtistProfile /> : <Navigate to="/" replace />} />
-        <Route path="/dashboard/gestao/perfil-publico" element={((isArtista || isCompositor) && !isAvulsoPlan) || isVendedor ? <DashboardPublicProfile /> : <Navigate to="/" replace />} />
+        <Route path="/dashboard/gestao/perfil-publico" element={((isArtista || isCompositor) && planAllowsPublicProfile) || isVendedor ? <DashboardPublicProfile /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/chat" element={(isArtista || isCompositor) ? <DashboardArtistChat /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/work" element={isArtista ? <DashboardWork /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/marketing" element={(isArtista || isCompositor) ? <DashboardMarketing /> : <Navigate to="/" replace />} />
