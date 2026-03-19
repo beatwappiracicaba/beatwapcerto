@@ -6,7 +6,6 @@ import { Card } from '../components/ui/Card';
 import { useToast } from '../context/ToastContext';
 import { apiClient } from '../services/apiClient';
 import { Hash, Lock, Mail } from 'lucide-react';
-import { AuthLayout } from '../components/AuthLayout';
 
 export default function ResetPassword() {
   const { addToast } = useToast();
@@ -71,11 +70,10 @@ export default function ResetPassword() {
   };
 
   return (
-    <AuthLayout>
-      <div className="max-w-md mx-auto">
-        <Card className="space-y-5">
-          <div className="text-center text-xl font-extrabold text-white">Redefinir senha</div>
-          <div className="text-xs text-gray-400 text-center -mt-3">Insira sua nova senha</div>
+    <div className="max-w-md mx-auto w-full">
+      <Card className="space-y-5">
+        <div className="text-center text-xl font-extrabold text-white">Redefinir senha</div>
+        <div className="text-xs text-gray-400 text-center -mt-3">Insira sua nova senha</div>
           <AnimatedInput
             label="Código"
             type="text"
@@ -128,8 +126,7 @@ export default function ResetPassword() {
           <AnimatedButton onClick={submit} isLoading={loading} className="w-full justify-center">
             Redefinir Senha
           </AnimatedButton>
-        </Card>
-      </div>
-    </AuthLayout>
+      </Card>
+    </div>
   );
 }
