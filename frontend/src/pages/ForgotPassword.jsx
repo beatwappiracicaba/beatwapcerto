@@ -21,10 +21,11 @@ export default function ForgotPassword() {
         addToast('Verifique seu email', 'success');
         setSent(true);
       } else {
-        addToast('Email não cadastrado', 'error');
+        addToast(resp?.message || 'Email não cadastrado', 'error');
       }
     } catch (e) {
-      addToast('Erro ao enviar email de redefinição', 'error');
+      const msg = e?.message || 'Email não cadastrado';
+      addToast(msg, 'error');
     } finally {
       setLoading(false);
     }

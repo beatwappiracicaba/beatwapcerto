@@ -20,6 +20,8 @@ export const DashboardArtistHome = () => {
   const [isPaused, setIsPaused] = useState(false);
 
   const isCompositor = profile?.cargo && profile.cargo.toLowerCase().trim() === 'compositor';
+  const planNorm = String(profile?.plano || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const isAvulsoPlan = planNorm.includes('avulso');
 
   const sanitizeUrl = (u) => String(u || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
 
@@ -260,9 +262,15 @@ export const DashboardArtistHome = () => {
     };
     if (user) {
       fetchMetrics();
-      fetchLatestCompositions();
+      if (isAvulsoPlan) {
+        setCanViewCompositions(false);
+        setLatestCompositions([]);
+      } else {
+        setCanViewCompositions(true);
+        fetchLatestCompositions();
+      }
     }
-  }, [user, enrichCompositionsFromProfiles]);
+  }, [user, enrichCompositionsFromProfiles, isAvulsoPlan]);
 
   const togglePlay = (id, url) => {
     if (!url) return;

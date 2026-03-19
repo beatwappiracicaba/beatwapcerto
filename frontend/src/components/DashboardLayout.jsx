@@ -77,7 +77,7 @@ export const DashboardLayout = ({ children }) => {
   );
   const financeiroSellerActive = location.pathname.startsWith('/seller/finance');
   const gestaoActive = location.pathname.startsWith('/dashboard/gestao');
-  const showGestao = !normalizedPlan.includes('avulso') && !isVendedor;
+  const showGestao = (!normalizedPlan.includes('avulso')) && !isVendedor && (isCompositor || !isCompositor);
 
   const hasAccess = () => {
     if (isVendedor) return true; // Vendedor has access to their specific routes (handled by router)
