@@ -4,7 +4,7 @@ import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AdminLayout } from '../components/AdminLayout';
 import { useToast } from '../context/ToastContext';
-import { Mail, User, Settings, Shield, Search, Save, Check, Loader, Trash2, X } from 'lucide-react';
+import { Mail, User, Settings, Shield, Search, Save, Check, Loader, Trash2, X, Lock } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 import { connectRealtime, subscribe, unsubscribe } from '../services/realtime';
 
