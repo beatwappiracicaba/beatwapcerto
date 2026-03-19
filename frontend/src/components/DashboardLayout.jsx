@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutGrid, Music, Menu, X, TrendingUp, Lock, Users, User, Calendar, Target, FileText, MessageCircle, DollarSign, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ChatButton } from './FloatingChat/ChatButton';
@@ -9,6 +9,7 @@ import { ProfileButton } from './ProfileButton';
 
 export const DashboardLayout = ({ children }) => {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
   const isProdutor = profile?.cargo?.toLowerCase() === 'produtor';
   const isVendedor = profile?.cargo?.toLowerCase() === 'vendedor';
   const isAdmin = isProdutor || isVendedor; // Treat Vendor as Admin for Chat purposes
@@ -82,7 +83,10 @@ export const DashboardLayout = ({ children }) => {
   );
   const financeiroSellerActive = location.pathname.startsWith('/seller/finance');
   const gestaoActive = location.pathname.startsWith('/dashboard/gestao');
-  const showGestao = planAllowsPublicProfile && !isVendedor;
+  const showGestao = !isVendedor;
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const openUpgradeModal = () => setShowUpgradeModal(true);
+  const closeUpgradeModal = () => setShowUpgradeModal(false);
 
   const hasAccess = () => {
     if (isVendedor) return true; // Vendedor has access to their specific routes (handled by router)
@@ -280,17 +284,28 @@ export const DashboardLayout = ({ children }) => {
                     }`}
                   >
                     <div className="mt-1 space-y-1">
-                      <NavLink
-                        to="/dashboard/gestao/perfil-publico"
-                        className={({ isActive }) =>
-                          `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
-                            isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
-                          }`
-                        }
-                      >
-                        <User size={14} />
-                        <span>Perfil Público</span>
-                      </NavLink>
+                      {planAllowsPublicProfile ? (
+                        <NavLink
+                          to="/dashboard/gestao/perfil-publico"
+                          className={({ isActive }) =>
+                            `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
+                              isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
+                            }`
+                          }
+                        >
+                          <User size={14} />
+                          <span>Perfil Público</span>
+                        </NavLink>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={openUpgradeModal}
+                          className="w-full text-left flex items-center gap-2 px-5 py-2 rounded-xl transition-colors hover:bg-white/5 text-gray-400"
+                        >
+                          <User size={14} />
+                          <span>Perfil Público</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -489,6 +504,34 @@ export const DashboardLayout = ({ children }) => {
           <ChatButton isAdmin={isAdmin} currentUserId={currentUserId} />
           <ChatWindow currentUserId={currentUserId} allowAI={allowAI} />
         </>
+      )}
+      
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70" onClick={closeUpgradeModal} />
+          <div className="relative w-full max-w-md bg-[#121212] border border-white/10 rounded-2xl p-6 space-y-4">
+            <div className="text-lg font-bold text-white">Recurso exclusivo de planos</div>
+            <div className="text-sm text-gray-300">
+              O Perfil Público está disponível nos planos Mensal e Anual. Faça upgrade para ativar sua página pública e aparecer na Home.
+            </div>
+            <div className="flex gap-2 justify-end pt-2">
+              <button
+                type="button"
+                onClick={closeUpgradeModal}
+                className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-white/10"
+              >
+                Agora não
+              </button>
+              <button
+                type="button"
+                onClick={() => { closeUpgradeModal(); navigate('/dashboard/profile'); }}
+                className="px-4 py-2 rounded-xl bg-beatwap-gold text-beatwap-black font-bold hover:brightness-95"
+              >
+                Ir para Plano
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
