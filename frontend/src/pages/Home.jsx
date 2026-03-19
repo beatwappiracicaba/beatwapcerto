@@ -228,8 +228,9 @@ const Home = () => {
         const db = new Date(b.created_at || b.createdAt || 0).getTime();
         return db - da;
       });
-      setLatestCompositions(mapped);
-      enrichCompositionsFromProfiles(mapped)
+      const capped = mapped.slice(0, 10);
+      setLatestCompositions(capped);
+      enrichCompositionsFromProfiles(capped)
         .then((enriched) => setLatestCompositions(enriched))
         .catch(() => void 0);
 
@@ -297,7 +298,7 @@ const Home = () => {
         if (!a._rd && b._rd) return 1;
         return new Date(b.created_at) - new Date(a.created_at);
       });
-      const combined = [...upcoming, ...pastOrNoDate].slice(0, 8).map(r => {
+      const combined = [...upcoming, ...pastOrNoDate].slice(0, 10).map(r => {
         const o = { ...r };
         delete o._rd;
         delete o._isUpcoming;
@@ -322,8 +323,9 @@ const Home = () => {
         const db = new Date(b.created_at || b.createdAt || 0).getTime();
         return db - da;
       });
-      setLatestCompositions(mapped);
-      enrichCompositionsFromProfiles(mapped)
+      const capped = mapped.slice(0, 10);
+      setLatestCompositions(capped);
+      enrichCompositionsFromProfiles(capped)
         .then((enriched) => setLatestCompositions(enriched))
         .catch(() => void 0);
     } catch (error) {

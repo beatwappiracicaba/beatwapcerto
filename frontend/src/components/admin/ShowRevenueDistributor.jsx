@@ -3,7 +3,7 @@ import { Card } from '../ui/Card';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
 import { apiClient } from '../../services/apiClient';
-import { DollarSign, Check, Calendar, User, FileText } from 'lucide-react';
+import { DollarSign, Check, Calendar, User, FileText, Trash2 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { FinanceDistributionModal } from '../finance/FinanceDistributionModal';
 
@@ -38,6 +38,22 @@ export const ShowRevenueDistributor = () => {
   useEffect(() => {
     fetchEvents();
   }, [fetchEvents]);
+
+  const handleDeleteEvent = async (eventId) => {
+    const ok = window.confirm('Excluir este evento? Esta ação não pode ser desfeita.');
+    if (!ok) return;
+    const prev = events;
+    setEvents(prev => prev.filter(e => e.id !== eventId));
+    try {
+      await apiClient.del(`/events/${eventId}`);
+      addToast('Evento excluído com sucesso.', 'success');
+      // Garantir sincronização com outras telas
+      fetchEvents();
+    } catch (e) {
+      setEvents(prev);
+      addToast(e?.message || 'Falha ao excluir evento', 'error');
+    }
+  };
 
   const handleSelectEvent = (event) => {
     setSelectedEvent(event);
@@ -117,6 +133,19 @@ export const ShowRevenueDistributor = () => {
                             <div className="mt-2 text-sm font-bold text-green-400">
                                 {formatCurrency(event.revenue)}
                             </div>
+                        )}
+                        {event.status !== 'pago' && (
+                          <div className="mt-3 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleDeleteEvent(event.id); }}
+                              className="inline-flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-white/10"
+                              title="Excluir evento"
+                            >
+                              <Trash2 size={14} />
+                              Excluir
+                            </button>
+                          </div>
                         )}
                     </div>
                 ))}

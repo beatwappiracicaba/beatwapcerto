@@ -81,8 +81,9 @@ export const DashboardArtistHome = () => {
           : ((decryptData(p.nome) || decryptData(p.nome_completo_razao_social)) || (p.nome || p.nome_completo_razao_social) || 'Autor');
 
       const phone = c?.composer_phone || p.celular || p.phone || null;
+      const avatar = p.avatar_url || p.avatar || null;
 
-      return { ...c, composer_name: name, composer_phone: phone };
+      return { ...c, composer_name: name, composer_phone: phone, composer_avatar: avatar };
     });
   }, [formatWhatsAppPhone]);
 
@@ -197,12 +198,12 @@ export const DashboardArtistHome = () => {
     const fetchLatestCompositions = async () => {
       try {
         // Primary source: latest partner-recorded compositions
-        let list = await apiClient.get('/compositions/latest?limit=12');
+        let list = await apiClient.get('/compositions/latest?limit=10');
         if (!Array.isArray(list) || list.length === 0) {
           // Fallback: public compositions list (approved handled server-side when using /home; otherwise map client-side)
           const home = await apiClient.get('/home', { cache: true, cacheTtlMs: 15000 });
           const comps = Array.isArray(home?.compositions) ? home.compositions : [];
-          list = comps.slice(0, 12);
+          list = comps.slice(0, 10);
         }
         const mapped = (Array.isArray(list) ? list : []).map((c) => {
           const title = c?.title || c?.titulo || 'Sem título';
@@ -222,7 +223,11 @@ export const DashboardArtistHome = () => {
             audio_url: c?.audio_url || null,
             created_at: c?.created_at
           };
-        });
+        }).sort((a, b) => {
+          const da = new Date(a.created_at || 0).getTime();
+          const db = new Date(b.created_at || 0).getTime();
+          return db - da;
+        }).slice(0, 10);
         setLatestCompositions(mapped);
         enrichCompositionsFromProfiles(mapped)
           .then((enriched) => setLatestCompositions(enriched))
@@ -368,7 +373,18 @@ export const DashboardArtistHome = () => {
                     </div>
                     <div className="mt-3">
                       <div className="text-white font-bold text-sm truncate">{item.titulo || item.title}</div>
-                      <div className="text-gray-400 text-xs truncate">{item.composer_name || 'Autor'}</div>
+                      <div className="flex items-center gap-2 text-gray-300 text-xs truncate">
+                        <div className="w-5 h-5 rounded-full overflow-hidden bg-gray-700 shrink-0">
+                          {item.composer_avatar ? (
+                            <img src={item.composer_avatar} alt={item.composer_name || 'Autor'} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-[10px] text-black bg-gradient-to-br from-beatwap-gold to-yellow-600">
+                              {(item.composer_name || 'A').charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <span className="truncate">{item.composer_name || 'Autor'}</span>
+                      </div>
                       {item.composer_phone ? (
                         <>
                           <div className="mt-2 text-xs text-gray-400">

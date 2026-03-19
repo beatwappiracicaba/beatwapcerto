@@ -51,6 +51,7 @@ export const AdminSettings = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('Artista');
   const [selectedUserId, setSelectedUserId] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
   const [savingId, setSavingId] = useState(null);
   const [purgeTarget, setPurgeTarget] = useState(null);
   const [purgeConfirm, setPurgeConfirm] = useState('');
@@ -189,6 +190,23 @@ export const AdminSettings = () => {
 
   useEffect(() => {
     checkSchema();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      setIsMobile(false);
+      return;
+    }
+    const mq = window.matchMedia('(max-width: 768px)');
+    const update = () => setIsMobile(!!mq.matches);
+    update();
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', update);
+      return () => mq.removeEventListener('change', update);
+    } else {
+      mq.onchange = update;
+      return () => { mq.onchange = null; };
+    }
   }, []);
 
 
@@ -376,13 +394,17 @@ export const AdminSettings = () => {
     }
   };
 
-  const filteredArtists = artists.filter(a => 
-    a.cargo === activeTab &&
-    (!selectedUserId || String(a.id) === String(selectedUserId)) &&
-    ((a.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-     (a.nome_completo_razao_social || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-     (a.email || '').toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredArtists = artists.filter(a => {
+    if (a.cargo !== activeTab) return false;
+    if (!selectedUserId) return false;
+    if (String(a.id) !== String(selectedUserId)) return false;
+    const term = searchTerm.toLowerCase();
+    return (
+      (a.nome || '').toLowerCase().includes(term) ||
+      (a.nome_completo_razao_social || '').toLowerCase().includes(term) ||
+      (a.email || '').toLowerCase().includes(term)
+    );
+  });
 
   const roleTabs = ['Artista', 'Compositor', 'Produtor', 'Vendedor'];
   const roleLabel = (tab) => (tab === 'Artista' ? 'Artistas' : tab === 'Compositor' ? 'Compositores' : tab === 'Produtor' ? 'Produtores' : 'Vendedores');
@@ -681,7 +703,7 @@ export const AdminSettings = () => {
                   className="w-full bg-black/20 border border-white/10 rounded-full pl-9 pr-4 py-2 text-sm text-white focus:border-beatwap-gold outline-none"
                 />
               </div>
-              <div className="w-full md:hidden">
+              <div className="w-full md:w-72">
                 <select
                   className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
                   onChange={(e) => setSelectedUserId(e.target.value || null)}
@@ -730,6 +752,8 @@ export const AdminSettings = () => {
 
             {loadingArtists ? (
               <div className="text-center py-8 text-gray-500">Carregando...</div>
+            ) : !selectedUserId ? (
+              <div className="text-center py-8 text-gray-500">Selecione um usuário para editar as permissões.</div>
             ) : filteredArtists.length === 0 ? (
               <div className="text-center py-8 text-gray-500">Nenhum usuário encontrado nesta categoria.</div>
             ) : (
