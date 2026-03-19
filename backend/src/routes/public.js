@@ -390,6 +390,18 @@ router.get('/events', async (req, res) => {
   res.json(memory.events);
 });
 
+// Get single event by id
+router.get('/events/:id', async (req, res) => {
+  try {
+    const id = String(req.params.id || '').trim();
+    const item = (memory.events || []).find(e => e.id === id);
+    if (!item) return res.status(404).json({ error: 'Evento não encontrado' });
+    res.json(item);
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 // Create a public show event for the logged artist
 router.post('/events', auth, async (req, res) => {
   try {
