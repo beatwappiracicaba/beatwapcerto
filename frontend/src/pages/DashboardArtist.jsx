@@ -19,7 +19,8 @@ export const DashboardArtistHome = () => {
   const isCompositor = profile?.cargo && profile.cargo.toLowerCase().trim() === 'compositor';
 
   const buildWhatsAppHref = useCallback((rawPhone, title) => {
-    const raw = decryptData(rawPhone);
+    const dec = decryptData(rawPhone);
+    const raw = dec || rawPhone;
     const digits = String(raw || '').replace(/\D/g, '');
     if (!digits) return null;
     const phone = digits.startsWith('55') ? digits : `55${digits}`;
@@ -28,7 +29,8 @@ export const DashboardArtistHome = () => {
   }, []);
 
   const formatWhatsAppPhone = useCallback((rawPhone) => {
-    const raw = decryptData(rawPhone);
+    const dec = decryptData(rawPhone);
+    const raw = dec || rawPhone;
     const digits = String(raw || '').replace(/\D/g, '');
     if (!digits) return null;
     const normalized = digits.startsWith('55') ? digits : `55${digits}`;
@@ -71,7 +73,7 @@ export const DashboardArtistHome = () => {
       const name =
         (c?.composer_name && c.composer_name !== 'Autor')
           ? c.composer_name
-          : (decryptData(p.nome) || decryptData(p.nome_completo_razao_social) || 'Autor');
+          : ((decryptData(p.nome) || decryptData(p.nome_completo_razao_social)) || (p.nome || p.nome_completo_razao_social) || 'Autor');
 
       const phone = c?.composer_phone || p.celular || p.phone || null;
 
@@ -201,7 +203,8 @@ export const DashboardArtistHome = () => {
           const title = c?.title || c?.titulo || 'Sem título';
           const composer_id = c?.composer_id || c?.composerId || c?.composer_partner_id || c?.composer_partnerId || c?.user_id || c?.userId || c?.profile_id || c?.profileId || null;
           const composer_name_raw = c?.composer_name || c?.author_name || c?.nome_autor || c?.nome_compositor || c?.nome_artista || c?.nome || '';
-          const composer_name = decryptData(composer_name_raw) || 'Autor';
+          const decrypted_name = decryptData(composer_name_raw);
+          const composer_name = decrypted_name || composer_name_raw || 'Autor';
           const composer_phone = c?.composer_phone || c?.celular || c?.whatsapp || c?.phone || null;
           return {
             ...c,
@@ -308,11 +311,13 @@ export const DashboardArtistHome = () => {
               <div className="text-sm text-gray-500">Nenhuma composição recente.</div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {latestCompositions.map((item) => (
+                {latestCompositions.map((item) => {
+                  const safeCover = String(item.cover_url || '').replace(/^[`'"]+|[`'"]+$/g, '').trim();
+                  return (
                   <div key={item.id} className="rounded-xl bg-white/5 border border-white/10 p-4 hover:bg-white/10 transition-colors">
                     <div className="w-full aspect-square rounded-xl overflow-hidden bg-gray-800">
-                      {item.cover_url ? (
-                        <img src={item.cover_url} alt={item.titulo || item.title} className="w-full h-full object-cover" draggable={false} style={{ userSelect: 'none' }} />
+                      {safeCover ? (
+                        <img src={safeCover} alt={item.titulo || item.title} className="w-full h-full object-cover" draggable={false} style={{ userSelect: 'none' }} />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">Capa</div>
                       )}
@@ -342,7 +347,8 @@ export const DashboardArtistHome = () => {
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </Card>
