@@ -8,7 +8,7 @@ import { MessageBubble } from './MessageBubble';
 import { AnimatedInput } from '../ui/AnimatedInput';
 import { AIChatView } from './AIChatView';
 
-export const ChatWindow = ({ currentUserId }) => {
+export const ChatWindow = ({ currentUserId, allowAI = true }) => {
   const { 
     chats, 
     isOpen, 
@@ -489,25 +489,27 @@ export const ChatWindow = ({ currentUserId }) => {
               <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-beatwap-gold" />
             )}
           </button>
-          <button
-            onClick={() => setActiveTab('ai')}
-            className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors relative ${
-              activeTab === 'ai' ? 'text-white' : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            <Bot size={16} />
-            Assistente de IA
-            {activeTab === 'ai' && (
-              <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-beatwap-gold" />
-            )}
-          </button>
+          {allowAI && (
+            <button
+              onClick={() => setActiveTab('ai')}
+              className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors relative ${
+                activeTab === 'ai' ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              <Bot size={16} />
+              Assistente de IA
+              {activeTab === 'ai' && (
+                <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-beatwap-gold" />
+              )}
+            </button>
+          )}
         </div>
       </div>
 
       {/* Content */}
       <div ref={scrollContainerRef} className={`flex-1 bg-black/20 relative flex flex-col ${activeTab === 'chat' ? 'overflow-y-auto' : 'overflow-hidden'}`}>
         
-        {activeTab === 'ai' ? (
+        {activeTab === 'ai' && allowAI ? (
           <AIChatView userName={user?.user_metadata?.nome || 'Artista'} />
         ) : (
           <>

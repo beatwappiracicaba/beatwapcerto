@@ -80,10 +80,10 @@ const Pricing = () => {
     let link = '';
 
     if (userType === 'artist') {
-        if (planKey === 'mensal') { price = 'R$ 200,00'; name = 'Plano Mensal (Artista)'; link = 'https://mpago.la/13HdzTe'; }
-        if (planKey === 'anual') { price = 'R$ 1.200,00'; name = 'Plano Anual (Artista)'; link = 'https://mpago.la/13wuYRF'; }
+        if (planKey === 'mensal') { price = 'R$ 100,00'; name = 'Plano Mensal (Artista)'; link = 'https://mpago.la/13HdzTe'; }
+        if (planKey === 'anual') { price = 'R$ 600,00'; name = 'Plano Anual (Artista)'; link = 'https://mpago.la/13wuYRF'; }
     } else {
-        if (planKey === 'mensal') { price = 'R$ 100,00'; name = 'Plano Mensal (Compositor)'; link = ''; }
+        if (planKey === 'mensal') { price = 'R$ 50,00'; name = 'Plano Mensal (Compositor)'; link = ''; }
         if (planKey === 'anual') { price = 'R$ 600,00'; name = 'Plano Anual (Compositor)'; link = ''; }
     }
 
@@ -193,6 +193,10 @@ const Pricing = () => {
                 <Check size={16} className="text-yellow-500 flex-shrink-0" />
                 <span>Chat restrito (Apenas Produtores)</span>
               </li>
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-yellow-500 flex-shrink-0" />
+                <span>Capa cobrada: R$ 50 por capa</span>
+              </li>
               <li className="flex gap-3 text-sm text-gray-500">
                 <User size={16} className="text-gray-600 flex-shrink-0" />
                 <span>Sem acesso a Mentoria</span>
@@ -219,7 +223,7 @@ const Pricing = () => {
 
             <div className="mb-6 flex items-end justify-center sm:justify-start gap-2">
               <span className="text-4xl font-bold text-white leading-none">
-                R$ {userType === 'artist' ? '200' : '100'}
+                R$ {userType === 'artist' ? '100' : '50'}
               </span>
               <span className="text-gray-400 text-sm pb-1">/mês</span>
             </div>
@@ -251,7 +255,11 @@ const Pricing = () => {
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-beatwap-gold flex-shrink-0" />
-                <span>Assistente IA incluso</span>
+                <span>Sem Assistente IA</span>
+              </li>
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-beatwap-gold flex-shrink-0" />
+                <span>Capas gratuitas (sem custo)</span>
               </li>
             </ul>
 
@@ -272,7 +280,7 @@ const Pricing = () => {
 
             <div className="mb-6 flex items-end justify-center sm:justify-start gap-2">
               <span className="text-4xl font-bold text-white leading-none">
-                R$ {userType === 'artist' ? '1.200' : '600'}
+                R$ {userType === 'artist' ? '600' : '600'}
               </span>
               <span className="text-gray-400 text-sm pb-1">/ano</span>
             </div>
@@ -293,6 +301,18 @@ const Pricing = () => {
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-blue-400 flex-shrink-0" />
                 <span>Chat & Mentoria Full</span>
+              </li>
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-blue-400 flex-shrink-0" />
+                <span>Assistente IA incluso</span>
+              </li>
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-blue-400 flex-shrink-0" />
+                <span>Capas gratuitas (sem custo)</span>
+              </li>
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-blue-400 flex-shrink-0" />
+                <span>Perfil verificado na Home</span>
               </li>
             </ul>
 
@@ -327,8 +347,23 @@ const Pricing = () => {
                   <CreditCard className="text-beatwap-gold" size={20} />
                 </div>
                 <div>
-                  <h4 className="font-bold text-white text-lg">Divisão Justa de Royalties</h4>
-                  <p className="text-gray-400 text-sm">75% para o artista e 25% para a plataforma.</p>
+                  <h4 className="font-bold text-white text-lg">Royalties e Distribuição</h4>
+                  <p className="text-gray-400 text-sm">
+                    Planos pagos: não cobramos percentual de royalties. Podemos ouvir sua música e, se gostarmos,
+                    distribuímos nas plataformas sem custo e ficamos com 50% dos royalties.
+                  </p>
+                  <p className="text-gray-400 text-sm mt-2">
+                    Royalties são valores pagos pelas plataformas pelo uso da sua música (streams, downloads, execuções),
+                    repassados aos detentores dos direitos.
+                  </p>
+                  <div className="mt-3">
+                    <AnimatedButton 
+                      onClick={() => window.open('https://wa.me/5519981083497?text=Quero%20enviar%20minha%20m%C3%BAsica%20para%20an%C3%A1lise', '_blank')}
+                      className="bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30"
+                    >
+                      Envie sua música para análise
+                    </AnimatedButton>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-4">
@@ -365,7 +400,7 @@ const Pricing = () => {
 
             <div className="bg-gradient-to-r from-beatwap-gold/20 to-beatwap-gold/5 rounded-3xl p-8 border border-beatwap-gold/20 text-center">
               <p className="text-lg md:text-xl font-medium text-white italic">
-                Cobramos menos no lançamento e trabalhamos em parceria: o artista fica com 75% dos ganhos e a plataforma com 25%, de forma clara e sem taxas escondidas.
+                Planos pagos: 0% de royalties para a plataforma. Distribuição opcional por curadoria: 50/50 sobre os royalties.
               </p>
             </div>
           </div>

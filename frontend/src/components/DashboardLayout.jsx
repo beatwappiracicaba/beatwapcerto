@@ -17,7 +17,6 @@ export const DashboardLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [openSections, setOpenSections] = useState({ trabalhos: false, trabalhoSeller: false, financeiroSeller: false, gestao: false });
 
-  // Default permissions (all enabled) if not set
   const plan = String(profile?.plano || '');
   const normalizedPlan = plan.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const isLifetime = normalizedPlan.includes('vitalicio') || normalizedPlan.includes('lifetime');
@@ -29,8 +28,41 @@ export const DashboardLayout = ({ children }) => {
     chat: true,
     finance: true
   };
-  const mergedPermissions = { ...defaultPermissions, ...(profile?.access_control || {}) };
-  const permissions = isLifetime ? { ...mergedPermissions, musics: true, compositions: true, work: true, marketing: true, chat: true, finance: true } : mergedPermissions;
+  let permissions = { ...defaultPermissions, ...(profile?.access_control || {}) };
+  let allowAI = true;
+  if (!isProdutor && !isVendedor) {
+    if (isLifetime) {
+      permissions = { ...permissions, musics: true, compositions: true, work: true, marketing: true, chat: true, finance: true };
+      allowAI = true;
+    } else if (normalizedPlan.includes('sem') || normalizedPlan === '' || normalizedPlan.includes('sem plano')) {
+      permissions = { ...permissions, musics: false, compositions: false, work: false, marketing: false, chat: false, finance: false };
+      allowAI = false;
+    } else if (normalizedPlan.includes('avulso')) {
+      if (isCompositor) {
+        permissions = { ...permissions, musics: false, compositions: true, work: false, marketing: false, finance: false, chat: true };
+      } else {
+        permissions = { ...permissions, musics: true, compositions: false, work: false, marketing: false, finance: false, chat: true };
+      }
+      allowAI = false;
+    } else if (normalizedPlan.includes('mensal')) {
+      if (isCompositor) {
+        permissions = { ...permissions, musics: false, compositions: true, chat: true };
+        allowAI = false;
+      } else {
+        permissions = { ...permissions, musics: true, compositions: true, work: true, marketing: true, chat: true, finance: true };
+        allowAI = false;
+      }
+    } else if (normalizedPlan.includes('anual')) {
+      if (isCompositor) {
+        permissions = { ...permissions, musics: false, compositions: true, chat: true };
+      } else {
+        permissions = { ...permissions, musics: true, compositions: true, work: true, marketing: true, chat: true, finance: true };
+      }
+      allowAI = true;
+    }
+  } else {
+    allowAI = true;
+  }
 
   const location = useLocation();
 
@@ -447,7 +479,7 @@ export const DashboardLayout = ({ children }) => {
       {permissions.chat !== false && (
         <>
           <ChatButton isAdmin={isAdmin} currentUserId={currentUserId} />
-          <ChatWindow isAdmin={isAdmin} currentUserId={currentUserId} />
+          <ChatWindow currentUserId={currentUserId} allowAI={allowAI} />
         </>
       )}
     </div>

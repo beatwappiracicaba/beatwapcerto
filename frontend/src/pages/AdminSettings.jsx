@@ -296,6 +296,10 @@ export const AdminSettings = () => {
   const handlePermissionChange = (artistId, key, value) => {
     setArtists(artists.map(a => {
       if (a.id === artistId) {
+        const policy = planPolicyFor(a);
+        if (policy?.locked?.[key]) {
+          return a;
+        }
         return {
           ...a,
           access_control: {
@@ -311,7 +315,12 @@ export const AdminSettings = () => {
   const savePermissions = async (artist) => {
     setSavingId(artist.id);
     try {
-      const payload = { access_control: artist.access_control };
+      const policy = planPolicyFor(artist);
+      const enforced = { ...(artist.access_control || {}) };
+      Object.keys(policy.forced || {}).forEach((k) => {
+        enforced[k] = !!policy.forced[k];
+      });
+      const payload = { access_control: enforced };
       try {
         await apiClient.put(`/profiles/${artist.id}/access-control`, payload);
       } catch (e) {
@@ -410,7 +419,7 @@ export const AdminSettings = () => {
   const roleLabel = (tab) => (tab === 'Artista' ? 'Artistas' : tab === 'Compositor' ? 'Compositores' : tab === 'Produtor' ? 'Produtores' : 'Vendedores');
   const roleCount = (tab) => artists.filter((a) => a.cargo === tab).length;
 
-  const PermissionPill = ({ enabled, label, onClick }) => (
+  const PermissionPill = ({ enabled, label, onClick, locked = false }) => (
     <button
       type="button"
       onClick={onClick}
@@ -418,7 +427,8 @@ export const AdminSettings = () => {
         enabled
           ? 'bg-beatwap-gold/15 text-beatwap-gold border-beatwap-gold/40 hover:bg-beatwap-gold/20'
           : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/20 hover:text-gray-200'
-      }`}
+      } ${locked ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}`}
+      aria-disabled={locked}
     >
       <span className={`h-2 w-2 rounded-full ${enabled ? 'bg-beatwap-gold' : 'bg-gray-500'}`} />
       <span className="whitespace-nowrap">{label}</span>
@@ -429,8 +439,46 @@ export const AdminSettings = () => {
       >
         {enabled ? 'Pode ver' : 'Bloqueado'}
       </span>
+      {locked && (
+        <span className="ml-1 text-[10px] px-2 py-0.5 rounded-full border bg-black/20 border-white/10 text-gray-400">
+          Plano
+        </span>
+      )}
     </button>
   );
+
+  const normalize = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const planPolicyFor = (artist) => {
+    const role = artist?.cargo || '';
+    const nplan = normalize(artist?.plano || '');
+    const isArtist = role === 'Artista';
+    const isComposer = role === 'Compositor';
+    const forced = {};
+    const locked = {};
+    if (!(isArtist || isComposer)) return { forced, locked };
+    const keys = isArtist ? ['musics','compositions','work','marketing','finance','chat'] : ['compositions','marketing','finance','chat'];
+    let allow = [];
+    if (!nplan || nplan.includes('sem')) {
+      allow = [];
+    } else if (nplan.includes('avulso')) {
+      allow = isComposer ? ['compositions','chat'] : ['musics','chat'];
+    } else if (nplan.includes('mensal') || nplan.includes('anual') || nplan.includes('vital')) {
+      allow = isComposer ? ['compositions','marketing','finance','chat'] : ['musics','compositions','work','marketing','finance','chat'];
+    }
+    keys.forEach((k) => {
+      forced[k] = allow.includes(k);
+      locked[k] = true;
+    });
+    return { forced, locked };
+  };
+  const getPermState = (artist, key) => {
+    const policy = planPolicyFor(artist);
+    const locked = !!policy.locked?.[key];
+    const forcedValue = policy.forced?.[key];
+    const current = artist?.access_control?.[key] !== false;
+    const enabled = locked ? !!forcedValue : current;
+    return { enabled, locked };
+  };
 
   return (
     <AdminLayout>
@@ -806,9 +854,14 @@ export const AdminSettings = () => {
                                   ].map((perm) => (
                                     <PermissionPill
                                       key={perm.key}
-                                      enabled={artist.access_control[perm.key] !== false}
+                                      enabled={getPermState(artist, perm.key).enabled}
+                                      locked={getPermState(artist, perm.key).locked}
                                       label={perm.label}
-                                      onClick={() => handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key])}
+                                      onClick={() => {
+                                        const s = getPermState(artist, perm.key);
+                                        if (s.locked) return;
+                                        handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key]);
+                                      }}
                                     />
                                   ))}
                                 </div>
@@ -822,9 +875,14 @@ export const AdminSettings = () => {
                                   ].map((perm) => (
                                     <PermissionPill
                                       key={perm.key}
-                                      enabled={artist.access_control[perm.key] !== false}
+                                      enabled={getPermState(artist, perm.key).enabled}
+                                      locked={getPermState(artist, perm.key).locked}
                                       label={perm.label}
-                                      onClick={() => handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key])}
+                                      onClick={() => {
+                                        const s = getPermState(artist, perm.key);
+                                        if (s.locked) return;
+                                        handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key]);
+                                      }}
                                     />
                                   ))}
                                 </div>
@@ -845,9 +903,14 @@ export const AdminSettings = () => {
                                   ].map((perm) => (
                                     <PermissionPill
                                       key={perm.key}
-                                      enabled={artist.access_control[perm.key] !== false}
+                                      enabled={getPermState(artist, perm.key).enabled}
+                                      locked={getPermState(artist, perm.key).locked}
                                       label={perm.label}
-                                      onClick={() => handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key])}
+                                      onClick={() => {
+                                        const s = getPermState(artist, perm.key);
+                                        if (s.locked) return;
+                                        handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key]);
+                                      }}
                                     />
                                   ))}
                                 </div>
@@ -856,9 +919,14 @@ export const AdminSettings = () => {
                                 <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Geral</div>
                                 <div className="flex flex-wrap gap-2">
                                   <PermissionPill
-                                    enabled={artist.access_control.chat !== false}
+                                    enabled={getPermState(artist, 'chat').enabled}
+                                    locked={getPermState(artist, 'chat').locked}
                                     label="Chat"
-                                    onClick={() => handlePermissionChange(artist.id, 'chat', !artist.access_control.chat)}
+                                    onClick={() => {
+                                      const s = getPermState(artist, 'chat');
+                                      if (s.locked) return;
+                                      handlePermissionChange(artist.id, 'chat', !artist.access_control.chat);
+                                    }}
                                   />
                                 </div>
                               </div>
@@ -875,9 +943,14 @@ export const AdminSettings = () => {
                                   ].map((perm) => (
                                     <PermissionPill
                                       key={perm.key}
-                                      enabled={artist.access_control[perm.key] !== false}
+                                      enabled={getPermState(artist, perm.key).enabled}
+                                      locked={getPermState(artist, perm.key).locked}
                                       label={perm.label}
-                                      onClick={() => handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key])}
+                                      onClick={() => {
+                                        const s = getPermState(artist, perm.key);
+                                        if (s.locked) return;
+                                        handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key]);
+                                      }}
                                     />
                                   ))}
                                 </div>
@@ -886,9 +959,14 @@ export const AdminSettings = () => {
                                 <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Geral</div>
                                 <div className="flex flex-wrap gap-2">
                                   <PermissionPill
-                                    enabled={artist.access_control.chat !== false}
+                                    enabled={getPermState(artist, 'chat').enabled}
+                                    locked={getPermState(artist, 'chat').locked}
                                     label="Chat"
-                                    onClick={() => handlePermissionChange(artist.id, 'chat', !artist.access_control.chat)}
+                                    onClick={() => {
+                                      const s = getPermState(artist, 'chat');
+                                      if (s.locked) return;
+                                      handlePermissionChange(artist.id, 'chat', !artist.access_control.chat);
+                                    }}
                                   />
                                 </div>
                               </div>
@@ -906,9 +984,14 @@ export const AdminSettings = () => {
                                   ].map((perm) => (
                                     <PermissionPill
                                       key={perm.key}
-                                      enabled={artist.access_control[perm.key] !== false}
+                                      enabled={getPermState(artist, perm.key).enabled}
+                                      locked={getPermState(artist, perm.key).locked}
                                       label={perm.label}
-                                      onClick={() => handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key])}
+                                      onClick={() => {
+                                        const s = getPermState(artist, perm.key);
+                                        if (s.locked) return;
+                                        handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key]);
+                                      }}
                                     />
                                   ))}
                                 </div>
@@ -917,9 +1000,14 @@ export const AdminSettings = () => {
                                 <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Geral</div>
                                 <div className="flex flex-wrap gap-2">
                                   <PermissionPill
-                                    enabled={artist.access_control.chat !== false}
+                                    enabled={getPermState(artist, 'chat').enabled}
+                                    locked={getPermState(artist, 'chat').locked}
                                     label="Chat"
-                                    onClick={() => handlePermissionChange(artist.id, 'chat', !artist.access_control.chat)}
+                                    onClick={() => {
+                                      const s = getPermState(artist, 'chat');
+                                      if (s.locked) return;
+                                      handlePermissionChange(artist.id, 'chat', !artist.access_control.chat);
+                                    }}
                                   />
                                 </div>
                               </div>

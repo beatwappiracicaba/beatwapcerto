@@ -797,7 +797,7 @@ export const AdminMusics = () => {
 
     if (!upcVal) { addToast('Informe o UPC', 'error'); return; }
     if (isProduced && !producedBy) { addToast('Selecione o produtor responsável', 'error'); return; }
-    if (!isrcVal) { addToast('Informe o ISRC', 'error'); return; }
+    if (m?.album_id && !isrcVal) { addToast('Informe o ISRC', 'error'); return; }
 
     await apiClient.put(`/admin/musics/${m.id}`, {
       status: 'aprovado',

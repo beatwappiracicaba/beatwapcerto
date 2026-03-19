@@ -80,7 +80,7 @@ export const DashboardArtistHome = () => {
           ? c.composer_name
           : ((decryptData(p.nome) || decryptData(p.nome_completo_razao_social)) || (p.nome || p.nome_completo_razao_social) || 'Autor');
 
-      const phone = c?.composer_phone || p.celular || p.phone || null;
+      const phone = c?.composer_phone || p.celular || p.phone || p.whatsapp || p.whats || null;
       const avatar = p.avatar_url || p.avatar || null;
 
       return { ...c, composer_name: name, composer_phone: phone, composer_avatar: avatar };
@@ -207,11 +207,27 @@ export const DashboardArtistHome = () => {
         }
         const mapped = (Array.isArray(list) ? list : []).map((c) => {
           const title = c?.title || c?.titulo || 'Sem título';
-          const composer_id = c?.composer_id || c?.composerId || c?.composer_partner_id || c?.composer_partnerId || c?.user_id || c?.userId || c?.profile_id || c?.profileId || null;
+          const composer_id =
+            c?.composer_id ||
+            c?.composerId ||
+            c?.composer_partner_id ||
+            c?.composer_partnerId ||
+            c?.author_id ||
+            c?.authorId ||
+            c?.autor_id ||
+            c?.created_by ||
+            c?.created_by_id ||
+            c?.owner_id ||
+            c?.ownerId ||
+            c?.user_id ||
+            c?.userId ||
+            c?.profile_id ||
+            c?.profileId ||
+            null;
           const composer_name_raw = c?.composer_name || c?.author_name || c?.nome_autor || c?.nome_compositor || c?.nome_artista || c?.nome || '';
           const decrypted_name = decryptData(composer_name_raw);
           const composer_name = decrypted_name || composer_name_raw || 'Autor';
-          const composer_phone = c?.composer_phone || c?.celular || c?.whatsapp || c?.phone || null;
+          const composer_phone = c?.composer_phone || c?.celular || c?.whatsapp || c?.phone || c?.whats || c?.whats_app || null;
           return {
             ...c,
             title,
@@ -607,13 +623,13 @@ export const DashboardArtistMusics = () => {
       setRemainingUploads(null);
       return;
     } else if (plan.includes('mensal')) {
-      base = 4;
+      base = 2;
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
       start = monthStart.toISOString();
       end = monthEnd.toISOString();
     } else if (plan.includes('anual')) {
-      base = 48;
+      base = 24;
       const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
       const yearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
       start = yearStart.toISOString();

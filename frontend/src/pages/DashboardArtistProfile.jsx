@@ -108,7 +108,7 @@ export const DashboardArtistProfile = () => {
         setRemainingUploads(null);
         return;
       } else if (plan.includes('mensal')) {
-        base = 2;
+        base = profile.cargo === 'Compositor' ? 4 : 2;
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
         const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
         start = monthStart.toISOString();
