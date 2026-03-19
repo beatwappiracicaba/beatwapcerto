@@ -107,9 +107,8 @@ export const GalleryManager = ({ userId }) => {
       return;
     }
     
-    // Validate size (e.g. 50MB)
-    if (file.size > 50 * 1024 * 1024) {
-       alert('Arquivo muito grande. Máximo 50MB.');
+    if (file.size > 150 * 1024 * 1024) {
+       alert('Arquivo muito grande. Máximo 150MB.');
        return;
     }
 

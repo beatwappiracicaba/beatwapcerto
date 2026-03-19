@@ -80,8 +80,8 @@ const storage = multer.diskStorage({
   }
 });
 
-const uploadSingle = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } }).single('file');
-const uploadMultiple = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } }).array('files');
+const uploadSingle = multer({ storage, limits: { fileSize: 150 * 1024 * 1024 } }).single('file');
+const uploadMultiple = multer({ storage, limits: { fileSize: 150 * 1024 * 1024 } }).array('files');
 
 router.post('/upload', auth, async (req, res) => {
   res.status(400).json({ ok: false, error: 'Use /upload/single' });

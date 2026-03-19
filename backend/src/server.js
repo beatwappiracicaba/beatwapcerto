@@ -76,8 +76,8 @@ const limiter = rateLimit({
   },
 });
 app.use(limiter);
-app.use(express.json({ limit: '100mb' }));
-app.use(express.urlencoded({ extended: true, limit: '100mb' }));
+app.use(express.json({ limit: '150mb' }));
+app.use(express.urlencoded({ extended: true, limit: '150mb' }));
 
 setupSentry(app);
 

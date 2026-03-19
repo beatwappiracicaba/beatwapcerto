@@ -12,7 +12,7 @@ import { useToast } from '../../context/ToastContext';
 export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = null }) => {
   const { user, profile } = useAuth();
   const { addToast } = useToast();
-  const MAX_AUDIO_BYTES = 35 * 1024 * 1024;
+  const MAX_AUDIO_BYTES = 150 * 1024 * 1024;
 
   const activeUser = targetArtist ? { id: targetArtist.id } : user;
   const isProducerMode = !!targetArtist;
@@ -131,8 +131,8 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       }
     } else if (type === 'audio_file') {
       if (file.size > MAX_AUDIO_BYTES) {
-        setErrors(prev => ({ ...prev, audio: 'Arquivo de áudio muito grande. Máximo 35MB.' }));
-        addToast('Arquivo de áudio muito grande. Máximo 35MB.', 'error');
+        setErrors(prev => ({ ...prev, audio: 'Arquivo de áudio muito grande. Máximo 150MB.' }));
+        addToast('Arquivo de áudio muito grande. Máximo 150MB.', 'error');
         return;
       }
       setPreviews(prev => ({ ...prev, audio: URL.createObjectURL(file) }));
@@ -193,7 +193,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     const file = e.target.files?.[0] || null;
     if (!file) return;
     if (field === 'audio_file' && file.size > MAX_AUDIO_BYTES) {
-      addToast('Arquivo de áudio da faixa muito grande. Máximo 35MB.', 'error');
+      addToast('Arquivo de áudio da faixa muito grande. Máximo 150MB.', 'error');
       return;
     }
     updateTrackField(index, field, file);
@@ -368,7 +368,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       addToast(formData.is_album ? 'Álbum enviado para análise!' : 'Música enviada para análise!', 'success');
     } catch (err) {
       const isPayloadTooLarge = Number(err?.status) === 413;
-      const msg = isPayloadTooLarge ? 'Arquivo muito grande para upload. Reduza para até 35MB.' : (err?.message || 'Erro ao enviar música');
+      const msg = isPayloadTooLarge ? 'Arquivo muito grande para upload. Reduza para até 150MB.' : (err?.message || 'Erro ao enviar música');
       addToast(msg, 'error');
       setErrors(prev => ({ ...prev, submit: msg }));
     } finally {

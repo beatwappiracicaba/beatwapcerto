@@ -570,8 +570,13 @@ router.post('/events', auth, async (req, res) => {
 router.delete('/events/:id', auth, async (req, res) => {
   try {
     const id = req.params.id;
-    const idx = (memory.events || []).findIndex(e => e.id === id && String(e.artista_id) === String(req.user?.id));
+    const list = (memory.events || []);
+    const idx = list.findIndex(e => e.id === id);
     if (idx < 0) return res.status(404).json({ error: 'Evento não encontrado' });
+    const item = list[idx];
+    const isProducer = String(req.user?.cargo || '') === 'Produtor';
+    const isOwner = String(item?.artista_id || '') === String(req.user?.id || '');
+    if (!isProducer && !isOwner) return res.status(403).json({ error: 'Sem permissão' });
     const removed = memory.events.splice(idx, 1)[0];
     scheduleSave();
     emitEvent('events.deleted', { id }, `profile:${removed?.artista_id || req.user?.id || ''}`);
@@ -1233,8 +1238,10 @@ router.get('/profiles/:id/musics', async (req, res) => {
   const ownerId = req.params.id;
   const list = memory.musics
     .filter(m => String(m.artista_id) === String(ownerId))
-    .filter(m => String(m.status).toLowerCase() === 'aprovado')
-    .filter(m => m.is_beatwap_produced === true || String(m.produced_by).toLowerCase() === 'beatwap')
+    .filter(m => {
+      const s = String(m.status || '').toLowerCase().trim();
+      return s === 'aprovado' || s === 'aprovada' || s === 'approved' || s === 'aceito' || s === 'aceita';
+    })
     .map(m => {
       const arr = Array.isArray(memory.likes[m.id]) ? memory.likes[m.id] : [];
       return { ...m, likes_count: arr.length };
@@ -1248,9 +1255,10 @@ router.get('/profiles/:id/feats', async (req, res) => {
   const list = memory.musics
     .filter(m => {
       const featIds = Array.isArray(m.feat_beatwap_artist_ids) ? m.feat_beatwap_artist_ids : [];
-      return featIds.includes(ownerId) && String(m.status).toLowerCase() === 'aprovado';
+      if (!featIds.includes(ownerId)) return false;
+      const s = String(m.status || '').toLowerCase().trim();
+      return s === 'aprovado' || s === 'aprovada' || s === 'approved' || s === 'aceito' || s === 'aceita';
     })
-    .filter(m => m.is_beatwap_produced === true || String(m.produced_by).toLowerCase() === 'beatwap')
     .map(m => {
       const arr = Array.isArray(memory.likes[m.id]) ? memory.likes[m.id] : [];
       return { ...m, likes_count: arr.length };
