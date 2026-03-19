@@ -339,6 +339,7 @@ export const AdminSettings = () => {
         }
       }
       addToast('Permissões atualizadas com sucesso!', 'success');
+      await fetchArtists();
     } catch (error) {
       console.error('Error saving permissions:', error);
       addToast('Erro ao salvar permissões', 'error');

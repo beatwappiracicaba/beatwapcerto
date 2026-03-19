@@ -62,7 +62,7 @@ function codeTemplate(code) {
   `;
 }
 
-function resetPasswordTemplate(link) {
+function resetPasswordTemplate(link, code) {
   return `
   <div style="font-family: Inter, Arial; background:#0b0b0f; padding:48px 24px; color:#e5e7eb;">
     <div style="max-width:600px;margin:0 auto;background:#11121a;border:1px solid #1f2335;border-radius:16px;overflow:hidden;">
@@ -75,7 +75,10 @@ function resetPasswordTemplate(link) {
            style="display:inline-block;padding:14px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;">
            Redefinir Senha
         </a>
-        <p style="margin:16px 0 0;font-size:12px;color:#9ca3af;">Se não foi você, ignore este email.</p>
+        <p style="margin:16px 0 0;font-size:13px;color:#9ca3af;">Ou utilize este código manualmente na página:</p>
+        <div style="font-size:32px;font-weight:800;letter-spacing:6px;margin:10px 0 0;color:#e5e7eb;">${code}</div>
+        <p style="margin:16px 0 0;font-size:12px;color:#9ca3af;">O código expira em 1 hora.</p>
+        <p style="margin:6px 0 0;font-size:12px;color:#9ca3af;">Se não foi você, ignore este email.</p>
       </div>
       <div style="height:4px;background:linear-gradient(90deg,#7c3aed,#a78bfa);"></div>
     </div>
@@ -153,12 +156,12 @@ async function sendCodeEmail(email, code) {
   return info;
 }
 
-async function sendPasswordResetEmail(email, link) {
+async function sendPasswordResetEmail(email, link, code) {
   const info = await transporter.sendMail({
     from: process.env.SMTP_FROM || process.env.SMTP_USER,
     to: email,
     subject: 'Redefinição de Senha',
-    html: resetPasswordTemplate(link)
+    html: resetPasswordTemplate(link, code)
   });
   console.log('reset-email', {
     to: email,

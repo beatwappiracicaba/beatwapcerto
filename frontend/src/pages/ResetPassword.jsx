@@ -73,25 +73,29 @@ export default function ResetPassword() {
     <div className="max-w-md mx-auto w-full">
       <Card className="space-y-5">
         <div className="text-center text-xl font-extrabold text-white">Redefinir senha</div>
-        <div className="text-xs text-gray-400 text-center -mt-3">Insira sua nova senha</div>
-          <AnimatedInput
-            label="Código"
-            type="text"
-            icon={Hash}
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="Código recebido por email"
-          />
-          <div className="text-xs text-gray-400 -mt-2">
-            Cole o código do link que recebeu no email. Não recebeu?
-            <button
-              type="button"
-              onClick={() => setShowResend(!showResend)}
-              className="ml-1 text-beatwap-gold hover:underline"
-            >
-              Reenviar email
-            </button>
-          </div>
+        <div className="text-xs text-gray-400 text-center -mt-3">Digite o código recebido no seu email ou clique no link enviado</div>
+          {!code && (
+            <>
+              <AnimatedInput
+                label="Código"
+                type="text"
+                icon={Hash}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="Código recebido por email"
+              />
+              <div className="text-xs text-gray-400 -mt-2">
+                Não encontrou o email?
+                <button
+                  type="button"
+                  onClick={() => setShowResend(!showResend)}
+                  className="ml-1 text-beatwap-gold hover:underline"
+                >
+                  Reenviar email
+                </button>
+              </div>
+            </>
+          )}
           {showResend && (
             <div className="space-y-2 p-3 mt-1 rounded-lg bg-white/5 border border-white/10">
               <AnimatedInput
@@ -126,6 +130,13 @@ export default function ResetPassword() {
           <AnimatedButton onClick={submit} isLoading={loading} className="w-full justify-center">
             Redefinir Senha
           </AnimatedButton>
+          <button
+            type="button"
+            onClick={() => navigate('/login')}
+            className="w-full text-center text-sm text-gray-400 hover:text-white"
+          >
+            Voltar para login
+          </button>
       </Card>
     </div>
   );

@@ -234,7 +234,7 @@ router.post('/forgot-password', async (req, res) => {
     }
     const user = await Profile.findOne({ where: { email } });
     if (!user) {
-      return res.json({ success: false, message: 'Email não cadastrado' });
+      return res.status(404).json({ success: false, message: 'Email não cadastrado' });
     }
     const code = uuidv4();
     const expires = new Date(Date.now() + 60 * 60 * 1000);
@@ -243,7 +243,7 @@ router.post('/forgot-password', async (req, res) => {
     await user.save();
     const base = process.env.APP_PUBLIC_URL || 'https://www.beatwap.com.br';
     const link = `${base.replace(/\/+$/, '')}/reset-password?code=${encodeURIComponent(code)}`;
-    await sendPasswordResetEmail(email, link).catch(() => {});
+    await sendPasswordResetEmail(email, link, code).catch(() => {});
     return res.json({ success: true, message: 'Email de redefinição enviado' });
   } catch {
     return res.status(500).json({ success: false, message: 'Erro interno' });
