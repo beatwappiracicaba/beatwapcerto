@@ -39,7 +39,7 @@ const AllCompositions = () => {
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
-  const [openFolderId, setOpenFolderId] = useState(null);
+  const [selectedFolderId, setSelectedFolderId] = useState(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -153,6 +153,8 @@ const AllCompositions = () => {
     return arr;
   })();
 
+  const selectedFolder = selectedFolderId ? folders.find((f) => String(f.id) === String(selectedFolderId)) : null;
+
   return (
     <div className="min-h-screen bg-beatwap-black text-white flex flex-col">
       <main className="flex-1">
@@ -176,95 +178,134 @@ const AllCompositions = () => {
                 Voltar
               </button>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {folders.map((folder, idx) => {
-                const cover = sanitizeUrl(folder.items[0]?.cover_url);
-                const count = folder.items.length;
-                const isOpen = openFolderId === folder.id;
-                return (
-                  <div key={folder.id} className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.03 }}
-                      className="relative"
-                    >
-                      <div
-                        className="aspect-square rounded-2xl overflow-hidden mb-4 relative shadow-lg cursor-pointer bg-gray-800"
-                        onClick={() => setOpenFolderId(isOpen ? null : folder.id)}
+            {selectedFolder ? (
+              <div className="rounded-2xl bg-white/5 border border-white/10 p-4 sm:p-6">
+                <div className="flex items-center justify-between gap-4 mb-6">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setSelectedFolderId(null)}
+                        className="inline-flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors shrink-0"
                       >
-                        {cover ? (
-                          <img src={cover} alt={folder.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-500">
-                            <Music size={40} />
-                          </div>
-                        )}
-                        <div className="absolute right-2 top-2 text-xs font-bold px-2 py-1 rounded-lg bg-black/60 text-white border border-white/10">
-                          {count} {count === 1 ? 'faixa' : 'faixas'}
+                        <ArrowLeft size={16} />
+                        Voltar para pastas
+                      </button>
+                      <div className="min-w-0">
+                        <h2 className="text-xl sm:text-2xl font-bold truncate">{selectedFolder.name || 'Compositor'}</h2>
+                        <div className="text-sm text-gray-400">
+                          {selectedFolder.items.length} {selectedFolder.items.length === 1 ? 'faixa' : 'faixas'}
                         </div>
                       </div>
-                      <h3 className="font-bold text-lg truncate">{folder.name || 'Compositor'}</h3>
-                      {folder.phone ? (
-                        <>
-                          <div className="text-xs text-gray-400 mt-1">{formatWhatsAppPhone(folder.phone) || 'WhatsApp não informado'}</div>
-                          <button
-                            onClick={() => {
-                              const href = buildWhatsAppHref(folder.phone, `Obras de ${folder.name || 'Compositor'}`);
-                              if (!href) return;
-                              window.open(href, '_blank');
-                            }}
-                            className="mt-2 flex items-center gap-2 text-xs font-bold text-green-400 bg-green-400/10 px-3 py-2 rounded-lg hover:bg-green-400/20 transition-colors w-full justify-center"
-                          >
-                            <MessageCircle size={14} />
-                            Chamar no WhatsApp
-                          </button>
-                        </>
-                      ) : (
-                        <div className="mt-2 text-xs text-gray-500">WhatsApp não informado</div>
-                      )}
-                      {isOpen && (
-                        <div className="mt-4 space-y-3">
-                          {folder.items.map((comp) => {
-                            const ccover = sanitizeUrl(comp.cover_url);
-                            const caudio = sanitizeUrl(comp.audio_url);
-                            return (
-                              <div key={comp.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
-                                <div
-                                  className="w-16 h-16 rounded-lg overflow-hidden bg-gray-800 shrink-0 cursor-pointer relative"
-                                  onClick={() => togglePlay(comp.id, caudio)}
-                                >
-                                  {ccover ? (
-                                    <img src={ccover} alt={comp.title} className="w-full h-full object-cover" />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-gray-500">
-                                      <Music size={20} />
-                                    </div>
-                                  )}
-                                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity">
-                                    <div className="w-9 h-9 bg-beatwap-gold rounded-full flex items-center justify-center text-black">
-                                      {playingTrack === comp.id && !isPaused
-                                        ? <Pause fill="currentColor" className="ml-0.5" />
-                                        : <Play fill="currentColor" className="ml-0.5" />}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <div className="font-bold text-sm text-white truncate">{comp.title}</div>
-                                  {Number.isFinite(Number(comp.price)) && (
-                                    <div className="text-xs text-beatwap-gold mt-0.5 font-bold">R$ {comp.price}</div>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </motion.div>
+                    </div>
+                    {selectedFolder.phone ? (
+                      <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2">
+                        <div className="text-sm text-gray-300">{formatWhatsAppPhone(selectedFolder.phone) || 'WhatsApp não informado'}</div>
+                        <button
+                          onClick={() => {
+                            const href = buildWhatsAppHref(selectedFolder.phone, `Obras de ${selectedFolder.name || 'Compositor'}`);
+                            if (!href) return;
+                            window.open(href, '_blank');
+                          }}
+                          className="inline-flex items-center gap-2 text-xs font-bold text-green-400 bg-green-400/10 px-3 py-2 rounded-lg hover:bg-green-400/20 transition-colors w-full sm:w-auto justify-center"
+                        >
+                          <MessageCircle size={14} />
+                          Chamar no WhatsApp
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mt-3 text-sm text-gray-500">WhatsApp não informado</div>
+                    )}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+
+                <div className="space-y-3">
+                  {selectedFolder.items.map((comp) => {
+                    const ccover = sanitizeUrl(comp.cover_url);
+                    const caudio = sanitizeUrl(comp.audio_url);
+                    const isPlayingThis = playingTrack === comp.id && !isPaused;
+                    return (
+                      <div key={comp.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                        <div
+                          className="w-16 h-16 rounded-lg overflow-hidden bg-gray-800 shrink-0 cursor-pointer relative"
+                          onClick={() => togglePlay(comp.id, caudio)}
+                        >
+                          {ccover ? (
+                            <img src={ccover} alt={comp.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-500">
+                              <Music size={20} />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity">
+                            <div className="w-9 h-9 bg-beatwap-gold rounded-full flex items-center justify-center text-black">
+                              {isPlayingThis ? <Pause fill="currentColor" className="ml-0.5" /> : <Play fill="currentColor" className="ml-0.5" />}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold text-sm text-white truncate">{comp.title}</div>
+                          {Number.isFinite(Number(comp.price)) && (
+                            <div className="text-xs text-beatwap-gold mt-0.5 font-bold">R$ {comp.price}</div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {folders.map((folder, idx) => {
+                  const cover = sanitizeUrl(folder.items[0]?.cover_url);
+                  const count = folder.items.length;
+                  return (
+                    <div key={folder.id} className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.03 }}
+                        className="relative"
+                      >
+                        <div
+                          className="aspect-square rounded-2xl overflow-hidden mb-4 relative shadow-lg cursor-pointer bg-gray-800"
+                          onClick={() => setSelectedFolderId(folder.id)}
+                        >
+                          {cover ? (
+                            <img src={cover} alt={folder.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-500">
+                              <Music size={40} />
+                            </div>
+                          )}
+                          <div className="absolute right-2 top-2 text-xs font-bold px-2 py-1 rounded-lg bg-black/60 text-white border border-white/10">
+                            {count} {count === 1 ? 'faixa' : 'faixas'}
+                          </div>
+                        </div>
+                        <h3 className="font-bold text-lg truncate">{folder.name || 'Compositor'}</h3>
+                        {folder.phone ? (
+                          <>
+                            <div className="text-xs text-gray-400 mt-1">{formatWhatsAppPhone(folder.phone) || 'WhatsApp não informado'}</div>
+                            <button
+                              onClick={() => {
+                                const href = buildWhatsAppHref(folder.phone, `Obras de ${folder.name || 'Compositor'}`);
+                                if (!href) return;
+                                window.open(href, '_blank');
+                              }}
+                              className="mt-2 flex items-center gap-2 text-xs font-bold text-green-400 bg-green-400/10 px-3 py-2 rounded-lg hover:bg-green-400/20 transition-colors w-full justify-center"
+                            >
+                              <MessageCircle size={14} />
+                              Chamar no WhatsApp
+                            </button>
+                          </>
+                        ) : (
+                          <div className="mt-2 text-xs text-gray-500">WhatsApp não informado</div>
+                        )}
+                      </motion.div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </section>
       </main>
