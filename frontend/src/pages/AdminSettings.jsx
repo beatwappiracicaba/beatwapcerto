@@ -1053,6 +1053,13 @@ export const AdminSettings = () => {
                             type="button"
                             onClick={() => {
                               const next = !artist?.access_control?.plan_override;
+                              if (next) {
+                                const pin = window.prompt('Digite o PIN (PIM) para liberar override');
+                                if (String(pin || '').trim() !== '18084907') {
+                                  addToast('PIN incorreto', 'error');
+                                  return;
+                                }
+                              }
                               const updated = {
                                 ...artist,
                                 access_control: {
