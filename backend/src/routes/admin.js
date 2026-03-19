@@ -279,7 +279,7 @@ router.put('/profiles/:id/accesscontrol', auth, async (req, res) => {
   return updateAccessControlById(req.params.id, req.body, res);
 });
 
-router.get('/admin/hit-of-week', auth, async (req, res) => {
+async function getHitAdmin(req, res) {
   try {
     if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
     const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
@@ -288,9 +288,9 @@ router.get('/admin/hit-of-week', auth, async (req, res) => {
   } catch {
     res.status(500).json({ error: 'Erro interno' });
   }
-});
+}
 
-router.put('/admin/hit-of-week', auth, async (req, res) => {
+async function putHitAdmin(req, res) {
   try {
     if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
     const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
@@ -313,9 +313,9 @@ router.put('/admin/hit-of-week', auth, async (req, res) => {
   } catch {
     res.status(500).json({ error: 'Erro interno' });
   }
-});
+}
 
-router.post('/admin/hit-of-week/entries/:entryId/mark-paid', auth, async (req, res) => {
+async function markHitEntryPaid(req, res) {
   try {
     if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
     const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
@@ -332,9 +332,9 @@ router.post('/admin/hit-of-week/entries/:entryId/mark-paid', auth, async (req, r
   } catch {
     res.status(500).json({ error: 'Erro interno' });
   }
-});
+}
 
-router.post('/admin/hit-of-week/winner', auth, async (req, res) => {
+async function setHitWinner(req, res) {
   try {
     if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
     const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
@@ -348,9 +348,9 @@ router.post('/admin/hit-of-week/winner', auth, async (req, res) => {
   } catch {
     res.status(500).json({ error: 'Erro interno' });
   }
-});
+}
 
-router.get('/admin/featured-plans', auth, async (req, res) => {
+async function getFeaturedPlansAdmin(req, res) {
   try {
     if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
     const fp = memory.featured_plans && typeof memory.featured_plans === 'object' ? memory.featured_plans : null;
@@ -358,9 +358,9 @@ router.get('/admin/featured-plans', auth, async (req, res) => {
   } catch {
     res.status(500).json({ error: 'Erro interno' });
   }
-});
+}
 
-router.put('/admin/featured-plans', auth, async (req, res) => {
+async function putFeaturedPlansAdmin(req, res) {
   try {
     if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
     const fp = memory.featured_plans && typeof memory.featured_plans === 'object' ? memory.featured_plans : null;
@@ -393,9 +393,9 @@ router.put('/admin/featured-plans', auth, async (req, res) => {
   } catch {
     res.status(500).json({ error: 'Erro interno' });
   }
-});
+}
 
-router.post('/admin/profiles/:id/featured', auth, async (req, res) => {
+async function applyFeaturedToProfile(req, res) {
   try {
     if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
     const id = String(req.params.id || '').trim();
@@ -429,10 +429,45 @@ router.post('/admin/profiles/:id/featured', auth, async (req, res) => {
     const updated = await Profile.findByPk(id);
     emitEvent('profiles.featured.updated', { id, access_control: updated?.access_control || null }, `profile:${id}`);
     res.json({ ok: true, profile: updated });
-  } catch (e) {
+  } catch {
     res.status(500).json({ error: 'Erro interno' });
   }
-});
+}
+
+router.get('/admin/hit-of-week', auth, getHitAdmin);
+router.get('/admin/hit_of_week', auth, getHitAdmin);
+router.get('/hit-of-week', auth, getHitAdmin);
+router.get('/hit_of_week', auth, getHitAdmin);
+
+router.put('/admin/hit-of-week', auth, putHitAdmin);
+router.put('/admin/hit_of_week', auth, putHitAdmin);
+router.put('/hit-of-week', auth, putHitAdmin);
+router.put('/hit_of_week', auth, putHitAdmin);
+
+router.post('/admin/hit-of-week/entries/:entryId/mark-paid', auth, markHitEntryPaid);
+router.post('/admin/hit_of_week/entries/:entryId/mark-paid', auth, markHitEntryPaid);
+router.post('/hit-of-week/entries/:entryId/mark-paid', auth, markHitEntryPaid);
+router.post('/hit_of_week/entries/:entryId/mark-paid', auth, markHitEntryPaid);
+
+router.post('/admin/hit-of-week/winner', auth, setHitWinner);
+router.post('/admin/hit_of_week/winner', auth, setHitWinner);
+router.post('/hit-of-week/winner', auth, setHitWinner);
+router.post('/hit_of_week/winner', auth, setHitWinner);
+
+router.get('/admin/featured-plans', auth, getFeaturedPlansAdmin);
+router.get('/admin/featured_plans', auth, getFeaturedPlansAdmin);
+router.get('/featured-plans', auth, getFeaturedPlansAdmin);
+router.get('/featured_plans', auth, getFeaturedPlansAdmin);
+
+router.put('/admin/featured-plans', auth, putFeaturedPlansAdmin);
+router.put('/admin/featured_plans', auth, putFeaturedPlansAdmin);
+router.put('/featured-plans', auth, putFeaturedPlansAdmin);
+router.put('/featured_plans', auth, putFeaturedPlansAdmin);
+
+router.post('/admin/profiles/:id/featured', auth, applyFeaturedToProfile);
+router.post('/profiles/:id/featured', auth, applyFeaturedToProfile);
+router.post('/admin/profile/:id/featured', auth, applyFeaturedToProfile);
+router.post('/profile/:id/featured', auth, applyFeaturedToProfile);
 
 // Purge user account (requires confirmation string)
 router.post('/admin/users/:id/purge', auth, async (req, res) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../utils/cropImage';
@@ -506,27 +506,15 @@ export const DashboardPublicProfile = () => {
   const planOverride = !!profile?.access_control?.plan_override;
   const permPublicProfile = profile?.access_control?.public_profile !== false;
 
-  if (!((planAllowsPublicProfile || planOverride) && permPublicProfile) && profile?.cargo !== 'Vendedor') {
-    return (
-      <DashboardLayout>
-        <div className="max-w-3xl mx-auto space-y-6">
-          <Card className="space-y-4 p-6">
-            <div className="text-xl font-bold text-white">Ative seu Perfil Público</div>
-            <div className="text-sm text-gray-300">
-              Recurso disponível nos planos Mensal e Anual. Faça upgrade para publicar sua página e aparecer na Home.
-            </div>
-            <div className="flex gap-2">
-              <AnimatedButton onClick={() => navigate('/dashboard/profile')} className="justify-center">
-                Ir para Plano
-              </AnimatedButton>
-            </div>
-          </Card>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  const flyerInputRef = useRef(null);
+  const [flyerDragOver, setFlyerDragOver] = useState(false);
+  const [flyerImageSrc, setFlyerImageSrc] = useState(null);
+  const [flyerOriginalFile, setFlyerOriginalFile] = useState(null);
+  const [flyerCrop, setFlyerCrop] = useState({ x: 0, y: 0 });
+  const [flyerZoom, setFlyerZoom] = useState(1);
+  const [flyerCroppedArea, setFlyerCroppedArea] = useState(null);
 
-  const loadEvents = async () => {
+  const loadEvents = useCallback(async () => {
     if (!isArtist) return;
     try {
       setEventsLoading(true);
@@ -548,11 +536,31 @@ export const DashboardPublicProfile = () => {
     } finally {
       setEventsLoading(false);
     }
-  };
+  }, [addToast, isArtist, profile?.id]);
 
   useEffect(() => {
     loadEvents();
-  }, [profile?.id]);
+  }, [loadEvents]);
+
+  if (!((planAllowsPublicProfile || planOverride) && permPublicProfile) && profile?.cargo !== 'Vendedor') {
+    return (
+      <DashboardLayout>
+        <div className="max-w-3xl mx-auto space-y-6">
+          <Card className="space-y-4 p-6">
+            <div className="text-xl font-bold text-white">Ative seu Perfil Público</div>
+            <div className="text-sm text-gray-300">
+              Recurso disponível nos planos Mensal e Anual. Faça upgrade para publicar sua página e aparecer na Home.
+            </div>
+            <div className="flex gap-2">
+              <AnimatedButton onClick={() => navigate('/dashboard/profile')} className="justify-center">
+                Ir para Plano
+              </AnimatedButton>
+            </div>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   const handleSavePublicProfile = async ({ name, bio, genre, socials, blob, phone, cep, logradouro, complemento, bairro, cidade, estado }) => {
     try {
@@ -621,14 +629,6 @@ export const DashboardPublicProfile = () => {
     }
     setIsEventModalOpen(false);
   };
-
-  const flyerInputRef = useRef(null);
-  const [flyerDragOver, setFlyerDragOver] = useState(false);
-  const [flyerImageSrc, setFlyerImageSrc] = useState(null);
-  const [flyerOriginalFile, setFlyerOriginalFile] = useState(null);
-  const [flyerCrop, setFlyerCrop] = useState({ x: 0, y: 0 });
-  const [flyerZoom, setFlyerZoom] = useState(1);
-  const [flyerCroppedArea, setFlyerCroppedArea] = useState(null);
 
   const setFlyerFile = (file) => {
     if (!file) return;

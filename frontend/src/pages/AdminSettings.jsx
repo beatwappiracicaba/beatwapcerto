@@ -94,7 +94,26 @@ export const AdminSettings = () => {
 
   const fetchFeaturedPlansAdmin = async () => {
     try {
-      const data = await apiClient.get('/admin/featured-plans');
+      const tryCall = async (calls) => {
+        let last = null;
+        for (const call of calls) {
+          try {
+            return await call();
+          } catch (e) {
+            last = e;
+            if (Number(e?.status) === 404) continue;
+            throw e;
+          }
+        }
+        throw last || new Error('Not found');
+      };
+
+      const data = await tryCall([
+        () => apiClient.get('/admin/featured-plans'),
+        () => apiClient.get('/admin/featured_plans'),
+        () => apiClient.get('/featured-plans'),
+        () => apiClient.get('/featured_plans'),
+      ]);
       setFeaturedPlansAdmin(data || null);
       setFeaturedPlansDraft(data ? JSON.parse(JSON.stringify(data)) : null);
     } catch {
@@ -107,7 +126,26 @@ export const AdminSettings = () => {
     if (!featuredPlansDraft) return;
     setFeaturedPlansSaving(true);
     try {
-      const res = await apiClient.put('/admin/featured-plans', featuredPlansDraft);
+      const tryCall = async (calls) => {
+        let last = null;
+        for (const call of calls) {
+          try {
+            return await call();
+          } catch (e) {
+            last = e;
+            if (Number(e?.status) === 404) continue;
+            throw e;
+          }
+        }
+        throw last || new Error('Not found');
+      };
+
+      const res = await tryCall([
+        () => apiClient.put('/admin/featured-plans', featuredPlansDraft),
+        () => apiClient.put('/admin/featured_plans', featuredPlansDraft),
+        () => apiClient.put('/featured-plans', featuredPlansDraft),
+        () => apiClient.put('/featured_plans', featuredPlansDraft),
+      ]);
       const next = res?.featured_plans || featuredPlansDraft;
       setFeaturedPlansAdmin(next);
       setFeaturedPlansDraft(next ? JSON.parse(JSON.stringify(next)) : null);
@@ -121,7 +159,26 @@ export const AdminSettings = () => {
 
   const fetchHitAdmin = async () => {
     try {
-      const data = await apiClient.get('/admin/hit-of-week');
+      const tryCall = async (calls) => {
+        let last = null;
+        for (const call of calls) {
+          try {
+            return await call();
+          } catch (e) {
+            last = e;
+            if (Number(e?.status) === 404) continue;
+            throw e;
+          }
+        }
+        throw last || new Error('Not found');
+      };
+
+      const data = await tryCall([
+        () => apiClient.get('/admin/hit-of-week'),
+        () => apiClient.get('/admin/hit_of_week'),
+        () => apiClient.get('/hit-of-week'),
+        () => apiClient.get('/hit_of_week'),
+      ]);
       setHitAdmin(data || null);
       setHitDraft(data ? { ...data } : null);
     } catch {
@@ -134,12 +191,33 @@ export const AdminSettings = () => {
     if (!hitDraft) return;
     setHitSaving(true);
     try {
-      const res = await apiClient.put('/admin/hit-of-week', {
+      const payload = {
         theme: hitDraft.theme,
         starts_at: hitDraft.starts_at || null,
         ends_at: hitDraft.ends_at || null,
         entry_fee: hitDraft.entry_fee
-      });
+      };
+
+      const tryCall = async (calls) => {
+        let last = null;
+        for (const call of calls) {
+          try {
+            return await call();
+          } catch (e) {
+            last = e;
+            if (Number(e?.status) === 404) continue;
+            throw e;
+          }
+        }
+        throw last || new Error('Not found');
+      };
+
+      const res = await tryCall([
+        () => apiClient.put('/admin/hit-of-week', payload),
+        () => apiClient.put('/admin/hit_of_week', payload),
+        () => apiClient.put('/hit-of-week', payload),
+        () => apiClient.put('/hit_of_week', payload),
+      ]);
       const next = res?.hit || hitDraft;
       setHitAdmin(next);
       setHitDraft(next ? { ...next } : null);
@@ -153,7 +231,27 @@ export const AdminSettings = () => {
 
   const setHitEntryPaid = async (entryId, paid) => {
     try {
-      const res = await apiClient.post(`/admin/hit-of-week/entries/${entryId}/mark-paid`, { paid });
+      const body = { paid };
+      const tryCall = async (calls) => {
+        let last = null;
+        for (const call of calls) {
+          try {
+            return await call();
+          } catch (e) {
+            last = e;
+            if (Number(e?.status) === 404) continue;
+            throw e;
+          }
+        }
+        throw last || new Error('Not found');
+      };
+
+      const res = await tryCall([
+        () => apiClient.post(`/admin/hit-of-week/entries/${entryId}/mark-paid`, body),
+        () => apiClient.post(`/admin/hit_of_week/entries/${entryId}/mark-paid`, body),
+        () => apiClient.post(`/hit-of-week/entries/${entryId}/mark-paid`, body),
+        () => apiClient.post(`/hit_of_week/entries/${entryId}/mark-paid`, body),
+      ]);
       const entry = res?.entry || null;
       if (!entry) return;
       setHitAdmin((prev) => {
@@ -171,7 +269,27 @@ export const AdminSettings = () => {
 
   const setHitWinner = async (entryId) => {
     try {
-      const res = await apiClient.post('/admin/hit-of-week/winner', { winner_entry_id: entryId || null });
+      const body = { winner_entry_id: entryId || null };
+      const tryCall = async (calls) => {
+        let last = null;
+        for (const call of calls) {
+          try {
+            return await call();
+          } catch (e) {
+            last = e;
+            if (Number(e?.status) === 404) continue;
+            throw e;
+          }
+        }
+        throw last || new Error('Not found');
+      };
+
+      const res = await tryCall([
+        () => apiClient.post('/admin/hit-of-week/winner', body),
+        () => apiClient.post('/admin/hit_of_week/winner', body),
+        () => apiClient.post('/hit-of-week/winner', body),
+        () => apiClient.post('/hit_of_week/winner', body),
+      ]);
       const next = res?.hit || null;
       if (next) {
         setHitAdmin(next);
@@ -188,7 +306,27 @@ export const AdminSettings = () => {
     if (!id) return;
     setSavingId(id);
     try {
-      const res = await apiClient.post(`/admin/profiles/${id}/featured`, { level });
+      const body = { level };
+      const tryCall = async (calls) => {
+        let last = null;
+        for (const call of calls) {
+          try {
+            return await call();
+          } catch (e) {
+            last = e;
+            if (Number(e?.status) === 404) continue;
+            throw e;
+          }
+        }
+        throw last || new Error('Not found');
+      };
+
+      const res = await tryCall([
+        () => apiClient.post(`/admin/profiles/${id}/featured`, body),
+        () => apiClient.post(`/profiles/${id}/featured`, body),
+        () => apiClient.post(`/admin/profile/${id}/featured`, body),
+        () => apiClient.post(`/profile/${id}/featured`, body),
+      ]);
       const updated = res?.profile || null;
       if (updated?.id) {
         setArtists((prev) => prev.map((a) => (String(a.id) === String(updated.id) ? { ...a, ...updated } : a)));
