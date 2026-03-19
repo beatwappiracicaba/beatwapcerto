@@ -111,7 +111,7 @@ const Pricing = () => {
   }
 
   return (
-    <section className="py-20 px-6 bg-gradient-to-b from-beatwap-black to-black relative overflow-hidden">
+    <section id="planos" className="py-20 px-6 bg-gradient-to-b from-beatwap-black to-black relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-beatwap-gold/30 to-transparent"></div>
 
       <div className="max-w-7xl mx-auto relative z-10">
@@ -195,6 +195,10 @@ const Pricing = () => {
               </li>
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-yellow-500 flex-shrink-0" />
+                <span>Sem perfil público na Home</span>
+              </li>
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-yellow-500 flex-shrink-0" />
                 <span>Capa cobrada: R$ 50 por capa</span>
               </li>
               <li className="flex gap-3 text-sm text-gray-500">
@@ -260,6 +264,10 @@ const Pricing = () => {
               <li className="flex gap-3 text-sm text-gray-300">
                 <Check size={16} className="text-beatwap-gold flex-shrink-0" />
                 <span>Capas gratuitas (sem custo)</span>
+              </li>
+              <li className="flex gap-3 text-sm text-gray-300">
+                <Check size={16} className="text-beatwap-gold flex-shrink-0" />
+                <span>Perfil público na Home</span>
               </li>
             </ul>
 

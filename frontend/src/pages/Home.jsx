@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '../components/landing/Header';
 import Hero from '../components/landing/Hero';
 import FeaturedUsers from '../components/landing/FeaturedUsers';
@@ -21,6 +21,7 @@ import { decryptData } from '../utils/security';
 
 const Home = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [latestReleases, setLatestReleases] = useState([]);
   const [latestCompositions, setLatestCompositions] = useState([]);
   const [latestProjects, setLatestProjects] = useState([]);
@@ -146,6 +147,15 @@ const Home = () => {
   }, []);
 
   useEffect(() => {
+    if (!location?.hash) return;
+    const id = location.hash.replace('#', '');
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [location]);
+
+  useEffect(() => {
     return () => {
       if (audioElement) {
         audioElement.pause();
@@ -217,6 +227,9 @@ const Home = () => {
       await fetchLatestReleases();
       await fetchLatestProjects();
 
+      const normalize = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const filterNoAvulso = (arr) => (Array.isArray(arr) ? arr : []).filter(p => !normalize(p?.plano).includes('avulso'));
+
       const compositions = (data && Array.isArray(data.compositions)) ? data.compositions : [];
       const mapped = compositions.map(c => ({
         ...c,
@@ -234,9 +247,9 @@ const Home = () => {
         .then((enriched) => setLatestCompositions(enriched))
         .catch(() => void 0);
 
-      setComposers(sortProfilesOldestFirst((data && Array.isArray(data.composers)) ? data.composers : []));
+      setComposers(sortProfilesOldestFirst(filterNoAvulso((data && Array.isArray(data.composers)) ? data.composers : [])));
       setSponsors((data && Array.isArray(data.sponsors)) ? data.sponsors : []);
-      setArtists(sortProfilesOldestFirst((data && Array.isArray(data.artists)) ? data.artists : []));
+      setArtists(sortProfilesOldestFirst(filterNoAvulso((data && Array.isArray(data.artists)) ? data.artists : [])));
       setProducers(sortProfilesOldestFirst((data && Array.isArray(data.producers)) ? data.producers : []));
       setSellers(sortProfilesOldestFirst((data && Array.isArray(data.sellers)) ? data.sellers : []));
     } catch (error) {
@@ -364,7 +377,9 @@ const Home = () => {
   const fetchArtists = async () => {
     try {
       const data = await apiClient.get('/profiles?role=artist');
-      setArtists(sortProfilesOldestFirst(data || []));
+      const normalize = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const filtered = (data || []).filter(a => !normalize(a?.plano).includes('avulso'));
+      setArtists(sortProfilesOldestFirst(filtered));
     } catch (error) {
       console.error('Error fetching artists:', error);
     }
@@ -453,8 +468,10 @@ const Home = () => {
   const fetchComposers = async () => {
     try {
       const data = await apiClient.get('/composers');
+      const normalize = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       const mapped = (data || []).map(s => ({ ...s, name: s.nome || s.nome_completo_razao_social || '' }));
-      setComposers(sortProfilesOldestFirst(mapped));
+      const filtered = mapped.filter(s => !normalize(s?.plano).includes('avulso'));
+      setComposers(sortProfilesOldestFirst(filtered));
     } catch (error) {
       console.error('Error fetching composers:', error);
     }

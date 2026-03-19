@@ -15,6 +15,7 @@ const PublicProfile = () => {
   const [profile, setProfile] = useState(null);
   const [items, setItems] = useState([]);
   const [producerTab, setProducerTab] = useState('producoes');
+  const [restricted, setRestricted] = useState(false);
   const [producerProductions, setProducerProductions] = useState([]);
   const [producerCompositions, setProducerCompositions] = useState([]);
   const [recordedMusics, setRecordedMusics] = useState([]);
@@ -162,6 +163,19 @@ const PublicProfile = () => {
       const profileData = await apiClient.get(`/profiles/${id}`, { cache: false });
       setProfile(profileData);
 
+      // Block public profile view for Avulso plans (artists/composers)
+      const cargoRaw = String(profileData?.cargo || '').toLowerCase().trim();
+      const planRaw = String(profileData?.plano || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if ((cargoRaw === 'artista' || cargoRaw === 'compositor') && planRaw.includes('avulso')) {
+        setRestricted(true);
+        setItems([]);
+        setProducerProductions([]);
+        setProducerCompositions([]);
+        setRecordedMusics([]);
+        setLoading(false);
+        return;
+      }
+
       // Determine what to fetch based on role
       const cargo = (profileData.cargo || '').toLowerCase().trim();
 
@@ -205,6 +219,38 @@ const PublicProfile = () => {
       setLoading(false);
     }
   };
+
+  if (restricted) {
+    return (
+      <div className="bg-beatwap-dark min-h-screen text-white">
+        <Header />
+        <main className="py-20 px-6">
+          <div className="max-w-3xl mx-auto">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white/10 flex items-center justify-center">
+                <User size={28} className="text-beatwap-gold" />
+              </div>
+              <h1 className="text-2xl md:text-3xl font-extrabold mb-2">Perfil indisponível</h1>
+              <p className="text-gray-400 mb-6">
+                Este perfil não possui página pública no plano atual. Assinaturas Mensal e Anual liberam o perfil na Home.
+              </p>
+              <div className="flex items-center justify-center gap-3">
+                <AnimatedButton onClick={() => navigate('/#planos')}>Upgrade de Plano</AnimatedButton>
+                <AnimatedButton onClick={() => navigate('/')}>Voltar para Home</AnimatedButton>
+                <AnimatedButton
+                  variant="outline"
+                  onClick={() => window.open('https://wa.me/5519981083497?text=Quero%20liberar%20meu%20perfil%20p%C3%BAblico%20na%20BeatWap', '_blank')}
+                >
+                  Falar no WhatsApp
+                </AnimatedButton>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   const togglePlay = (trackId, url, trackOwnerId) => {
     const safe = sanitizeUrl(url);
