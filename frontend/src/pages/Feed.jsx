@@ -804,9 +804,14 @@ const Feed = () => {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {activeTab === 'feed' && (
-              <AnimatedButton onClick={() => setPostModalOpen(true)} disabled={!meId}>
-                <span className="inline-flex items-center gap-2"><Plus size={16} /> Postar</span>
-              </AnimatedButton>
+              <>
+                <AnimatedButton onClick={() => setActiveTab('search')}>
+                  <span className="inline-flex items-center gap-2"><Search size={16} /> Pesquisar</span>
+                </AnimatedButton>
+                <AnimatedButton onClick={() => setPostModalOpen(true)} disabled={!meId}>
+                  <span className="inline-flex items-center gap-2"><Plus size={16} /> Postar</span>
+                </AnimatedButton>
+              </>
             )}
             <AnimatedButton onClick={activeTab === 'painel' ? loadPanel : refresh}>
               Atualizar
