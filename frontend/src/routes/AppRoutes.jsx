@@ -75,10 +75,10 @@ export const AppRoutes = () => {
 
   const routeForRole = (role) => {
     const r = normalizeRole(role);
-    if (r === 'Produtor') return '/dashboard/feed';
-    if (r === 'Vendedor') return '/dashboard/feed';
-    if (r === 'Artista') return '/dashboard/feed';
-    if (r === 'Compositor') return '/dashboard/feed';
+    if (r === 'Produtor') return '/dashboard/painel';
+    if (r === 'Vendedor') return '/dashboard/painel';
+    if (r === 'Artista') return '/dashboard/painel';
+    if (r === 'Compositor') return '/dashboard/painel';
     return '/';
   };
 
@@ -145,6 +145,8 @@ export const AppRoutes = () => {
 
         <Route path="/dashboard" element={<ProtectedRoute element={<Navigate to={routeForRole(profile?.cargo)} replace />} />} />
         <Route path="/dashboard/feed" element={<ProtectedRoute element={<Feed />} />} />
+        <Route path="/dashboard/painel" element={<ProtectedRoute element={<Feed />} />} />
+        <Route path="/dashboard/pesquisar" element={<ProtectedRoute element={<Feed />} />} />
         <Route path="/dashboard/musics" element={isArtista ? <DashboardArtistMusics /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/compositions" element={(isArtista || isCompositor) ? <DashboardCompositions /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/profile" element={(isArtista || isCompositor || isVendedor) ? <DashboardArtistProfile /> : <Navigate to="/" replace />} />

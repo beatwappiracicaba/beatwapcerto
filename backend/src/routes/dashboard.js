@@ -287,6 +287,8 @@ router.post('/feed/posts', auth, async (req, res) => {
     const caption = String(req.body?.caption || '').trim();
     const link_url = String(req.body?.link_url || '').trim() || null;
     let media_url = String(req.body?.media_url || '').trim() || null;
+    const format = String(req.body?.format || '').toLowerCase().trim() || null;
+    const object_position = req.body?.object_position && typeof req.body.object_position === 'object' ? req.body.object_position : null;
 
     if (media_type === 'link' && link_url) {
       const safe = String(link_url || '').replace(/[`"'<>]/g, '').trim();
@@ -311,6 +313,8 @@ router.post('/feed/posts', auth, async (req, res) => {
       media_type,
       link_url,
       caption,
+      format,
+      object_position,
       scope: 'feed',
       created_at: new Date().toISOString()
     };
@@ -322,6 +326,106 @@ router.post('/feed/posts', auth, async (req, res) => {
 
     const arr = Array.isArray(memory.likes && memory.likes[id]) ? memory.likes[id] : [];
     res.json({ ...item, likes_count: arr.length });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.post('/feed/posts/:id/like', auth, async (req, res) => {
+  try {
+    const meId = normId(req.user?.id);
+    if (!meId) return res.status(401).json({ error: 'Não autorizado' });
+    const id = String(req.params.id || '').trim();
+    const existsIdx = (memory.posts || []).findIndex(p => String(p?.id || '') === id);
+    if (existsIdx < 0) return res.status(404).json({ error: 'Post não encontrado' });
+
+    const arr = Array.isArray(memory.likes && memory.likes[id]) ? memory.likes[id] : [];
+    const exists = arr.includes(meId);
+    const next = exists ? arr.filter(x => x !== meId) : arr.concat(meId);
+    memory.likes[id] = next;
+    scheduleSave();
+    emitEvent('posts.likes.updated', { id, likes: next.length }, `profile:${meId}`);
+    res.json({ liked: !exists, likes: next.length });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.get('/feed/posts/:id/likes', auth, async (req, res) => {
+  try {
+    const meId = normId(req.user?.id);
+    if (!meId) return res.status(401).json({ error: 'Não autorizado' });
+    const id = String(req.params.id || '').trim();
+    const arr = Array.isArray(memory.likes && memory.likes[id]) ? memory.likes[id] : [];
+    res.json({ likes: arr.length, liked: arr.includes(meId) });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.get('/feed/posts/:id/comments', auth, async (req, res) => {
+  try {
+    const meId = normId(req.user?.id);
+    if (!meId) return res.status(401).json({ error: 'Não autorizado' });
+    const id = String(req.params.id || '').trim();
+    const existsIdx = (memory.posts || []).findIndex(p => String(p?.id || '') === id);
+    if (existsIdx < 0) return res.status(404).json({ error: 'Post não encontrado' });
+
+    const list = Array.isArray(memory.comments && memory.comments[id]) ? memory.comments[id] : [];
+    const userIds = Array.from(new Set(list.map(c => normId(c?.user_id)).filter(Boolean)));
+    let profilesById = new Map();
+    try {
+      if (userIds.length) {
+        const rows = await Profile.findAll({ where: { id: userIds } });
+        profilesById = new Map((rows || []).map((r) => [normId(r.id), r]));
+      }
+    } catch {
+      profilesById = new Map();
+    }
+    const mapped = list
+      .slice()
+      .sort((a, b) => String(a?.created_at || '').localeCompare(String(b?.created_at || '')))
+      .map((c) => {
+        const pid = normId(c?.user_id);
+        const p = pid ? profilesById.get(pid) : null;
+        return {
+          id: c?.id,
+          post_id: id,
+          user_id: pid,
+          text: c?.text || '',
+          created_at: c?.created_at,
+          owner: p ? { id: p.id, nome: p.nome, nome_completo_razao_social: p.nome_completo_razao_social, cargo: p.cargo, avatar_url: p.avatar_url } : { id: pid, nome: null, nome_completo_razao_social: null, cargo: null, avatar_url: null }
+        };
+      });
+    res.json({ comments: mapped });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.post('/feed/posts/:id/comments', auth, async (req, res) => {
+  try {
+    const meId = normId(req.user?.id);
+    if (!meId) return res.status(401).json({ error: 'Não autorizado' });
+    const id = String(req.params.id || '').trim();
+    const existsIdx = (memory.posts || []).findIndex(p => String(p?.id || '') === id);
+    if (existsIdx < 0) return res.status(404).json({ error: 'Post não encontrado' });
+
+    const text = String(req.body?.text || '').trim();
+    if (!text) return res.status(400).json({ error: 'Comentário vazio' });
+    if (text.length > 600) return res.status(400).json({ error: 'Comentário muito longo' });
+
+    const comment = { id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, post_id: id, user_id: meId, text, created_at: new Date().toISOString() };
+    if (!memory.comments || typeof memory.comments !== 'object') memory.comments = {};
+    const arr = Array.isArray(memory.comments[id]) ? memory.comments[id] : [];
+    arr.push(comment);
+    memory.comments[id] = arr;
+    scheduleSave();
+    emitEvent('posts.comments.created', { post_id: id }, `profile:${meId}`);
+
+    const p = await Profile.findByPk(meId);
+    const owner = p ? { id: p.id, nome: p.nome, nome_completo_razao_social: p.nome_completo_razao_social, cargo: p.cargo, avatar_url: p.avatar_url } : { id: meId, nome: null, nome_completo_razao_social: null, cargo: null, avatar_url: null };
+    res.json({ comment: { ...comment, owner } });
   } catch {
     res.status(500).json({ error: 'Erro interno' });
   }
@@ -471,6 +575,18 @@ router.get('/feed', auth, async (req, res) => {
           created_at: e.created_at,
           owner: toOwner(e.owner_id),
           data: e.data
+        };
+      }
+      if (e.type === 'post') {
+        const arr = Array.isArray(memory.likes && memory.likes[e.id]) ? memory.likes[e.id] : [];
+        const liked = meId ? arr.includes(meId) : false;
+        const commentsArr = Array.isArray(memory.comments && memory.comments[e.id]) ? memory.comments[e.id] : [];
+        return {
+          type: 'post',
+          id: e.id,
+          created_at: e.created_at,
+          owner: toOwner(e.owner_id),
+          data: { ...e.data, likes_count: arr.length, liked, comments_count: commentsArr.length }
         };
       }
       return {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Play, Pause, Music, Image, Video, ExternalLink, Search, Plus, X, TrendingUp } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import Cropper from 'react-easy-crop';
+import { Play, Pause, Music, Image, Video, ExternalLink, Search, Plus, X, TrendingUp, Heart, MessageCircle, Send } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card } from '../components/ui/Card';
@@ -9,8 +10,10 @@ import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { apiClient, uploadApi } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { connectRealtime, subscribe, unsubscribe } from '../services/realtime';
+import { getCroppedImg } from '../utils/cropImage';
 
 const Feed = () => {
+  const location = useLocation();
   const navigate = useNavigate();
   const { profile } = useAuth();
   const roleLower = String(profile?.cargo || '').toLowerCase();
@@ -18,7 +21,12 @@ const Feed = () => {
   const isVendedor = roleLower === 'vendedor';
   const isPrivileged = isProdutor || isVendedor;
   const meId = String(profile?.id || '').trim();
-  const [activeTab, setActiveTab] = useState('feed'); // feed | painel | search
+  const [activeTab, setActiveTab] = useState(() => {
+    const p = String(location?.pathname || '');
+    if (p.endsWith('/painel')) return 'painel';
+    if (p.endsWith('/pesquisar')) return 'search';
+    return 'feed';
+  }); // feed | painel | search
   const [items, setItems] = useState([]);
   const [nextCursor, setNextCursor] = useState(null);
   const [followingCount, setFollowingCount] = useState(null);
@@ -32,12 +40,24 @@ const Feed = () => {
   const [videoModalPost, setVideoModalPost] = useState(null);
   const [postModalOpen, setPostModalOpen] = useState(false);
   const [postType, setPostType] = useState('text'); // text | link | image | video
+  const [postFormat, setPostFormat] = useState('square'); // square (1080x1080) | vertical (1080x1920)
   const [postCaption, setPostCaption] = useState('');
   const [postLinkUrl, setPostLinkUrl] = useState('');
   const [postFile, setPostFile] = useState(null);
   const [postPreviewUrl, setPostPreviewUrl] = useState('');
+  const [postObjectPos, setPostObjectPos] = useState({ x: 50, y: 50 }); // for video display crop
   const [postProgress, setPostProgress] = useState(0);
   const [posting, setPosting] = useState(false);
+  const [commentsOpenById, setCommentsOpenById] = useState({});
+  const [commentsLoadingById, setCommentsLoadingById] = useState({});
+  const [commentsByPostId, setCommentsByPostId] = useState({});
+  const [commentDraftByPostId, setCommentDraftByPostId] = useState({});
+  const [commentPostingById, setCommentPostingById] = useState({});
+  const [postActionLoadingById, setPostActionLoadingById] = useState({});
+  const [imageCropSrc, setImageCropSrc] = useState(null);
+  const [imageCrop, setImageCrop] = useState({ x: 0, y: 0 });
+  const [imageZoom, setImageZoom] = useState(1);
+  const [imageCroppedAreaPixels, setImageCroppedAreaPixels] = useState(null);
   const [panelLoading, setPanelLoading] = useState(false);
   const [panelError, setPanelError] = useState('');
   const [panelTotals, setPanelTotals] = useState(null);
@@ -264,11 +284,17 @@ const Feed = () => {
   const closePostModal = useCallback(() => {
     setPostModalOpen(false);
     setPostType('text');
+    setPostFormat('square');
     setPostCaption('');
     setPostLinkUrl('');
     setPostFile(null);
     setPostPreviewUrl('');
+    setPostObjectPos({ x: 50, y: 50 });
     setPostProgress(0);
+    setImageCropSrc(null);
+    setImageCrop({ x: 0, y: 0 });
+    setImageZoom(1);
+    setImageCroppedAreaPixels(null);
   }, []);
 
   useEffect(() => {
@@ -287,6 +313,119 @@ const Feed = () => {
     };
   }, [postFile, postModalOpen, postType]);
 
+  const onImageCropComplete = useCallback((_area, croppedPixels) => {
+    setImageCroppedAreaPixels(croppedPixels || null);
+  }, []);
+
+  const readFileAsDataUrl = useCallback((file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (e) => reject(e);
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  const confirmImageCrop = useCallback(async () => {
+    if (!imageCropSrc) return;
+    const w = postFormat === 'vertical' ? 1080 : 1080;
+    const h = postFormat === 'vertical' ? 1920 : 1080;
+    try {
+      const blob = await getCroppedImg(imageCropSrc, imageCroppedAreaPixels, w, h);
+      const file = new File([blob], `post_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      setPostFile(file);
+      setImageCropSrc(null);
+      setImageCrop({ x: 0, y: 0 });
+      setImageZoom(1);
+      setImageCroppedAreaPixels(null);
+    } catch {
+      void 0;
+    }
+  }, [imageCropSrc, imageCroppedAreaPixels, postFormat]);
+
+  const togglePostLike = useCallback(async (postId) => {
+    const id = String(postId || '').trim();
+    if (!id) return;
+    if (!meId) return;
+    setPostActionLoadingById((prev) => ({ ...prev, [`like:${id}`]: true }));
+    try {
+      const res = await apiClient.post(`/feed/posts/${id}/like`, {});
+      const liked = res?.liked === true;
+      const likes = Number(res?.likes || 0) || 0;
+      setItems((prev) => (Array.isArray(prev) ? prev.map((it) => {
+        if (it?.type !== 'post') return it;
+        if (String(it?.id || it?.data?.id || '') !== id) return it;
+        const data = it?.data || {};
+        return { ...it, data: { ...data, liked, likes_count: likes } };
+      }) : prev));
+    } catch {
+      void 0;
+    } finally {
+      setPostActionLoadingById((prev) => ({ ...prev, [`like:${id}`]: false }));
+    }
+  }, [meId]);
+
+  const loadComments = useCallback(async (postId) => {
+    const id = String(postId || '').trim();
+    if (!id) return;
+    if (commentsLoadingById?.[id]) return;
+    setCommentsLoadingById((prev) => ({ ...prev, [id]: true }));
+    try {
+      const res = await apiClient.get(`/feed/posts/${id}/comments`);
+      const list = Array.isArray(res?.comments) ? res.comments : [];
+      setCommentsByPostId((prev) => ({ ...prev, [id]: list }));
+    } catch {
+      setCommentsByPostId((prev) => ({ ...prev, [id]: [] }));
+    } finally {
+      setCommentsLoadingById((prev) => ({ ...prev, [id]: false }));
+    }
+  }, [commentsLoadingById]);
+
+  const toggleComments = useCallback(async (postId) => {
+    const id = String(postId || '').trim();
+    if (!id) return;
+    setCommentsOpenById((prev) => {
+      const next = { ...(prev || {}) };
+      next[id] = !next[id];
+      return next;
+    });
+    const already = Array.isArray(commentsByPostId?.[id]);
+    if (!already) await loadComments(id);
+  }, [commentsByPostId, loadComments]);
+
+  const sendComment = useCallback(async (postId) => {
+    const id = String(postId || '').trim();
+    if (!id) return;
+    if (!meId) return;
+    const text = String(commentDraftByPostId?.[id] || '').trim();
+    if (!text) return;
+    if (commentPostingById?.[id]) return;
+    setCommentPostingById((prev) => ({ ...prev, [id]: true }));
+    try {
+      const res = await apiClient.post(`/feed/posts/${id}/comments`, { text });
+      const comment = res?.comment || null;
+      if (comment) {
+        setCommentsByPostId((prev) => {
+          const current = Array.isArray(prev?.[id]) ? prev[id].slice() : [];
+          current.push(comment);
+          return { ...prev, [id]: current };
+        });
+        setItems((prev) => (Array.isArray(prev) ? prev.map((it) => {
+          if (it?.type !== 'post') return it;
+          if (String(it?.id || it?.data?.id || '') !== id) return it;
+          const data = it?.data || {};
+          const n = Number(data?.comments_count || 0) || 0;
+          return { ...it, data: { ...data, comments_count: n + 1 } };
+        }) : prev));
+      }
+      setCommentDraftByPostId((prev) => ({ ...prev, [id]: '' }));
+    } catch {
+      void 0;
+    } finally {
+      setCommentPostingById((prev) => ({ ...prev, [id]: false }));
+    }
+  }, [commentDraftByPostId, commentPostingById, meId]);
+
   const createFeedPost = useCallback(async () => {
     if (!meId) return;
     if (posting) return;
@@ -303,7 +442,18 @@ const Feed = () => {
       let mediaUrl = null;
       if (type === 'image' || type === 'video') {
         setPostProgress(0);
-        const ext = String(postFile?.name || '').split('.').pop() || 'bin';
+        const name = String(postFile?.name || '').trim();
+        const mime = String(postFile?.type || '').toLowerCase().trim();
+        const mimeToExt = () => {
+          if (mime.includes('jpeg')) return 'jpg';
+          if (mime.includes('png')) return 'png';
+          if (mime.includes('webp')) return 'webp';
+          if (mime.includes('mp4')) return 'mp4';
+          if (mime.includes('quicktime')) return 'mov';
+          if (mime.includes('webm')) return 'webm';
+          return 'bin';
+        };
+        const ext = name ? (name.split('.').pop() || mimeToExt()) : mimeToExt();
         const fileName = `feed/${meId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const up = await uploadApi.uploadWithMeta(postFile, {
           bucket: 'feed_media',
@@ -318,7 +468,9 @@ const Feed = () => {
         media_type: type,
         caption,
         link_url: type === 'link' ? linkUrl : null,
-        media_url: mediaUrl
+        media_url: mediaUrl,
+        format: (type === 'image' || type === 'video') ? postFormat : null,
+        object_position: type === 'video' ? postObjectPos : null
       });
       closePostModal();
       refresh();
@@ -327,7 +479,7 @@ const Feed = () => {
     } finally {
       setPosting(false);
     }
-  }, [closePostModal, meId, postCaption, postFile, postLinkUrl, postType, posting, refresh]);
+  }, [closePostModal, meId, postCaption, postFile, postFormat, postLinkUrl, postObjectPos, postType, posting, refresh]);
 
   const loadProfiles = useCallback(async () => {
     if (profilesLoading) return;
@@ -470,7 +622,7 @@ const Feed = () => {
         <Card className="p-6">
           <div className="text-gray-300 font-bold">Você ainda não segue ninguém. Comece a seguir para ver novidades.</div>
           <div className="mt-4 flex flex-wrap gap-3">
-            <AnimatedButton onClick={() => setActiveTab('search')}>Pesquisar perfis</AnimatedButton>
+            <AnimatedButton onClick={() => { setActiveTab('search'); navigate('/dashboard/pesquisar'); }}>Pesquisar perfis</AnimatedButton>
           </div>
         </Card>
       );
@@ -658,12 +810,27 @@ const Feed = () => {
 
               {it.type === 'post' && (() => {
                 const p = it.data || {};
+                const postId = String(it?.id || p?.id || '').trim();
                 const caption = p.caption || '';
                 const mediaType = String(p.media_type || '').toLowerCase();
                 const mediaUrl = sanitizeUrl(p.media_url);
                 const linkUrl = String(p.link_url || '').trim();
                 const embed = linkUrl ? getEmbedUrl(linkUrl) : null;
                 const open = () => setVideoModalPost({ ...p, media_url: mediaUrl, link_url: linkUrl });
+                const likesCount = Number(p.likes_count || 0) || 0;
+                const commentsCount = Number(p.comments_count || 0) || 0;
+                const liked = p.liked === true;
+                const commentsOpen = commentsOpenById?.[postId] === true;
+                const comments = Array.isArray(commentsByPostId?.[postId]) ? commentsByPostId[postId] : null;
+                const commentsLoading = commentsLoadingById?.[postId] === true;
+                const draft = String(commentDraftByPostId?.[postId] || '');
+                const sending = commentPostingById?.[postId] === true;
+                const likeLoading = postActionLoadingById?.[`like:${postId}`] === true;
+                const format = String(p.format || '').toLowerCase().trim() || (mediaType === 'video' ? 'vertical' : 'square');
+                const aspectClass = format === 'vertical' ? 'aspect-[9/16]' : 'aspect-square';
+                const rawPos = p.object_position && typeof p.object_position === 'object' ? p.object_position : null;
+                const ox = Math.max(0, Math.min(100, Number(rawPos?.x ?? 50) || 50));
+                const oy = Math.max(0, Math.min(100, Number(rawPos?.y ?? 50) || 50));
                 if (mediaType === 'text') {
                   return (
                     <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
@@ -678,12 +845,73 @@ const Feed = () => {
                           <span>Abrir link</span>
                         </button>
                       )}
+
+                      <div className="flex items-center gap-3 pt-2">
+                        <button
+                          type="button"
+                          disabled={likeLoading}
+                          onClick={() => togglePostLike(postId)}
+                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                            liked ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
+                          } ${likeLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        >
+                          <Heart size={14} className={liked ? 'text-beatwap-gold' : 'text-gray-300'} fill={liked ? 'currentColor' : 'none'} />
+                          <span>{likesCount}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleComments(postId)}
+                          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border bg-black/20 border-white/5 text-gray-300 hover:bg-white/5 transition"
+                        >
+                          <MessageCircle size={14} />
+                          <span>{commentsCount}</span>
+                        </button>
+                      </div>
+
+                      {commentsOpen && (
+                        <div className="pt-2 space-y-3">
+                          {commentsLoading && <div className="text-xs text-gray-400">Carregando comentários...</div>}
+                          {!commentsLoading && comments && comments.length === 0 && (
+                            <div className="text-xs text-gray-400">Nenhum comentário ainda.</div>
+                          )}
+                          {!commentsLoading && comments && comments.length > 0 && (
+                            <div className="space-y-2">
+                              {comments.slice(-6).map((c) => (
+                                <div key={c.id} className="text-xs text-gray-200">
+                                  <span className="text-gray-400 font-bold">{displayName(c.owner)}:</span>{' '}
+                                  <span className="text-gray-200">{String(c.text || '')}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <input
+                              value={draft}
+                              onChange={(e) => setCommentDraftByPostId((prev) => ({ ...prev, [postId]: e.target.value }))}
+                              placeholder="Escreva um comentário..."
+                              className="flex-1 px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-sm text-white placeholder:text-gray-500 outline-none focus:border-white/20"
+                            />
+                            <button
+                              type="button"
+                              disabled={sending || !String(draft || '').trim()}
+                              onClick={() => sendComment(postId)}
+                              className={`px-3 py-2 rounded-xl border transition ${
+                                sending || !String(draft || '').trim()
+                                  ? 'bg-white/5 border-white/10 text-gray-500 cursor-not-allowed'
+                                  : 'bg-beatwap-gold border-beatwap-gold text-black hover:bg-white hover:border-white'
+                              }`}
+                            >
+                              <Send size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 }
                 return (
                   <div className="group relative overflow-hidden bg-black/40 border border-white/10 rounded-xl">
-                    <div className="relative w-full aspect-[9/16] sm:aspect-video bg-black cursor-pointer" onClick={open}>
+                    <div className={`relative w-full ${aspectClass} bg-black cursor-pointer`} onClick={open}>
                       {embed ? (
                         <iframe
                           className="absolute inset-0 w-full h-full"
@@ -700,6 +928,7 @@ const Feed = () => {
                           playsInline
                           preload="metadata"
                           className="absolute inset-0 w-full h-full object-cover"
+                          style={{ objectPosition: `${ox}% ${oy}%` }}
                         />
                       ) : (
                         <img
@@ -729,6 +958,65 @@ const Feed = () => {
                         )}
                       </div>
                     )}
+                    <div className="px-4 pb-4 pt-1 flex items-center gap-3">
+                      <button
+                        type="button"
+                        disabled={likeLoading}
+                        onClick={() => togglePostLike(postId)}
+                        className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                          liked ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
+                        } ${likeLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                      >
+                        <Heart size={14} className={liked ? 'text-beatwap-gold' : 'text-gray-300'} fill={liked ? 'currentColor' : 'none'} />
+                        <span>{likesCount}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleComments(postId)}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border bg-black/20 border-white/5 text-gray-300 hover:bg-white/5 transition"
+                      >
+                        <MessageCircle size={14} />
+                        <span>{commentsCount}</span>
+                      </button>
+                    </div>
+                    {commentsOpen && (
+                      <div className="px-4 pb-4 space-y-3">
+                        {commentsLoading && <div className="text-xs text-gray-400">Carregando comentários...</div>}
+                        {!commentsLoading && comments && comments.length === 0 && (
+                          <div className="text-xs text-gray-400">Nenhum comentário ainda.</div>
+                        )}
+                        {!commentsLoading && comments && comments.length > 0 && (
+                          <div className="space-y-2">
+                            {comments.slice(-6).map((c) => (
+                              <div key={c.id} className="text-xs text-gray-200">
+                                <span className="text-gray-400 font-bold">{displayName(c.owner)}:</span>{' '}
+                                <span className="text-gray-200">{String(c.text || '')}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <input
+                            value={draft}
+                            onChange={(e) => setCommentDraftByPostId((prev) => ({ ...prev, [postId]: e.target.value }))}
+                            placeholder="Escreva um comentário..."
+                            className="flex-1 px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-sm text-white placeholder:text-gray-500 outline-none focus:border-white/20"
+                          />
+                          <button
+                            type="button"
+                            disabled={sending || !String(draft || '').trim()}
+                            onClick={() => sendComment(postId)}
+                            className={`px-3 py-2 rounded-xl border transition ${
+                              sending || !String(draft || '').trim()
+                                ? 'bg-white/5 border-white/10 text-gray-500 cursor-not-allowed'
+                                : 'bg-beatwap-gold border-beatwap-gold text-black hover:bg-white hover:border-white'
+                            }`}
+                          >
+                            <Send size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -743,7 +1031,7 @@ const Feed = () => {
         )}
       </div>
     );
-  }, [buildWhatsAppHref, displayName, followLoadingById, followingCount, getEmbedUrl, isFollowing, isPaused, items, loading, loadingMore, meId, navigate, playingTrack, roleLabel, sanitizeUrl, timeAgo, toggleFollow, togglePlay]);
+  }, [buildWhatsAppHref, commentDraftByPostId, commentPostingById, commentsByPostId, commentsLoadingById, commentsOpenById, displayName, followLoadingById, followingCount, getEmbedUrl, isFollowing, isPaused, items, loading, loadingMore, meId, navigate, playingTrack, postActionLoadingById, roleLabel, sanitizeUrl, sendComment, timeAgo, toggleComments, toggleFollow, togglePlay, togglePostLike]);
 
   const Layout = isProdutor ? AdminLayout : DashboardLayout;
 
@@ -774,7 +1062,7 @@ const Feed = () => {
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => setActiveTab('feed')}
+                onClick={() => { setActiveTab('feed'); navigate('/dashboard/feed'); }}
                 className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
                   activeTab === 'feed' ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
                 }`}
@@ -783,7 +1071,7 @@ const Feed = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('painel')}
+                onClick={() => { setActiveTab('painel'); navigate('/dashboard/painel'); }}
                 className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
                   activeTab === 'painel' ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
                 }`}
@@ -792,7 +1080,7 @@ const Feed = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('search')}
+                onClick={() => { setActiveTab('search'); navigate('/dashboard/pesquisar'); }}
                 className={`px-4 py-2 rounded-xl text-xs font-bold border transition inline-flex items-center gap-2 ${
                   activeTab === 'search' ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
                 }`}
@@ -805,7 +1093,7 @@ const Feed = () => {
           <div className="flex items-center gap-2 shrink-0">
             {activeTab === 'feed' && (
               <>
-                <AnimatedButton onClick={() => setActiveTab('search')}>
+                <AnimatedButton onClick={() => { setActiveTab('search'); navigate('/dashboard/pesquisar'); }}>
                   <span className="inline-flex items-center gap-2"><Search size={16} /> Pesquisar</span>
                 </AnimatedButton>
                 <AnimatedButton onClick={() => setPostModalOpen(true)} disabled={!meId}>
@@ -975,14 +1263,16 @@ const Feed = () => {
       </div>
 
       {videoModalPost && (
-        <div className="fixed inset-0 z-[100] bg-black/95" onClick={() => setVideoModalPost(null)}>
-          <button
-            onClick={() => setVideoModalPost(null)}
-            className="absolute top-4 right-4 p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10"
-          >
-            <span className="text-gray-300 text-sm font-bold">Fechar</span>
-          </button>
-          <div className="w-screen h-screen flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[100]">
+          <div className="absolute inset-0 bg-black/95" onClick={() => setVideoModalPost(null)} />
+          <div className="relative w-screen h-screen flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setVideoModalPost(null); }}
+              className="absolute top-4 right-4 p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10"
+            >
+              <span className="text-gray-300 text-sm font-bold">Fechar</span>
+            </button>
             {getEmbedUrl(videoModalPost.link_url || videoModalPost.media_url) ? (
               <div className="relative w-[90vw] max-w-[90vw] max-h-[85vh] aspect-video border border-white/10 rounded-xl overflow-hidden bg-black">
                 <iframe
@@ -1033,7 +1323,21 @@ const Feed = () => {
                   <button
                     key={opt.key}
                     type="button"
-                    onClick={() => { setPostType(opt.key); setPostProgress(0); setPostFile(null); setPostLinkUrl(''); }}
+                    onClick={() => {
+                      setPostType(opt.key);
+                      setPostProgress(0);
+                      setPostFile(null);
+                      setPostPreviewUrl('');
+                      setPostLinkUrl('');
+                      setPostObjectPos({ x: 50, y: 50 });
+                      setImageCropSrc(null);
+                      setImageCrop({ x: 0, y: 0 });
+                      setImageZoom(1);
+                      setImageCroppedAreaPixels(null);
+                      if (opt.key === 'video') setPostFormat('vertical');
+                      else if (opt.key === 'image') setPostFormat('square');
+                      else setPostFormat('square');
+                    }}
                     className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
                       postType === opt.key ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
                     }`}
@@ -1061,13 +1365,41 @@ const Feed = () => {
 
               {(postType === 'image' || postType === 'video') && (
                 <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPostFormat('square')}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                        postFormat === 'square' ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
+                      }`}
+                    >
+                      1080x1080
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPostFormat('vertical')}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                        postFormat === 'vertical' ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
+                      }`}
+                    >
+                      1080x1920
+                    </button>
+                  </div>
                   <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
                     <div className="text-xs text-gray-300 truncate">{postFile ? postFile.name : 'Nenhum arquivo selecionado'}</div>
                     <div className="flex items-center gap-2">
                       {postFile && (
                         <button
                           type="button"
-                          onClick={() => { setPostFile(null); setPostPreviewUrl(''); }}
+                          onClick={() => {
+                            setPostFile(null);
+                            setPostPreviewUrl('');
+                            setImageCropSrc(null);
+                            setImageCrop({ x: 0, y: 0 });
+                            setImageZoom(1);
+                            setImageCroppedAreaPixels(null);
+                            setPostObjectPos({ x: 50, y: 50 });
+                          }}
                           className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10"
                           title="Remover arquivo"
                         >
@@ -1080,19 +1412,121 @@ const Feed = () => {
                           type="file"
                           accept={postType === 'image' ? 'image/*' : 'video/*'}
                           className="hidden"
-                          onChange={(e) => setPostFile(e.target.files?.[0] || null)}
+                          onChange={async (e) => {
+                            const f = e.target.files?.[0] || null;
+                            setPostFile(f);
+                            setPostObjectPos({ x: 50, y: 50 });
+                            setImageCropSrc(null);
+                            setImageCrop({ x: 0, y: 0 });
+                            setImageZoom(1);
+                            setImageCroppedAreaPixels(null);
+                            if (postType === 'image' && f) {
+                              try {
+                                const dataUrl = await readFileAsDataUrl(f);
+                                setImageCropSrc(String(dataUrl || ''));
+                              } catch {
+                                void 0;
+                              }
+                            }
+                          }}
                         />
                       </label>
                     </div>
                   </div>
-                  {postPreviewUrl && postType === 'image' && (
-                    <div className="w-full rounded-xl overflow-hidden border border-white/10 bg-black/30">
-                      <img src={postPreviewUrl} alt="Prévia" className="w-full max-h-[420px] object-contain" />
+                  {postType === 'image' && imageCropSrc && (
+                    <div className="space-y-3">
+                      <div className={`relative w-full ${postFormat === 'vertical' ? 'aspect-[9/16]' : 'aspect-square'} rounded-xl overflow-hidden border border-white/10 bg-black/30`}>
+                        <Cropper
+                          image={imageCropSrc}
+                          crop={imageCrop}
+                          zoom={imageZoom}
+                          aspect={postFormat === 'vertical' ? 9 / 16 : 1}
+                          onCropChange={setImageCrop}
+                          onZoomChange={setImageZoom}
+                          onCropComplete={onImageCropComplete}
+                        />
+                      </div>
+                      <input
+                        type="range"
+                        min={1}
+                        max={3}
+                        step={0.05}
+                        value={imageZoom}
+                        onChange={(e) => setImageZoom(Number(e.target.value) || 1)}
+                        className="w-full"
+                      />
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImageCropSrc(null);
+                            setPostFile(null);
+                            setPostPreviewUrl('');
+                            setImageCrop({ x: 0, y: 0 });
+                            setImageZoom(1);
+                            setImageCroppedAreaPixels(null);
+                          }}
+                          className="px-4 py-2 rounded-xl text-xs font-bold bg-white/5 border border-white/10 text-gray-200 hover:bg-white/10"
+                        >
+                          Cancelar recorte
+                        </button>
+                        <button
+                          type="button"
+                          onClick={confirmImageCrop}
+                          className="px-4 py-2 rounded-xl text-xs font-bold bg-beatwap-gold border border-beatwap-gold text-black hover:bg-white hover:border-white"
+                        >
+                          Confirmar recorte
+                        </button>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        Ajuste antes de publicar. A foto será salva em {postFormat === 'vertical' ? '1080x1920' : '1080x1080'}.
+                      </div>
+                    </div>
+                  )}
+                  {postPreviewUrl && postType === 'image' && !imageCropSrc && (
+                    <div className={`relative w-full ${postFormat === 'vertical' ? 'aspect-[9/16]' : 'aspect-square'} rounded-xl overflow-hidden border border-white/10 bg-black/30`}>
+                      <img src={postPreviewUrl} alt="Prévia" className="absolute inset-0 w-full h-full object-cover" />
                     </div>
                   )}
                   {postPreviewUrl && postType === 'video' && (
-                    <div className="w-full rounded-xl overflow-hidden border border-white/10 bg-black/30">
-                      <video src={postPreviewUrl} className="w-full max-h-[420px] object-contain" controls playsInline />
+                    <div className="space-y-3">
+                      <div className={`relative w-full ${postFormat === 'vertical' ? 'aspect-[9/16]' : 'aspect-square'} rounded-xl overflow-hidden border border-white/10 bg-black/30`}>
+                        <video
+                          src={postPreviewUrl}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          style={{ objectPosition: `${postObjectPos.x}% ${postObjectPos.y}%` }}
+                          controls
+                          playsInline
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="text-xs text-gray-400">Ajuste o enquadramento</div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-xs text-gray-400 w-10">X</div>
+                          <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            value={postObjectPos.x}
+                            onChange={(e) => setPostObjectPos((prev) => ({ ...prev, x: Number(e.target.value) || 0 }))}
+                            className="w-full"
+                          />
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-xs text-gray-400 w-10">Y</div>
+                          <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            value={postObjectPos.y}
+                            onChange={(e) => setPostObjectPos((prev) => ({ ...prev, y: Number(e.target.value) || 0 }))}
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        Vídeos são exibidos em {postFormat === 'vertical' ? '1080x1920' : '1080x1080'} (corte visual).
+                      </div>
                     </div>
                   )}
                   {posting && (
@@ -1118,6 +1552,7 @@ const Feed = () => {
                     || (postType === 'text' && !String(postCaption || '').trim())
                     || (postType === 'link' && !String(postLinkUrl || '').trim())
                     || ((postType === 'image' || postType === 'video') && !postFile)
+                    || (postType === 'image' && imageCropSrc)
                   }
                 >
                   {posting ? 'Publicando...' : 'Publicar'}
