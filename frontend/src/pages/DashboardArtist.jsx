@@ -623,7 +623,11 @@ export const DashboardArtistMusics = () => {
   const computeRemaining = useCallback(async () => {
     if (!user) return;
     const prof = await apiClient.get('/profile');
-    const plan = (prof?.plano || 'sem plano').toLowerCase();
+    const plan = String(prof?.plano || 'sem plano')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
     const bonus = Number(prof?.bonus_quota || 0);
     let base = 0;
     let start = null;
@@ -634,7 +638,7 @@ export const DashboardArtistMusics = () => {
       base = 1;
       const ps = prof?.plan_started_at ? new Date(prof.plan_started_at) : now;
       start = ps.toISOString();
-    } else if (plan.includes('vitalicio')) {
+    } else if (plan.includes('vitalicio') || plan.includes('lifetime')) {
       setIsUnlimited(true);
       setRemainingUploads(null);
       return;

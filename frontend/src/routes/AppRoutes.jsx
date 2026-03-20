@@ -113,11 +113,19 @@ export const AppRoutes = () => {
   const isProdutor = profile?.cargo === 'Produtor';
   const isCompositor = profile?.cargo === 'Compositor';
   const isVendedor = profile?.cargo === 'Vendedor';
+  const allowPublicExplore = (() => {
+    try {
+      const q = new URLSearchParams(String(location?.search || ''));
+      return q.get('explore') === '1';
+    } catch {
+      return false;
+    }
+  })();
 
   return (
       <Routes location={location}>
         {/* Public Route - Landing Page */}
-        <Route path="/" element={profile ? <Navigate to={routeForRole(profile?.cargo)} replace /> : <Home />} />
+        <Route path="/" element={(profile && !allowPublicExplore) ? <Navigate to={routeForRole(profile?.cargo)} replace /> : <Home />} />
         <Route path="/composicoes" element={<AllCompositions />} />
         <Route path="/profile/:id" element={<PublicProfile />} />
         <Route path="/album/:id" element={<AlbumPage />} />
@@ -154,7 +162,18 @@ export const AppRoutes = () => {
         <Route path="/seller/proposals" element={isVendedor ? <SellerProposals /> : <Navigate to="/" replace />} />
         <Route path="/seller/communications" element={isVendedor ? <SellerCommunications /> : <Navigate to="/" replace />} />
 
-        <Route path="/admin" element={<ProtectedRoute element={<Navigate to={routeForRole(profile?.cargo)} replace />} />} />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute
+              element={
+                isProdutor
+                  ? <AdminHome />
+                  : (isVendedor ? <SellerDashboard /> : <Navigate to={routeForRole(profile?.cargo)} replace />)
+              }
+            />
+          }
+        />
         <Route path="/admin/profile" element={isProdutor ? <AdminProfile /> : <Navigate to="/" replace />} />
         <Route path="/admin/public-profile" element={isProdutor ? <AdminPublicProfile /> : <Navigate to="/" replace />} />
         <Route path="/admin/artists" element={isProdutor ? <AdminArtists /> : <Navigate to="/" replace />} />

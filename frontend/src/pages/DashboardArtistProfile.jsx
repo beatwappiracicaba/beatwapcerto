@@ -90,7 +90,11 @@ export const DashboardArtistProfile = () => {
   useEffect(() => {
     const computeQuota = async () => {
       if (!user || !profile) return;
-      const plan = (profile.plano || 'sem plano').toLowerCase();
+      const plan = String(profile.plano || 'sem plano')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
       const bonus = Number(profile.bonus_quota || 0);
       let base = 0;
       let start = null;
@@ -103,7 +107,7 @@ export const DashboardArtistProfile = () => {
         start = ps.toISOString();
         end = null;
         setPeriodLabel('Avulso (desde a contratação)');
-      } else if (plan.includes('vitalicio')) {
+      } else if (plan.includes('vitalicio') || plan.includes('lifetime')) {
         setIsUnlimited(true);
         setPeriodLabel('Vitalício (ilimitado)');
         setRemainingUploads(null);

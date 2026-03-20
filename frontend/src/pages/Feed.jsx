@@ -271,7 +271,7 @@ const Feed = () => {
         <Card className="p-6">
           <div className="text-gray-300 font-bold">Você ainda não segue ninguém. Comece a seguir para ver novidades.</div>
           <div className="mt-4 flex flex-wrap gap-3">
-            <AnimatedButton onClick={() => navigate('/')}>
+            <AnimatedButton onClick={() => navigate('/?explore=1')}>
               Explorar perfis
             </AnimatedButton>
           </div>
