@@ -5,6 +5,7 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
+import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { apiClient } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { connectRealtime, subscribe, unsubscribe } from '../services/realtime';
@@ -25,6 +26,9 @@ const Feed = () => {
   const [isPaused, setIsPaused] = useState(false);
   const [audioElement, setAudioElement] = useState(null);
   const [videoModalPost, setVideoModalPost] = useState(null);
+  const [newCaption, setNewCaption] = useState('');
+  const [newLinkUrl, setNewLinkUrl] = useState('');
+  const [posting, setPosting] = useState(false);
   const sentinelRef = useRef(null);
   const subscribedRoomsRef = useRef([]);
   const refreshTimerRef = useRef(null);
@@ -211,7 +215,8 @@ const Feed = () => {
 
   useEffect(() => {
     const socket = connectRealtime('https://api.beatwap.com.br');
-    const rooms = (followingIds || []).map((id) => `profile:${id}`);
+    const roomIds = Array.from(new Set((followingIds || []).concat(meId ? [meId] : []).filter(Boolean)));
+    const rooms = roomIds.map((id) => `profile:${id}`);
     const prevRooms = subscribedRoomsRef.current || [];
     for (const r of prevRooms) {
       if (!rooms.includes(r)) unsubscribe(r);
@@ -237,7 +242,32 @@ const Feed = () => {
       socket.off('musics.created', onAnyUpdate);
       socket.off('musics.updated', onAnyUpdate);
     };
-  }, [followingIds, refresh]);
+  }, [followingIds, meId, refresh]);
+
+  const createFeedPost = useCallback(async () => {
+    if (!meId) return;
+    if (posting) return;
+    const caption = String(newCaption || '').trim();
+    const linkUrl = String(newLinkUrl || '').trim();
+    if (!caption && !linkUrl) return;
+    setPosting(true);
+    try {
+      const isLink = !!linkUrl;
+      await apiClient.post('/feed/posts', {
+        media_type: isLink ? 'link' : 'text',
+        caption,
+        link_url: isLink ? linkUrl : null,
+        media_url: null
+      });
+      setNewCaption('');
+      setNewLinkUrl('');
+      refresh();
+    } catch {
+      void 0;
+    } finally {
+      setPosting(false);
+    }
+  }, [meId, newCaption, newLinkUrl, posting, refresh]);
 
   const getEmbedUrl = useCallback((url) => {
     if (!url) return null;
@@ -467,6 +497,23 @@ const Feed = () => {
                 const linkUrl = String(p.link_url || '').trim();
                 const embed = linkUrl ? getEmbedUrl(linkUrl) : null;
                 const open = () => setVideoModalPost({ ...p, media_url: mediaUrl, link_url: linkUrl });
+                if (mediaType === 'text') {
+                  return (
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+                      {caption && <div className="text-sm text-white whitespace-pre-line">{caption}</div>}
+                      {linkUrl && (
+                        <button
+                          type="button"
+                          onClick={() => window.open(linkUrl, '_blank')}
+                          className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-beatwap-gold underline"
+                        >
+                          <ExternalLink size={14} />
+                          <span>Abrir link</span>
+                        </button>
+                      )}
+                    </div>
+                  );
+                }
                 return (
                   <div className="group relative overflow-hidden bg-black/40 border border-white/10 rounded-xl">
                     <div className="relative w-full aspect-[9/16] sm:aspect-video bg-black cursor-pointer" onClick={open}>
@@ -545,6 +592,31 @@ const Feed = () => {
             Atualizar
           </AnimatedButton>
         </div>
+        <Card className="p-4">
+          <div className="text-white font-bold">Postar no feed</div>
+          <div className="mt-3 space-y-3">
+            <textarea
+              value={newCaption}
+              onChange={(e) => setNewCaption(e.target.value)}
+              placeholder="Escreva um momento, ideia ou anúncio..."
+              rows={3}
+              className="w-full rounded-xl bg-white/5 border border-white/10 text-white px-4 py-3 outline-none focus:border-beatwap-gold resize-none"
+            />
+            <AnimatedInput
+              value={newLinkUrl}
+              onChange={(e) => setNewLinkUrl(e.target.value)}
+              placeholder="Opcional: link (YouTube ou qualquer URL)"
+            />
+            <div className="flex justify-end">
+              <AnimatedButton onClick={createFeedPost} disabled={posting || (!String(newCaption || '').trim() && !String(newLinkUrl || '').trim())}>
+                {posting ? 'Publicando...' : 'Publicar'}
+              </AnimatedButton>
+            </div>
+            <div className="text-xs text-gray-400">
+              Posts feitos aqui aparecem só no feed. Posts do perfil público aparecem no feed também.
+            </div>
+          </div>
+        </Card>
         {content}
       </div>
 

@@ -358,6 +358,7 @@ router.get('/profiles/:id/posts', async (req, res) => {
     const format = String(req.query.format || '').trim();
     const baseList = memory.posts
       .filter(p => String(p.user_id) === ownerId)
+      .filter(p => String(p?.scope || 'public').toLowerCase().trim() !== 'feed')
       .map(p => {
         if ((!p.media_url || p.media_url === '') && p.link_url) {
           try {
@@ -1013,6 +1014,8 @@ router.post('/posts', async (req, res) => {
     let media_url = req.body?.media_url || null;
     const link_url = req.body?.link_url || null;
     const caption = req.body?.caption || '';
+    const scopeRaw = String(req.body?.scope || 'public').toLowerCase().trim();
+    const scope = scopeRaw === 'feed' ? 'feed' : 'public';
     if (media_type === 'link' && link_url) {
       const safe = String(link_url || '').replace(/[`"'<>]/g, '').trim();
       const m = safe.match(/^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/i);
@@ -1020,6 +1023,9 @@ router.post('/posts', async (req, res) => {
       if (vid) {
         media_url = `https://img.youtube.com/vi/${vid}/hqdefault.jpg`;
       }
+    }
+    if (media_type === 'text') {
+      media_url = null;
     }
     if (media_type === 'image' && (!media_url || media_url === '')) {
       media_url = 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%221200%22 height=%221200%22><rect width=%22100%25%22 height=%22100%25%22 fill=%22%231a1a1a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ffd700%22 font-size=%2236%22 font-family=%22Arial%22>Imagem indisponível</text></svg>';
@@ -1031,11 +1037,13 @@ router.post('/posts', async (req, res) => {
       media_type,
       link_url,
       caption,
+      scope,
       created_at: new Date().toISOString()
     };
     memory.posts.unshift(item);
+    scheduleSave();
     console.log('POST /posts created', { id, user_id, media_type, has_link: !!link_url, media_url_len: (media_url || '').length });
-    if (user_id) {
+    if (user_id && scope !== 'feed' && media_type !== 'text') {
       const key = String(user_id);
       if (!memory.profileGallery[key]) {
         memory.profileGallery[key] = { video: [], image: [], link: [] };

@@ -94,6 +94,10 @@ const PublicProfile = () => {
     const onPostCreated = (item) => {
       if (!item) return;
       if (String(item.user_id || '') === String(id)) {
+        const scope = String(item?.scope || 'public').toLowerCase().trim();
+        const mediaType = String(item?.media_type || '').toLowerCase().trim();
+        if (scope === 'feed') return;
+        if (mediaType === 'text') return;
         setGalleryPosts(prev => [item, ...prev]);
       }
     };

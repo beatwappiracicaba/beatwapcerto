@@ -2,6 +2,7 @@ const express = require('express');
 const { auth } = require('../middleware/auth');
 const { Profile } = require('../models');
 const { memory, scheduleSave } = require('../memoryStore');
+const { emitEvent } = require('../realtime');
 
 const router = express.Router();
 
@@ -274,6 +275,58 @@ router.get('/follow/followers', auth, async (req, res) => {
   }
 });
 
+router.post('/feed/posts', auth, async (req, res) => {
+  try {
+    const meId = normId(req.user?.id);
+    if (!meId) return res.status(401).json({ error: 'Não autorizado' });
+
+    const allowed = new Set(['text', 'image', 'video', 'link']);
+    const media_type = String(req.body?.media_type || 'text').toLowerCase().trim();
+    if (!allowed.has(media_type)) return res.status(400).json({ error: 'Tipo inválido' });
+
+    const caption = String(req.body?.caption || '').trim();
+    const link_url = String(req.body?.link_url || '').trim() || null;
+    let media_url = String(req.body?.media_url || '').trim() || null;
+
+    if (media_type === 'link' && link_url) {
+      const safe = String(link_url || '').replace(/[`"'<>]/g, '').trim();
+      const m = safe.match(/^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/i);
+      const vid = m && m[2] && m[2].length === 11 ? m[2] : null;
+      if (vid) media_url = `https://img.youtube.com/vi/${vid}/hqdefault.jpg`;
+    }
+
+    if (media_type === 'text') {
+      media_url = null;
+    }
+
+    if (media_type === 'image' && (!media_url || media_url === '')) {
+      media_url = 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%221200%22 height=%221200%22><rect width=%22100%25%22 height=%22100%25%22 fill=%22%231a1a1a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ffd700%22 font-size=%2236%22 font-family=%22Arial%22>Imagem indisponível</text></svg>';
+    }
+
+    const id = `post_${Date.now()}`;
+    const item = {
+      id,
+      user_id: meId,
+      media_url,
+      media_type,
+      link_url,
+      caption,
+      scope: 'feed',
+      created_at: new Date().toISOString()
+    };
+
+    if (!Array.isArray(memory.posts)) memory.posts = [];
+    memory.posts.unshift(item);
+    scheduleSave();
+    emitEvent('posts.created', item, `profile:${meId}`);
+
+    const arr = Array.isArray(memory.likes && memory.likes[id]) ? memory.likes[id] : [];
+    res.json({ ...item, likes_count: arr.length });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 router.get('/feed', auth, async (req, res) => {
   try {
     const meId = normId(req.user?.id);
@@ -282,9 +335,6 @@ router.get('/feed', auth, async (req, res) => {
 
     const followingIds = getFollowingIds(meId);
     const followingSet = new Set(followingIds);
-    if (followingIds.length === 0) {
-      return res.json({ items: [], nextCursor: null, followingCount: 0, followingIds: [] });
-    }
 
     const parseCursor = (raw) => {
       const s = String(raw || '').trim();
@@ -303,7 +353,8 @@ router.get('/feed', auth, async (req, res) => {
 
     for (const p of (memory.posts || [])) {
       const ownerId = normId(p?.user_id);
-      if (!ownerId || !followingSet.has(ownerId)) continue;
+      if (!ownerId) continue;
+      if (ownerId !== meId && !followingSet.has(ownerId)) continue;
       const createdAt = String(p?.created_at || '');
       const ts = new Date(createdAt).getTime();
       if (!Number.isFinite(ts)) continue;
