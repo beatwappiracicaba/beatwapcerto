@@ -1,20 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Pause, Music, Image, Video, ExternalLink } from 'lucide-react';
+import { Play, Pause, Music, Image, Video, ExternalLink, Search, Plus, X, TrendingUp } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
-import { apiClient } from '../services/apiClient';
+import { apiClient, uploadApi } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { connectRealtime, subscribe, unsubscribe } from '../services/realtime';
 
 const Feed = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const isProdutor = String(profile?.cargo || '').toLowerCase() === 'produtor';
+  const roleLower = String(profile?.cargo || '').toLowerCase();
+  const isProdutor = roleLower === 'produtor';
+  const isVendedor = roleLower === 'vendedor';
+  const isPrivileged = isProdutor || isVendedor;
   const meId = String(profile?.id || '').trim();
+  const [activeTab, setActiveTab] = useState('feed'); // feed | painel | search
   const [items, setItems] = useState([]);
   const [nextCursor, setNextCursor] = useState(null);
   const [followingCount, setFollowingCount] = useState(null);
@@ -26,9 +30,22 @@ const Feed = () => {
   const [isPaused, setIsPaused] = useState(false);
   const [audioElement, setAudioElement] = useState(null);
   const [videoModalPost, setVideoModalPost] = useState(null);
-  const [newCaption, setNewCaption] = useState('');
-  const [newLinkUrl, setNewLinkUrl] = useState('');
+  const [postModalOpen, setPostModalOpen] = useState(false);
+  const [postType, setPostType] = useState('text'); // text | link | image | video
+  const [postCaption, setPostCaption] = useState('');
+  const [postLinkUrl, setPostLinkUrl] = useState('');
+  const [postFile, setPostFile] = useState(null);
+  const [postPreviewUrl, setPostPreviewUrl] = useState('');
+  const [postProgress, setPostProgress] = useState(0);
   const [posting, setPosting] = useState(false);
+  const [panelLoading, setPanelLoading] = useState(false);
+  const [panelError, setPanelError] = useState('');
+  const [panelTotals, setPanelTotals] = useState(null);
+  const [panelTopMusics, setPanelTopMusics] = useState([]);
+  const [profilesLoading, setProfilesLoading] = useState(false);
+  const [profilesError, setProfilesError] = useState('');
+  const [profiles, setProfiles] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const sentinelRef = useRef(null);
   const subscribedRoomsRef = useRef([]);
   const refreshTimerRef = useRef(null);
@@ -244,30 +261,182 @@ const Feed = () => {
     };
   }, [followingIds, meId, refresh]);
 
+  const closePostModal = useCallback(() => {
+    setPostModalOpen(false);
+    setPostType('text');
+    setPostCaption('');
+    setPostLinkUrl('');
+    setPostFile(null);
+    setPostPreviewUrl('');
+    setPostProgress(0);
+  }, []);
+
+  useEffect(() => {
+    if (!postModalOpen) {
+      setPostPreviewUrl('');
+      return;
+    }
+    if (!postFile || (postType !== 'image' && postType !== 'video')) {
+      setPostPreviewUrl('');
+      return;
+    }
+    const url = URL.createObjectURL(postFile);
+    setPostPreviewUrl(url);
+    return () => {
+      try { URL.revokeObjectURL(url); } catch { void 0; }
+    };
+  }, [postFile, postModalOpen, postType]);
+
   const createFeedPost = useCallback(async () => {
     if (!meId) return;
     if (posting) return;
-    const caption = String(newCaption || '').trim();
-    const linkUrl = String(newLinkUrl || '').trim();
-    if (!caption && !linkUrl) return;
+    const caption = String(postCaption || '').trim();
+    const linkUrl = String(postLinkUrl || '').trim();
+    const type = String(postType || 'text').toLowerCase().trim();
+
+    if (type === 'text' && !caption) return;
+    if (type === 'link' && !linkUrl) return;
+    if ((type === 'image' || type === 'video') && !postFile) return;
+
     setPosting(true);
     try {
-      const isLink = !!linkUrl;
+      let mediaUrl = null;
+      if (type === 'image' || type === 'video') {
+        setPostProgress(0);
+        const ext = String(postFile?.name || '').split('.').pop() || 'bin';
+        const fileName = `feed/${meId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const up = await uploadApi.uploadWithMeta(postFile, {
+          bucket: 'feed_media',
+          fileName,
+          onProgress: (pct) => setPostProgress(Number(pct) || 0)
+        });
+        mediaUrl = up?.url || null;
+        setPostProgress(100);
+      }
+
       await apiClient.post('/feed/posts', {
-        media_type: isLink ? 'link' : 'text',
+        media_type: type,
         caption,
-        link_url: isLink ? linkUrl : null,
-        media_url: null
+        link_url: type === 'link' ? linkUrl : null,
+        media_url: mediaUrl
       });
-      setNewCaption('');
-      setNewLinkUrl('');
+      closePostModal();
       refresh();
     } catch {
       void 0;
     } finally {
       setPosting(false);
     }
-  }, [meId, newCaption, newLinkUrl, posting, refresh]);
+  }, [closePostModal, meId, postCaption, postFile, postLinkUrl, postType, posting, refresh]);
+
+  const loadProfiles = useCallback(async () => {
+    if (profilesLoading) return;
+    setProfilesLoading(true);
+    setProfilesError('');
+    try {
+      const data = await apiClient.get('/profiles');
+      const list = Array.isArray(data) ? data : [];
+      const cleaned = list
+        .map((p) => ({
+          id: String(p?.id || '').trim(),
+          cargo: String(p?.cargo || '').trim(),
+          nome: p?.nome || p?.nome_completo_razao_social || p?.email || 'Usuário',
+          avatar_url: p?.avatar_url || null,
+          verified: p?.verified === true || p?.access_control?.verified === true
+        }))
+        .filter((p) => p.id && p.id !== meId);
+      cleaned.sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'));
+      setProfiles(cleaned);
+    } catch {
+      setProfiles([]);
+      setProfilesError('Falha ao carregar perfis');
+    } finally {
+      setProfilesLoading(false);
+    }
+  }, [meId, profilesLoading]);
+
+  const formatSeconds = useCallback((totalSeconds) => {
+    const s = Math.max(0, Number(totalSeconds || 0));
+    if (!Number.isFinite(s) || s <= 0) return '0 min';
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m} min`;
+    const h = Math.floor(m / 60);
+    const restM = m % 60;
+    return `${h}h ${String(restM).padStart(2, '0')}m`;
+  }, []);
+
+  const loadPanel = useCallback(async () => {
+    if (!meId) return;
+    if (panelLoading) return;
+    setPanelLoading(true);
+    setPanelError('');
+    try {
+      if (isPrivileged) {
+        const data = await apiClient.get('/admin/dashboard-metrics');
+        setPanelTotals(data?.totals || null);
+        setPanelTopMusics(Array.isArray(data?.topMusics) ? data.topMusics : []);
+      } else {
+        const [musicsRaw, eventsRaw] = await Promise.all([
+          apiClient.get(`/profiles/${meId}/musics`),
+          apiClient.get(`/analytics/artist/${meId}/events`)
+        ]);
+        const musics = Array.isArray(musicsRaw) ? musicsRaw : [];
+        const events = Array.isArray(eventsRaw) ? eventsRaw : [];
+
+        const playsByMusic = new Map();
+        const secondsByMusic = new Map();
+        for (const ev of events) {
+          if (String(ev?.type || '') !== 'music_play') continue;
+          const p = ev?.payload || {};
+          const mid = String(p?.music_id || p?.id || '').trim();
+          if (!mid) continue;
+          playsByMusic.set(mid, (playsByMusic.get(mid) || 0) + 1);
+          const d = Number(p?.duration_seconds || 0);
+          if (Number.isFinite(d) && d > 0) secondsByMusic.set(mid, (secondsByMusic.get(mid) || 0) + d);
+        }
+
+        const enriched = musics.map((m) => {
+          const id = String(m?.id || '').trim();
+          const likes = Number(m?.likes_count || 0) || 0;
+          return {
+            id,
+            titulo: m?.titulo || m?.title || 'Sem título',
+            nome_artista: m?.nome_artista || m?.artist_name || profile?.nome || 'Artista',
+            cover_url: m?.cover_url || null,
+            plays: playsByMusic.get(id) || 0,
+            play_seconds: secondsByMusic.get(id) || 0,
+            likes
+          };
+        });
+
+        const topMusics = enriched
+          .slice()
+          .sort((a, b) => (b.plays - a.plays) || (b.likes - a.likes))
+          .slice(0, 10);
+
+        const totals = {
+          musics_total: enriched.length,
+          plays_total: Array.from(playsByMusic.values()).reduce((a, b) => a + b, 0),
+          play_seconds_total: Array.from(secondsByMusic.values()).reduce((a, b) => a + b, 0),
+          music_likes_total: enriched.reduce((a, b) => a + (Number(b.likes) || 0), 0)
+        };
+
+        setPanelTotals(totals);
+        setPanelTopMusics(topMusics);
+      }
+    } catch {
+      setPanelError('Falha ao carregar painel');
+      setPanelTotals(null);
+      setPanelTopMusics([]);
+    } finally {
+      setPanelLoading(false);
+    }
+  }, [isPrivileged, meId, panelLoading, profile?.nome]);
+
+  useEffect(() => {
+    if (activeTab === 'search') loadProfiles();
+    if (activeTab === 'painel') loadPanel();
+  }, [activeTab, loadPanel, loadProfiles]);
 
   const getEmbedUrl = useCallback((url) => {
     if (!url) return null;
@@ -301,9 +470,7 @@ const Feed = () => {
         <Card className="p-6">
           <div className="text-gray-300 font-bold">Você ainda não segue ninguém. Comece a seguir para ver novidades.</div>
           <div className="mt-4 flex flex-wrap gap-3">
-            <AnimatedButton onClick={() => navigate('/?explore=1')}>
-              Explorar perfis
-            </AnimatedButton>
+            <AnimatedButton onClick={() => setActiveTab('search')}>Pesquisar perfis</AnimatedButton>
           </div>
         </Card>
       );
@@ -580,44 +747,226 @@ const Feed = () => {
 
   const Layout = isProdutor ? AdminLayout : DashboardLayout;
 
+  const filteredProfiles = useMemo(() => {
+    const term = String(searchQuery || '').trim().toLowerCase();
+    const list = Array.isArray(profiles) ? profiles : [];
+    if (!term) return list.slice(0, 60);
+    return list
+      .filter((p) => {
+        const n = String(p?.nome || '').toLowerCase();
+        const c = String(p?.cargo || '').toLowerCase();
+        return n.includes(term) || c.includes(term) || String(p?.id || '').includes(term);
+      })
+      .slice(0, 60);
+  }, [profiles, searchQuery]);
+
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-2xl font-bold text-white truncate">🔥 Feed</div>
-            <div className="text-sm text-gray-400 truncate">Novidades de quem você segue</div>
+            <div className="text-2xl font-bold text-white truncate">BeatWap</div>
+            <div className="text-sm text-gray-400 truncate">
+              {activeTab === 'feed' && 'Novidades de quem você segue'}
+              {activeTab === 'painel' && 'Desempenho e métricas'}
+              {activeTab === 'search' && 'Pesquisar perfis'}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab('feed')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
+                  activeTab === 'feed' ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
+                }`}
+              >
+                Feed
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('painel')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
+                  activeTab === 'painel' ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
+                }`}
+              >
+                Painel
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('search')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition inline-flex items-center gap-2 ${
+                  activeTab === 'search' ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
+                }`}
+              >
+                <Search size={14} />
+                Pesquisar
+              </button>
+            </div>
           </div>
-          <AnimatedButton onClick={refresh}>
-            Atualizar
-          </AnimatedButton>
-        </div>
-        <Card className="p-4">
-          <div className="text-white font-bold">Postar no feed</div>
-          <div className="mt-3 space-y-3">
-            <textarea
-              value={newCaption}
-              onChange={(e) => setNewCaption(e.target.value)}
-              placeholder="Escreva um momento, ideia ou anúncio..."
-              rows={3}
-              className="w-full rounded-xl bg-white/5 border border-white/10 text-white px-4 py-3 outline-none focus:border-beatwap-gold resize-none"
-            />
-            <AnimatedInput
-              value={newLinkUrl}
-              onChange={(e) => setNewLinkUrl(e.target.value)}
-              placeholder="Opcional: link (YouTube ou qualquer URL)"
-            />
-            <div className="flex justify-end">
-              <AnimatedButton onClick={createFeedPost} disabled={posting || (!String(newCaption || '').trim() && !String(newLinkUrl || '').trim())}>
-                {posting ? 'Publicando...' : 'Publicar'}
+          <div className="flex items-center gap-2 shrink-0">
+            {activeTab === 'feed' && (
+              <AnimatedButton onClick={() => setPostModalOpen(true)} disabled={!meId}>
+                <span className="inline-flex items-center gap-2"><Plus size={16} /> Postar</span>
               </AnimatedButton>
-            </div>
-            <div className="text-xs text-gray-400">
-              Posts feitos aqui aparecem só no feed. Posts do perfil público aparecem no feed também.
+            )}
+            <AnimatedButton onClick={activeTab === 'painel' ? loadPanel : refresh}>
+              Atualizar
+            </AnimatedButton>
+          </div>
+        </div>
+
+        {activeTab === 'feed' && content}
+
+        {activeTab === 'painel' && (
+          <div className="space-y-4">
+            {panelLoading && (
+              <Card className="p-6">
+                <div className="text-gray-400">Carregando painel...</div>
+              </Card>
+            )}
+            {!panelLoading && panelError && (
+              <Card className="p-6">
+                <div className="text-red-400">{panelError}</div>
+              </Card>
+            )}
+            {!panelLoading && !panelError && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <Card className="p-4">
+                    <div className="text-xs text-gray-400">Músicas</div>
+                    <div className="text-2xl font-bold text-white">{panelTotals?.musics_total ?? 0}</div>
+                  </Card>
+                  <Card className="p-4">
+                    <div className="text-xs text-gray-400">Reproduções</div>
+                    <div className="text-2xl font-bold text-white">{panelTotals?.plays_total ?? 0}</div>
+                  </Card>
+                  <Card className="p-4">
+                    <div className="text-xs text-gray-400">Curtidas</div>
+                    <div className="text-2xl font-bold text-white">{panelTotals?.music_likes_total ?? 0}</div>
+                  </Card>
+                  <Card className="p-4">
+                    <div className="text-xs text-gray-400">Tempo tocado</div>
+                    <div className="text-2xl font-bold text-white">{formatSeconds(panelTotals?.play_seconds_total ?? 0)}</div>
+                  </Card>
+                </div>
+
+                <Card className="p-4">
+                  <div className="flex items-center gap-2 text-white font-bold">
+                    <TrendingUp size={18} />
+                    <span>Músicas mais tocadas</span>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {(panelTopMusics || []).map((m) => (
+                      <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-black/30 border border-white/10 flex items-center justify-center">
+                          {m.cover_url ? (
+                            <img src={sanitizeUrl(m.cover_url)} alt={m.titulo || 'Música'} className="w-full h-full object-cover" />
+                          ) : (
+                            <Music size={18} className="text-gray-400" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-bold text-white truncate">{m.titulo || 'Sem título'}</div>
+                          <div className="text-xs text-gray-400 truncate">{m.nome_artista || 'Artista'}</div>
+                          <div className="text-xs text-gray-400">
+                            {Number(m.plays || 0)} plays · {Number(m.likes || 0)} curtidas
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {(panelTopMusics || []).length === 0 && (
+                      <div className="text-sm text-gray-400">Sem dados ainda.</div>
+                    )}
+                  </div>
+                </Card>
+              </>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'search' && (
+          <div className="space-y-4">
+            <Card className="p-4">
+              <AnimatedInput
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar por nome ou cargo (Artista, Produtor, Compositor, Vendedor)"
+              />
+              {profilesError && <div className="mt-2 text-xs text-red-400">{profilesError}</div>}
+            </Card>
+
+            <Card className="p-4">
+              <div className="text-white font-bold">Perfis</div>
+              <div className="mt-3 flex gap-4 overflow-x-auto pb-2">
+                {filteredProfiles.slice(0, 20).map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => navigate(`/profile/${p.id}`)}
+                    className="w-20 shrink-0 text-center"
+                  >
+                    <div className="w-16 h-16 mx-auto rounded-full overflow-hidden border-2 border-beatwap-gold/60 bg-black/30 flex items-center justify-center">
+                      {p.avatar_url ? (
+                        <img src={sanitizeUrl(p.avatar_url)} alt={p.nome} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white font-bold">{String(p.nome || 'U').slice(0, 1).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-200 truncate">{p.nome}</div>
+                  </button>
+                ))}
+                {profilesLoading && (
+                  <div className="text-sm text-gray-400">Carregando...</div>
+                )}
+                {!profilesLoading && filteredProfiles.length === 0 && (
+                  <div className="text-sm text-gray-400">Nenhum perfil encontrado.</div>
+                )}
+              </div>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredProfiles.map((p) => {
+                const canFollow = !!meId && p.id !== meId;
+                const following = canFollow ? isFollowing(p.id) : false;
+                const followLoading = canFollow ? followLoadingById?.[p.id] === true : false;
+                return (
+                  <Card key={`card-${p.id}`} className="p-4">
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/profile/${p.id}`)}
+                        className="w-12 h-12 rounded-full overflow-hidden border border-white/10 bg-black/30 flex items-center justify-center shrink-0"
+                      >
+                        {p.avatar_url ? (
+                          <img src={sanitizeUrl(p.avatar_url)} alt={p.nome} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-white font-bold">{String(p.nome || 'U').slice(0, 1).toUpperCase()}</span>
+                        )}
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-white font-bold truncate">{p.nome}</div>
+                        <div className="text-xs text-gray-400 truncate">{p.cargo}{p.verified ? ' · Verificado' : ''}</div>
+                      </div>
+                      {canFollow && (
+                        <button
+                          type="button"
+                          disabled={followLoading}
+                          onClick={() => toggleFollow(p.id)}
+                          className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                            following
+                              ? 'bg-white/10 border-white/10 text-gray-200 hover:bg-white/15'
+                              : 'bg-beatwap-gold text-black border-beatwap-gold hover:bg-white hover:border-white'
+                          } ${followLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        >
+                          {followLoading ? '...' : (following ? 'Seguindo' : 'Seguir')}
+                        </button>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
           </div>
-        </Card>
-        {content}
+        )}
       </div>
 
       {videoModalPost && (
@@ -655,6 +1004,124 @@ const Feed = () => {
                 autoPlay
               />
             )}
+          </div>
+        </div>
+      )}
+
+      {postModalOpen && (
+        <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={closePostModal}>
+          <div className="w-full max-w-xl bg-[#121212] border border-white/10 rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <div className="text-white font-bold">Novo post</div>
+              <button type="button" onClick={closePostModal} className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10">
+                <X size={18} className="text-gray-300" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { key: 'text', label: 'Texto' },
+                  { key: 'link', label: 'Link' },
+                  { key: 'image', label: 'Foto' },
+                  { key: 'video', label: 'Vídeo' }
+                ].map((opt) => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => { setPostType(opt.key); setPostProgress(0); setPostFile(null); setPostLinkUrl(''); }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
+                      postType === opt.key ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              <textarea
+                value={postCaption}
+                onChange={(e) => setPostCaption(e.target.value)}
+                placeholder="Escreva algo..."
+                rows={3}
+                className="w-full rounded-xl bg-white/5 border border-white/10 text-white px-4 py-3 outline-none focus:border-beatwap-gold resize-none"
+              />
+
+              {postType === 'link' && (
+                <AnimatedInput
+                  value={postLinkUrl}
+                  onChange={(e) => setPostLinkUrl(e.target.value)}
+                  placeholder="Cole um link (YouTube ou qualquer URL)"
+                />
+              )}
+
+              {(postType === 'image' || postType === 'video') && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                    <div className="text-xs text-gray-300 truncate">{postFile ? postFile.name : 'Nenhum arquivo selecionado'}</div>
+                    <div className="flex items-center gap-2">
+                      {postFile && (
+                        <button
+                          type="button"
+                          onClick={() => { setPostFile(null); setPostPreviewUrl(''); }}
+                          className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10"
+                          title="Remover arquivo"
+                        >
+                          <X size={16} className="text-gray-300" />
+                        </button>
+                      )}
+                      <label className="px-3 py-2 rounded-xl text-xs font-bold bg-white/10 border border-white/10 hover:bg-white/15 cursor-pointer">
+                        Escolher
+                        <input
+                          type="file"
+                          accept={postType === 'image' ? 'image/*' : 'video/*'}
+                          className="hidden"
+                          onChange={(e) => setPostFile(e.target.files?.[0] || null)}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                  {postPreviewUrl && postType === 'image' && (
+                    <div className="w-full rounded-xl overflow-hidden border border-white/10 bg-black/30">
+                      <img src={postPreviewUrl} alt="Prévia" className="w-full max-h-[420px] object-contain" />
+                    </div>
+                  )}
+                  {postPreviewUrl && postType === 'video' && (
+                    <div className="w-full rounded-xl overflow-hidden border border-white/10 bg-black/30">
+                      <video src={postPreviewUrl} className="w-full max-h-[420px] object-contain" controls playsInline />
+                    </div>
+                  )}
+                  {posting && (
+                    <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                      <div className="h-2 bg-beatwap-gold rounded-full transition-all" style={{ width: `${Math.max(0, Math.min(100, Number(postProgress || 0)))}%` }} />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closePostModal}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-white/5 border border-white/10 text-gray-200 hover:bg-white/10"
+                >
+                  Cancelar
+                </button>
+                <AnimatedButton
+                  onClick={createFeedPost}
+                  disabled={
+                    posting
+                    || (postType === 'text' && !String(postCaption || '').trim())
+                    || (postType === 'link' && !String(postLinkUrl || '').trim())
+                    || ((postType === 'image' || postType === 'video') && !postFile)
+                  }
+                >
+                  {posting ? 'Publicando...' : 'Publicar'}
+                </AnimatedButton>
+              </div>
+              <div className="text-xs text-gray-400">
+                Posts feitos aqui aparecem só no feed. Posts do perfil público aparecem no feed também.
+              </div>
+            </div>
           </div>
         </div>
       )}

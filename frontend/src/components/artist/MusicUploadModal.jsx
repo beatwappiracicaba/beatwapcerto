@@ -23,6 +23,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     nome_artista: '',
     estilo: '',
     isrc: '',
+    release_date: '',
     plataformas: ['Todas'], // Default to all
     plataformas_selecionadas: [], // If not all
     authorization_file: null,
@@ -32,7 +33,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     is_album: false,
     beatwap_feat_artist_ids: [],
     is_beatwap_composer_partner: false,
-    tracks: [] // [{ titulo: '', estilo: '', audio_file: File|null, authorization_file: File|null }]
+    tracks: [] // [{ titulo, estilo, audio_file, authorization_file, upload_status, upload_progress, audio_url, authorization_url, upload_error }]
   });
 
   const [previews, setPreviews] = useState({
@@ -160,11 +161,11 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     }
   };
 
-  const uploadFile = async (file, bucket) => {
+  const uploadFile = async (file, bucket, onProgress) => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${activeUser.id}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
 
-    const response = await uploadApi.uploadWithMeta(file, { fileName, bucket });
+    const response = await uploadApi.uploadWithMeta(file, { fileName, bucket, onProgress });
     if (response?.error) throw new Error(response.error);
     if (!response?.url) throw new Error('Falha no upload');
     return response.url;
@@ -173,7 +174,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
   const addTrack = () => {
     setFormData(prev => ({ 
       ...prev, 
-      tracks: [...prev.tracks, { titulo: '', estilo: '', isrc: '', has_feat: false, feat_name: '', composer: '', producer: '', beatwap_feat_artist_ids: [], is_beatwap_composer_partner: false, composer_partner_id: null, audio_file: null, authorization_file: null }] 
+      tracks: [...prev.tracks, { titulo: '', estilo: '', isrc: '', has_feat: false, feat_name: '', composer: '', producer: '', beatwap_feat_artist_ids: [], is_beatwap_composer_partner: false, composer_partner_id: null, audio_file: null, authorization_file: null, upload_status: 'idle', upload_progress: 0, audio_url: null, authorization_url: null, upload_error: null }] 
     }));
   };
   const removeTrack = (index) => {
@@ -197,6 +198,16 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       return;
     }
     updateTrackField(index, field, file);
+    if (field === 'audio_file') {
+      updateTrackField(index, 'upload_status', 'idle');
+      updateTrackField(index, 'upload_progress', 0);
+      updateTrackField(index, 'audio_url', null);
+      updateTrackField(index, 'upload_error', null);
+    }
+    if (field === 'authorization_file') {
+      updateTrackField(index, 'authorization_url', null);
+      updateTrackField(index, 'upload_error', null);
+    }
   };
 
   const toggleSingleFeatArtist = (id) => {
@@ -218,154 +229,210 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     });
   };
 
-  const handleSubmit = async () => {
-    if (!formData.titulo || !formData.nome_artista || !formData.cover_file || (!formData.is_album && !formData.audio_file) || !formData.estilo) {
-      setErrors(prev => ({ ...prev, submit: 'Preencha todos os campos obrigatórios.' }));
-      return;
-    }
-    // Single track validations
-    if (!formData.is_album) {
-      if (formData.has_feat && !formData.feat_name) {
-        setErrors(prev => ({ ...prev, submit: 'Informe o nome do Feat.' }));
-        return;
-      }
-      if (!formData.composer || !formData.producer) {
-         setErrors(prev => ({ ...prev, submit: 'Informe o Compositor e Produtor.' }));
-         return;
-      }
+  const checkQuota = async (needed) => {
+    const prof = await apiClient.get(`/users/${activeUser.id}/quota`);
+    const plan = String(prof?.plano || 'sem plano')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    const bonus = Number(prof?.bonus_quota || 0);
+    let base = 0;
+    let start = null;
+    let end = null;
+    const now = new Date();
+    if (plan.includes('vitalicio')) {
+      start = null;
+      end = null;
+    } else if (plan.includes('avulso')) {
+      base = 1;
+      const ps = prof?.plan_started_at ? new Date(prof.plan_started_at) : now;
+      start = ps.toISOString();
+    } else if (plan.includes('mensal')) {
+      base = 4;
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      start = monthStart.toISOString();
+      end = monthEnd.toISOString();
+    } else if (plan.includes('anual')) {
+      base = 48;
+      const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
+      const yearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+      start = yearStart.toISOString();
+      end = yearEnd.toISOString();
+    } else {
+      base = 0;
     }
 
-    if (formData.is_album) {
-      if (!formData.tracks.length) {
-        setErrors(prev => ({ ...prev, submit: 'Adicione pelo menos uma faixa.' }));
-        return;
-      }
-      const missing = formData.tracks.find(t => !t.titulo || !t.estilo || !t.audio_file || !t.composer || !t.producer || (t.has_feat && !t.feat_name));
-      if (missing) {
-        setErrors(prev => ({ ...prev, submit: 'Preencha título, estilo, áudio, compositor, produtor e feat (se houver) para cada faixa.' }));
-        return;
-      }
+    if (plan.includes('vitalicio') || isProducerMode) return true;
+
+    const count = await apiClient.get(`/users/${activeUser.id}/music-count?start=${start}&end=${end}`);
+    const used = Number(count || 0);
+    const remaining = Math.max(0, base + bonus - used);
+    if (remaining < needed) {
+      setErrors(prev => ({ ...prev, submit: `Limite insuficiente: necessário ${needed}, disponível ${remaining}.` }));
+      return false;
+    }
+    return true;
+  };
+
+  const uploadAlbumTrack = async (index) => {
+    const t = formData.tracks[index];
+    if (!t) return;
+    if (!t.titulo || !t.estilo || !t.audio_file || !t.composer || !t.producer || (t.has_feat && !t.feat_name)) {
+      setErrors(prev => ({ ...prev, submit: 'Preencha título, estilo, áudio, compositor, produtor e feat (se houver) antes de enviar a faixa.' }));
+      return;
+    }
+    if (t.is_beatwap_composer_partner && !t.composer_partner_id) {
+      setErrors(prev => ({ ...prev, submit: 'Selecione o compositor parceiro na faixa.' }));
+      return;
+    }
+
+    updateTrackField(index, 'upload_status', 'uploading');
+    updateTrackField(index, 'upload_progress', 0);
+    updateTrackField(index, 'upload_error', null);
+
+    try {
+      const audioUrl = await uploadFile(t.audio_file, 'music_files', (pct) => {
+        updateTrackField(index, 'upload_progress', pct);
+      });
+      const authUrl = t.authorization_file ? await uploadFile(t.authorization_file, 'music_docs') : null;
+      updateTrackField(index, 'audio_url', audioUrl);
+      updateTrackField(index, 'authorization_url', authUrl);
+      updateTrackField(index, 'upload_progress', 100);
+      updateTrackField(index, 'upload_status', 'uploaded');
+      addToast(`Faixa ${index + 1} enviada`, 'success');
+    } catch (err) {
+      updateTrackField(index, 'upload_status', 'error');
+      updateTrackField(index, 'upload_error', err?.message || 'Falha ao enviar faixa');
+      addToast(err?.message || 'Falha ao enviar faixa', 'error');
+    }
+  };
+
+  const submitAlbumComplete = async () => {
+    const albumTitle = String(formData.titulo || '').trim();
+    const artistName = String(formData.nome_artista || '').trim();
+    const releaseDate = String(formData.release_date || '').trim();
+    if (!albumTitle || !artistName || !releaseDate) {
+      setErrors(prev => ({ ...prev, submit: 'Preencha Nome do Álbum, Nome do Artista e Data de lançamento.' }));
+      return;
+    }
+    if (!Array.isArray(formData.tracks) || formData.tracks.length === 0) {
+      setErrors(prev => ({ ...prev, submit: 'Adicione pelo menos uma faixa.' }));
+      return;
+    }
+    const notUploaded = formData.tracks.find(t => String(t.upload_status || 'idle') !== 'uploaded' || !t.audio_url);
+    if (notUploaded) {
+      setErrors(prev => ({ ...prev, submit: 'Envie todas as músicas (faixa por faixa) antes de enviar o álbum completo.' }));
+      return;
     }
 
     setLoading(true);
     setErrors({});
-
     try {
-      // Quota check
-      const prof = await apiClient.get(`/users/${activeUser.id}/quota`);
-      const plan = String(prof?.plano || 'sem plano')
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
-      const bonus = Number(prof?.bonus_quota || 0);
-      let base = 0;
-      let start = null;
-      let end = null;
-      const now = new Date();
-      if (plan.includes('vitalicio')) {
-        start = null;
-        end = null;
-      } else if (plan.includes('avulso')) {
-        base = 1;
-        const ps = prof?.plan_started_at ? new Date(prof.plan_started_at) : now;
-        start = ps.toISOString();
-      } else if (plan.includes('mensal')) {
-        base = 4;
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-        start = monthStart.toISOString();
-        end = monthEnd.toISOString();
-      } else if (plan.includes('anual')) {
-        base = 48;
-        const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
-        const yearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
-        start = yearStart.toISOString();
-        end = yearEnd.toISOString();
-      } else {
-        base = 0;
-      }
-      const needed = formData.is_album ? (formData.tracks ? formData.tracks.length : 0) : 1;
+      const needed = formData.tracks.length;
+      const okQuota = await checkQuota(needed);
+      if (!okQuota) return;
 
-      if (!plan.includes('vitalicio')) {
-        const count = await apiClient.get(`/users/${activeUser.id}/music-count?start=${start}&end=${end}`);
-        const used = Number(count || 0);
-        const remaining = Math.max(0, base + bonus - used);
-        if (remaining < needed && !isProducerMode) {
-          setErrors(prev => ({ ...prev, submit: `Limite insuficiente: necessário ${needed}, disponível ${remaining}.` }));
-          setLoading(false);
-          return;
-        }
+      let coverUrl = null;
+      if (formData.cover_file) {
+        coverUrl = await uploadFile(formData.cover_file, 'music_covers');
       }
+      const albumId = crypto.randomUUID();
+      const rows = formData.tracks.map((t, idx) => {
+        const comp = (t.composer || '').split(',').map(s => s.trim()).filter(Boolean).join(', ');
+        return {
+          artista_id: activeUser.id,
+          titulo: t.titulo,
+          nome_artista: artistName,
+          estilo: t.estilo,
+          cover_url: coverUrl,
+          audio_url: t.audio_url,
+          authorization_url: t.authorization_url || null,
+          plataformas: formData.plataformas.includes('Todas') ? ['Todas'] : formData.plataformas_selecionadas,
+          status: 'pendente',
+          isrc: (t.isrc || '').trim() || null,
+          has_feat: t.has_feat || false,
+          feat_name: t.feat_name || null,
+          composer: comp || null,
+          producer: t.producer || null,
+          feat_beatwap_artist_ids: t.beatwap_feat_artist_ids || [],
+          is_beatwap_composer_partner: !!t.is_beatwap_composer_partner,
+          composer_partner_id: t.is_beatwap_composer_partner ? (t.composer_partner_id || null) : null,
+          album_id: albumId,
+          album_title: albumTitle,
+          release_date: releaseDate,
+          track_number: idx + 1
+        };
+      });
+      await apiClient.post('/musics/batch', { musics: rows });
 
-      // Upload Files em paralelo
+      if (onSuccess) onSuccess();
+      onClose();
+      addToast('Álbum pronto para aprovação!', 'success');
+    } catch (err) {
+      const isPayloadTooLarge = Number(err?.status) === 413;
+      const msg = isPayloadTooLarge ? 'Arquivo muito grande para upload. Reduza para até 150MB.' : (err?.message || 'Erro ao enviar álbum');
+      addToast(msg, 'error');
+      setErrors(prev => ({ ...prev, submit: msg }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitSingle = async () => {
+    if (!formData.titulo || !formData.nome_artista || !formData.cover_file || !formData.audio_file || !formData.estilo) {
+      setErrors(prev => ({ ...prev, submit: 'Preencha todos os campos obrigatórios.' }));
+      return;
+    }
+    if (formData.has_feat && !formData.feat_name) {
+      setErrors(prev => ({ ...prev, submit: 'Informe o nome do Feat.' }));
+      return;
+    }
+    if (!formData.composer || !formData.producer) {
+      setErrors(prev => ({ ...prev, submit: 'Informe o Compositor e Produtor.' }));
+      return;
+    }
+    if (formData.is_beatwap_composer_partner && !formData.composer_partner_id) {
+      setErrors(prev => ({ ...prev, submit: 'Selecione o compositor parceiro.' }));
+      return;
+    }
+
+    setLoading(true);
+    setErrors({});
+    try {
+      const okQuota = await checkQuota(1);
+      if (!okQuota) return;
+
       const uploads = [
         uploadFile(formData.cover_file, 'music_covers'),
-        formData.is_album ? Promise.resolve(null) : uploadFile(formData.audio_file, 'music_files'),
+        uploadFile(formData.audio_file, 'music_files'),
         formData.authorization_file ? uploadFile(formData.authorization_file, 'music_docs') : Promise.resolve(null)
       ];
       const [coverUrl, audioUrl, authUrl] = await Promise.all(uploads);
 
-      // Insert into DB (álbum em lote, single direto)
-      if (formData.is_album) {
-        const albumId = crypto.randomUUID();
-        // Upload de todas faixas (áudio e autorização por faixa) em paralelo
-        const trackUploads = await Promise.all(
-          formData.tracks.map(async (t) => {
-            const [audioU, authU] = await Promise.all([
-              uploadFile(t.audio_file, 'music_files'),
-              t.authorization_file ? uploadFile(t.authorization_file, 'music_docs') : Promise.resolve(null)
-            ]);
-            const comp = (t.composer || '').split(',').map(s => s.trim()).filter(Boolean).join(', ');
-            return { audioUrl: audioU, authUrl: authU, titulo: t.titulo, estilo: t.estilo, isrc: t.isrc, has_feat: t.has_feat, feat_name: t.feat_name, composer: comp, producer: t.producer, beatwap_feat_artist_ids: t.beatwap_feat_artist_ids || [], is_beatwap_composer_partner: !!t.is_beatwap_composer_partner, composer_partner_id: t.is_beatwap_composer_partner ? (t.composer_partner_id || null) : null };
-          })
-        );
-        const rows = trackUploads.map((tu) => ({
-          artista_id: activeUser.id,
-          titulo: tu.titulo,
-          nome_artista: formData.nome_artista,
-          estilo: tu.estilo,
-          cover_url: coverUrl,
-          audio_url: tu.audioUrl,
-          authorization_url: tu.authUrl ?? authUrl,
-          plataformas: formData.plataformas.includes('Todas') ? ['Todas'] : formData.plataformas_selecionadas,
-          status: 'pendente',
-          isrc: (tu.isrc || '').trim() || null,
-          has_feat: tu.has_feat || false,
-          feat_name: tu.feat_name || null,
-          composer: (tu.composer || null),
-          producer: tu.producer || null,
-          feat_beatwap_artist_ids: tu.beatwap_feat_artist_ids || [],
-          is_beatwap_composer_partner: tu.is_beatwap_composer_partner || false,
-          composer_partner_id: tu.composer_partner_id || null,
-          album_id: albumId,
-          album_title: formData.titulo
-        }));
-        await apiClient.post('/musics/batch', { musics: rows });
-      } else {
-        await apiClient.post('/musics', {
-          artista_id: activeUser.id,
-          titulo: formData.titulo,
-          nome_artista: formData.nome_artista,
-          estilo: formData.estilo,
-          cover_url: coverUrl,
-          audio_url: audioUrl,
-          authorization_url: authUrl,
-          plataformas: formData.plataformas.includes('Todas') ? ['Todas'] : formData.plataformas_selecionadas,
-          status: 'pendente',
-          isrc: (formData.isrc || '').trim() || null,
-          has_feat: formData.has_feat || false,
-          feat_name: formData.feat_name || null,
-          composer: ((formData.composer || '').split(',').map(s => s.trim()).filter(Boolean).join(', ')) || null,
-          producer: formData.producer || null,
-          feat_beatwap_artist_ids: formData.beatwap_feat_artist_ids || [],
-          is_beatwap_composer_partner: !!formData.is_beatwap_composer_partner,
-          composer_partner_id: formData.is_beatwap_composer_partner ? (formData.composer_partner_id || null) : null
-        });
-      }
+      await apiClient.post('/musics', {
+        artista_id: activeUser.id,
+        titulo: formData.titulo,
+        nome_artista: formData.nome_artista,
+        estilo: formData.estilo,
+        cover_url: coverUrl,
+        audio_url: audioUrl,
+        authorization_url: authUrl,
+        plataformas: formData.plataformas.includes('Todas') ? ['Todas'] : formData.plataformas_selecionadas,
+        status: 'pendente',
+        isrc: (formData.isrc || '').trim() || null,
+        has_feat: formData.has_feat || false,
+        feat_name: formData.feat_name || null,
+        composer: ((formData.composer || '').split(',').map(s => s.trim()).filter(Boolean).join(', ')) || null,
+        producer: formData.producer || null,
+        feat_beatwap_artist_ids: formData.beatwap_feat_artist_ids || [],
+        is_beatwap_composer_partner: !!formData.is_beatwap_composer_partner,
+        composer_partner_id: formData.is_beatwap_composer_partner ? (formData.composer_partner_id || null) : null
+      });
 
       if (onSuccess) onSuccess();
       onClose();
-      addToast(formData.is_album ? 'Álbum enviado para análise!' : 'Música enviada para análise!', 'success');
+      addToast('Música enviada para análise!', 'success');
     } catch (err) {
       const isPayloadTooLarge = Number(err?.status) === 413;
       const msg = isPayloadTooLarge ? 'Arquivo muito grande para upload. Reduza para até 150MB.' : (err?.message || 'Erro ao enviar música');
@@ -374,6 +441,14 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async () => {
+    if (formData.is_album) {
+      await submitAlbumComplete();
+      return;
+    }
+    await submitSingle();
   };
 
   const renderCoverCropModal = () => {
@@ -459,7 +534,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
           className={`bg-[#121212] border border-white/10 rounded-2xl w-full ${formData.is_album ? 'max-w-5xl' : 'max-w-2xl'} overflow-hidden flex flex-col h-[90vh] transition-all duration-300`}
         >
           <div className="p-4 border-b border-white/10 flex justify-between items-center bg-beatwap-black">
-            <h3 className="text-xl font-bold text-white">Nova Música</h3>
+            <h3 className="text-xl font-bold text-white">{formData.is_album ? 'Novo Álbum' : 'Nova Música'}</h3>
             <button onClick={onClose} className="text-gray-400 hover:text-white">
               <X size={24} />
             </button>
@@ -495,10 +570,10 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
               {/* Basic Info */}
               <div className="space-y-4">
                 <AnimatedInput 
-                  label="Nome da Música" 
+                  label={formData.is_album ? 'Nome do Álbum' : 'Nome da Música'} 
                   value={formData.titulo} 
                   onChange={(e) => setFormData({...formData, titulo: e.target.value})} 
-                  placeholder="Ex: Minha Obra Prima"
+                  placeholder={formData.is_album ? 'Ex: Meu Álbum' : 'Ex: Minha Obra Prima'}
                 />
                 <AnimatedInput 
                   label="Nome do Artista" 
@@ -506,12 +581,22 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                   onChange={(e) => setFormData({...formData, nome_artista: e.target.value})} 
                   placeholder="Ex: MC Exemplo"
                 />
-                <AnimatedInput 
-                  label="Estilo / Gênero" 
-                  value={formData.estilo} 
-                  onChange={(e) => setFormData({...formData, estilo: e.target.value})} 
-                  placeholder="Ex: Trap, Funk, Pop"
-                />
+                {!formData.is_album && (
+                  <AnimatedInput 
+                    label="Estilo / Gênero" 
+                    value={formData.estilo} 
+                    onChange={(e) => setFormData({...formData, estilo: e.target.value})} 
+                    placeholder="Ex: Trap, Funk, Pop"
+                  />
+                )}
+                {formData.is_album && (
+                  <AnimatedInput
+                    type="date"
+                    label="Data de lançamento"
+                    value={formData.release_date}
+                    onChange={(e) => setFormData({ ...formData, release_date: e.target.value })}
+                  />
+                )}
                 
                 {!formData.is_album && (
                   <>
@@ -788,6 +873,39 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                             </label>
                           </div>
                         </div>
+                        <div className="pt-2 space-y-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-xs text-gray-400">
+                              {t.upload_status === 'uploaded' && 'Status: enviada'}
+                              {t.upload_status === 'uploading' && `Enviando... ${t.upload_progress || 0}%`}
+                              {t.upload_status === 'error' && 'Status: erro no envio'}
+                              {(t.upload_status === 'idle' || !t.upload_status) && 'Status: não enviada'}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => uploadAlbumTrack(idx)}
+                              disabled={loading || t.upload_status === 'uploading'}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                                t.upload_status === 'uploaded'
+                                  ? 'bg-green-500/15 text-green-400 hover:bg-green-500/20'
+                                  : 'bg-white/10 text-white hover:bg-white/20'
+                              } ${loading || t.upload_status === 'uploading' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              {t.upload_status === 'uploaded' ? 'Reenviar música' : 'Enviar música'}
+                            </button>
+                          </div>
+                          {t.upload_status === 'uploading' && (
+                            <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                              <div
+                                className="h-2 bg-beatwap-gold rounded-full transition-all"
+                                style={{ width: `${Math.max(0, Math.min(100, Number(t.upload_progress || 0)))}%` }}
+                              />
+                            </div>
+                          )}
+                          {t.upload_error && (
+                            <div className="text-xs text-red-400">{t.upload_error}</div>
+                          )}
+                        </div>
                       </div>
                     ))}
                     {formData.tracks.length === 0 && (
@@ -818,12 +936,14 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
 
             {/* Additional Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               <AnimatedInput 
-                  label="ISRC (Se houver)" 
-                  value={formData.isrc} 
-                  onChange={(e) => setFormData({...formData, isrc: e.target.value})} 
-                  placeholder="BR-XXX-XX-XXXXX"
-                />
+               {!formData.is_album && (
+                 <AnimatedInput 
+                    label="ISRC (Se houver)" 
+                    value={formData.isrc} 
+                    onChange={(e) => setFormData({...formData, isrc: e.target.value})} 
+                    placeholder="BR-XXX-XX-XXXXX"
+                  />
+               )}
                 
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-400">Plataformas</label>
@@ -856,7 +976,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
               Cancelar
             </button>
             <AnimatedButton onClick={handleSubmit} isLoading={loading} icon={CheckCircle2}>
-              Enviar para Análise
+              {formData.is_album ? 'Enviar álbum completo' : 'Enviar para análise'}
             </AnimatedButton>
           </div>
           {renderCoverCropModal()}

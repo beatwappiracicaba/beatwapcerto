@@ -335,15 +335,75 @@ export const eventApi = {
 };
 
 export const uploadApi = {
-  async uploadWithMeta(file, { fileName, bucket } = {}) {
+  async uploadWithMeta(file, { fileName, bucket, onProgress } = {}) {
     const token = localStorage.getItem('token');
     const formData = new FormData();
     formData.append('file', file);
     if (fileName) formData.append('fileName', fileName);
     if (bucket) formData.append('bucket', bucket);
+
+    const normalizedBaseUrlRaw = API_BASE_URL
+      ? String(API_BASE_URL)
+          .trim()
+          .replace(/^['"`\s]+|['"`\s]+$/g, '')
+          .replace(/\/+$/, '')
+      : '';
+    const normalizedBaseUrl = normalizedBaseUrlRaw.replace(/\/api\/?$/, '');
+    const hostname = typeof window !== 'undefined' && window.location ? String(window.location.hostname || '') : '';
+    const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
+    const baseUrls = [];
+    if (isLocalHost) {
+      if (!baseUrls.includes('')) baseUrls.push('');
+      if (!baseUrls.includes('http://localhost:3011')) baseUrls.push('http://localhost:3011');
+      if (!baseUrls.includes('http://localhost:3000')) baseUrls.push('http://localhost:3000');
+      if (!baseUrls.includes('http://localhost:3001')) baseUrls.push('http://localhost:3001');
+      if (normalizedBaseUrl && !baseUrls.includes(normalizedBaseUrl)) baseUrls.push(normalizedBaseUrl);
+    } else {
+      if (normalizedBaseUrl && !baseUrls.includes(normalizedBaseUrl)) baseUrls.push(normalizedBaseUrl);
+    }
+    if (!baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
+
     const runMultipart = async () => {
-      return apiClient.postForm('/upload/single', formData, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (typeof onProgress !== 'function' || typeof XMLHttpRequest === 'undefined') {
+        return apiClient.postForm('/upload/single', formData, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      }
+
+      let lastErr = null;
+      for (let i = 0; i < baseUrls.length; i += 1) {
+        const baseUrl = baseUrls[i];
+        const apiBase = baseUrl ? `${baseUrl}/api` : '/api';
+        const url = `${apiBase}/upload/single`;
+        try {
+          const res = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', url, true);
+            xhr.responseType = 'text';
+            if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+            xhr.upload.onprogress = (evt) => {
+              if (!evt.lengthComputable) return;
+              const pct = Math.max(0, Math.min(100, Math.round((evt.loaded / evt.total) * 100)));
+              onProgress(pct);
+            };
+            xhr.onload = () => resolve({ status: xhr.status, text: xhr.responseText });
+            xhr.onerror = () => reject(new Error('Falha de rede'));
+            xhr.onabort = () => reject(new Error('Upload cancelado'));
+            xhr.send(formData);
+          });
+
+          let data = null;
+          try { data = res.text ? JSON.parse(res.text) : null; } catch { data = null; }
+          if (res.status < 200 || res.status >= 300) throw new Error((data && data.error) || 'Falha no upload');
+          if (!data?.url) throw new Error('Falha no upload');
+          return data;
+        } catch (e) {
+          lastErr = e;
+          const hasNext = i < baseUrls.length - 1;
+          if (!hasNext) throw e;
+        }
+      }
+      throw lastErr || new Error('Falha no upload');
     };
+
     try {
       const res = await runMultipart();
       if (res?.url) return res;
@@ -357,7 +417,9 @@ export const uploadApi = {
       });
       const dataUrl = await toDataUrl(file);
       const payload = { fileName, bucket, dataUrl };
-      return apiClient.post('/upload/base64', payload);
+      const out = await apiClient.post('/upload/base64', payload);
+      if (typeof onProgress === 'function') onProgress(100);
+      return out;
     }
   },
   uploadFile: (file) => {
