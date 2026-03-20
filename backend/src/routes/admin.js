@@ -4,6 +4,7 @@ const { auth } = require('../middleware/auth');
 const { memory, scheduleSave } = require('../memoryStore');
 
 const router = express.Router();
+
 if (!Array.isArray(memory.musics) || memory.musics.length === 0) {
   memory.musics = [{
     id: 'music_1',
