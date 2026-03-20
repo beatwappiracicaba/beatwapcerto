@@ -562,6 +562,23 @@ const Home = () => {
       <Header />
       <main>
         <Hero />
+        <section className="py-10 px-6 bg-black/20 border-b border-white/10">
+          <div className="max-w-7xl mx-auto">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="min-w-0">
+                <div className="text-xl md:text-2xl font-bold text-white">🔥 Novo: Feed no Painel</div>
+                <div className="text-gray-300 mt-1">
+                  Siga perfis e acompanhe lançamentos, posts e composições em tempo real.
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <AnimatedButton onClick={() => navigate(user ? '/dashboard/feed' : '/login')}>
+                  {user ? 'Abrir Feed' : 'Entrar e ver Feed'}
+                </AnimatedButton>
+              </div>
+            </div>
+          </div>
+        </section>
         {(() => {
           const all = []
             .concat(Array.isArray(artists) ? artists : [])

@@ -8,10 +8,15 @@ import Footer from '../components/landing/Footer';
 import { User, Music, Instagram, Globe, MessageCircle, Play, Pause, ArrowLeft, Youtube, Target, DollarSign, Image, Video, MapPin, Calendar, X } from 'lucide-react';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { decryptData } from '../utils/security';
+import { useAuth } from '../context/AuthContext';
 
 const PublicProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { profile: me } = useAuth();
+  const canFollow = me?.id && id && String(me.id) !== String(id);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
   const [profile, setProfile] = useState(null);
   const [items, setItems] = useState([]);
   const [producerTab, setProducerTab] = useState('producoes');
@@ -48,6 +53,38 @@ const PublicProfile = () => {
       fetchGalleryPosts();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (!canFollow) return;
+    let alive = true;
+    (async () => {
+      try {
+        const data = await apiClient.get(`/follow/status/${id}`);
+        if (!alive) return;
+        setIsFollowing(data?.target?.following === true);
+      } catch {
+        if (!alive) return;
+        setIsFollowing(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [canFollow, id]);
+
+  const toggleFollow = async () => {
+    if (!canFollow || followLoading) return;
+    setFollowLoading(true);
+    try {
+      const action = isFollowing ? 'unfollow' : 'follow';
+      const data = await apiClient.post(`/follow/${id}`, { action });
+      setIsFollowing(data?.following === true);
+    } catch {
+      void 0;
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -404,6 +441,24 @@ const PublicProfile = () => {
                 {profile.bio && (
                   <div className="text-gray-300 leading-relaxed max-w-2xl mx-auto md:mx-0 whitespace-pre-line">
                     {profile.bio}
+                  </div>
+                )}
+
+                {canFollow && (
+                  <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
+                    <AnimatedButton
+                      onClick={toggleFollow}
+                      className={`justify-center ${isFollowing ? 'bg-white/10 hover:bg-white/15' : ''}`}
+                    >
+                      {followLoading ? 'Aguarde...' : (isFollowing ? 'Seguindo' : 'Seguir')}
+                    </AnimatedButton>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/dashboard/feed')}
+                      className="text-sm text-gray-300 hover:text-beatwap-gold underline"
+                    >
+                      Ver Feed
+                    </button>
                   </div>
                 )}
 

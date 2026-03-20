@@ -467,6 +467,8 @@ router.post('/compositions', async (req, res) => {
   };
   memory.compositions.unshift(item);
   scheduleSave();
+  if (item.composer_id) emitEvent('compositions.created', item, `profile:${item.composer_id}`);
+  if (item.producer_id) emitEvent('compositions.created', item, `profile:${item.producer_id}`);
   res.json(item);
 });
 
@@ -487,6 +489,9 @@ router.put('/admin/compositions/:id/status', auth, async (req, res) => {
     if (idx < 0) return res.status(404).json({ error: 'Composição não encontrada' });
     memory.compositions[idx] = { ...memory.compositions[idx], status, feedback };
     scheduleSave();
+    const updated = memory.compositions[idx];
+    if (updated?.composer_id) emitEvent('compositions.updated', { id, item: updated }, `profile:${updated.composer_id}`);
+    if (updated?.producer_id) emitEvent('compositions.updated', { id, item: updated }, `profile:${updated.producer_id}`);
     res.json({ ok: true, item: memory.compositions[idx] });
   } catch {
     res.status(500).json({ error: 'Erro interno' });

@@ -46,6 +46,7 @@ import SellerFinance from '../pages/SellerFinance';
 import SellerProposals from '../pages/SellerProposals';
 import SellerCommunications from '../pages/SellerCommunications';
 import NotificationDetails from '../pages/NotificationDetails';
+import Feed from '../pages/Feed';
 
 // Admin temporariamente desativado
 
@@ -74,10 +75,10 @@ export const AppRoutes = () => {
 
   const routeForRole = (role) => {
     const r = normalizeRole(role);
-    if (r === 'Produtor') return '/dashboard-produtor';
-    if (r === 'Vendedor') return '/dashboard-vendedor';
-    if (r === 'Artista') return '/dashboard-artista';
-    if (r === 'Compositor') return '/dashboard-compositor';
+    if (r === 'Produtor') return '/dashboard/feed';
+    if (r === 'Vendedor') return '/dashboard/feed';
+    if (r === 'Artista') return '/dashboard/feed';
+    if (r === 'Compositor') return '/dashboard/feed';
     return '/';
   };
 
@@ -135,6 +136,7 @@ export const AppRoutes = () => {
         <Route path="/auth/callback" element={<AuthCallback />} />
 
         <Route path="/dashboard" element={<ProtectedRoute element={<Navigate to={routeForRole(profile?.cargo)} replace />} />} />
+        <Route path="/dashboard/feed" element={<ProtectedRoute element={<Feed />} />} />
         <Route path="/dashboard/musics" element={isArtista ? <DashboardArtistMusics /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/compositions" element={(isArtista || isCompositor) ? <DashboardCompositions /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/profile" element={(isArtista || isCompositor || isVendedor) ? <DashboardArtistProfile /> : <Navigate to="/" replace />} />

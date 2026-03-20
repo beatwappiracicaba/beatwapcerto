@@ -159,6 +159,9 @@ router.post('/musics', auth, async (req, res) => {
     };
     memory.musics.unshift(item);
     scheduleSave();
+    if (item.artista_id) emitEvent('musics.created', item, `profile:${item.artista_id}`);
+    if (item.producer_id) emitEvent('musics.created', item, `profile:${item.producer_id}`);
+    if (item.composer_partner_id) emitEvent('musics.created', item, `profile:${item.composer_partner_id}`);
     res.json(item);
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -196,7 +199,11 @@ router.put('/admin/musics/:id', auth, async (req, res) => {
     }
     memory.musics[idx] = { ...memory.musics[idx], ...patch, updated_at: new Date().toISOString() };
     scheduleSave();
-    emitEvent('musics.updated', { id, item: memory.musics[idx] }, `music:${id}`);
+    const updated = memory.musics[idx];
+    emitEvent('musics.updated', { id, item: updated }, `music:${id}`);
+    if (updated?.artista_id) emitEvent('musics.updated', { id, item: updated }, `profile:${updated.artista_id}`);
+    if (updated?.producer_id) emitEvent('musics.updated', { id, item: updated }, `profile:${updated.producer_id}`);
+    if (updated?.composer_partner_id) emitEvent('musics.updated', { id, item: updated }, `profile:${updated.composer_partner_id}`);
     res.json({ ok: true, item: memory.musics[idx] });
   } catch {
     res.status(500).json({ error: 'Erro interno' });

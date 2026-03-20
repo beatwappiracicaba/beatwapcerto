@@ -81,6 +81,18 @@ export const AdminLayout = ({ children }) => {
           </NavLink>
 
           <NavLink
+            to="/dashboard/feed"
+            className={({ isActive }) =>
+              `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors text-xs uppercase tracking-wide ${
+                isActive ? 'bg-white/10 text-beatwap-gold' : 'text-gray-400 hover:bg-white/5'
+              }`
+            }
+          >
+            <Music size={16} />
+            <span>🔥 Feed</span>
+          </NavLink>
+
+          <NavLink
             to="/admin/public-profile"
             className={({ isActive }) =>
               `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors text-xs uppercase tracking-wide ${

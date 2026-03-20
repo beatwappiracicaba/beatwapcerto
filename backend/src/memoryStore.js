@@ -10,6 +10,18 @@ function ensureDefaults(m) {
   if (!m.events) m.events = [];
   if (!m.posts) m.posts = [];
   if (!m.likes) m.likes = {};
+  if (!m.follows || typeof m.follows !== 'object') m.follows = {};
+  if (Array.isArray(m.follows)) {
+    const next = {};
+    for (const row of m.follows) {
+      const userId = String(row?.userId || row?.followerId || row?.from || '').trim();
+      const followId = String(row?.followId || row?.targetId || row?.to || '').trim();
+      if (!userId || !followId) continue;
+      if (!Array.isArray(next[userId])) next[userId] = [];
+      if (!next[userId].includes(followId)) next[userId].push(followId);
+    }
+    m.follows = next;
+  }
   if (!m.externalMetrics) m.externalMetrics = {};
   if (!m.musics) m.musics = [];
   if (!m.projects) m.projects = [];

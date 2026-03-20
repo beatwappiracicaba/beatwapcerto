@@ -124,6 +124,17 @@ export const DashboardLayout = ({ children }) => {
             <LayoutGrid size={18} /> <span>Painel</span>
           </NavLink>
 
+          <NavLink
+            to="/dashboard/feed"
+            className={({ isActive }) =>
+              `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
+                isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'
+              }`
+            }
+          >
+            <TrendingUp size={18} /> <span>🔥 Feed</span>
+          </NavLink>
+
           {isVendedor && (
             <>
               {permissions.seller_artists !== false && (
