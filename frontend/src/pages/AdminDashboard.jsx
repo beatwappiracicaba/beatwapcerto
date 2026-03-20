@@ -30,6 +30,7 @@ export const AdminHome = () => {
   const [counts, setCounts] = useState({ artists: 0, musics: 0, pending: 0 });
   const { user } = useAuth();
   const { addToast } = useToast();
+  const [dashboardMetrics, setDashboardMetrics] = useState(null);
   const [projects, setProjects] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [projectForm, setProjectForm] = useState({
@@ -44,6 +45,18 @@ export const AdminHome = () => {
       setCounts({ artists: stats.artists || 0, musics: stats.musics || 0, pending: stats.pending || 0 });
     };
     load();
+  }, []);
+
+  useEffect(() => {
+    const loadMetrics = async () => {
+      try {
+        const data = await apiClient.get('/admin/dashboard-metrics');
+        setDashboardMetrics(data || null);
+      } catch {
+        setDashboardMetrics(null);
+      }
+    };
+    loadMetrics();
   }, []);
 
   const loadProjects = useCallback(async () => {
@@ -95,6 +108,48 @@ export const AdminHome = () => {
         <Card><div className="text-sm text-gray-400">Músicas</div><div className="text-3xl font-bold">{counts.musics}</div></Card>
         <Card><div className="text-sm text-gray-400">Pendentes</div><div className="text-3xl font-bold">{counts.pending}</div></Card>
       </div>
+
+      <Card className="space-y-4 mb-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="font-bold">Músicas mais ouvidas</div>
+            <div className="text-sm text-gray-400">
+              Reproduções (analytics) + curtidas
+            </div>
+          </div>
+          <div className="text-right text-xs text-gray-400">
+            <div>Total plays: {dashboardMetrics?.totals?.plays_total ?? 0}</div>
+            <div>Total curtidas: {dashboardMetrics?.totals?.music_likes_total ?? 0}</div>
+          </div>
+        </div>
+
+        {Array.isArray(dashboardMetrics?.topMusics) && dashboardMetrics.topMusics.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {dashboardMetrics.topMusics.map((m, idx) => (
+              <div key={m.id || idx} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center text-xs text-gray-300">
+                  {m.cover_url ? (
+                    <img src={String(m.cover_url).trim().replace(/^[`'"]+|[`'"]+$/g, '')} alt={m.titulo || 'Capa'} className="w-full h-full object-cover" />
+                  ) : (
+                    <Music size={18} />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-white text-sm truncate">{m.titulo || 'Sem título'}</div>
+                  <div className="text-xs text-gray-400 truncate">{m.nome_artista || 'Artista'}</div>
+                  <div className="text-xs text-gray-400 mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                    <span className="inline-flex items-center gap-1"><Play size={14} /> {m.plays || 0}</span>
+                    <span className="inline-flex items-center gap-1"><CheckCircle2 size={14} /> {m.likes || 0}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-sm text-gray-400">Ainda não há dados de plays para ranquear.</div>
+        )}
+      </Card>
+
       <Card className="space-y-4">
         <div className="font-bold">Projetos da Produtora</div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">

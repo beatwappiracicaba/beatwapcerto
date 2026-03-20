@@ -13,10 +13,12 @@ const Feed = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const isProdutor = String(profile?.cargo || '').toLowerCase() === 'produtor';
+  const meId = String(profile?.id || '').trim();
   const [items, setItems] = useState([]);
   const [nextCursor, setNextCursor] = useState(null);
   const [followingCount, setFollowingCount] = useState(null);
   const [followingIds, setFollowingIds] = useState([]);
+  const [followLoadingById, setFollowLoadingById] = useState({});
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [playingTrack, setPlayingTrack] = useState(null);
@@ -66,6 +68,43 @@ const Feed = () => {
     const text = encodeURIComponent(`Olá, tenho interesse na composição: ${String(title || '').trim() || 'Sem título'}.`);
     return `https://wa.me/${withCountry}?text=${text}`;
   }, []);
+
+  const isFollowing = useCallback((targetId) => {
+    const tid = String(targetId || '').trim();
+    if (!tid) return false;
+    return (followingIds || []).some((x) => String(x || '').trim() === tid);
+  }, [followingIds]);
+
+  const toggleFollow = useCallback(async (targetId) => {
+    const tid = String(targetId || '').trim();
+    if (!tid) return;
+    if (!meId) return;
+    if (tid === meId) return;
+    setFollowLoadingById((prev) => ({ ...prev, [tid]: true }));
+    try {
+      const action = isFollowing(tid) ? 'unfollow' : 'follow';
+      const data = await apiClient.post(`/follow/${tid}`, { action });
+      const nowFollowing = data?.following === true;
+      setFollowingIds((prev) => {
+        const arr = Array.isArray(prev) ? prev.slice() : [];
+        const has = arr.some((x) => String(x || '').trim() === tid);
+        if (nowFollowing) {
+          if (!has) return [tid, ...arr];
+          return arr;
+        }
+        return arr.filter((x) => String(x || '').trim() !== tid);
+      });
+      setFollowingCount((prev) => {
+        const n = Number(prev);
+        if (!Number.isFinite(n)) return prev;
+        return nowFollowing ? n + 1 : Math.max(0, n - 1);
+      });
+    } catch {
+      void 0;
+    } finally {
+      setFollowLoadingById((prev) => ({ ...prev, [tid]: false }));
+    }
+  }, [isFollowing, meId]);
 
   const togglePlay = useCallback((trackId, url) => {
     const src = sanitizeUrl(url);
@@ -231,6 +270,11 @@ const Feed = () => {
       return (
         <Card className="p-6">
           <div className="text-gray-300 font-bold">Você ainda não segue ninguém. Comece a seguir para ver novidades.</div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <AnimatedButton onClick={() => navigate('/')}>
+              Explorar perfis
+            </AnimatedButton>
+          </div>
         </Card>
       );
     }
@@ -251,6 +295,10 @@ const Feed = () => {
           const ownerRole = roleLabel(owner);
           const at = timeAgo(it?.created_at);
           const ownerHref = owner?.id ? `/profile/${owner.id}` : null;
+          const ownerId = String(owner?.id || '').trim();
+          const canFollow = !!meId && !!ownerId && ownerId !== meId;
+          const following = canFollow ? isFollowing(ownerId) : false;
+          const followLoading = canFollow ? followLoadingById?.[ownerId] === true : false;
 
           return (
             <Card key={`${it.type}-${it.id}-${owner?.id || 'x'}`} className="p-4 sm:p-6">
@@ -263,7 +311,23 @@ const Feed = () => {
                   <div className="font-bold text-white truncate">{ownerName}</div>
                   <div className="text-xs text-gray-400 truncate">{ownerRole}</div>
                 </button>
-                <div className="text-xs text-gray-400 shrink-0">{at}</div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="text-xs text-gray-400">{at}</div>
+                  {canFollow && (
+                    <button
+                      type="button"
+                      disabled={followLoading}
+                      onClick={() => toggleFollow(ownerId)}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                        following
+                          ? 'bg-white/10 border-white/10 text-gray-200 hover:bg-white/15'
+                          : 'bg-beatwap-gold text-black border-beatwap-gold hover:bg-white hover:border-white'
+                      } ${followLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    >
+                      {followLoading ? '...' : (following ? 'Seguindo' : 'Seguir')}
+                    </button>
+                  )}
+                </div>
               </div>
 
               {it.type === 'composition' && (() => {
@@ -465,7 +529,7 @@ const Feed = () => {
         )}
       </div>
     );
-  }, [buildWhatsAppHref, displayName, followingCount, getEmbedUrl, isPaused, items, loading, loadingMore, navigate, playingTrack, roleLabel, sanitizeUrl, timeAgo, togglePlay]);
+  }, [buildWhatsAppHref, displayName, followLoadingById, followingCount, getEmbedUrl, isFollowing, isPaused, items, loading, loadingMore, meId, navigate, playingTrack, roleLabel, sanitizeUrl, timeAgo, toggleFollow, togglePlay]);
 
   const Layout = isProdutor ? AdminLayout : DashboardLayout;
 

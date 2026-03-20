@@ -45,6 +45,62 @@ router.get('/admin/stats', async (req, res) => {
   }
 });
 
+router.get('/admin/dashboard-metrics', auth, async (req, res) => {
+  try {
+    const role = String(req.user?.cargo || '');
+    if (role !== 'Produtor' && role !== 'Vendedor') return res.status(403).json({ error: 'Sem permissão' });
+    await ensureArtistIds();
+
+    const analytics = Array.isArray(memory.analytics) ? memory.analytics : [];
+    const playsByMusic = new Map();
+    const durationByMusic = new Map();
+    for (const ev of analytics) {
+      const t = String(ev?.type || '').trim();
+      if (t !== 'music_play') continue;
+      const p = ev?.payload || {};
+      const mid = String(p?.music_id || p?.id || '').trim();
+      if (!mid) continue;
+      playsByMusic.set(mid, (playsByMusic.get(mid) || 0) + 1);
+      const d = Number(p?.duration_seconds || 0);
+      if (Number.isFinite(d) && d > 0) durationByMusic.set(mid, (durationByMusic.get(mid) || 0) + d);
+    }
+
+    const likes = memory.likes && typeof memory.likes === 'object' ? memory.likes : {};
+
+    const musics = Array.isArray(memory.musics) ? memory.musics : [];
+    const enriched = musics.map((m) => {
+      const id = String(m?.id || '').trim();
+      const likeArr = Array.isArray(likes?.[id]) ? likes[id] : [];
+      return {
+        id,
+        titulo: m?.titulo || m?.title || 'Sem título',
+        nome_artista: m?.nome_artista || m?.artist_name || 'Artista',
+        cover_url: m?.cover_url || null,
+        status: m?.status || null,
+        plays: playsByMusic.get(id) || 0,
+        play_seconds: durationByMusic.get(id) || 0,
+        likes: likeArr.length
+      };
+    });
+
+    const topMusics = enriched
+      .slice()
+      .sort((a, b) => (b.plays - a.plays) || (b.likes - a.likes))
+      .slice(0, 10);
+
+    const totals = {
+      musics_total: musics.length,
+      plays_total: Array.from(playsByMusic.values()).reduce((a, b) => a + b, 0),
+      play_seconds_total: Array.from(durationByMusic.values()).reduce((a, b) => a + b, 0),
+      music_likes_total: enriched.reduce((a, b) => a + (Number(b.likes) || 0), 0)
+    };
+
+    res.json({ topMusics, totals });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 // Admin musics with optional filters
 router.get('/admin/musics', async (req, res) => {
   await ensureArtistIds();
