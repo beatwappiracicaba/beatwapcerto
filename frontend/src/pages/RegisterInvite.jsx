@@ -21,6 +21,7 @@ export default function RegisterInvite() {
   const [email, setEmail] = useState('');
   const [expiresAt, setExpiresAt] = useState(null);
   const [step, setStep] = useState('register');
+  const [formStep, setFormStep] = useState(0);
   const [agreeLegal, setAgreeLegal] = useState(false);
   const [nome, setNome] = useState('');
   const [nomeCompleto, setNomeCompleto] = useState('');
@@ -66,6 +67,51 @@ export default function RegisterInvite() {
   const submit = async () => {
     try {
       setSubmitting(true);
+      if (step === 'register') {
+        const requiredMissingByFormStep = () => {
+          if (formStep === 0) {
+            if (!String(nomeCompleto || '').trim()) return true;
+            return false;
+          }
+          if (formStep === 1) {
+            if (!String(password || '').trim()) return true;
+            return false;
+          }
+          if (formStep === 2) {
+            if (!String(celular || '').trim()) return true;
+            if (!String(generoMusical || '').trim()) return true;
+            return false;
+          }
+          if (formStep === 3) {
+            if (!String(cidade || '').trim()) return true;
+            if (!String(estado || '').trim()) return true;
+            if (!agreeLegal) return true;
+            return false;
+          }
+          return false;
+        };
+
+        if (requiredMissingByFormStep()) {
+          addToast('Preencha os campos obrigatórios', 'error');
+          return;
+        }
+
+        if (formStep < 3) {
+          setFormStep((s) => Math.min(3, s + 1));
+          return;
+        }
+
+        if (!email || !password || !nomeCompleto || !celular || !generoMusical || !cidade || !estado || !agreeLegal) {
+          addToast('Preencha os campos obrigatórios', 'error');
+          return;
+        }
+
+        await authApi.requestRegisterCode(email);
+        addToast('Enviamos um código de verificação para seu email.', 'success');
+        setStep('verify');
+        return;
+      }
+
       if (!agreeLegal) {
         addToast('Você precisa aceitar os Termos, Privacidade e Direitos Autorais.', 'error');
         return;
@@ -74,12 +120,11 @@ export default function RegisterInvite() {
         addToast('Preencha os campos obrigatórios', 'error');
         return;
       }
-      if (step === 'register') {
-        await authApi.requestRegisterCode(email);
-        addToast('Enviamos um código de verificação para seu email.', 'success');
-        setStep('verify');
+      if (!String(code || '').trim()) {
+        addToast('Digite o código enviado por email.', 'error');
         return;
       }
+
       const res = await apiClient.post('/auth/register-with-invite', {
         token,
         tipo: cargo,
@@ -134,146 +179,186 @@ export default function RegisterInvite() {
             onChange={(e) => setEmail(e.target.value)}
             disabled
           />
-          <AnimatedInput
-            label="Nome"
-            icon={User}
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            placeholder="Ex: MC Future"
-          />
-          <AnimatedInput
-            label="Nome completo"
-            icon={User}
-            value={nomeCompleto}
-            onChange={(e) => setNomeCompleto(e.target.value)}
-            placeholder="Seu nome completo"
-          />
-          <AnimatedInput
-            label="Razão social"
-            icon={User}
-            value={razaoSocial}
-            onChange={(e) => setRazaoSocial(e.target.value)}
-            placeholder="(opcional)"
-          />
-          <AnimatedInput
-            label="Senha"
-            type="password"
-            icon={Lock}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Mínimo 6 caracteres"
-          />
-          <AnimatedInput
-            label="CPF"
-            icon={User}
-            value={cpf}
-            onChange={(e) => setCpf(e.target.value)}
-            placeholder="(opcional)"
-          />
-          <AnimatedInput
-            label="CNPJ"
-            icon={User}
-            value={cnpj}
-            onChange={(e) => setCnpj(e.target.value)}
-            placeholder="(opcional)"
-          />
-          <AnimatedInput
-            label="Celular"
-            icon={User}
-            value={celular}
-            onChange={(e) => setCelular(e.target.value)}
-            placeholder="(WhatsApp)"
-          />
-          <AnimatedInput
-            label="Telefone"
-            icon={User}
-            value={telefone}
-            onChange={(e) => setTelefone(e.target.value)}
-            placeholder="(opcional)"
-          />
-          <AnimatedInput
-            label="Gênero Musical"
-            icon={User}
-            value={generoMusical}
-            onChange={(e) => setGeneroMusical(e.target.value)}
-            placeholder="Ex: Trap"
-          />
-          <AnimatedInput
-            label="CEP"
-            icon={User}
-            value={cep}
-            onChange={(e) => setCep(e.target.value)}
-            placeholder="(opcional)"
-          />
-          <AnimatedInput
-            label="Logradouro"
-            icon={User}
-            value={logradouro}
-            onChange={(e) => setLogradouro(e.target.value)}
-            placeholder="(opcional)"
-          />
-          <AnimatedInput
-            label="Complemento"
-            icon={User}
-            value={complemento}
-            onChange={(e) => setComplemento(e.target.value)}
-            placeholder="(opcional)"
-          />
-          <AnimatedInput
-            label="Bairro"
-            icon={User}
-            value={bairro}
-            onChange={(e) => setBairro(e.target.value)}
-            placeholder="(opcional)"
-          />
-          <AnimatedInput
-            label="Cidade"
-            icon={User}
-            value={cidade}
-            onChange={(e) => setCidade(e.target.value)}
-            placeholder="Sua cidade"
-          />
-          <AnimatedInput
-            label="Estado"
-            icon={User}
-            value={estado}
-            onChange={(e) => setEstado(e.target.value)}
-            placeholder="UF"
-          />
+          {step === 'verify' ? (
+            <>
+              <AnimatedInput
+                label="Código"
+                type="text"
+                icon={CheckCircle}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="000000"
+              />
+              <AnimatedButton onClick={submit} isLoading={submitting} className="w-full justify-center">
+                Concluir cadastro
+              </AnimatedButton>
+              <button
+                type="button"
+                onClick={() => { setStep('register'); setFormStep(3); }}
+                className="w-full text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                Voltar
+              </button>
+            </>
+          ) : (
+            <>
+              {formStep === 0 && (
+                <>
+                  <AnimatedInput
+                    label="Nome"
+                    icon={User}
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    placeholder="Ex: MC Future"
+                  />
+                  <AnimatedInput
+                    label="Nome completo"
+                    icon={User}
+                    value={nomeCompleto}
+                    onChange={(e) => setNomeCompleto(e.target.value)}
+                    placeholder="Seu nome completo"
+                  />
+                  <AnimatedInput
+                    label="Razão social"
+                    icon={User}
+                    value={razaoSocial}
+                    onChange={(e) => setRazaoSocial(e.target.value)}
+                    placeholder="(opcional)"
+                  />
+                </>
+              )}
 
-          {step === 'verify' && (
-            <AnimatedInput
-              label="Código"
-              type="text"
-              icon={CheckCircle}
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="000000"
-            />
+              {formStep === 1 && (
+                <AnimatedInput
+                  label="Senha"
+                  type="password"
+                  icon={Lock}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                />
+              )}
+
+              {formStep === 2 && (
+                <>
+                  <AnimatedInput
+                    label="CPF"
+                    icon={User}
+                    value={cpf}
+                    onChange={(e) => setCpf(e.target.value)}
+                    placeholder="(opcional)"
+                  />
+                  <AnimatedInput
+                    label="CNPJ"
+                    icon={User}
+                    value={cnpj}
+                    onChange={(e) => setCnpj(e.target.value)}
+                    placeholder="(opcional)"
+                  />
+                  <AnimatedInput
+                    label="Celular"
+                    icon={User}
+                    value={celular}
+                    onChange={(e) => setCelular(e.target.value)}
+                    placeholder="(WhatsApp)"
+                  />
+                  <AnimatedInput
+                    label="Telefone"
+                    icon={User}
+                    value={telefone}
+                    onChange={(e) => setTelefone(e.target.value)}
+                    placeholder="(opcional)"
+                  />
+                  <AnimatedInput
+                    label="Gênero Musical"
+                    icon={User}
+                    value={generoMusical}
+                    onChange={(e) => setGeneroMusical(e.target.value)}
+                    placeholder="Ex: Trap"
+                  />
+                </>
+              )}
+
+              {formStep === 3 && (
+                <>
+                  <AnimatedInput
+                    label="CEP"
+                    icon={User}
+                    value={cep}
+                    onChange={(e) => setCep(e.target.value)}
+                    placeholder="(opcional)"
+                  />
+                  <AnimatedInput
+                    label="Logradouro"
+                    icon={User}
+                    value={logradouro}
+                    onChange={(e) => setLogradouro(e.target.value)}
+                    placeholder="(opcional)"
+                  />
+                  <AnimatedInput
+                    label="Complemento"
+                    icon={User}
+                    value={complemento}
+                    onChange={(e) => setComplemento(e.target.value)}
+                    placeholder="(opcional)"
+                  />
+                  <AnimatedInput
+                    label="Bairro"
+                    icon={User}
+                    value={bairro}
+                    onChange={(e) => setBairro(e.target.value)}
+                    placeholder="(opcional)"
+                  />
+                  <AnimatedInput
+                    label="Cidade"
+                    icon={User}
+                    value={cidade}
+                    onChange={(e) => setCidade(e.target.value)}
+                    placeholder="Sua cidade"
+                  />
+                  <AnimatedInput
+                    label="Estado"
+                    icon={User}
+                    value={estado}
+                    onChange={(e) => setEstado(e.target.value)}
+                    placeholder="UF"
+                  />
+                  <div className="space-y-2">
+                    <label className="flex items-start gap-3 p-3 bg-white/5 border border-white/10 rounded-lg cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={agreeLegal}
+                        onChange={(e) => setAgreeLegal(e.target.checked)}
+                        className="mt-1 accent-beatwap-gold"
+                      />
+                      <span className="text-sm text-gray-300">
+                        Declaro que li e concordo com os{' '}
+                        <Link to="/legal/termos" className="text-beatwap-gold hover:underline">Termos de Uso</Link>,{' '}
+                        <Link to="/legal/privacidade" className="text-beatwap-gold hover:underline">Política de Privacidade</Link>{' '}
+                        e{' '}
+                        <Link to="/legal/direitos" className="text-beatwap-gold hover:underline">Direitos Autorais</Link>.{' '}
+                        <Link to="/legal/todos" className="text-gray-400 hover:text-beatwap-gold underline ml-1">Ver tudo</Link>
+                      </span>
+                    </label>
+                  </div>
+                </>
+              )}
+
+              <AnimatedButton onClick={submit} isLoading={submitting} className="w-full justify-center">
+                {formStep === 3 ? 'Enviar código' : 'Continuar'}
+              </AnimatedButton>
+              {formStep > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFormStep((s) => Math.max(0, s - 1))}
+                  className="w-full text-sm text-gray-400 hover:text-white transition-colors"
+                >
+                  Voltar
+                </button>
+              )}
+            </>
           )}
 
-          <div className="space-y-2">
-            <label className="flex items-start gap-3 p-3 bg-white/5 border border-white/10 rounded-lg cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={agreeLegal}
-                onChange={(e) => setAgreeLegal(e.target.checked)}
-                className="mt-1 accent-beatwap-gold"
-              />
-              <span className="text-sm text-gray-300">
-                Declaro que li e concordo com os{' '}
-                <Link to="/legal/termos" className="text-beatwap-gold hover:underline">Termos de Uso</Link>,{' '}
-                <Link to="/legal/privacidade" className="text-beatwap-gold hover:underline">Política de Privacidade</Link>{' '}
-                e{' '}
-                <Link to="/legal/direitos" className="text-beatwap-gold hover:underline">Direitos Autorais</Link>.{' '}
-                <Link to="/legal/todos" className="text-gray-400 hover:text-beatwap-gold underline ml-1">Ver tudo</Link>
-              </span>
-            </label>
-          </div>
-
-          <AnimatedButton onClick={submit} isLoading={submitting} className="w-full justify-center">
-            {step === 'verify' ? 'Concluir cadastro' : 'Enviar código'}
-          </AnimatedButton>
           <div className="text-xs text-center text-gray-500">
             Convite inválido? <Link className="text-beatwap-gold hover:underline" to="/register/invite-invalid">Ver ajuda</Link>
           </div>
