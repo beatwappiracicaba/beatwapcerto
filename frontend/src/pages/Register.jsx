@@ -71,6 +71,7 @@ const Register = () => {
       if (step === 'register') {
         const requiredMissingByFormStep = () => {
           if (formStep === 0) {
+            if (!String(formData.name || '').trim()) return true;
             if (!String(formData.nome_completo || '').trim()) return true;
             if (!String(formData.email || '').trim()) return true;
             return false;
@@ -138,7 +139,7 @@ const Register = () => {
         return;
       }
 
-      const capitalizedName = formData.name.replace(/\w\S*/g, (w) => (w.replace(/^\w/, (c) => c.toUpperCase())));
+      const capitalizedName = String(formData.name || '').trim();
       const role = roleParam ? (roleParam.charAt(0).toUpperCase() + roleParam.slice(1).toLowerCase()) : (formData.role || 'Artista');
       const params = new URLSearchParams(location.search);
       const getFlag = (k) => params.get(k) === '1';
