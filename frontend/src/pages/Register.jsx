@@ -6,18 +6,35 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Card } from '../components/ui/Card';
 import { authApi } from '../services/apiClient';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 
 const Register = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { addToast } = useToast();
+  const { refreshProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState('register'); // 'register' | 'verify'
   const [formData, setFormData] = useState({ 
     name: '', 
+    nome_completo: '',
+    razao_social: '',
     email: '', 
     password: '', 
-    confirmPassword: '' 
+    confirmPassword: '',
+    cpf: '',
+    cnpj: '',
+    celular: '',
+    telefone: '',
+    genero_musical: '',
+    cep: '',
+    logradouro: '',
+    complemento: '',
+    bairro: '',
+    cidade: '',
+    estado: '',
+    role: 'Artista',
+    code: ''
   });
   const [agreeLegal, setAgreeLegal] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
@@ -28,7 +45,9 @@ const Register = () => {
     const params = new URLSearchParams(location.search);
     const token = params.get('token') || '';
     if (token) {
-      navigate(`/register/invite?token=${encodeURIComponent(token)}`, { replace: true });
+      const tipo = params.get('tipo') || '';
+      const tipoQuery = tipo ? `&tipo=${encodeURIComponent(tipo)}` : '';
+      navigate(`/register/invite?token=${encodeURIComponent(token)}${tipoQuery}`, { replace: true });
       return;
     }
     const name = params.get('name') || '';
@@ -58,8 +77,20 @@ const Register = () => {
     setLoading(true);
     
     try {
+      if (!formData.nome_completo || !formData.email || !formData.celular || !formData.genero_musical || !formData.cidade || !formData.estado) {
+        addToast('Preencha os campos obrigatórios.', 'error');
+        return;
+      }
+
+      if (step === 'register') {
+        await authApi.requestRegisterCode(formData.email);
+        addToast('Enviamos um código de verificação para seu email.', 'success');
+        setStep('verify');
+        return;
+      }
+
       const capitalizedName = formData.name.replace(/\w\S*/g, (w) => (w.replace(/^\w/, (c) => c.toUpperCase())));
-      const role = roleParam ? (roleParam.charAt(0).toUpperCase() + roleParam.slice(1).toLowerCase()) : 'Artista';
+      const role = roleParam ? (roleParam.charAt(0).toUpperCase() + roleParam.slice(1).toLowerCase()) : (formData.role || 'Artista');
       const params = new URLSearchParams(location.search);
       const getFlag = (k) => params.get(k) === '1';
       let access_control = {};
@@ -92,9 +123,37 @@ const Register = () => {
         if (getFlag('p_marketing')) access_control.marketing = true;
         if (getFlag('p_finance')) access_control.finance = true;
       }
-      await authApi.register({ name: capitalizedName, email: formData.email, password: formData.password, role, plano: planParam, access_control });
-      addToast('Conta criada com sucesso! Faça login para continuar.', 'success');
-      navigate('/login');
+      const res = await authApi.register({
+        name: capitalizedName,
+        nome_completo: formData.nome_completo,
+        razao_social: formData.razao_social,
+        email: formData.email,
+        password: formData.password,
+        code: formData.code,
+        role,
+        plano: planParam,
+        access_control,
+        cpf: formData.cpf,
+        cnpj: formData.cnpj,
+        celular: formData.celular,
+        telefone: formData.telefone,
+        genero_musical: formData.genero_musical,
+        cep: formData.cep,
+        logradouro: formData.logradouro,
+        complemento: formData.complemento,
+        bairro: formData.bairro,
+        cidade: formData.cidade,
+        estado: formData.estado,
+        agreeLegal: true
+      });
+
+      if (res?.token) {
+        localStorage.setItem('token', res.token);
+        localStorage.setItem('user', JSON.stringify(res.user || null));
+      }
+      await refreshProfile();
+      addToast('Conta criada com sucesso!', 'success');
+      navigate(res?.redirect || '/dashboard/painel', { replace: true });
     } catch (error) {
       console.error('Registration error:', error);
       addToast(error.message || 'Erro ao criar conta.', 'error');
@@ -103,29 +162,33 @@ const Register = () => {
     }
   };
 
-  const goToLogin = () => {
-    navigate('/login');
-  };
-
   if (step === 'verify') {
     return (
       <div className="space-y-8">
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold text-white">Verificar Email</h1>
           <p className="text-gray-400">
-            Enviamos um link de confirmação para {formData.email}.<br/>
-            Clique no link enviado para confirmar sua conta e depois faça login.
+            Enviamos um código de confirmação para {formData.email}.<br/>
+            Digite o código para concluir seu cadastro.
           </p>
         </div>
 
         <Card className="space-y-6">
           <div className="space-y-4">
+            <AnimatedInput
+              label="Código"
+              type="text"
+              placeholder="000000"
+              icon={CheckCircle}
+              value={formData.code}
+              onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+            />
             <AnimatedButton 
               fullWidth 
-              onClick={goToLogin}
+              onClick={handleSubmit}
               isLoading={loading}
             >
-              Ir para Login
+              Concluir cadastro
             </AnimatedButton>
             <button
               type="button"
@@ -158,6 +221,22 @@ const Register = () => {
             onChange={(e) => setFormData({...formData, name: e.target.value})}
           />
           <AnimatedInput
+            label="Nome completo"
+            type="text"
+            placeholder="Seu nome completo"
+            icon={User}
+            value={formData.nome_completo}
+            onChange={(e) => setFormData({...formData, nome_completo: e.target.value})}
+          />
+          <AnimatedInput
+            label="Razão social"
+            type="text"
+            placeholder="(opcional)"
+            icon={User}
+            value={formData.razao_social}
+            onChange={(e) => setFormData({...formData, razao_social: e.target.value})}
+          />
+          <AnimatedInput
             label="Email"
             type="email"
             placeholder="seu@email.com"
@@ -181,6 +260,107 @@ const Register = () => {
             value={formData.confirmPassword}
             onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
           />
+          <AnimatedInput
+            label="CPF"
+            type="text"
+            placeholder="(opcional)"
+            icon={User}
+            value={formData.cpf}
+            onChange={(e) => setFormData({...formData, cpf: e.target.value})}
+          />
+          <AnimatedInput
+            label="CNPJ"
+            type="text"
+            placeholder="(opcional)"
+            icon={User}
+            value={formData.cnpj}
+            onChange={(e) => setFormData({...formData, cnpj: e.target.value})}
+          />
+          <AnimatedInput
+            label="Celular"
+            type="text"
+            placeholder="(WhatsApp)"
+            icon={User}
+            value={formData.celular}
+            onChange={(e) => setFormData({...formData, celular: e.target.value})}
+          />
+          <AnimatedInput
+            label="Telefone"
+            type="text"
+            placeholder="(opcional)"
+            icon={User}
+            value={formData.telefone}
+            onChange={(e) => setFormData({...formData, telefone: e.target.value})}
+          />
+          <AnimatedInput
+            label="Gênero Musical"
+            type="text"
+            placeholder="Ex: Trap"
+            icon={User}
+            value={formData.genero_musical}
+            onChange={(e) => setFormData({...formData, genero_musical: e.target.value})}
+          />
+          <AnimatedInput
+            label="CEP"
+            type="text"
+            placeholder="(opcional)"
+            icon={User}
+            value={formData.cep}
+            onChange={(e) => setFormData({...formData, cep: e.target.value})}
+          />
+          <AnimatedInput
+            label="Logradouro"
+            type="text"
+            placeholder="(opcional)"
+            icon={User}
+            value={formData.logradouro}
+            onChange={(e) => setFormData({...formData, logradouro: e.target.value})}
+          />
+          <AnimatedInput
+            label="Complemento"
+            type="text"
+            placeholder="(opcional)"
+            icon={User}
+            value={formData.complemento}
+            onChange={(e) => setFormData({...formData, complemento: e.target.value})}
+          />
+          <AnimatedInput
+            label="Bairro"
+            type="text"
+            placeholder="(opcional)"
+            icon={User}
+            value={formData.bairro}
+            onChange={(e) => setFormData({...formData, bairro: e.target.value})}
+          />
+          <AnimatedInput
+            label="Cidade"
+            type="text"
+            placeholder="Sua cidade"
+            icon={User}
+            value={formData.cidade}
+            onChange={(e) => setFormData({...formData, cidade: e.target.value})}
+          />
+          <AnimatedInput
+            label="Estado"
+            type="text"
+            placeholder="UF"
+            icon={User}
+            value={formData.estado}
+            onChange={(e) => setFormData({...formData, estado: e.target.value})}
+          />
+          <div className="space-y-2">
+            <div className="text-sm text-gray-300">Eu sou:</div>
+            <div className="relative">
+              <select
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-beatwap-gold outline-none"
+              >
+                <option value="Artista" className="bg-[#121212]">Artista</option>
+                <option value="Compositor" className="bg-[#121212]">Compositor</option>
+              </select>
+            </div>
+          </div>
           <div className="space-y-2">
             <label className="flex items-start gap-3 p-3 bg-white/5 border border-white/10 rounded-lg cursor-pointer select-none">
               <input
@@ -216,7 +396,7 @@ const Register = () => {
             type="submit" 
             isLoading={loading}
           >
-            Criar conta
+            Enviar código
           </AnimatedButton>
         </form>
       </Card>

@@ -185,6 +185,16 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
     setErrors({});
 
     try {
+      const ownerId = composerId || user.id;
+      const quota = await apiClient.get(`/users/${ownerId}/quota`);
+      const creditos = Number(quota?.creditos_envio || 0);
+      if (creditos < 1) {
+        const msg = 'Você não possui créditos de envio. Compre créditos para enviar composições.';
+        addToast(msg, 'error');
+        setErrors(prev => ({ ...prev, submit: msg }));
+        return;
+      }
+
       // Upload Files
       // Using 'music_covers' and 'music_files' as they likely exist. 
       // Ideally we would have 'composition_covers' and 'composition_files'.
@@ -195,7 +205,6 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
       ];
       const [coverUrl, audioUrl] = await Promise.all(uploads);
 
-      const ownerId = composerId || user.id;
       await apiClient.post('/compositions', {
         composer_id: ownerId,
         title: formData.title,

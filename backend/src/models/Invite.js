@@ -14,6 +14,22 @@ const Invite = sequelize.define('Invite', {
     allowNull: false,
     validate: { isEmail: true }
   },
+  role: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  plano: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  name: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  access_control: {
+    type: DataTypes.JSON,
+    allowNull: true
+  },
   token: {
     type: DataTypes.STRING,
     allowNull: false,

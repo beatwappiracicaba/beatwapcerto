@@ -235,41 +235,13 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
-    const bonus = Number(prof?.bonus_quota || 0);
-    let base = 0;
-    let start = null;
-    let end = null;
-    const now = new Date();
-    if (plan.includes('vitalicio')) {
-      start = null;
-      end = null;
-    } else if (plan.includes('avulso')) {
-      base = 1;
-      const ps = prof?.plan_started_at ? new Date(prof.plan_started_at) : now;
-      start = ps.toISOString();
-    } else if (plan.includes('mensal')) {
-      base = 4;
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-      start = monthStart.toISOString();
-      end = monthEnd.toISOString();
-    } else if (plan.includes('anual')) {
-      base = 48;
-      const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
-      const yearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
-      start = yearStart.toISOString();
-      end = yearEnd.toISOString();
-    } else {
-      base = 0;
-    }
-
     if (plan.includes('vitalicio') || isProducerMode) return true;
 
-    const count = await apiClient.get(`/users/${activeUser.id}/music-count?start=${start}&end=${end}`);
-    const used = Number(count || 0);
-    const remaining = Math.max(0, base + bonus - used);
-    if (remaining < needed) {
-      setErrors(prev => ({ ...prev, submit: `Limite insuficiente: necessário ${needed}, disponível ${remaining}.` }));
+    const creditos = Number(prof?.creditos_envio || 0);
+    if (creditos < needed) {
+      const msg = 'Você não possui créditos de envio. Compre créditos para enviar músicas.';
+      setErrors(prev => ({ ...prev, submit: msg }));
+      addToast(msg, 'error');
       return false;
     }
     return true;

@@ -61,7 +61,10 @@ router.get('/dashboard/profile', auth, async (req, res) => {
       id: user.id,
       email: user.email,
       cargo: user.cargo,
+      status: user.status,
       nome: user.nome,
+      nome_completo: user.nome_completo,
+      razao_social: user.razao_social,
       nome_completo_razao_social: user.nome_completo_razao_social,
       avatar_url: user.avatar_url,
       bio: user.bio,
@@ -73,7 +76,10 @@ router.get('/dashboard/profile', auth, async (req, res) => {
       instagram_url: user.instagram_url,
       site_url: user.site_url,
       cpf_cnpj: user.cpf_cnpj,
+      cpf: user.cpf,
+      cnpj: user.cnpj,
       celular: user.celular,
+      telefone: user.telefone,
       tema: user.tema,
       cep: user.cep,
       logradouro: user.logradouro,
@@ -82,6 +88,10 @@ router.get('/dashboard/profile', auth, async (req, res) => {
       cidade: user.cidade,
       estado: user.estado,
       plano: user.plano,
+      creditos_envio: user.creditos_envio,
+      referred_by: user.referred_by,
+      contract_accepted_at: user.contract_accepted_at,
+      email_verified: user.email_verified,
       access_control: user.access_control || null
     });
   } catch (e) {
@@ -98,7 +108,10 @@ router.get('/profile', auth, async (req, res) => {
       id: user.id,
       email: user.email,
       cargo: user.cargo,
+      status: user.status,
       nome: user.nome,
+      nome_completo: user.nome_completo,
+      razao_social: user.razao_social,
       nome_completo_razao_social: user.nome_completo_razao_social,
       avatar_url: user.avatar_url,
       bio: user.bio,
@@ -110,7 +123,10 @@ router.get('/profile', auth, async (req, res) => {
       instagram_url: user.instagram_url,
       site_url: user.site_url,
       cpf_cnpj: user.cpf_cnpj,
+      cpf: user.cpf,
+      cnpj: user.cnpj,
       celular: user.celular,
+      telefone: user.telefone,
       tema: user.tema,
       cep: user.cep,
       logradouro: user.logradouro,
@@ -119,6 +135,10 @@ router.get('/profile', auth, async (req, res) => {
       cidade: user.cidade,
       estado: user.estado,
       plano: user.plano,
+      creditos_envio: user.creditos_envio,
+      referred_by: user.referred_by,
+      contract_accepted_at: user.contract_accepted_at,
+      email_verified: user.email_verified,
       access_control: user.access_control || null
     });
   } catch (e) {
@@ -129,16 +149,33 @@ router.get('/profile', auth, async (req, res) => {
 // Update profile basic fields
 router.put('/profile', auth, async (req, res) => {
   try {
+    const existing = await Profile.findByPk(req.user.id);
+    if (!existing) return res.status(404).json({ ok: false, error: 'Perfil não encontrado' });
     const allowed = [
       'nome','bio','genero_musical',
       'youtube_url','spotify_url','deezer_url','tiktok_url','instagram_url','site_url',
       'avatar_url','email',
       'nome_completo_razao_social','cpf_cnpj','celular','tema',
+      'nome_completo','razao_social','cpf','cnpj','telefone',
       'cep','logradouro','complemento','bairro','cidade','estado','plano'
     ];
     const patch = {};
     for (const k of allowed) {
       if (req.body.hasOwnProperty(k)) patch[k] = req.body[k];
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, 'nome_completo') || Object.prototype.hasOwnProperty.call(patch, 'razao_social')) {
+      const nomeCompleto = Object.prototype.hasOwnProperty.call(patch, 'nome_completo') ? patch.nome_completo : existing.nome_completo;
+      const razaoSocial = Object.prototype.hasOwnProperty.call(patch, 'razao_social') ? patch.razao_social : existing.razao_social;
+      const a = String(nomeCompleto || '').trim();
+      const b = String(razaoSocial || '').trim();
+      patch.nome_completo_razao_social = (a && b) ? `${a} / ${b}` : (a || b || null);
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, 'cpf') || Object.prototype.hasOwnProperty.call(patch, 'cnpj')) {
+      const cpf = Object.prototype.hasOwnProperty.call(patch, 'cpf') ? patch.cpf : existing.cpf;
+      const cnpj = Object.prototype.hasOwnProperty.call(patch, 'cnpj') ? patch.cnpj : existing.cnpj;
+      const a = String(cpf || '').trim();
+      const b = String(cnpj || '').trim();
+      patch.cpf_cnpj = (a && b) ? `${a} / ${b}` : (a || b || null);
     }
     console.log('[PUT /profile]', { userId: req.user.id, keys: Object.keys(patch) });
     await Profile.update(patch, { where: { id: req.user.id } });

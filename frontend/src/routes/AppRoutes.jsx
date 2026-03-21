@@ -133,6 +133,7 @@ export const AppRoutes = () => {
         {/* Auth Routes */}
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<Login />} />
+          <Route path="/cadastro" element={<Register />} />
           <Route path="/register" element={<Register />} />
           <Route path="/register/invite" element={<RegisterInvite />} />
           <Route path="/register/invite-invalid" element={<InviteInvalid />} />

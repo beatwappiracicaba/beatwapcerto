@@ -93,6 +93,10 @@ const Login = () => {
 
       <div className="text-center text-sm text-gray-500">
         Não tem uma conta?{' '}
+        <Link to="/cadastro" className="text-beatwap-gold font-bold hover:underline">
+          Cadastre-se
+        </Link>
+        <span className="mx-2 text-gray-600">|</span>
         <a 
           href="https://wa.me/5519981880590?text=Ol%C3%A1%2C%20gostaria%20de%20criar%20uma%20conta%20de%20artista%20na%20BeatWap." 
           target="_blank" 

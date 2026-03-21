@@ -29,7 +29,28 @@ const Profile = sequelize.define('Profile', {
     type: DataTypes.STRING,
     allowNull: false
   },
+  status: {
+    type: DataTypes.ENUM('ativo', 'pendente', 'bloqueado'),
+    allowNull: true,
+    defaultValue: 'ativo'
+  },
   nome: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  nome_completo: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  razao_social: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  cpf: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  cnpj: {
     type: DataTypes.STRING,
     allowNull: true
   },
@@ -81,6 +102,10 @@ const Profile = sequelize.define('Profile', {
     type: DataTypes.STRING,
     allowNull: true
   },
+  telefone: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   tema: {
     type: DataTypes.STRING,
     allowNull: true
@@ -111,7 +136,35 @@ const Profile = sequelize.define('Profile', {
   },
   plano: {
     type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: 'avulso'
+  },
+  creditos_envio: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0
+  },
+  bonus_quota: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0
+  },
+  plan_started_at: {
+    type: DataTypes.DATE,
     allowNull: true
+  },
+  referred_by: {
+    type: DataTypes.UUID,
+    allowNull: true
+  },
+  contract_accepted_at: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  email_verified: {
+    type: DataTypes.BOOLEAN,
+    allowNull: true,
+    defaultValue: false
   },
   access_control: {
     type: DataTypes.JSON,

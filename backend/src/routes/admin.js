@@ -187,8 +187,28 @@ router.get('/admin/sellers', async (req, res) => {
     res.json([]);
   }
 });
+
+async function requireUploadCredits(req, res, needed) {
+  try {
+    if (req.user?.cargo === 'Produtor') return { ok: true };
+    const n = Number(needed || 0);
+    if (!Number.isFinite(n) || n <= 0) return { ok: true };
+    const user = await Profile.findByPk(req.user?.id);
+    const credits = Number(user?.creditos_envio || 0);
+    if (credits < n) return { ok: false, error: 'Créditos insuficientes para envio', code: 'NO_CREDITS' };
+    user.creditos_envio = credits - n;
+    await user.save();
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'Erro ao validar créditos', code: 'CREDITS_ERROR' };
+  }
+}
+
 router.post('/musics', auth, async (req, res) => {
   try {
+    const credits = await requireUploadCredits(req, res, 1);
+    if (!credits.ok) return res.status(402).json({ error: credits.error, code: credits.code });
+
     const id = `music_${Date.now()}`;
     const item = {
       id,
@@ -226,6 +246,9 @@ router.post('/musics', auth, async (req, res) => {
 router.post('/musics/batch', auth, async (req, res) => {
   try {
     const rows = Array.isArray(req.body?.musics) ? req.body.musics : [];
+    const credits = await requireUploadCredits(req, res, rows.length);
+    if (!credits.ok) return res.status(402).json({ error: credits.error, code: credits.code });
+
     const inserted = rows.map((r) => ({
       id: `music_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
       ...r,

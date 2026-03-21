@@ -438,39 +438,56 @@ router.get('/composer/compositions', async (req, res) => {
 });
 
 // Create a composition (mock)
-router.post('/compositions', async (req, res) => {
-  const id = `comp_${Date.now()}`;
-  let producer_id = null;
+async function requireUploadCredits(req, needed) {
+  if (req.user?.cargo === 'Produtor') return { ok: true };
+  const n = Number(needed || 0);
+  if (!Number.isFinite(n) || n <= 0) return { ok: true };
+  const user = await Profile.findByPk(req.user?.id);
+  const credits = Number(user?.creditos_envio || 0);
+  if (credits < n) return { ok: false, error: 'Créditos insuficientes para envio', code: 'NO_CREDITS' };
+  user.creditos_envio = credits - n;
+  await user.save();
+  return { ok: true };
+}
+
+router.post('/compositions', auth, async (req, res) => {
   try {
-    const h = String(req.headers.authorization || '');
-    const token = h.startsWith('Bearer ') ? h.slice(7) : null;
-    if (token) {
-      const payload = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
-      if (String(payload?.cargo || '').toLowerCase() === 'produtor') {
-        producer_id = payload?.sub || null;
-      }
+    if (req.user?.cargo !== 'Compositor' && req.user?.cargo !== 'Produtor') {
+      return res.status(403).json({ error: 'Sem permissão' });
     }
+
+    const credits = await requireUploadCredits(req, 1);
+    if (!credits.ok) return res.status(402).json({ error: credits.error, code: credits.code });
+
+    const id = `comp_${Date.now()}`;
+    const producer_id = req.user?.cargo === 'Produtor' ? (req.user?.id || null) : null;
+    const composer_id = req.user?.cargo === 'Compositor'
+      ? (req.user?.id || null)
+      : (req.body?.composer_id || null);
+
+    if (!composer_id) return res.status(400).json({ error: 'composer_id obrigatório' });
+
+    const item = {
+      id,
+      composer_id,
+      producer_id,
+      title: req.body?.title || 'Sem título',
+      genre: req.body?.genre || null,
+      description: req.body?.description || null,
+      price: req.body?.price ?? null,
+      cover_url: req.body?.cover_url || null,
+      audio_url: req.body?.audio_url || null,
+      status: req.body?.status || 'pending',
+      created_at: new Date().toISOString()
+    };
+    memory.compositions.unshift(item);
+    scheduleSave();
+    if (item.composer_id) emitEvent('compositions.created', item, `profile:${item.composer_id}`);
+    if (item.producer_id) emitEvent('compositions.created', item, `profile:${item.producer_id}`);
+    res.json(item);
   } catch {
-    producer_id = null;
+    res.status(500).json({ error: 'Erro interno' });
   }
-  const item = {
-    id,
-    composer_id: req.body?.composer_id || null,
-    producer_id,
-    title: req.body?.title || 'Sem título',
-    genre: req.body?.genre || null,
-    description: req.body?.description || null,
-    price: req.body?.price ?? null,
-    cover_url: req.body?.cover_url || null,
-    audio_url: req.body?.audio_url || null,
-    status: req.body?.status || 'pending',
-    created_at: new Date().toISOString()
-  };
-  memory.compositions.unshift(item);
-  scheduleSave();
-  if (item.composer_id) emitEvent('compositions.created', item, `profile:${item.composer_id}`);
-  if (item.producer_id) emitEvent('compositions.created', item, `profile:${item.producer_id}`);
-  res.json(item);
 });
 
 // Admin compositions listing (reads same in-memory)
@@ -1104,6 +1121,7 @@ router.get('/users/:id/quota', async (req, res) => {
     const user = await Profile.findByPk(id);
     const planRaw = String(user?.plano || 'sem plano');
     const plan = planRaw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const creditos_envio = Number(user?.creditos_envio || 0);
     let uploads_remaining = 0;
     if (plan.includes('vitalicio') || plan.includes('lifetime')) {
       uploads_remaining = Number.MAX_SAFE_INTEGER;
@@ -1120,10 +1138,11 @@ router.get('/users/:id/quota', async (req, res) => {
       uploads_remaining,
       plano: user?.plano || 'sem plano',
       bonus_quota: Number(user?.bonus_quota || 0),
-      plan_started_at: user?.plan_started_at || null
+      plan_started_at: user?.plan_started_at || null,
+      creditos_envio
     });
   } catch {
-    res.json({ uploads_remaining: 0, plano: 'sem plano', bonus_quota: 0, plan_started_at: null });
+    res.json({ uploads_remaining: 0, plano: 'sem plano', bonus_quota: 0, plan_started_at: null, creditos_envio: 0 });
   }
 });
 

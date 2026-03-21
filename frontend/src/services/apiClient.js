@@ -277,9 +277,14 @@ export const authApi = {
     if (user) localStorage.setItem('user', JSON.stringify(user));
     return data;
   },
-  async register({ name, email, password, role, plano, plan }) {
-    const planValue = plano ?? plan;
-    return apiClient.post('/auth/register', { name, email, password, role, plano: planValue });
+  async requestRegisterCode(email) {
+    return apiClient.post('/auth/register/request-code', { email });
+  },
+  async register(payload) {
+    const planValue = payload?.plano ?? payload?.plan;
+    const body = { ...(payload || {}) };
+    if (planValue != null) body.plano = planValue;
+    return apiClient.post('/auth/register', body);
   },
   async logout() {
     localStorage.removeItem('token');
