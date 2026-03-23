@@ -7,6 +7,71 @@ const { memory, scheduleSave } = require('../memoryStore');
 
 const router = express.Router();
 
+function canonicalizeHashtag(raw) {
+  let s = String(raw || '').trim();
+  if (!s) return null;
+  if (!s.startsWith('#')) s = `#${s}`;
+  s = `#${s.slice(1).replace(/\s+/g, '')}`;
+  s = `#${s.slice(1).replace(/[^\p{L}\p{N}_]/gu, '')}`;
+  if (s.length < 2) return null;
+  return s;
+}
+
+function hashtagKey(canonical) {
+  const s = String(canonical || '').trim();
+  if (!s || !s.startsWith('#')) return '';
+  const body = s
+    .slice(1)
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
+  if (!body) return '';
+  return `#${body}`;
+}
+
+function upsertGlobalHashtag(raw) {
+  const tag = canonicalizeHashtag(raw);
+  if (!tag) return null;
+  if (!Array.isArray(memory.hashtags)) memory.hashtags = [];
+  const key = hashtagKey(tag);
+  if (!key) return null;
+  const exists = memory.hashtags.some((t) => hashtagKey(t) === key);
+  if (exists) return tag;
+  memory.hashtags.unshift(tag);
+  scheduleSave();
+  return tag;
+}
+
+function parseHashtags(input) {
+  const arr = Array.isArray(input) ? input : (typeof input === 'string' ? input.split(',') : []);
+  const out = [];
+  const seen = new Set();
+  for (const raw of arr) {
+    const tag = canonicalizeHashtag(raw);
+    if (!tag) continue;
+    const key = hashtagKey(tag);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(tag);
+  }
+  return out;
+}
+
+router.get('/hashtags', async (req, res) => {
+  const list = Array.isArray(memory.hashtags) ? memory.hashtags : [];
+  res.json(list);
+});
+
+router.post('/hashtags', auth, async (req, res) => {
+  try {
+    const tag = upsertGlobalHashtag(req.body?.tag || req.body?.hashtag || req.body?.name);
+    if (!tag) return res.status(400).json({ error: 'Hashtag inválida' });
+    res.json({ tag });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 router.get('/home', async (req, res) => {
   try {
     const nowMs = Date.now();
@@ -471,6 +536,8 @@ router.post('/compositions', auth, async (req, res) => {
     const chorusEndRaw = req.body?.chorus_end_seconds;
     const chorus_start_seconds = Number.isFinite(Number(chorusStartRaw)) ? Number(chorusStartRaw) : null;
     const chorus_end_seconds = Number.isFinite(Number(chorusEndRaw)) ? Number(chorusEndRaw) : null;
+    const hashtags = parseHashtags(req.body?.hashtags || req.body?.tags || []);
+    for (const t of hashtags) upsertGlobalHashtag(t);
 
     const item = {
       id,
@@ -484,6 +551,7 @@ router.post('/compositions', auth, async (req, res) => {
       audio_url: req.body?.audio_url || null,
       chorus_start_seconds,
       chorus_end_seconds,
+      hashtags,
       status: req.body?.status || 'pending',
       created_at: new Date().toISOString()
     };

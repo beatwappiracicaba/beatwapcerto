@@ -33,6 +33,28 @@ const formatWhatsAppPhone = (rawPhone) => {
 
 const sanitizeUrl = (u) => String(u || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
 
+const canonicalizeHashtag = (raw) => {
+  let s = String(raw || '').trim();
+  if (!s) return null;
+  if (!s.startsWith('#')) s = `#${s}`;
+  s = `#${s.slice(1).replace(/\s+/g, '')}`;
+  s = `#${s.slice(1).replace(/[^\p{L}\p{N}_]/gu, '')}`;
+  if (s.length < 2) return null;
+  return s;
+};
+
+const hashtagKey = (canonical) => {
+  const s = String(canonical || '').trim();
+  if (!s || !s.startsWith('#')) return '';
+  const body = s
+    .slice(1)
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
+  if (!body) return '';
+  return `#${body}`;
+};
+
 const AllCompositions = () => {
   const navigate = useNavigate();
   const [list, setList] = useState([]);
@@ -40,14 +62,27 @@ const AllCompositions = () => {
   const [audioElement, setAudioElement] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState(null);
+  const [globalHashtags, setGlobalHashtags] = useState([]);
+  const [activeHashtags, setActiveHashtags] = useState([]);
+  const [hashtagInput, setHashtagInput] = useState('');
 
   useEffect(() => {
     window.scrollTo(0, 0);
     fetchAll();
+    fetchHashtags();
     return () => {
       if (audioElement) audioElement.pause();
     };
   }, []);
+
+  const fetchHashtags = async () => {
+    try {
+      const data = await apiClient.get('/hashtags', { cache: true, cacheTtlMs: 15000 });
+      setGlobalHashtags(Array.isArray(data) ? data : []);
+    } catch {
+      setGlobalHashtags([]);
+    }
+  };
 
   const fetchAll = async () => {
     try {
@@ -131,7 +166,7 @@ const AllCompositions = () => {
     }
     const durationLimit = Math.min(30, Math.max(20, segLen));
     audio.addEventListener('loadedmetadata', () => {
-      try { audio.currentTime = start; } catch {}
+      try { audio.currentTime = start; } catch (e) { void e; }
     }, { once: true });
     audio.onended = () => {
       setPlayingTrack(null);
@@ -147,7 +182,7 @@ const AllCompositions = () => {
       setPreviewTimer(null);
     }
     const t = setTimeout(() => {
-      try { audio.pause(); } catch {}
+      try { audio.pause(); } catch (e) { void e; }
       setPlayingTrack(null);
       setAudioElement(null);
       setIsPaused(false);
@@ -185,6 +220,46 @@ const AllCompositions = () => {
   })();
 
   const selectedFolder = selectedFolderId ? folders.find((f) => String(f.id) === String(selectedFolderId)) : null;
+  const availableHashtags = (() => {
+    const counts = new Map();
+    const display = new Map();
+    const add = (raw, inc) => {
+      const t = canonicalizeHashtag(raw);
+      if (!t) return;
+      const key = hashtagKey(t);
+      if (!key) return;
+      counts.set(key, (counts.get(key) || 0) + inc);
+      if (!display.has(key)) display.set(key, t);
+    };
+    if (selectedFolder?.items) {
+      for (const comp of selectedFolder.items) {
+        const tags = Array.isArray(comp?.hashtags) ? comp.hashtags : [];
+        for (const t of tags) add(t, 2);
+      }
+    }
+    for (const t of globalHashtags) add(t, 1);
+    return Array.from(counts.keys())
+      .sort((a, b) => {
+        const ca = counts.get(a) || 0;
+        const cb = counts.get(b) || 0;
+        if (ca !== cb) return cb - ca;
+        return a.localeCompare(b);
+      })
+      .map((k) => display.get(k))
+      .filter(Boolean);
+  })();
+  const activeHashtagKeys = new Set((activeHashtags || []).map(hashtagKey).filter(Boolean));
+  const toggleHashtag = (raw) => {
+    const t = canonicalizeHashtag(raw);
+    if (!t) return;
+    const key = hashtagKey(t);
+    if (!key) return;
+    setActiveHashtags((prev) => {
+      const has = prev.some((x) => hashtagKey(x) === key);
+      if (has) return prev.filter((x) => hashtagKey(x) !== key);
+      return [...prev, t];
+    });
+  };
 
   return (
     <div className="min-h-screen bg-beatwap-black text-white flex flex-col">
@@ -249,8 +324,54 @@ const AllCompositions = () => {
                   </div>
                 </div>
 
+                <div className="space-y-2 mb-4">
+                  <label className="text-sm font-bold text-gray-400">Filtrar por hashtags</label>
+                  <div className="flex flex-wrap gap-2">
+                    {availableHashtags.slice(0, 24).map((tag) => {
+                      const active = activeHashtagKeys.has(hashtagKey(tag));
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => toggleHashtag(tag)}
+                          className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${
+                            active ? 'bg-beatwap-gold/20 text-beatwap-gold border border-beatwap-gold/30' : 'bg-white/10 hover:bg-white/20 text-gray-200 border border-white/10'
+                          }`}
+                        >
+                          {tag}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <input
+                    type="text"
+                    value={hashtagInput}
+                    onChange={(e) => setHashtagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter') return;
+                      e.preventDefault();
+                      const t = canonicalizeHashtag(hashtagInput);
+                      if (!t) return;
+                      toggleHashtag(t);
+                      setHashtagInput('');
+                    }}
+                    placeholder="#EstiloGusttavoLima"
+                    className="w-full bg-beatwap-graphite/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-beatwap-gold/50 transition-colors"
+                  />
+                </div>
+
                 <div className="space-y-3">
-                  {selectedFolder.items.map((comp) => {
+                  {selectedFolder.items
+                    .filter((comp) => {
+                      if (activeHashtagKeys.size === 0) return true;
+                      const tags = Array.isArray(comp?.hashtags) ? comp.hashtags : [];
+                      const keys = new Set(tags.map(hashtagKey).filter(Boolean));
+                      for (const k of activeHashtagKeys) {
+                        if (!keys.has(k)) return false;
+                      }
+                      return true;
+                    })
+                    .map((comp) => {
                     const ccover = sanitizeUrl(comp.cover_url);
                     const caudio = sanitizeUrl(comp.audio_url);
                     const isPlayingThis = playingTrack === comp.id && !isPaused;
@@ -277,6 +398,20 @@ const AllCompositions = () => {
                           <div className="font-bold text-sm text-white truncate">{comp.title}</div>
                           {Number.isFinite(Number(comp.price)) && (
                             <div className="text-xs text-beatwap-gold mt-0.5 font-bold">R$ {comp.price}</div>
+                          )}
+                          {Array.isArray(comp.hashtags) && comp.hashtags.length > 0 && (
+                            <div className="mt-1 flex flex-wrap gap-2">
+                              {comp.hashtags.slice(0, 6).map((tag) => (
+                                <button
+                                  key={tag}
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); toggleHashtag(tag); }}
+                                  className="text-[11px] text-gray-400 hover:text-white transition-colors"
+                                >
+                                  {tag}
+                                </button>
+                              ))}
+                            </div>
                           )}
                         </div>
                       </div>

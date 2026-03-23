@@ -302,7 +302,7 @@ export const DashboardArtistHome = () => {
     }
     const durationLimit = Math.min(30, Math.max(20, segLen));
     audio.addEventListener('loadedmetadata', () => {
-      try { audio.currentTime = start; } catch {}
+      try { audio.currentTime = start; } catch (e) { void e; }
     }, { once: true });
     audio.onended = () => {
       setPlayingTrack(null);
@@ -318,7 +318,7 @@ export const DashboardArtistHome = () => {
       setPreviewTimer(null);
     }
     const t = setTimeout(() => {
-      try { audio.pause(); } catch {}
+      try { audio.pause(); } catch (e) { void e; }
       setPlayingTrack(null);
       setAudioElement(null);
       setIsPaused(false);
@@ -445,6 +445,9 @@ export const DashboardArtistHome = () => {
                         </div>
                         <span className="truncate">{item.composer_name || 'Autor'}</span>
                       </div>
+                      {Array.isArray(item.hashtags) && item.hashtags.length > 0 && (
+                        <div className="mt-1 text-[11px] text-gray-400 truncate">{item.hashtags.slice(0, 6).join(' ')}</div>
+                      )}
                       {item.composer_phone ? (
                         <>
                           <div className="mt-2 text-xs text-gray-400">

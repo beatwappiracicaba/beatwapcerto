@@ -9,6 +9,39 @@ import { AnimatedInput } from '../ui/AnimatedInput';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
+const DEFAULT_HASHTAGS = [
+  '#HenriqueeJuliano',
+  '#JorgeeMateus',
+  '#Sofrência',
+  '#Romântica',
+  '#Pisadinha',
+  '#Modão',
+  '#Arrocha',
+  '#HitComercial'
+];
+
+const canonicalizeHashtag = (raw) => {
+  let s = String(raw || '').trim();
+  if (!s) return null;
+  if (!s.startsWith('#')) s = `#${s}`;
+  s = `#${s.slice(1).replace(/\s+/g, '')}`;
+  s = `#${s.slice(1).replace(/[^\p{L}\p{N}_]/gu, '')}`;
+  if (s.length < 2) return null;
+  return s;
+};
+
+const hashtagKey = (canonical) => {
+  const s = String(canonical || '').trim();
+  if (!s || !s.startsWith('#')) return '';
+  const body = s
+    .slice(1)
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
+  if (!body) return '';
+  return `#${body}`;
+};
+
 export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId = null }) => {
   const { user } = useAuth();
   const { addToast } = useToast();
@@ -40,6 +73,9 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
   const [coverOriginalFile, setCoverOriginalFile] = useState(null);
   const audioRef = useRef(null);
   const [audioDuration, setAudioDuration] = useState(0);
+  const [suggestedHashtags, setSuggestedHashtags] = useState(DEFAULT_HASHTAGS);
+  const [selectedHashtags, setSelectedHashtags] = useState([]);
+  const [customHashtag, setCustomHashtag] = useState('');
 
   useEffect(() => {
     if (!coverImageSrc) return;
@@ -49,6 +85,73 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
       document.body.style.overflow = previous;
     };
   }, [coverImageSrc]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    setSelectedHashtags([]);
+    setCustomHashtag('');
+    const load = async () => {
+      try {
+        const data = await apiClient.get('/hashtags', { cache: true, cacheTtlMs: 15000 });
+        const remote = Array.isArray(data) ? data : [];
+        const merged = [];
+        const seen = new Set();
+        for (const raw of [...DEFAULT_HASHTAGS, ...remote]) {
+          const tag = canonicalizeHashtag(raw);
+          if (!tag) continue;
+          const key = hashtagKey(tag);
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          merged.push(tag);
+        }
+        if (!cancelled) setSuggestedHashtags(merged);
+      } catch {
+        if (!cancelled) setSuggestedHashtags(DEFAULT_HASHTAGS);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [isOpen]);
+
+  const toggleHashtag = (raw) => {
+    const tag = canonicalizeHashtag(raw);
+    if (!tag) return;
+    const key = hashtagKey(tag);
+    if (!key) return;
+    setSelectedHashtags((prev) => {
+      const has = prev.some((t) => hashtagKey(t) === key);
+      if (has) return prev.filter((t) => hashtagKey(t) !== key);
+      return [...prev, tag];
+    });
+  };
+
+  const addCustomHashtag = async () => {
+    const tag = canonicalizeHashtag(customHashtag);
+    if (!tag) return;
+    try {
+      const resp = await apiClient.post('/hashtags', { tag });
+      const saved = canonicalizeHashtag(resp?.tag || tag) || tag;
+      setSuggestedHashtags((prev) => {
+        const merged = [];
+        const seen = new Set();
+        for (const raw of [saved, ...prev]) {
+          const t = canonicalizeHashtag(raw);
+          if (!t) continue;
+          const key = hashtagKey(t);
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          merged.push(t);
+        }
+        return merged;
+      });
+      toggleHashtag(saved);
+      setCustomHashtag('');
+    } catch {
+      toggleHashtag(tag);
+      setCustomHashtag('');
+    }
+  };
 
   const handleFileChange = async (e, type) => {
     const file = e.target.files[0];
@@ -242,6 +345,7 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
         audio_url: audioUrl,
         chorus_start_seconds: formData.chorus_start_seconds !== '' ? Number(formData.chorus_start_seconds) : null,
         chorus_end_seconds: formData.chorus_end_seconds !== '' ? Number(formData.chorus_end_seconds) : null,
+        hashtags: selectedHashtags,
         status: 'pending'
       });
 
@@ -315,6 +419,37 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
                 onChange={(e) => setFormData({...formData, genre: e.target.value})} 
                 placeholder="Ex: Sertanejo, Pagode"
               />
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-400">Hashtags de estilo</label>
+                <div className="flex flex-wrap gap-2">
+                  {suggestedHashtags.map((tag) => {
+                    const active = selectedHashtags.some((t) => hashtagKey(t) === hashtagKey(tag));
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => toggleHashtag(tag)}
+                        className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${
+                          active ? 'bg-beatwap-gold/20 text-beatwap-gold border border-beatwap-gold/30' : 'bg-white/10 hover:bg-white/20 text-gray-200 border border-white/10'
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    );
+                  })}
+                </div>
+                <AnimatedInput
+                  label="Criar hashtag"
+                  value={customHashtag}
+                  onChange={(e) => setCustomHashtag(e.target.value)}
+                  placeholder="#EstiloGusttavoLima"
+                  onKeyDown={(e) => {
+                    if (e.key !== 'Enter') return;
+                    e.preventDefault();
+                    addCustomHashtag();
+                  }}
+                />
+              </div>
               <div className="space-y-1">
                 <label className="text-sm font-bold text-gray-400">Descrição (Opcional)</label>
                 <textarea 
@@ -386,7 +521,7 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
                       setFormData({ ...formData, chorus_start_seconds: next });
                       const audio = audioRef.current;
                       if (audio) {
-                        try { audio.currentTime = Number(next) || 0; } catch {}
+                        try { audio.currentTime = Number(next) || 0; } catch (e) { void e; }
                       }
                     }}
                     className="w-full accent-beatwap-gold h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"

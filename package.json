@@ -5,7 +5,7 @@
   "scripts": {
     "build": "npm run build:frontend && npm run copy-dist",
     "build:frontend": "npm install --prefix frontend --progress=false && npm run build --prefix frontend",
-    "copy-dist": "node -e \"const fs=require('fs'); const path=require('path'); const src=path.join(__dirname,'frontend','dist'); const dst=path.join(__dirname,'dist'); const sleep=(ms)=>Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,ms); const rm=()=>{try{fs.rmSync(dst,{recursive:true,force:true});}catch{}}; rm(); for(let i=0;i<6;i++){try{fs.cpSync(src,dst,{recursive:true}); console.log('copied',src,'->',dst); process.exit(0);}catch(e){ if(['EIO','EPERM','EBUSY'].includes(String(e&&e.code||''))){ sleep(250); rm(); continue; } throw e; }}\"",
+    "copy-dist": "node -e \"const fs=require('fs/promises'); const path=require('path'); const sleep=(ms)=>new Promise(r=>setTimeout(r,ms)); (async()=>{ const src=path.join(__dirname,'frontend','dist'); const dst=path.join(__dirname,'dist'); for(let i=0;i<6;i++){ try{ await fs.rm(dst,{recursive:true,force:true}); await fs.cp(src,dst,{recursive:true,force:true}); console.log('copied',src,'->',dst); process.exit(0); } catch(e){ const code=String(e&&e.code||''); if(['EIO','EPERM','EBUSY'].includes(code)){ await sleep(250); continue; } throw e; } } })().catch((e)=>{ console.error(e); process.exit(1); });\"",
     "dev": "cd frontend && npm run dev",
     "preview": "cd frontend && npm run preview"
   },

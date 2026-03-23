@@ -519,7 +519,7 @@ const Home = () => {
     }
     const durationLimit = Math.min(30, Math.max(20, segLen));
     audio.addEventListener('loadedmetadata', () => {
-      try { audio.currentTime = start; } catch {}
+      try { audio.currentTime = start; } catch (e) { void e; }
     }, { once: true });
     audio.play().catch(() => {});
     setPlayStartTS(Date.now());
@@ -531,7 +531,7 @@ const Home = () => {
       setPreviewTimer(null);
     }
     const t = setTimeout(() => {
-      try { audio.pause(); } catch {}
+      try { audio.pause(); } catch (e) { void e; }
       setPlayingTrack(null);
       setAudioElement(null);
       setIsPaused(false);
@@ -1248,11 +1248,17 @@ const Home = () => {
                           <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent block sm:hidden">
                             <div className="text-white text-sm font-bold truncate">{comp.title}</div>
                             <div className="text-[11px] text-gray-300 truncate">{comp.composer_name || 'Autor'}</div>
+                            {Array.isArray(comp.hashtags) && comp.hashtags.length > 0 && (
+                              <div className="text-[11px] text-gray-300 truncate">{comp.hashtags.slice(0, 4).join(' ')}</div>
+                            )}
                           </div>
                         </div>
                         <h3 className="font-bold text-lg truncate"><span>{comp.title}</span></h3>
                         <p className="text-sm text-gray-400 truncate"><span>{comp.composer_name || 'Autor'}</span></p>
                         <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{comp.genre || 'Gênero'}</span></p>
+                        {Array.isArray(comp.hashtags) && comp.hashtags.length > 0 && (
+                          <p className="text-[11px] text-gray-400 mt-1 truncate"><span>{comp.hashtags.slice(0, 6).join(' ')}</span></p>
+                        )}
                         {Number.isFinite(Number(comp.price)) && (
                           <div className="text-xs text-beatwap-gold mt-1 font-bold">R$ {comp.price}</div>
                         )}

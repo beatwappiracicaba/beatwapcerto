@@ -7,7 +7,8 @@ export const AnimatedInput = ({
   value, 
   onChange, 
   error,
-  icon: Icon
+  icon: Icon,
+  ...inputProps
 }) => {
   return (
     <div className="w-full space-y-2">
@@ -23,6 +24,7 @@ export const AnimatedInput = ({
           value={value ?? ''}
           onChange={onChange}
           placeholder={placeholder}
+          {...inputProps}
           className={`w-full bg-beatwap-graphite/50 border border-white/10 rounded-xl px-4 py-3 ${Icon ? 'pl-12' : ''} text-white placeholder-gray-600 focus:outline-none focus:border-beatwap-gold/50 transition-colors`}
           whileFocus={{ scale: 1.01, borderColor: '#F5C542', boxShadow: '0 0 15px rgba(245, 197, 66, 0.1)' }}
           initial={{ opacity: 0, x: -20 }}

@@ -6,6 +6,7 @@ const storagePath = path.resolve(__dirname, '..', 'memory-store.json');
 function ensureDefaults(m) {
   if (!m || typeof m !== 'object') return {};
   if (!m.compositions) m.compositions = [];
+  if (!Array.isArray(m.hashtags)) m.hashtags = [];
   if (!m.email_verification || typeof m.email_verification !== 'object') m.email_verification = {};
   if (!m.analytics) m.analytics = [];
   if (!m.events) m.events = [];
