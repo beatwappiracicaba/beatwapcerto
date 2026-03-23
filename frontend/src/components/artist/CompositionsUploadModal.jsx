@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, Music, Image as ImageIcon } from 'lucide-react';
 import { apiClient, uploadApi } from '../../services/apiClient';
@@ -38,6 +38,8 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
   const [coverZoom, setCoverZoom] = useState(1);
   const [coverCroppedArea, setCoverCroppedArea] = useState(null);
   const [coverOriginalFile, setCoverOriginalFile] = useState(null);
+  const audioRef = useRef(null);
+  const [audioDuration, setAudioDuration] = useState(0);
 
   useEffect(() => {
     if (!coverImageSrc) return;
@@ -74,7 +76,15 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
     }
 
     if (type !== 'cover_file') {
-      setFormData(prev => ({ ...prev, [type]: file }));
+      if (type === 'audio_file') {
+        setFormData(prev => ({
+          ...prev,
+          audio_file: file,
+          chorus_start_seconds: prev.chorus_start_seconds === '' ? '0' : prev.chorus_start_seconds
+        }));
+      } else {
+        setFormData(prev => ({ ...prev, [type]: file }));
+      }
     }
   };
 
@@ -351,16 +361,37 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
                 </label>
               </div>
               {previews.audio && (
-                <audio controls src={previews.audio} className="w-full h-8 mt-2" />
+                <audio
+                  ref={audioRef}
+                  controls
+                  src={previews.audio}
+                  className="w-full h-8 mt-2"
+                  onLoadedMetadata={(e) => setAudioDuration(Number(e?.currentTarget?.duration || 0))}
+                />
               )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-                <AnimatedInput
-                  label="Início do refrão (segundos)"
-                  value={formData.chorus_start_seconds}
-                  onChange={(e) => setFormData({ ...formData, chorus_start_seconds: e.target.value })}
-                  placeholder="Ex: 45"
-                  type="number"
-                />
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="text-sm font-bold text-gray-400">Início do refrão (arraste)</label>
+                    <div className="text-xs text-gray-400">{Number(formData.chorus_start_seconds || 0)}s</div>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={Math.max(0, Math.floor(Number(audioDuration || 0)))}
+                    step={1}
+                    value={Number(formData.chorus_start_seconds || 0)}
+                    onChange={(e) => {
+                      const next = String(e.target.value);
+                      setFormData({ ...formData, chorus_start_seconds: next });
+                      const audio = audioRef.current;
+                      if (audio) {
+                        try { audio.currentTime = Number(next) || 0; } catch {}
+                      }
+                    }}
+                    className="w-full accent-beatwap-gold h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
                 <AnimatedInput
                   label="Fim do refrão (segundos) (opcional)"
                   value={formData.chorus_end_seconds}
