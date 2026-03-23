@@ -22,6 +22,8 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
     hasPrice: false,
     cover_file: null,
     audio_file: null,
+    chorus_start_seconds: '',
+    chorus_end_seconds: ''
   });
 
   const [previews, setPreviews] = useState({
@@ -180,6 +182,21 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
       setErrors(prev => ({ ...prev, submit: 'Preencha título, gênero e anexe o áudio.' }));
       return;
     }
+    if (formData.audio_file) {
+      const start = Number(formData.chorus_start_seconds);
+      if (!Number.isFinite(start) || start < 0) {
+        setErrors(prev => ({ ...prev, submit: 'Defina o início do refrão (em segundos).' }));
+        return;
+      }
+      const endRaw = formData.chorus_end_seconds;
+      if (endRaw !== '' && endRaw !== null && endRaw !== undefined) {
+        const end = Number(endRaw);
+        if (!Number.isFinite(end) || end <= start) {
+          setErrors(prev => ({ ...prev, submit: 'O fim do refrão deve ser maior que o início.' }));
+          return;
+        }
+      }
+    }
 
     setLoading(true);
     setErrors({});
@@ -213,6 +230,8 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
         price: formData.hasPrice && formData.price ? parseFloat(formData.price) : null,
         cover_url: coverUrl,
         audio_url: audioUrl,
+        chorus_start_seconds: formData.chorus_start_seconds !== '' ? Number(formData.chorus_start_seconds) : null,
+        chorus_end_seconds: formData.chorus_end_seconds !== '' ? Number(formData.chorus_end_seconds) : null,
         status: 'pending'
       });
 
@@ -334,6 +353,25 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
               {previews.audio && (
                 <audio controls src={previews.audio} className="w-full h-8 mt-2" />
               )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                <AnimatedInput
+                  label="Início do refrão (segundos)"
+                  value={formData.chorus_start_seconds}
+                  onChange={(e) => setFormData({ ...formData, chorus_start_seconds: e.target.value })}
+                  placeholder="Ex: 45"
+                  type="number"
+                />
+                <AnimatedInput
+                  label="Fim do refrão (segundos) (opcional)"
+                  value={formData.chorus_end_seconds}
+                  onChange={(e) => setFormData({ ...formData, chorus_end_seconds: e.target.value })}
+                  placeholder="Ex: 75"
+                  type="number"
+                />
+              </div>
+              <div className="text-[11px] text-gray-400">
+                Dica: duração recomendada 20–30s. Sem fim definido, usa 30s.
+              </div>
             </div>
 
             {errors.submit && (

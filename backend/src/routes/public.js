@@ -467,6 +467,11 @@ router.post('/compositions', auth, async (req, res) => {
 
     if (!composer_id) return res.status(400).json({ error: 'composer_id obrigatório' });
 
+    const chorusStartRaw = req.body?.chorus_start_seconds;
+    const chorusEndRaw = req.body?.chorus_end_seconds;
+    const chorus_start_seconds = Number.isFinite(Number(chorusStartRaw)) ? Number(chorusStartRaw) : null;
+    const chorus_end_seconds = Number.isFinite(Number(chorusEndRaw)) ? Number(chorusEndRaw) : null;
+
     const item = {
       id,
       composer_id,
@@ -477,6 +482,8 @@ router.post('/compositions', auth, async (req, res) => {
       price: req.body?.price ?? null,
       cover_url: req.body?.cover_url || null,
       audio_url: req.body?.audio_url || null,
+      chorus_start_seconds,
+      chorus_end_seconds,
       status: req.body?.status || 'pending',
       created_at: new Date().toISOString()
     };

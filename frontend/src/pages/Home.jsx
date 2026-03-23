@@ -475,7 +475,8 @@ const Home = () => {
     }
   };
 
-  const togglePlay = (trackId, url) => {
+  const [previewTimer, setPreviewTimer] = useState(null);
+  const togglePlay = (trackId, url, opts = {}) => {
     if (!url) return;
     if (playingTrack === trackId && audioElement) {
       if (isPaused) {
@@ -509,11 +510,34 @@ const Home = () => {
       setAudioElement(null);
       setIsPaused(false);
     };
+    const start = Math.max(0, Number(opts.startSeconds ?? 0));
+    const endOpt = opts.endSeconds;
+    let segLen = 30;
+    if (Number.isFinite(Number(endOpt))) {
+      const diff = Number(endOpt) - start;
+      if (diff > 0) segLen = diff;
+    }
+    const durationLimit = Math.min(30, Math.max(20, segLen));
+    audio.addEventListener('loadedmetadata', () => {
+      try { audio.currentTime = start; } catch {}
+    }, { once: true });
     audio.play().catch(() => {});
     setPlayStartTS(Date.now());
     setAudioElement(audio);
     setPlayingTrack(trackId);
     setIsPaused(false);
+    if (previewTimer) {
+      clearTimeout(previewTimer);
+      setPreviewTimer(null);
+    }
+    const t = setTimeout(() => {
+      try { audio.pause(); } catch {}
+      setPlayingTrack(null);
+      setAudioElement(null);
+      setIsPaused(false);
+      setPlayStartTS(null);
+    }, durationLimit * 1000);
+    setPreviewTimer(t);
   };
 
   const fetchComposers = async () => {
@@ -1195,7 +1219,7 @@ const Home = () => {
                       >
                         <div 
                           className="aspect-square rounded-2xl overflow-hidden mb-4 relative shadow-lg cursor-pointer bg-gray-800"
-                          onClick={() => togglePlay(comp.id, sanitizeUrl(comp.audio_url))}
+                          onClick={() => togglePlay(comp.id, sanitizeUrl(comp.audio_url), { startSeconds: Number(comp.chorus_start_seconds ?? 0), endSeconds: Number(comp.chorus_end_seconds ?? NaN) })}
                         >
                           {comp.cover_url ? (
                             <img 
@@ -1213,7 +1237,7 @@ const Home = () => {
                               className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                togglePlay(comp.id, sanitizeUrl(comp.audio_url));
+                                togglePlay(comp.id, sanitizeUrl(comp.audio_url), { startSeconds: Number(comp.chorus_start_seconds ?? 0), endSeconds: Number(comp.chorus_end_seconds ?? NaN) });
                               }}
                             >
                               {playingTrack === comp.id && !isPaused

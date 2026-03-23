@@ -276,7 +276,8 @@ export const DashboardArtistHome = () => {
     }
   }, [user, enrichCompositionsFromProfiles, planAllowsPublicProfile]);
 
-  const togglePlay = (id, url) => {
+  const [previewTimer, setPreviewTimer] = useState(null);
+  const togglePlay = (id, url, opts = {}) => {
     if (!url) return;
     if (playingTrack === id && audioElement) {
       if (isPaused) {
@@ -292,10 +293,37 @@ export const DashboardArtistHome = () => {
       audioElement.pause();
     }
     const audio = new Audio(url);
+    const start = Math.max(0, Number(opts.startSeconds ?? 0));
+    const endOpt = opts.endSeconds;
+    let segLen = 30;
+    if (Number.isFinite(Number(endOpt))) {
+      const diff = Number(endOpt) - start;
+      if (diff > 0) segLen = diff;
+    }
+    const durationLimit = Math.min(30, Math.max(20, segLen));
+    audio.addEventListener('loadedmetadata', () => {
+      try { audio.currentTime = start; } catch {}
+    }, { once: true });
+    audio.onended = () => {
+      setPlayingTrack(null);
+      setAudioElement(null);
+      setIsPaused(false);
+    };
     audio.play().catch(() => {});
     setAudioElement(audio);
     setIsPaused(false);
     setPlayingTrack(id);
+    if (previewTimer) {
+      clearTimeout(previewTimer);
+      setPreviewTimer(null);
+    }
+    const t = setTimeout(() => {
+      try { audio.pause(); } catch {}
+      setPlayingTrack(null);
+      setAudioElement(null);
+      setIsPaused(false);
+    }, durationLimit * 1000);
+    setPreviewTimer(t);
   };
   return (
     <DashboardLayout>
@@ -382,7 +410,7 @@ export const DashboardArtistHome = () => {
                   <div key={item.id} className="rounded-xl bg-white/5 border border-white/10 p-4 hover:bg-white/10 transition-colors">
                     <div
                       className="w-full aspect-square rounded-xl overflow-hidden bg-gray-800 relative cursor-pointer"
-                      onClick={() => togglePlay(item.id, sanitizeUrl(item.audio_url))}
+                      onClick={() => togglePlay(item.id, sanitizeUrl(item.audio_url), { startSeconds: Number(item.chorus_start_seconds ?? 0), endSeconds: Number(item.chorus_end_seconds ?? NaN) })}
                     >
                       {safeCover ? (
                         <img src={safeCover} alt={item.titulo || item.title} className="w-full h-full object-cover" draggable={false} style={{ userSelect: 'none' }} />
@@ -394,7 +422,7 @@ export const DashboardArtistHome = () => {
                           className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black"
                           onClick={(e) => {
                             e.stopPropagation();
-                            togglePlay(item.id, sanitizeUrl(item.audio_url));
+                            togglePlay(item.id, sanitizeUrl(item.audio_url), { startSeconds: Number(item.chorus_start_seconds ?? 0), endSeconds: Number(item.chorus_end_seconds ?? NaN) });
                           }}
                         >
                           {playingTrack === item.id && !isPaused
