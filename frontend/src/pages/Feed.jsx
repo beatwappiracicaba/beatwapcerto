@@ -1071,15 +1071,6 @@ const Feed = () => {
               </button>
               <button
                 type="button"
-                onClick={() => { setActiveTab('painel'); navigate('/dashboard/painel'); }}
-                className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
-                  activeTab === 'painel' ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
-                }`}
-              >
-                Painel
-              </button>
-              <button
-                type="button"
                 onClick={() => { setActiveTab('search'); navigate('/dashboard/pesquisar'); }}
                 className={`px-4 py-2 rounded-xl text-xs font-bold border transition inline-flex items-center gap-2 ${
                   activeTab === 'search' ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
