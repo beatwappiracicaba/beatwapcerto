@@ -43,7 +43,7 @@ const hashtagKey = (canonical) => {
 };
 
 export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId = null }) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { addToast } = useToast();
 
   const [loading, setLoading] = useState(false);
@@ -316,13 +316,17 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
 
     try {
       const ownerId = composerId || user.id;
-      const quota = await apiClient.get(`/users/${ownerId}/quota`);
-      const creditos = Number(quota?.creditos_envio || 0);
-      if (creditos < 1) {
-        const msg = 'Você não possui créditos de envio. Compre créditos para enviar composições.';
-        addToast(msg, 'error');
-        setErrors(prev => ({ ...prev, submit: msg }));
-        return;
+      const cargo = String(profile?.cargo || user?.cargo || '').toLowerCase();
+      const isProducer = cargo === 'produtor';
+      if (!isProducer) {
+        const quota = await apiClient.get(`/users/${ownerId}/quota`);
+        const creditos = Number(quota?.creditos_envio || 0);
+        if (creditos < 1) {
+          const msg = 'Você não possui créditos de envio. Compre créditos para enviar composições.';
+          addToast(msg, 'error');
+          setErrors(prev => ({ ...prev, submit: msg }));
+          return;
+        }
       }
 
       // Upload Files
