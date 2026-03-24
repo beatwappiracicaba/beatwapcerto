@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Footer from '../components/landing/Footer';
 import { apiClient } from '../services/apiClient';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
-import { Play, Pause, Music, MessageCircle, ArrowLeft } from 'lucide-react';
+import { Play, Pause, Music, MessageCircle, ArrowLeft, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { decryptData } from '../utils/security';
 
@@ -65,11 +65,15 @@ const AllCompositions = () => {
   const [globalHashtags, setGlobalHashtags] = useState([]);
   const [activeHashtags, setActiveHashtags] = useState([]);
   const [hashtagInput, setHashtagInput] = useState('');
+  const [artistModalOpen, setArtistModalOpen] = useState(false);
+  const [likesMap, setLikesMap] = useState({});
+  const [artistsQuick, setArtistsQuick] = useState([]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
     fetchAll();
     fetchHashtags();
+    fetchLikesSnapshot();
     return () => {
       if (audioElement) audioElement.pause();
     };
@@ -81,6 +85,22 @@ const AllCompositions = () => {
       setGlobalHashtags(Array.isArray(data) ? data : []);
     } catch {
       setGlobalHashtags([]);
+    }
+  };
+
+  const fetchLikesSnapshot = async () => {
+    try {
+      const home = await apiClient.get('/home', { cache: true, cacheTtlMs: 15000 });
+      const arr = Array.isArray(home?.compositionsApproved) ? home.compositionsApproved : [];
+      const map = {};
+      for (const c of arr) {
+        const id = String(c?.id || '').trim();
+        if (!id) continue;
+        map[id] = Number(c?.likes_count || 0) || 0;
+      }
+      setLikesMap(map);
+    } catch {
+      setLikesMap({});
     }
   };
 
@@ -103,6 +123,13 @@ const AllCompositions = () => {
       });
       const enriched = await enrichFromProfiles(mapped);
       setList(enriched || mapped);
+      try {
+        const artists = await apiClient.get('/profiles/artists/all', { cache: true, cacheTtlMs: 30000 });
+        const names = (artists || []).map(a => ({ id: String(a?.id || ''), name: decryptData(a?.nome) || a?.nome || 'Artista', avatar: a?.avatar_url || a?.avatar || null }));
+        setArtistsQuick(names.filter(a => a.id));
+      } catch {
+        setArtistsQuick([]);
+      }
     } catch {
       setList([]);
     }
@@ -220,6 +247,14 @@ const AllCompositions = () => {
   })();
 
   const selectedFolder = selectedFolderId ? folders.find((f) => String(f.id) === String(selectedFolderId)) : null;
+  const topSix = (() => {
+    const items = selectedFolder?.items || [];
+    return items
+      .slice()
+      .map(c => ({ ...c, _likes: Number(likesMap[String(c.id)] || 0) }))
+      .sort((a, b) => (b._likes - a._likes))
+      .slice(0, 6);
+  })();
   const availableHashtags = (() => {
     const counts = new Map();
     const display = new Map();
@@ -272,7 +307,10 @@ const AllCompositions = () => {
                 <p className="text-gray-400">Obras listadas da mais recente para a mais antiga</p>
               </div>
               <div className="hidden sm:block">
-                <AnimatedButton onClick={() => navigate('/')}>Voltar para Home</AnimatedButton>
+                <div className="flex items-center gap-2">
+                  <AnimatedButton onClick={() => setArtistModalOpen(true)}><span className="inline-flex items-center gap-2"><Users size={16} /> Selecionar Artista</span></AnimatedButton>
+                  <AnimatedButton onClick={() => navigate('/')}>Voltar para Home</AnimatedButton>
+                </div>
               </div>
             </div>
             <div className="sm:hidden mb-6">
@@ -283,6 +321,15 @@ const AllCompositions = () => {
                 <ArrowLeft size={16} />
                 Voltar
               </button>
+              <div className="mt-3">
+                <button
+                  onClick={() => setArtistModalOpen(true)}
+                  className="inline-flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors w-full justify-center"
+                >
+                  <Users size={16} />
+                  Selecionar Artista
+                </button>
+              </div>
             </div>
             {selectedFolder ? (
               <div className="rounded-2xl bg-white/5 border border-white/10 p-4 sm:p-6">
@@ -323,6 +370,43 @@ const AllCompositions = () => {
                     )}
                   </div>
                 </div>
+                {topSix.length > 0 && (
+                  <div className="mb-4">
+                    <div className="text-sm font-bold text-white">Top 6 por curtidas</div>
+                    <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {topSix.map((comp) => {
+                        const ccover = sanitizeUrl(comp.cover_url);
+                        const caudio = sanitizeUrl(comp.audio_url);
+                        const isPlayingThis = playingTrack === comp.id && !isPaused;
+                        return (
+                          <div key={`top_${comp.id}`} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                            <div
+                              className="w-12 h-12 rounded-lg overflow-hidden bg-gray-800 shrink-0 cursor-pointer relative"
+                              onClick={() => togglePlay(comp.id, caudio, { startSeconds: Number(comp.chorus_start_seconds ?? 0), endSeconds: Number(comp.chorus_end_seconds ?? NaN) })}
+                            >
+                              {ccover ? (
+                                <img src={ccover} alt={comp.title} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-500">
+                                  <Music size={18} />
+                                </div>
+                              )}
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity">
+                                <div className="w-8 h-8 bg-beatwap-gold rounded-full flex items-center justify-center text-black">
+                                  {isPlayingThis ? <Pause fill="currentColor" className="ml-0.5" /> : <Play fill="currentColor" className="ml-0.5" />}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="font-bold text-xs text-white truncate">{comp.title}</div>
+                              <div className="text-[11px] text-gray-400">Curtidas: {Number(likesMap[String(comp.id)] || 0)}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-2 mb-4">
                   <label className="text-sm font-bold text-gray-400">Filtrar por hashtags</label>
@@ -474,6 +558,34 @@ const AllCompositions = () => {
             )}
           </div>
         </section>
+        {artistModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/60" onClick={() => setArtistModalOpen(false)} />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-[90%] max-w-2xl rounded-2xl bg-beatwap-graphite border border-white/10 p-4 sm:p-6">
+              <div className="flex items-center justify-between">
+                <div className="font-bold text-white">Selecionar Artista</div>
+                <button onClick={() => setArtistModalOpen(false)} className="text-xs font-bold px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">Fechar</button>
+              </div>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto">
+                {(artistsQuick.length ? artistsQuick : folders.map(f => ({ id: f.id, name: f.name, avatar: f.avatar }))).map((a) => (
+                    <button
+                      key={`artist_${a.id}`}
+                      type="button"
+                      onClick={() => { setSelectedFolderId(a.id); setArtistModalOpen(false); }}
+                      className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10 text-left"
+                    >
+                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-800 shrink-0">
+                        {a.avatar ? <img src={sanitizeUrl(a.avatar)} alt={a.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-black bg-gradient-to-br from-beatwap-gold to-yellow-600">{String(a.name || 'A').slice(0,1).toUpperCase()}</div>}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold text-white truncate">{a.name || 'Artista'}</div>
+                      </div>
+                    </button>
+                  ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
       </main>
       <Footer />
     </div>

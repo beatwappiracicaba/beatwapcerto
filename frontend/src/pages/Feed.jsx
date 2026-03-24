@@ -1137,9 +1137,12 @@ const Feed = () => {
                   <div className="flex items-center gap-2 text-white font-bold">
                     <TrendingUp size={18} />
                     <span>Músicas mais tocadas</span>
+                    <span className="ml-auto">
+                      <AnimatedButton onClick={() => navigate('/composicoes')}>Ver todas</AnimatedButton>
+                    </span>
                   </div>
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {(panelTopMusics || []).map((m) => (
+                    {(panelTopMusics || []).slice(0, 6).map((m) => (
                       <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
                         <div className="w-12 h-12 rounded-xl overflow-hidden bg-black/30 border border-white/10 flex items-center justify-center">
                           {m.cover_url ? (
