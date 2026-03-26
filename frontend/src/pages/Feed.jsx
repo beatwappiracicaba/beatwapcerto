@@ -62,6 +62,7 @@ const Feed = () => {
   const [panelError, setPanelError] = useState('');
   const [panelTotals, setPanelTotals] = useState(null);
   const [panelTopMusics, setPanelTopMusics] = useState([]);
+  const [panelMusics, setPanelMusics] = useState([]);
   const [profilesLoading, setProfilesLoading] = useState(false);
   const [profilesError, setProfilesError] = useState('');
   const [profiles, setProfiles] = useState([]);
@@ -77,6 +78,37 @@ const Feed = () => {
     if (/^https?:\/\//i.test(v)) return v;
     return v;
   }, []);
+
+  const feedAlbums = useMemo(() => {
+    const map = new Map();
+    (items || []).forEach((it) => {
+      if (it?.type !== 'music') return;
+      const m = it?.data || {};
+      const albumId = String(m?.album_id || '').trim();
+      if (!albumId) return;
+      const owner = it?.owner || {};
+      const ownerName = owner?.nome || owner?.nome_completo_razao_social || 'Artista';
+      const createdAt = it?.created_at || m?.created_at || null;
+      const createdTs = createdAt ? new Date(String(createdAt)).getTime() : 0;
+      const current = map.get(albumId) || {
+        id: albumId,
+        title: m?.album_title || 'Álbum',
+        cover_url: m?.cover_url || null,
+        artistName: m?.nome_artista || ownerName,
+        latest_ts: createdTs,
+        count: 0
+      };
+      current.count += 1;
+      if (!current.cover_url && m?.cover_url) current.cover_url = m.cover_url;
+      if (m?.album_title && current.title === 'Álbum') current.title = m.album_title;
+      if (m?.nome_artista && current.artistName === ownerName) current.artistName = m.nome_artista;
+      if (createdTs > (current.latest_ts || 0)) current.latest_ts = createdTs;
+      map.set(albumId, current);
+    });
+    return Array.from(map.values())
+      .sort((a, b) => (b.latest_ts || 0) - (a.latest_ts || 0))
+      .slice(0, 10);
+  }, [items]);
 
   const displayName = useCallback((p) => {
     return p?.nome || p?.nome_completo_razao_social || 'Usuário';
@@ -533,6 +565,7 @@ const Feed = () => {
           apiClient.get(`/analytics/artist/${meId}/events`)
         ]);
         const musics = Array.isArray(musicsRaw) ? musicsRaw : [];
+        setPanelMusics(musics);
         const events = Array.isArray(eventsRaw) ? eventsRaw : [];
 
         const playsByMusic = new Map();
@@ -638,6 +671,39 @@ const Feed = () => {
 
     return (
       <div className="space-y-4">
+        {feedAlbums.length > 0 && (
+          <Card className="p-4 sm:p-6">
+            <div className="flex items-center gap-2 text-white font-bold">
+              <Music size={18} />
+              <span>Álbuns</span>
+            </div>
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+              {feedAlbums.slice(0, 8).map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => navigate(`/album/${a.id}`)}
+                  className="text-left bg-white/5 border border-white/10 rounded-xl overflow-hidden hover:bg-white/10 transition-colors"
+                >
+                  <div className="aspect-square bg-black/30">
+                    {a.cover_url ? (
+                      <img src={sanitizeUrl(a.cover_url)} alt={a.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-500">
+                        <Music size={28} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <div className="text-sm font-bold text-white truncate">{a.title}</div>
+                    <div className="text-xs text-gray-400 truncate">{a.artistName}</div>
+                    <div className="text-xs text-gray-400">{a.count} faixas</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </Card>
+        )}
         {items.map((it) => {
           const owner = it?.owner || {};
           const ownerName = displayName(owner);
@@ -1031,7 +1097,7 @@ const Feed = () => {
         )}
       </div>
     );
-  }, [buildWhatsAppHref, commentDraftByPostId, commentPostingById, commentsByPostId, commentsLoadingById, commentsOpenById, displayName, followLoadingById, followingCount, getEmbedUrl, isFollowing, isPaused, items, loading, loadingMore, meId, navigate, playingTrack, postActionLoadingById, roleLabel, sanitizeUrl, sendComment, timeAgo, toggleComments, toggleFollow, togglePlay, togglePostLike]);
+  }, [buildWhatsAppHref, commentDraftByPostId, commentPostingById, commentsByPostId, commentsLoadingById, commentsOpenById, displayName, feedAlbums, followLoadingById, followingCount, getEmbedUrl, isFollowing, isPaused, items, loading, loadingMore, meId, navigate, playingTrack, postActionLoadingById, roleLabel, sanitizeUrl, sendComment, timeAgo, toggleComments, toggleFollow, togglePlay, togglePostLike]);
 
   const Layout = isProdutor ? AdminLayout : DashboardLayout;
 
@@ -1162,6 +1228,53 @@ const Feed = () => {
                     ))}
                     {(panelTopMusics || []).length === 0 && (
                       <div className="text-sm text-gray-400">Sem dados ainda.</div>
+                    )}
+                  </div>
+                </Card>
+                <Card className="p-4">
+                  <div className="text-white font-bold">Álbuns</div>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    {Array.from(
+                      (panelMusics || []).reduce((map, m) => {
+                        const aid = String(m?.album_id || '').trim();
+                        if (!aid) return map;
+                        if (!map.has(aid)) {
+                          map.set(aid, {
+                            id: aid,
+                            title: m?.album_title || 'Álbum',
+                            cover_url: m?.cover_url || null,
+                            count: 1
+                          });
+                        } else {
+                          const cur = map.get(aid);
+                          cur.count += 1;
+                          if (!cur.cover_url && m?.cover_url) cur.cover_url = m.cover_url;
+                          map.set(aid, cur);
+                        }
+                        return map;
+                      }, new Map()).values()
+                    ).slice(0, 6).map((a) => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => navigate(`/album/${a.id}`)}
+                        className="flex items-center gap-2 p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-left"
+                      >
+                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-black/30 border border-white/10 flex items-center justify-center">
+                          {a.cover_url ? (
+                            <img src={sanitizeUrl(a.cover_url)} alt={a.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <Music size={16} className="text-gray-400" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-bold text-white truncate">{a.title}</div>
+                          <div className="text-xs text-gray-400 truncate">{a.count} faixas</div>
+                        </div>
+                      </button>
+                    ))}
+                    {(panelMusics || []).filter(m => m?.album_id).length === 0 && (
+                      <div className="text-sm text-gray-400">Nenhum álbum ainda.</div>
                     )}
                   </div>
                 </Card>

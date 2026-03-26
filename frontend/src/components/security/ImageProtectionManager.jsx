@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const isWhitelisted = (img) => {
@@ -106,10 +107,12 @@ const proxifySrc = (img) => {
 export const ImageProtectionManager = () => {
   const ctx = useAuth() || {};
   const user = ctx.user || null;
+  const location = useLocation();
+  const pathname = String(location?.pathname || window.location.pathname || '').trim();
   const observerRef = useRef(null);
 
   useEffect(() => {
-    const withWatermark = !user;
+    const withWatermark = !user && pathname !== '/';
     const toggleWatermark = () => {
       const wrappers = Array.from(document.querySelectorAll('.bw-protect'));
       wrappers.forEach((w) => {
@@ -153,7 +156,7 @@ export const ImageProtectionManager = () => {
         observerRef.current.disconnect();
       }
     };
-  }, [user]);
+  }, [pathname, user]);
 
   return null;
 };

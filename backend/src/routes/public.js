@@ -127,10 +127,62 @@ router.get('/home', async (req, res) => {
       return out;
     };
 
+    const featuredPlans = memory.featured_plans && typeof memory.featured_plans === 'object' ? memory.featured_plans : null;
+
     const producersRaw = await Profile.findAll({ where: { cargo: 'Produtor' } });
     const sellersRaw = await Profile.findAll({ where: { cargo: 'Vendedor' } });
     const artistsRaw = await Profile.findAll({ where: { cargo: 'Artista' } });
     const composersRaw = await Profile.findAll({ where: { cargo: 'Compositor' } });
+
+    const expireFeaturedIfNeeded = async (rows) => {
+      const list = Array.isArray(rows) ? rows : [];
+      const updates = [];
+      for (const row of list) {
+        const id = String(row?.id || '').trim();
+        if (!id) continue;
+        const ac = row?.access_control && typeof row.access_control === 'object' ? { ...row.access_control } : {};
+        const f = ac?.featured && typeof ac.featured === 'object' ? { ...ac.featured } : null;
+        if (!f || f.enabled === false) continue;
+        const originalEndsAt = f.ends_at || f.until || f.end_at || f.endsAt || null;
+        let endsAt = originalEndsAt;
+
+        if (!endsAt) {
+          const lvl = String(f.level || '').toLowerCase().trim();
+          const dh = Number(featuredPlans?.plans?.[lvl]?.duration_hours);
+          const startsTs = f.starts_at ? new Date(String(f.starts_at)).getTime() : null;
+          if (Number.isFinite(dh) && dh > 0 && Number.isFinite(startsTs) && startsTs) {
+            endsAt = new Date(startsTs + dh * 60 * 60 * 1000).toISOString();
+          }
+        }
+
+        if (!endsAt) continue;
+        const t = new Date(String(endsAt)).getTime();
+        if (!Number.isFinite(t)) continue;
+
+        if (t > nowMs) {
+          if (!originalEndsAt) {
+            ac.featured = { ...f, ends_at: endsAt };
+            if (typeof row?.setDataValue === 'function') row.setDataValue('access_control', ac);
+            else row.access_control = ac;
+            updates.push({ id, ac });
+          }
+          continue;
+        }
+
+        ac.featured = { enabled: false, level: null, starts_at: f.starts_at || null, ends_at: String(endsAt), pinned: false };
+        if (typeof row?.setDataValue === 'function') row.setDataValue('access_control', ac);
+        else row.access_control = ac;
+        updates.push({ id, ac });
+      }
+      if (updates.length === 0) return;
+      await Promise.all(updates.map((u) => Profile.update({ access_control: u.ac }, { where: { id: u.id } }).catch(() => null)));
+    };
+
+    await expireFeaturedIfNeeded(producersRaw);
+    await expireFeaturedIfNeeded(sellersRaw);
+    await expireFeaturedIfNeeded(artistsRaw);
+    await expireFeaturedIfNeeded(composersRaw);
+
     const addDerived = (row) => {
       const ac = row?.access_control || {};
       return { ...row.toJSON?.() ? row.toJSON() : row, verified: ac?.verified === true };
@@ -143,7 +195,6 @@ router.get('/home', async (req, res) => {
       const arr = Array.isArray(memory.likes[c.id]) ? memory.likes[c.id] : [];
       return { ...c, likes_count: arr.length };
     });
-    const featuredPlans = memory.featured_plans && typeof memory.featured_plans === 'object' ? memory.featured_plans : null;
     const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
     const publicHit = hit ? {
       id: hit.id,
@@ -718,7 +769,26 @@ router.get('/profiles/:id/events', async (req, res) => {
     const ownerId = String(req.params.id || '').trim();
     const now = new Date(); now.setSeconds(0,0);
     const items = (memory.events || []).filter(e => String(e.artista_id) === String(ownerId));
-    const upcoming = items.filter(e => {
+    const workShows = (Array.isArray(memory.artist_work_events) ? memory.artist_work_events : [])
+      .filter(e => String(e.artista_id) === String(ownerId))
+      .filter(e => String(e.type || '').toLowerCase().trim() === 'show')
+      .map(e => ({
+        id: `work_${e.id}`,
+        artista_id: e.artista_id,
+        event_name: e.title || 'Show',
+        event_date: e.date ? `${e.date}T00:00` : null,
+        location: e.title || '',
+        description: e.notes || '',
+        flyer_url: null,
+        ticket_price_cents: null,
+        purchase_contact: null,
+        created_at: e.created_at || new Date().toISOString()
+      }));
+    const merged = [...items, ...workShows].reduce((acc, cur) => {
+      if (!acc.find(x => String(x.id) === String(cur.id))) acc.push(cur);
+      return acc;
+    }, []);
+    const upcoming = merged.filter(e => {
       try {
         const d = new Date(String(e.event_date || ''));
         return d.getTime() >= now.getTime();

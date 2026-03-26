@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { apiClient } from '../services/apiClient';
@@ -35,6 +35,22 @@ const PublicProfile = () => {
   const [descOpen, setDescOpen] = useState({});
   const [videoModalPost, setVideoModalPost] = useState(null);
   const [galleryTab, setGalleryTab] = useState('all');
+  const albumGroups = useMemo(() => {
+    const map = new Map();
+    (items || []).forEach(m => {
+      const aid = String(m.album_id || '').trim();
+      if (!aid) return;
+      const cur = map.get(aid) || { id: aid, title: m.album_title || 'Álbum', cover_url: m.cover_url || null, release_date: m.release_date || null, count: 0 };
+      if (!cur.cover_url && m.cover_url) cur.cover_url = m.cover_url;
+      cur.count += 1;
+      map.set(aid, cur);
+    });
+    return Array.from(map.values()).sort((a, b) => {
+      const da = a.release_date ? new Date(a.release_date).getTime() : 0;
+      const db = b.release_date ? new Date(b.release_date).getTime() : 0;
+      return db - da;
+    });
+  }, [items]);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -355,6 +371,7 @@ const PublicProfile = () => {
     ? (producerTab === 'composicoes' ? producerCompositions : producerProductions)
     : items;
   const phoneDigits = profile.celular ? String(decryptData(profile.celular) || '').replace(/\D/g, '') : '';
+  
 
   const sanitizeUrl = (s) => String(s || '').replace(/[`"'<>]/g, '').trim();
   const getYoutubeVideoId = (url) => {
@@ -602,7 +619,16 @@ const PublicProfile = () => {
                   return (
                     <div key={ev.id} className="flex-none w-[280px] sm:w-[320px] md:w-[440px] bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
                       <div className="aspect-square bg-gray-800 border-b border-white/10">
-                        <img src={ev.flyer_url} alt="Flyer do show" className="w-full h-full object-cover" />
+                        {ev.flyer_url ? (
+                          <img src={ev.flyer_url} alt="Flyer do show" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <div className="flex items-center gap-3 text-gray-400">
+                              <Calendar />
+                              <span>Show</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="p-4 md:p-6 space-y-3 md:space-y-4">
                         <div className="text-white font-bold">
@@ -614,7 +640,7 @@ const PublicProfile = () => {
                             className="flex-1 whitespace-normal break-words overflow-visible"
                             style={{ overflowWrap: 'anywhere' }}
                           >
-                            {ev.location}
+                            {ev.location || ev.event_name || 'Local a definir'}
                           </div>
                         </div>
                         {ticket && (
@@ -668,6 +694,38 @@ const PublicProfile = () => {
               </div>
             </div>
           )}
+
+          {cargoLower === 'artista' && albumGroups.length > 0 && (
+              <div className="mb-12">
+                <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                  <Music className="text-beatwap-gold" />
+                  Álbuns
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                  {albumGroups.map(a => (
+                    <button
+                      key={a.id}
+                      onClick={() => navigate(`/album/${a.id}`)}
+                      className="text-left bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:bg-white/10 transition-colors"
+                    >
+                      <div className="aspect-square bg-gray-800">
+                        {a.cover_url ? (
+                          <img src={a.cover_url} alt={a.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-500">
+                            <Music size={40} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <div className="font-bold text-white truncate">{a.title}</div>
+                        <div className="text-xs text-gray-400">{a.count} faixas</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
           {/* Gallery / Moments Section */}
           {galleryPosts.length > 0 && (
