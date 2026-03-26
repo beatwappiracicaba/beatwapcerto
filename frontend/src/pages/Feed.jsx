@@ -27,6 +27,15 @@ const Feed = () => {
     if (p.endsWith('/pesquisar')) return 'search';
     return 'feed';
   }); // feed | painel | search
+
+  useEffect(() => {
+    const p = String(location?.pathname || '');
+    const next =
+      p.endsWith('/painel') ? 'painel'
+        : p.endsWith('/pesquisar') ? 'search'
+          : 'feed';
+    setActiveTab((prev) => (prev === next ? prev : next));
+  }, [location?.pathname]);
   const [items, setItems] = useState([]);
   const [nextCursor, setNextCursor] = useState(null);
   const [followingCount, setFollowingCount] = useState(null);
