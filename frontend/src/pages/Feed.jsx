@@ -23,16 +23,16 @@ const Feed = () => {
   const meId = String(profile?.id || '').trim();
   const [activeTab, setActiveTab] = useState(() => {
     const p = String(location?.pathname || '');
-    if (p.endsWith('/painel')) return 'painel';
-    if (p.endsWith('/pesquisar')) return 'search';
+    if (/\/painel(?:\/|$)/.test(p)) return 'painel';
+    if (/\/pesquisar(?:\/|$)/.test(p)) return 'search';
     return 'feed';
   }); // feed | painel | search
 
   useEffect(() => {
     const p = String(location?.pathname || '');
     const next =
-      p.endsWith('/painel') ? 'painel'
-        : p.endsWith('/pesquisar') ? 'search'
+      /\/painel(?:\/|$)/.test(p) ? 'painel'
+        : /\/pesquisar(?:\/|$)/.test(p) ? 'search'
           : 'feed';
     setActiveTab((prev) => (prev === next ? prev : next));
   }, [location?.pathname]);
@@ -271,13 +271,15 @@ const Feed = () => {
   }, [loadPage]);
 
   useEffect(() => {
+    if (activeTab !== 'feed') return;
     refresh();
     return () => {
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     };
-  }, [refresh]);
+  }, [activeTab, refresh]);
 
   useEffect(() => {
+    if (activeTab !== 'feed') return;
     if (!sentinelRef.current) return;
     const el = sentinelRef.current;
     const obs = new IntersectionObserver((entries) => {
@@ -289,9 +291,10 @@ const Feed = () => {
     }, { root: null, rootMargin: '1200px 0px', threshold: 0.01 });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [loadPage, loading, loadingMore, nextCursor]);
+  }, [activeTab, loadPage, loading, loadingMore, nextCursor]);
 
   useEffect(() => {
+    if (activeTab !== 'feed') return;
     const socket = connectRealtime('https://api.beatwap.com.br');
     const roomIds = Array.from(new Set((followingIds || []).concat(meId ? [meId] : []).filter(Boolean)));
     const rooms = roomIds.map((id) => `profile:${id}`);
@@ -320,7 +323,7 @@ const Feed = () => {
       socket.off('musics.created', onAnyUpdate);
       socket.off('musics.updated', onAnyUpdate);
     };
-  }, [followingIds, meId, refresh]);
+  }, [activeTab, followingIds, meId, refresh]);
 
   const closePostModal = useCallback(() => {
     setPostModalOpen(false);
