@@ -46,6 +46,8 @@ const Feed = () => {
   const [playingTrack, setPlayingTrack] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
   const [audioElement, setAudioElement] = useState(null);
+  const playStartRef = useRef(null);
+  const playMetaRef = useRef({ musicId: null, artistId: null });
   const [videoModalPost, setVideoModalPost] = useState(null);
   const [postModalOpen, setPostModalOpen] = useState(false);
   const [postType, setPostType] = useState('text'); // text | link | image | video
@@ -190,24 +192,65 @@ const Feed = () => {
     }
   }, [isFollowing, meId]);
 
-  const togglePlay = useCallback((trackId, url) => {
+  const recordAnalyticsEvent = useCallback(async (payload) => {
+    try {
+      await apiClient.post('/analytics', payload);
+    } catch {
+      void 0;
+    }
+  }, []);
+
+  const finalizeCurrentMusicPlay = useCallback(async () => {
+    const startedAt = playStartRef.current;
+    const meta = playMetaRef.current || {};
+    if (!startedAt) return;
+    const musicId = String(meta?.musicId || '').trim();
+    const artistId = String(meta?.artistId || '').trim();
+    const duration = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
+    playStartRef.current = null;
+    playMetaRef.current = { musicId: null, artistId: null };
+    if (!musicId || duration <= 0) return;
+    await recordAnalyticsEvent({
+      type: 'music_play',
+      music_id: musicId,
+      artist_id: artistId || null,
+      duration_seconds: duration,
+      ip_hash: 'feed'
+    });
+  }, [recordAnalyticsEvent]);
+
+  const togglePlay = useCallback(async (trackId, url, meta = null) => {
     const src = sanitizeUrl(url);
     if (!src) return;
     if (playingTrack === trackId && audioElement) {
       if (isPaused) {
         audioElement.play().catch(() => {});
         setIsPaused(false);
+        if (String(trackId || '').startsWith('music:') && !playStartRef.current) {
+          playStartRef.current = Date.now();
+        }
       } else {
         audioElement.pause();
         setIsPaused(true);
+        if (String(trackId || '').startsWith('music:')) {
+          await finalizeCurrentMusicPlay();
+        }
       }
       return;
     }
     if (audioElement) {
       audioElement.pause();
+      await finalizeCurrentMusicPlay();
     }
     const audio = new Audio(src);
     audio.onended = () => {
+      const t = String(trackId || '');
+      if (t.startsWith('music:')) {
+        finalizeCurrentMusicPlay().catch(() => void 0);
+      } else {
+        playStartRef.current = null;
+        playMetaRef.current = { musicId: null, artistId: null };
+      }
       setPlayingTrack(null);
       setIsPaused(false);
     };
@@ -215,7 +258,17 @@ const Feed = () => {
     setAudioElement(audio);
     setPlayingTrack(trackId);
     setIsPaused(false);
-  }, [audioElement, isPaused, playingTrack, sanitizeUrl]);
+    const t = String(trackId || '');
+    if (t.startsWith('music:')) {
+      const musicId = t.slice('music:'.length).trim();
+      const artistId = meta && typeof meta === 'object' ? String(meta.artistId || '').trim() : '';
+      playMetaRef.current = { musicId, artistId: artistId || null };
+      playStartRef.current = Date.now();
+    } else {
+      playStartRef.current = null;
+      playMetaRef.current = { musicId: null, artistId: null };
+    }
+  }, [audioElement, finalizeCurrentMusicPlay, isPaused, playingTrack, sanitizeUrl]);
 
   useEffect(() => {
     return () => {
@@ -224,8 +277,9 @@ const Feed = () => {
       } catch {
         void 0;
       }
+      finalizeCurrentMusicPlay().catch(() => void 0);
     };
-  }, [audioElement]);
+  }, [audioElement, finalizeCurrentMusicPlay]);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -826,6 +880,7 @@ const Feed = () => {
                 const cover = m.cover_url ? sanitizeUrl(m.cover_url) : '';
                 const artistName = m.nome_artista || m.artist_name || ownerName;
                 const url = m.preview_url || m.audio_url;
+                const artistId = String(m.artista_id || m.artist_id || ownerId || '').trim() || null;
                 return (
                   <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-4 items-start">
                     <div
@@ -834,7 +889,7 @@ const Feed = () => {
                         if (m.album_id) {
                           navigate(`/album/${m.album_id}`);
                         } else {
-                          togglePlay(`music:${it.id}`, url);
+                          togglePlay(`music:${it.id}`, url, { artistId });
                         }
                       }}
                     >
@@ -856,7 +911,7 @@ const Feed = () => {
                               className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                togglePlay(`music:${it.id}`, url);
+                                togglePlay(`music:${it.id}`, url, { artistId });
                               }}
                             >
                               {playingTrack === `music:${it.id}` && !isPaused
@@ -877,7 +932,7 @@ const Feed = () => {
                             <span>Ver Álbum</span>
                           </AnimatedButton>
                         ) : (
-                          <AnimatedButton onClick={() => togglePlay(`music:${it.id}`, url)}>
+                          <AnimatedButton onClick={() => togglePlay(`music:${it.id}`, url, { artistId })}>
                             <span>{playingTrack === `music:${it.id}` && !isPaused ? 'Pausar' : 'Reproduzir'}</span>
                           </AnimatedButton>
                         )}

@@ -661,10 +661,62 @@ router.delete('/admin/compositions/:id', auth, async (req, res) => {
 
 // Analytics events (tracking)
 router.post('/analytics', async (req, res) => {
-  const { type, payload, ip_hash } = req.body || {};
-  memory.analytics.push({ id: `ev_${Date.now()}`, type, payload, ip_hash, created_at: new Date().toISOString() });
-  scheduleSave();
-  res.json({ ok: true });
+  try {
+    const crypto = require('crypto');
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const type = String(body?.type || '').trim();
+    if (!type) return res.status(400).json({ ok: false, error: 'Tipo inválido' });
+
+    const incomingPayload =
+      body?.payload && typeof body.payload === 'object' && !Array.isArray(body.payload)
+        ? body.payload
+        : null;
+
+    const payload = incomingPayload
+      ? { ...incomingPayload }
+      : (() => {
+          const p = { ...body };
+          delete p.type;
+          delete p.payload;
+          delete p.ip_hash;
+          return p;
+        })();
+
+    const getClientIp = () => {
+      const xff = String(req.headers['x-forwarded-for'] || '').trim();
+      if (xff) return xff.split(',')[0].trim();
+      return String(req.ip || '').trim();
+    };
+
+    const salt = String(process.env.ANALYTICS_SALT || process.env.JWT_SECRET || 'devsecret');
+    const ua = String(req.headers['user-agent'] || '');
+    const derivedIpHash = crypto
+      .createHash('sha256')
+      .update(`${getClientIp()}|${ua}|${salt}`)
+      .digest('hex')
+      .slice(0, 32);
+
+    const ip_hash = String(body?.ip_hash || payload?.ip_hash || derivedIpHash || 'unknown');
+    const artist_id = payload?.artist_id || payload?.profile_id || payload?.artista_id || null;
+    const music_id = payload?.music_id || payload?.id || payload?.track_id || null;
+    const duration_seconds = Number(payload?.duration_seconds || 0) || 0;
+
+    if (!Array.isArray(memory.analytics)) memory.analytics = [];
+    memory.analytics.push({
+      id: `ev_${Date.now()}`,
+      type,
+      payload,
+      ip_hash,
+      artist_id,
+      music_id,
+      duration_seconds,
+      created_at: new Date().toISOString()
+    });
+    scheduleSave();
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ ok: false, error: 'Erro interno' });
+  }
 });
 // Finance events listing (used by ShowRevenueDistributor)
 router.get('/events', async (req, res) => {
@@ -1007,7 +1059,21 @@ router.get('/analytics/artist/:id/events', async (req, res) => {
       const p = ev?.payload || {};
       return String(ev.artist_id || p.artist_id || p.profile_id || '') === artistId;
     });
-    res.json(list);
+    const normalized = list.map((ev) => {
+      const p = ev?.payload && typeof ev.payload === 'object' ? ev.payload : {};
+      const base = {
+        id: ev?.id,
+        type: ev?.type,
+        ip_hash: ev?.ip_hash,
+        created_at: ev?.created_at,
+        artist_id: ev?.artist_id || p?.artist_id || p?.profile_id || null,
+        music_id: ev?.music_id || p?.music_id || p?.id || null,
+        duration_seconds: Number(ev?.duration_seconds ?? p?.duration_seconds ?? 0) || 0,
+        payload: p
+      };
+      return { ...p, ...base, payload: p };
+    });
+    res.json(normalized);
   } catch {
     res.json([]);
   }
