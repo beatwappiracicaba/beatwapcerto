@@ -79,6 +79,8 @@ const Feed = () => {
   const sentinelRef = useRef(null);
   const subscribedRoomsRef = useRef([]);
   const refreshTimerRef = useRef(null);
+  const panelLoadingRef = useRef(false);
+  const profilesLoadingRef = useRef(false);
 
   const sanitizeUrl = useCallback((raw) => {
     const v = String(raw || '').trim();
@@ -526,7 +528,8 @@ const Feed = () => {
   }, [closePostModal, meId, postCaption, postFile, postFormat, postLinkUrl, postObjectPos, postType, posting, refresh]);
 
   const loadProfiles = useCallback(async () => {
-    if (profilesLoading) return;
+    if (profilesLoadingRef.current) return;
+    profilesLoadingRef.current = true;
     setProfilesLoading(true);
     setProfilesError('');
     try {
@@ -548,8 +551,9 @@ const Feed = () => {
       setProfilesError('Falha ao carregar perfis');
     } finally {
       setProfilesLoading(false);
+      profilesLoadingRef.current = false;
     }
-  }, [meId, profilesLoading]);
+  }, [meId]);
 
   const formatSeconds = useCallback((totalSeconds) => {
     const s = Math.max(0, Number(totalSeconds || 0));
@@ -563,7 +567,8 @@ const Feed = () => {
 
   const loadPanel = useCallback(async () => {
     if (!meId) return;
-    if (panelLoading) return;
+    if (panelLoadingRef.current) return;
+    panelLoadingRef.current = true;
     setPanelLoading(true);
     setPanelError('');
     try {
@@ -627,8 +632,9 @@ const Feed = () => {
       setPanelTopMusics([]);
     } finally {
       setPanelLoading(false);
+      panelLoadingRef.current = false;
     }
-  }, [isPrivileged, meId, panelLoading, profile?.nome]);
+  }, [isPrivileged, meId, profile?.nome]);
 
   useEffect(() => {
     if (activeTab === 'search') loadProfiles();
