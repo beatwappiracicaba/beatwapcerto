@@ -84,7 +84,10 @@ const Hero = () => {
               Área do Artista <ArrowRight className="ml-2" size={20} />
             </AnimatedButton>
             
-            <button className="px-8 py-4 rounded-xl border border-white/10 text-white font-bold hover:bg-white/5 transition-colors flex items-center justify-center gap-2">
+            <button
+              className="px-8 py-4 rounded-xl border border-white/10 text-white font-bold hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
+              onClick={() => navigate('/como-funciona')}
+            >
               <Play size={20} className="text-beatwap-gold fill-beatwap-gold" /> Ver como funciona
             </button>
           </div>

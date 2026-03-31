@@ -47,6 +47,7 @@ import SellerProposals from '../pages/SellerProposals';
 import SellerCommunications from '../pages/SellerCommunications';
 import NotificationDetails from '../pages/NotificationDetails';
 import Feed from '../pages/Feed';
+import ComoFunciona from '../pages/ComoFunciona';
 
 // Admin temporariamente desativado
 
@@ -126,6 +127,7 @@ export const AppRoutes = () => {
       <Routes location={location}>
         {/* Public Route - Landing Page */}
         <Route path="/" element={(profile && !allowPublicExplore) ? <Navigate to={routeForRole(profile?.cargo)} replace /> : <Home />} />
+        <Route path="/como-funciona" element={<ComoFunciona />} />
         <Route path="/composicoes" element={<AllCompositions />} />
         <Route path="/profile/:id" element={<PublicProfile />} />
         <Route path="/album/:id" element={<AlbumPage />} />
