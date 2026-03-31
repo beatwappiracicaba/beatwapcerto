@@ -54,6 +54,7 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
     title: '',
     genre: '',
     description: '',
+    lyrics: '',
     price: '',
     hasPrice: false,
     cover_file: null,
@@ -398,6 +399,7 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
         title: formData.title,
         genre: formData.genre,
         description: formData.description,
+        lyrics: formData.lyrics,
         price: formData.hasPrice && formData.price ? parseFloat(formData.price) : null,
         cover_url: coverUrl,
         audio_url: audioUrl,
@@ -613,6 +615,15 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
                   placeholder="Detalhes sobre a composição..."
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-bold text-gray-400">Letra (Opcional)</label>
+                <textarea 
+                  className="w-full bg-beatwap-graphite/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors min-h-[140px]"
+                  value={formData.lyrics}
+                  onChange={(e) => setFormData({...formData, lyrics: e.target.value})}
+                  placeholder="Cole aqui a letra da música..."
                 />
               </div>
               <div className="flex items-center gap-2">

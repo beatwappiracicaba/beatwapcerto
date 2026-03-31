@@ -798,6 +798,10 @@ router.post('/compositions', auth, async (req, res) => {
       .filter((x) => x)
       .slice(0, 20);
 
+    const lyricsRaw = req.body?.lyrics ?? req.body?.letra ?? null;
+    const lyricsClean = String(lyricsRaw || '').trim();
+    const lyrics = lyricsClean ? lyricsClean.slice(0, 20000) : null;
+
     const item = {
       id,
       composer_id,
@@ -805,6 +809,7 @@ router.post('/compositions', auth, async (req, res) => {
       title: req.body?.title || 'Sem título',
       genre: req.body?.genre || null,
       description: req.body?.description || null,
+      lyrics,
       price: req.body?.price ?? null,
       cover_url: req.body?.cover_url || null,
       audio_url: req.body?.audio_url || null,

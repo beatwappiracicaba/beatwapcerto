@@ -1363,13 +1363,13 @@ const Home = () => {
                               <span className="ml-1">({comp.likes_count || 0})</span>
                             </button>
                           </div>
-                          {comp.description && String(comp.description).trim() !== '' && (
+                          {((comp.description && String(comp.description).trim() !== '') || (comp.lyrics && String(comp.lyrics).trim() !== '')) && (
                             <button
                               onClick={(e) => { e.stopPropagation(); setOpenDescriptionId(comp.id); }}
                               className="mb-2 flex items-center gap-2 text-xs font-bold text-blue-400 bg-blue-400/10 px-3 py-2 rounded-lg hover:bg-blue-400/20 transition-colors w-full justify-center"
                             >
                               <Info size={14} />
-                              <span>Ver descrição</span>
+                              <span>Detalhes</span>
                             </button>
                           )}
                           {comp.composer_phone ? (
@@ -1420,7 +1420,7 @@ const Home = () => {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
             <div className="bg-[#121212] border border-white/10 rounded-2xl max-w-md w-full p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="text-white font-bold">Descrição da composição</div>
+                <div className="text-white font-bold">Detalhes da composição</div>
                 <button
                   className="w-9 h-9 rounded-full bg-black/70 border border-white/20 flex items-center justify-center text-white hover:bg-black"
                   onClick={() => setOpenDescriptionId(null)}
@@ -1428,12 +1428,27 @@ const Home = () => {
                   <X size={18} />
                 </button>
               </div>
-              <div className="text-gray-300 whitespace-pre-wrap text-sm">
-                {(() => {
-                  const c = latestCompositions.find((x) => x.id === openDescriptionId);
-                  return c && c.description ? String(c.description) : '';
-                })()}
-              </div>
+              {(() => {
+                const c = latestCompositions.find((x) => x.id === openDescriptionId);
+                const desc = c?.description ? String(c.description).trim() : '';
+                const lyr = c?.lyrics ? String(c.lyrics).trim() : '';
+                return (
+                  <div className="space-y-4">
+                    {desc && (
+                      <div>
+                        <div className="text-xs font-bold text-gray-400 mb-1">Descrição</div>
+                        <div className="text-gray-300 whitespace-pre-wrap text-sm">{desc}</div>
+                      </div>
+                    )}
+                    {lyr && (
+                      <div>
+                        <div className="text-xs font-bold text-gray-400 mb-1">Letra</div>
+                        <div className="text-gray-300 whitespace-pre-wrap text-sm max-h-[45vh] overflow-auto pr-1">{lyr}</div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
