@@ -57,11 +57,18 @@ router.get('/admin/dashboard-metrics', auth, async (req, res) => {
     for (const ev of analytics) {
       const t = String(ev?.type || '').trim();
       if (t !== 'music_play') continue;
-      const p = ev?.payload || {};
-      const mid = String(p?.music_id || p?.id || '').trim();
+      const p = ev?.payload && typeof ev.payload === 'object' ? ev.payload : {};
+      const mid = String(
+        p?.music_id ||
+          p?.musicId ||
+          p?.id ||
+          ev?.music_id ||
+          ev?.musicId ||
+          ''
+      ).trim();
       if (!mid) continue;
       playsByMusic.set(mid, (playsByMusic.get(mid) || 0) + 1);
-      const d = Number(p?.duration_seconds || 0);
+      const d = Number(p?.duration_seconds ?? p?.duration ?? ev?.duration_seconds ?? ev?.duration ?? 0);
       if (Number.isFinite(d) && d > 0) durationByMusic.set(mid, (durationByMusic.get(mid) || 0) + d);
     }
 

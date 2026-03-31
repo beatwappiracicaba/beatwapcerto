@@ -125,7 +125,10 @@ export const AdminHome = () => {
 
         {Array.isArray(dashboardMetrics?.topMusics) && dashboardMetrics.topMusics.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {dashboardMetrics.topMusics.map((m, idx) => (
+            {dashboardMetrics.topMusics.slice(0, 3).map((m, idx) => {
+              const plays = Number(m?.plays ?? m?.plays_total ?? m?.total_plays ?? 0);
+              const likes = Number(m?.likes ?? 0);
+              return (
               <div key={m.id || idx} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
                 <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center text-xs text-gray-300">
                   {m.cover_url ? (
@@ -138,12 +141,13 @@ export const AdminHome = () => {
                   <div className="font-bold text-white text-sm truncate">{m.titulo || 'Sem título'}</div>
                   <div className="text-xs text-gray-400 truncate">{m.nome_artista || 'Artista'}</div>
                   <div className="text-xs text-gray-400 mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                    <span className="inline-flex items-center gap-1"><Play size={14} /> {m.plays || 0}</span>
-                    <span className="inline-flex items-center gap-1"><CheckCircle2 size={14} /> {m.likes || 0}</span>
+                    <span className="inline-flex items-center gap-1"><Play size={14} /> {Number.isFinite(plays) && plays > 0 ? plays : 0}</span>
+                    <span className="inline-flex items-center gap-1"><CheckCircle2 size={14} /> {Number.isFinite(likes) && likes > 0 ? likes : 0}</span>
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="text-sm text-gray-400">Ainda não há dados de plays para ranquear.</div>
@@ -167,30 +171,44 @@ export const AdminHome = () => {
           <div className="text-sm text-gray-400 mb-2">Últimos projetos adicionados</div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {(loadingProjects ? [] : projects).map((p) => (
-              <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
-                <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center text-xs text-gray-300">
-                  {(() => {
-                    const cover = String(p.cover_url || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
-                    const url = String(p.url || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
-                    const isYT = (p.platform || '').toLowerCase() === 'youtube';
-                    const m = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
-                    const vid = m ? m[1] : null;
-                    if (cover) {
-                      return <img src={cover} alt={p.title} className="w-full h-full object-cover" />;
-                    }
-                    if (isYT && vid) {
-                      return <img src={`https://img.youtube.com/vi/${vid}/mqdefault.jpg`} alt={p.title} className="w-full h-full object-cover" />;
-                    }
-                    return <img src={logo} alt="BeatWap" className="w-full h-full object-cover p-2" />;
-                  })()}
+              <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center text-xs text-gray-300 shrink-0">
+                    {(() => {
+                      const cover = String(p.cover_url || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
+                      const url = String(p.url || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
+                      const isYT = (p.platform || '').toLowerCase() === 'youtube';
+                      const m = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
+                      const vid = m ? m[1] : null;
+                      if (cover) {
+                        return <img src={cover} alt={p.title} className="w-full h-full object-cover" />;
+                      }
+                      if (isYT && vid) {
+                        return <img src={`https://img.youtube.com/vi/${vid}/mqdefault.jpg`} alt={p.title} className="w-full h-full object-cover" />;
+                      }
+                      return <img src={logo} alt="BeatWap" className="w-full h-full object-cover p-2" />;
+                    })()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-white text-sm truncate">{p.title}</div>
+                    <div className="text-xs text-gray-400 truncate">{p.platform}</div>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <div className="font-bold text-white text-sm truncate">{p.title}</div>
-                  <div className="text-xs text-gray-400">{p.platform}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <AnimatedButton onClick={() => window.open(String(p.url || '').trim().replace(/^[`'"]+|[`'"]+$/g, ''), '_blank')}>Abrir</AnimatedButton>
-                  <AnimatedButton onClick={() => deleteProject(p.id)}>Excluir</AnimatedButton>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:shrink-0">
+                  <AnimatedButton
+                    fullWidth
+                    className="sm:w-auto px-4 py-2 sm:px-6 sm:py-3 text-xs sm:text-sm"
+                    onClick={() => window.open(String(p.url || '').trim().replace(/^[`'"]+|[`'"]+$/g, ''), '_blank')}
+                  >
+                    Abrir
+                  </AnimatedButton>
+                  <AnimatedButton
+                    fullWidth
+                    className="sm:w-auto px-4 py-2 sm:px-6 sm:py-3 text-xs sm:text-sm"
+                    onClick={() => deleteProject(p.id)}
+                  >
+                    Excluir
+                  </AnimatedButton>
                 </div>
               </div>
             ))}
