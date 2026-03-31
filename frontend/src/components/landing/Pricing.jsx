@@ -2,15 +2,24 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, Shield, Music, CreditCard, Star, User, PenTool } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';
+import { AnimatedInput } from '../ui/AnimatedInput';
 import { useAuth } from '../../context/AuthContext';
 import CheckoutModal from './CheckoutModal';
+import { authApi } from '../../services/apiClient';
+import { useToast } from '../../context/ToastContext';
 
 const Pricing = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
+  const { addToast } = useToast();
   const navigate = useNavigate();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [selectedPlanType, setSelectedPlanType] = useState('avulso');
   const [customCheckoutData, setCustomCheckoutData] = useState(null);
+  const [accountGateOpen, setAccountGateOpen] = useState(false);
+  const [accountGateStep, setAccountGateStep] = useState('choice'); // 'choice' | 'login'
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [pendingCheckout, setPendingCheckout] = useState(null);
   
   // State for Plan Logic
   const [userType, setUserType] = useState('artist'); // 'artist' | 'composer'
@@ -20,11 +29,74 @@ const Pricing = () => {
   useEffect(() => {
     if (profile?.cargo === 'Compositor') {
       setUserType('composer');
+    } else if (profile?.cargo === 'Artista') {
+      setUserType('artist');
     }
   }, [profile]);
 
   // Vendedor/Produtor check
   const isEmployee = profile?.cargo === 'Vendedor' || profile?.cargo === 'Produtor' || profile?.cargo === 'Admin';
+
+  const persistPendingCheckout = (data) => {
+    try {
+      localStorage.setItem('bw_pending_checkout', JSON.stringify({ customData: data, created_at: Date.now() }));
+    } catch { void 0; }
+  };
+
+  const beginCheckoutFlow = (data) => {
+    const normalizedUserType = profile?.cargo === 'Compositor' ? 'composer' : 'artist';
+    const prepared = user ? { ...(data || {}), user_type: normalizedUserType } : data;
+    if (user) {
+      setCustomCheckoutData(prepared);
+      setSelectedPlanType('custom');
+      setIsCheckoutOpen(true);
+      return;
+    }
+    setPendingCheckout(prepared);
+    setAccountGateStep('choice');
+    setLoginForm({ email: '', password: '' });
+    setAccountGateOpen(true);
+  };
+
+  const handleAccountGateLogin = async () => {
+    const email = String(loginForm.email || '').trim();
+    const password = String(loginForm.password || '').trim();
+    if (!email || !password) {
+      addToast('Informe e-mail e senha.', 'error');
+      return;
+    }
+    setLoginLoading(true);
+    try {
+      await authApi.login(email, password);
+      await refreshProfile();
+      addToast('Login realizado com sucesso!', 'success');
+      setAccountGateOpen(false);
+      const data = pendingCheckout;
+      setPendingCheckout(null);
+      if (data) {
+        setCustomCheckoutData(data);
+        setSelectedPlanType('custom');
+        setIsCheckoutOpen(true);
+      }
+    } catch (e) {
+      addToast(e?.message || 'Credenciais inválidas.', 'error');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleAccountGateRegister = () => {
+    const data = pendingCheckout;
+    if (!data) return;
+    persistPendingCheckout(data);
+    const role = data?.user_type === 'composer' ? 'compositor' : 'artista';
+    const planKey = String(data?.product_type || '').toLowerCase().trim() === 'plan' ? String(data?.plan_key || '').trim() : '';
+    const qs = new URLSearchParams();
+    qs.set('checkout', '1');
+    qs.set('role', role);
+    if (planKey) qs.set('plano', planKey);
+    navigate(`/cadastro?${qs.toString()}`);
+  };
 
   const calculateAvulsoPrice = (qty, type) => {
     const q = parseInt(qty, 10);
@@ -41,10 +113,6 @@ const Pricing = () => {
   };
 
   const handleAvulsoBuy = () => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
     const q = parseInt(avulsoQuantity, 10);
     if (!q || q < 1) {
       window.alert('Informe a quantidade de músicas para continuar.');
@@ -53,23 +121,16 @@ const Pricing = () => {
     const price = calculateAvulsoPrice(q, userType);
     const itemName = userType === 'artist' ? 'música(s)' : 'composição(ões)';
     
-    setCustomCheckoutData({
+    beginCheckoutFlow({
       display_name: `Plano Avulso (${q} ${itemName})`,
       display_price: `R$ ${price.toFixed(2).replace('.', ',')}`,
       product_type: 'credits_upload',
       quantity: q,
       user_type: userType
     });
-    setSelectedPlanType('custom');
-    setIsCheckoutOpen(true);
   };
 
   const openPlan = (planKey) => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-
     if (planKey === 'vitalicio') {
         const msg = `Olá! Tenho interesse no Plano Vitalício (${userType === 'artist' ? 'Artista' : 'Compositor'}). Gostaria de saber como conseguir um convite.`;
         const wa = `https://wa.me/5519981083497?text=${encodeURIComponent(msg)}`;
@@ -88,15 +149,13 @@ const Pricing = () => {
         if (planKey === 'anual') { price = 'R$ 600,00'; name = 'Plano Pro (Compositor)'; }
     }
 
-    setCustomCheckoutData({
+    beginCheckoutFlow({
         display_name: name,
         display_price: price,
         product_type: 'plan',
         plan_key: planKey,
         user_type: userType
     });
-    setSelectedPlanType('custom'); 
-    setIsCheckoutOpen(true);
   };
 
   if (isEmployee) {
@@ -134,14 +193,16 @@ const Pricing = () => {
                 className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-beatwap-gold rounded-full transition-all duration-300 ${userType === 'composer' ? 'translate-x-[calc(100%+4px)]' : 'translate-x-0'}`}
               />
               <button 
-                onClick={() => setUserType('artist')}
-                className={`relative z-10 px-6 md:px-8 py-2 rounded-full font-bold transition-colors text-sm md:text-base flex items-center gap-2 ${userType === 'artist' ? 'text-black' : 'text-gray-400 hover:text-white'}`}
+                onClick={() => { if (!user) setUserType('artist'); }}
+                disabled={!!user}
+                className={`relative z-10 px-6 md:px-8 py-2 rounded-full font-bold transition-colors text-sm md:text-base flex items-center gap-2 ${userType === 'artist' ? 'text-black' : 'text-gray-400 hover:text-white'} ${user ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 <Music size={16} /> Sou Artista
               </button>
               <button 
-                onClick={() => setUserType('composer')}
-                className={`relative z-10 px-6 md:px-8 py-2 rounded-full font-bold transition-colors text-sm md:text-base flex items-center gap-2 ${userType === 'composer' ? 'text-black' : 'text-gray-400 hover:text-white'}`}
+                onClick={() => { if (!user) setUserType('composer'); }}
+                disabled={!!user}
+                className={`relative z-10 px-6 md:px-8 py-2 rounded-full font-bold transition-colors text-sm md:text-base flex items-center gap-2 ${userType === 'composer' ? 'text-black' : 'text-gray-400 hover:text-white'} ${user ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 <PenTool size={16} /> Sou Compositor
               </button>
@@ -427,6 +488,83 @@ const Pricing = () => {
         </div>
 
         {/* Custom Checkout Modal Handling */}
+        {accountGateOpen ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="bg-[#121212] w-full max-w-md rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
+              <div className="p-5 border-b border-white/10 bg-white/5 flex items-center justify-between">
+                <div className="text-white font-bold">Finalizar compra</div>
+                <button
+                  type="button"
+                  onClick={() => { setAccountGateOpen(false); setPendingCheckout(null); }}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {accountGateStep === 'choice' ? (
+                  <>
+                    <div className="text-gray-300 text-sm">
+                      Você já tem conta na BeatWap?
+                    </div>
+                    <div className="grid grid-cols-1 gap-3">
+                      <AnimatedButton
+                        className="w-full bg-beatwap-gold text-black hover:bg-white"
+                        onClick={() => setAccountGateStep('login')}
+                      >
+                        Sim, tenho conta
+                      </AnimatedButton>
+                      <AnimatedButton
+                        variant="outline"
+                        className="w-full"
+                        onClick={handleAccountGateRegister}
+                      >
+                        Não tenho conta
+                      </AnimatedButton>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-gray-300 text-sm">
+                      Entre com seu e-mail e senha para continuar para o pagamento.
+                    </div>
+                    <AnimatedInput
+                      label="E-mail"
+                      type="email"
+                      placeholder="seu@email.com"
+                      value={loginForm.email}
+                      onChange={(e) => setLoginForm(prev => ({ ...prev, email: e.target.value }))}
+                    />
+                    <AnimatedInput
+                      label="Senha"
+                      type="password"
+                      placeholder="••••••••"
+                      value={loginForm.password}
+                      onChange={(e) => setLoginForm(prev => ({ ...prev, password: e.target.value }))}
+                    />
+                    <div className="grid grid-cols-1 gap-3 pt-2">
+                      <AnimatedButton
+                        className="w-full bg-beatwap-gold text-black hover:bg-white"
+                        isLoading={loginLoading}
+                        onClick={handleAccountGateLogin}
+                      >
+                        Entrar e pagar
+                      </AnimatedButton>
+                      <AnimatedButton
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => setAccountGateStep('choice')}
+                      >
+                        Voltar
+                      </AnimatedButton>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
         <CheckoutModal 
           isOpen={isCheckoutOpen} 
           onClose={() => setIsCheckoutOpen(false)} 

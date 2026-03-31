@@ -4,7 +4,7 @@ import { Mail, Lock, User, CheckCircle } from 'lucide-react';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Card } from '../components/ui/Card';
-import { authApi } from '../services/apiClient';
+import { apiClient, authApi } from '../services/apiClient';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -203,6 +203,40 @@ const Register = () => {
       }
       await refreshProfile();
       addToast('Conta criada com sucesso!', 'success');
+      try {
+        const params = new URLSearchParams(location.search);
+        const shouldCheckout = params.get('checkout') === '1';
+        const pendingRaw = localStorage.getItem('bw_pending_checkout') || '';
+        const pending = pendingRaw ? JSON.parse(pendingRaw) : null;
+        const customData = pending?.customData || null;
+        if (shouldCheckout && customData) {
+          const payload = {
+            nome: String(formData.nome_completo || formData.name || '').trim(),
+            email: String(formData.email || '').trim(),
+            user_type: customData?.user_type || undefined,
+            product_type: customData?.product_type || undefined,
+            plan_key: customData?.plan_key || undefined,
+            quantity: customData?.quantity || undefined,
+            descricao: customData?.display_name || undefined
+          };
+          const data = await apiClient.post('/criar-pagamento', payload);
+          const url = data?.checkout_url || data?.init_point || data?.sandbox_init_point || null;
+          if (url) {
+            const isAnnual =
+              String(payload.product_type || '').toLowerCase().trim() === 'plan'
+              && String(payload.plan_key || '').toLowerCase().trim() === 'anual';
+            if (isAnnual) {
+              const msg = `Olá! Iniciei o pagamento do plano anual. Email: ${payload.email}. Pedido: ${data?.external_reference || data?.order_id || ''}`;
+              const wa = `https://wa.me/5519981083497?text=${encodeURIComponent(msg)}`;
+              window.open(wa, '_blank', 'noopener,noreferrer');
+            }
+            localStorage.removeItem('bw_pending_checkout');
+            window.location.href = url;
+            return;
+          }
+        }
+      } catch (e) { void e; }
+
       navigate(res?.redirect || '/dashboard/painel', { replace: true });
     } catch (error) {
       console.error('Registration error:', error);

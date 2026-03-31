@@ -11,6 +11,7 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
+import CheckoutModal from '../components/landing/CheckoutModal';
 import { ProfileEditModal } from '../components/ui/ProfileEditModal';
 import { GalleryManager } from '../components/profile/GalleryManager';
 import { buildDistributionContractHTML } from '../utils/contractTemplate';
@@ -57,6 +58,10 @@ export const DashboardArtistProfile = () => {
   const [transferComposers, setTransferComposers] = useState([]);
   const [hitTransferLoading, setHitTransferLoading] = useState(false);
   const [hitTransfer, setHitTransfer] = useState({ to_profile_id: '', amount: 1 });
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [selectedPlanType, setSelectedPlanType] = useState('custom');
+  const [customCheckoutData, setCustomCheckoutData] = useState(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   useEffect(() => {
     if (user && profile) {
@@ -199,6 +204,57 @@ export const DashboardArtistProfile = () => {
       addToast(e?.message || 'Erro ao transferir créditos', 'error');
     } finally {
       setHitTransferLoading(false);
+    }
+  };
+
+  const normalizedUserType = profile?.cargo === 'Compositor' ? 'composer' : 'artist';
+  const planKeyFromString = (plan) => {
+    const s = String(plan || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+    if (s.includes('mensal')) return 'mensal';
+    if (s.includes('anual')) return 'anual';
+    if (s.includes('vitalicio') || s.includes('lifetime')) return 'vitalicio';
+    if (s.includes('avulso')) return 'avulso';
+    return '';
+  };
+
+  const openPlanCheckout = (planKey) => {
+    const k = String(planKey || '').toLowerCase().trim();
+    if (!k) return;
+    const name =
+      normalizedUserType === 'artist'
+        ? (k === 'mensal' ? 'Plano Profissional (Artista)' : k === 'anual' ? 'Plano Elite (Artista)' : `Plano ${k}`)
+        : (k === 'mensal' ? 'Plano Destaque (Compositor)' : k === 'anual' ? 'Plano Pro (Compositor)' : `Plano ${k}`);
+    const price = k === 'mensal' ? 'R$ 100,00' : k === 'anual' ? 'R$ 600,00' : '';
+
+    setCustomCheckoutData({
+      display_name: name,
+      display_price: price,
+      product_type: 'plan',
+      plan_key: k,
+      user_type: normalizedUserType
+    });
+    setSelectedPlanType('custom');
+    setIsCheckoutOpen(true);
+  };
+
+  const cancelPlan = async () => {
+    const currentKey = planKeyFromString(profile?.plano || formData.plano);
+    if (currentKey !== 'mensal' && currentKey !== 'anual') return;
+    const ok = window.confirm('Tem certeza que deseja cancelar seu plano?');
+    if (!ok) return;
+    setCancelLoading(true);
+    try {
+      await apiClient.put('/profile', { plano: 'Gratuito' });
+      await refreshProfile();
+      addToast('Plano cancelado com sucesso.', 'success');
+    } catch (e) {
+      addToast(e?.message || 'Erro ao cancelar plano.', 'error');
+    } finally {
+      setCancelLoading(false);
     }
   };
 
@@ -471,9 +527,30 @@ export const DashboardArtistProfile = () => {
                       Aproveite todos os recursos do seu plano atual. Você pode fazer o upgrade a qualquer momento para liberar mais funcionalidades.
                     </p>
                   )}
-                  <div className="flex justify-center gap-4 mt-8">
-                    <AnimatedButton variant="secondary">Ver Detalhes</AnimatedButton>
-                    <AnimatedButton>Renovar / Upgrade</AnimatedButton>
+                  <div className="flex flex-col md:flex-row justify-center gap-3 mt-8">
+                    <AnimatedButton
+                      className="justify-center"
+                      onClick={() => openPlanCheckout('mensal')}
+                    >
+                      Contratar Mensal
+                    </AnimatedButton>
+                    <AnimatedButton
+                      variant="outline"
+                      className="justify-center"
+                      onClick={() => openPlanCheckout('anual')}
+                    >
+                      Contratar Anual (12x)
+                    </AnimatedButton>
+                    {(planKeyFromString(profile?.plano || formData.plano) === 'mensal' || planKeyFromString(profile?.plano || formData.plano) === 'anual') ? (
+                      <AnimatedButton
+                        variant="secondary"
+                        className="justify-center"
+                        isLoading={cancelLoading}
+                        onClick={cancelPlan}
+                      >
+                        Cancelar plano
+                      </AnimatedButton>
+                    ) : null}
                   </div>
 
                   <div className="max-w-2xl mx-auto pt-6">
@@ -565,6 +642,13 @@ export const DashboardArtistProfile = () => {
           </AnimatePresence>
         </Card>
       </div>
+
+      <CheckoutModal
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        planType={selectedPlanType}
+        customData={customCheckoutData}
+      />
     </DashboardLayout>
   );
 };
