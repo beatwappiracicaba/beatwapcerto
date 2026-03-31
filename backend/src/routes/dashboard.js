@@ -1,6 +1,6 @@
 const express = require('express');
 const { auth } = require('../middleware/auth');
-const { Profile } = require('../models');
+const { Profile, PaymentOrder } = require('../models');
 const { memory, scheduleSave } = require('../memoryStore');
 const { emitEvent } = require('../realtime');
 
@@ -159,7 +159,7 @@ router.put('/profile', auth, async (req, res) => {
       'avatar_url','email',
       'nome_completo_razao_social','cpf_cnpj','celular','tema',
       'nome_completo','razao_social','cpf','cnpj','telefone',
-      'cep','logradouro','complemento','bairro','cidade','estado','plano'
+      'cep','logradouro','complemento','bairro','cidade','estado'
     ];
     const patch = {};
     for (const k of allowed) {
@@ -186,6 +186,57 @@ router.put('/profile', auth, async (req, res) => {
   } catch (e) {
     console.error('[PUT /profile] failed', e);
     res.status(500).json({ ok: false, error: 'Erro interno' });
+  }
+});
+
+router.post('/profile/cancel-plan', auth, async (req, res) => {
+  try {
+    const existing = await Profile.findByPk(req.user.id);
+    if (!existing) return res.status(404).json({ ok: false, error: 'Perfil não encontrado' });
+    const plan = String(existing.plano || '').toLowerCase().trim();
+    const canCancel = plan.includes('mensal') || plan.includes('anual');
+    if (!canCancel) return res.status(400).json({ ok: false, error: 'Nenhum plano ativo para cancelar' });
+
+    existing.plano = 'Gratuito';
+    existing.plan_started_at = null;
+    await existing.save();
+
+    try { emitEvent('profile.updated', { id: existing.id }, `profile:${existing.id}`); } catch { void 0; }
+    return res.json({ ok: true, profile: existing });
+  } catch (e) {
+    console.error('[POST /profile/cancel-plan] failed', e);
+    return res.status(500).json({ ok: false, error: 'Erro interno' });
+  }
+});
+
+router.get('/payment/orders/:external_reference', auth, async (req, res) => {
+  try {
+    const external_reference = String(req.params.external_reference || '').trim();
+    if (!external_reference) return res.status(400).json({ ok: false, error: 'Referência inválida' });
+
+    const order = await PaymentOrder.findOne({ where: { external_reference, profile_id: req.user.id } });
+    if (!order) return res.status(404).json({ ok: false, error: 'Pedido não encontrado' });
+
+    return res.json({
+      ok: true,
+      order: {
+        id: order.id,
+        external_reference: order.external_reference,
+        status: order.status,
+        product_type: order.product_type,
+        product_key: order.product_key,
+        quantity: order.quantity,
+        amount_cents: order.amount_cents,
+        currency: order.currency,
+        access_granted_at: order.access_granted_at,
+        mp_payment_id: order.mp_payment_id,
+        mp_payment_status: order.mp_payment_status,
+        mp_payment_status_detail: order.mp_payment_status_detail
+      }
+    });
+  } catch (e) {
+    console.error('[GET /payment/orders/:external_reference] failed', e);
+    return res.status(500).json({ ok: false, error: 'Erro interno' });
   }
 });
 

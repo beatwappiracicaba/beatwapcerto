@@ -55,13 +55,12 @@ export const DashboardArtistProfile = () => {
   const [remainingUploads, setRemainingUploads] = useState(null);
   const [isUnlimited, setIsUnlimited] = useState(false);
   const [periodLabel, setPeriodLabel] = useState('');
-  const [transferComposers, setTransferComposers] = useState([]);
-  const [hitTransferLoading, setHitTransferLoading] = useState(false);
-  const [hitTransfer, setHitTransfer] = useState({ to_profile_id: '', amount: 1 });
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [selectedPlanType, setSelectedPlanType] = useState('custom');
   const [customCheckoutData, setCustomCheckoutData] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [buyHitQty, setBuyHitQty] = useState('1');
+  const [buyUploadQty, setBuyUploadQty] = useState('1');
 
   useEffect(() => {
     if (user && profile) {
@@ -168,45 +167,6 @@ export const DashboardArtistProfile = () => {
     computeQuota();
   }, [user, profile]);
 
-  useEffect(() => {
-    const loadComposers = async () => {
-      if (!user || !profile) return;
-      if (String(profile?.cargo || '').toLowerCase().trim() === 'vendedor') return;
-      try {
-        const rows = await apiClient.get('/composers', { cache: true, cacheTtlMs: 15000 });
-        setTransferComposers(Array.isArray(rows) ? rows : []);
-      } catch {
-        setTransferComposers([]);
-      }
-    };
-    loadComposers();
-  }, [user, profile]);
-
-  const doTransferHitCredits = async () => {
-    const toId = String(hitTransfer?.to_profile_id || '').trim();
-    const amount = Number(hitTransfer?.amount || 0);
-    const n = Number.isFinite(amount) ? Math.floor(amount) : 0;
-    if (!toId) {
-      addToast('Selecione um compositor para receber os créditos.', 'warning');
-      return;
-    }
-    if (!Number.isFinite(n) || n <= 0) {
-      addToast('Informe uma quantidade válida.', 'warning');
-      return;
-    }
-    setHitTransferLoading(true);
-    try {
-      await apiClient.post('/credits/hit-of-week/transfer', { to_profile_id: toId, amount: n });
-      await refreshProfile();
-      addToast('Créditos de Hit da Semana enviados!', 'success');
-      setHitTransfer((prev) => ({ ...prev, amount: 1 }));
-    } catch (e) {
-      addToast(e?.message || 'Erro ao transferir créditos', 'error');
-    } finally {
-      setHitTransferLoading(false);
-    }
-  };
-
   const normalizedUserType = profile?.cargo === 'Compositor' ? 'composer' : 'artist';
   const planKeyFromString = (plan) => {
     const s = String(plan || '')
@@ -241,6 +201,25 @@ export const DashboardArtistProfile = () => {
     setIsCheckoutOpen(true);
   };
 
+  const openCreditsCheckout = (type) => {
+    const t = String(type || '').toLowerCase().trim();
+    if (t !== 'credits_hit' && t !== 'credits_upload') return;
+    const rawQty = t === 'credits_hit' ? buyHitQty : buyUploadQty;
+    const parsed = Number(rawQty);
+    const quantity = Number.isFinite(parsed) ? Math.max(1, Math.floor(parsed)) : 1;
+
+    const title = t === 'credits_hit' ? 'Créditos Hit da Semana' : 'Créditos de envio';
+    setCustomCheckoutData({
+      display_name: `${title} (${quantity})`,
+      display_price: '',
+      product_type: t,
+      quantity,
+      user_type: normalizedUserType
+    });
+    setSelectedPlanType('custom');
+    setIsCheckoutOpen(true);
+  };
+
   const cancelPlan = async () => {
     const currentKey = planKeyFromString(profile?.plano || formData.plano);
     if (currentKey !== 'mensal' && currentKey !== 'anual') return;
@@ -248,7 +227,7 @@ export const DashboardArtistProfile = () => {
     if (!ok) return;
     setCancelLoading(true);
     try {
-      await apiClient.put('/profile', { plano: 'Gratuito' });
+      await apiClient.post('/profile/cancel-plan', {});
       await refreshProfile();
       addToast('Plano cancelado com sucesso.', 'success');
     } catch (e) {
@@ -555,43 +534,56 @@ export const DashboardArtistProfile = () => {
 
                   <div className="max-w-2xl mx-auto pt-6">
                     <div className="p-5 rounded-2xl border border-white/10 bg-white/5 text-left space-y-4">
-                      <div className="text-lg font-bold text-white">Créditos de Hit da Semana</div>
-                      <div className="text-sm text-gray-300">
-                        Saldo atual: <span className="text-beatwap-gold font-extrabold">{Number(profile?.creditos_hit_semana || 0)}</span>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div className="md:col-span-2">
-                          <div className="text-xs text-gray-400 mb-1">Enviar para (Compositor)</div>
-                          <select
-                            value={hitTransfer.to_profile_id}
-                            onChange={(e) => setHitTransfer((prev) => ({ ...prev, to_profile_id: e.target.value }))}
-                            className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
-                          >
-                            <option value="">Selecione um compositor</option>
-                            {transferComposers
-                              .slice()
-                              .sort((a, b) => (a?.nome || a?.nome_completo_razao_social || '').localeCompare(b?.nome || b?.nome_completo_razao_social || ''))
-                              .map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  {c.nome || c.nome_completo_razao_social || c.email || `#${c.id}`}
-                                </option>
-                              ))}
-                          </select>
+                      <div className="text-lg font-bold text-white">Comprar créditos</div>
+
+                      <div className="space-y-3 p-4 rounded-xl border border-white/10 bg-black/20">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-white font-bold">Créditos de Hit da Semana</div>
+                            <div className="text-sm text-gray-300">
+                              Saldo atual: <span className="text-beatwap-gold font-extrabold">{Number(profile?.creditos_hit_semana || 0)}</span>
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <AnimatedInput
-                            label="Qtd. créditos"
-                            value={String(hitTransfer.amount)}
-                            onChange={(e) => setHitTransfer((prev) => ({ ...prev, amount: e.target.value }))}
-                            type="number"
-                            placeholder="1"
-                          />
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                          <div className="md:col-span-2">
+                            <AnimatedInput
+                              label="Qtd. créditos"
+                              value={String(buyHitQty)}
+                              onChange={(e) => setBuyHitQty(e.target.value)}
+                              type="number"
+                              placeholder="1"
+                            />
+                          </div>
+                          <AnimatedButton className="justify-center" onClick={() => openCreditsCheckout('credits_hit')}>
+                            Comprar
+                          </AnimatedButton>
                         </div>
                       </div>
-                      <div className="flex justify-end">
-                        <AnimatedButton onClick={doTransferHitCredits} isLoading={hitTransferLoading}>
-                          Enviar créditos
-                        </AnimatedButton>
+
+                      <div className="space-y-3 p-4 rounded-xl border border-white/10 bg-black/20">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-white font-bold">Créditos de envio</div>
+                            <div className="text-sm text-gray-300">
+                              Saldo atual: <span className="text-beatwap-gold font-extrabold">{Number(profile?.creditos_envio || 0)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                          <div className="md:col-span-2">
+                            <AnimatedInput
+                              label="Qtd. créditos"
+                              value={String(buyUploadQty)}
+                              onChange={(e) => setBuyUploadQty(e.target.value)}
+                              type="number"
+                              placeholder="1"
+                            />
+                          </div>
+                          <AnimatedButton className="justify-center" onClick={() => openCreditsCheckout('credits_upload')}>
+                            Comprar
+                          </AnimatedButton>
+                        </div>
                       </div>
                     </div>
                   </div>

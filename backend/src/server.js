@@ -62,6 +62,7 @@ const limiter = rateLimit({
     const p = String(req.path || '');
     if (p === '/health' || p === '/api/health' || p === '/api/home') return true;
     if (p === '/api/webhook') return true;
+    if (p === '/webhook') return true;
     const k6 = String(req.headers['x-k6-test'] || '');
     if (k6 === '1') return true;
     return false;
@@ -113,8 +114,14 @@ app.get(['/health', '/api/health'], async (req, res) => {
   }
 });
 
+const publicRoutes = require('./routes/public');
 app.use('/api/auth', require('./routes/auth'));
-app.use('/api', require('./routes/public'));
+app.use('/api', publicRoutes);
+app.use('/', (req, res, next) => {
+  const p = String(req.path || '');
+  if (p === '/webhook' || p === '/exemplo-pagamento') return publicRoutes(req, res, next);
+  return next();
+});
 app.use('/api', require('./routes/dashboard'));
 app.use('/api', require('./routes/chat'));
 app.use('/api', require('./routes/admin'));

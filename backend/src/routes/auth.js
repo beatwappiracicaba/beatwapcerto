@@ -189,8 +189,7 @@ router.post('/register', async (req, res) => {
     if (!v.ok) return res.status(400).json({ ok: false, error: v.error });
 
     const hash = await bcrypt.hash(password, 10);
-    const planoRaw = req.body.plano ?? req.body.plan;
-    const plano = normalizePlanoInput(planoRaw) || 'avulso';
+    const plano = 'avulso';
     const acIn = req.body.access_control;
     let access_control = null;
     if (acIn && typeof acIn === 'object') {

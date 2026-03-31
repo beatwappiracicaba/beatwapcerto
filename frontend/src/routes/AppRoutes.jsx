@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 
 // UI
 import { LoadingScreen } from '../components/LoadingScreen';
+import { apiClient } from '../services/apiClient';
 
 // DashboardLayout removido durante reconstrução
 
@@ -113,22 +114,93 @@ export const AppRoutes = () => {
   }
 
   const PaymentReturn = () => {
+    const [extRef, setExtRef] = useState('');
+    const [order, setOrder] = useState(null);
+    const [statusText, setStatusText] = useState('Aguardando confirmação de pagamento...');
+    const [errorText, setErrorText] = useState('');
+
     useEffect(() => {
+      let stopped = false;
+      let intervalId = null;
+
       const run = async () => {
-        try {
-          if (refreshProfile) await refreshProfile();
-        } catch {
-          void 0;
+        const params = new URLSearchParams(String(location?.search || ''));
+        const external_reference =
+          params.get('external_reference') ||
+          params.get('externalReference') ||
+          params.get('external-ref') ||
+          '';
+        const backStatus = String(params.get('status') || '').toLowerCase().trim();
+        setExtRef(external_reference);
+
+        if (backStatus === 'failure') setStatusText('Pagamento não aprovado. Verifique e tente novamente.');
+        if (backStatus === 'pending') setStatusText('Pagamento pendente. Aguardando confirmação...');
+        if (backStatus === 'success') setStatusText('Pagamento enviado. Aguardando confirmação...');
+
+        if (!external_reference) {
+          navigate('/dashboard/profile', { replace: true });
+          return;
         }
-        navigate('/dashboard/profile', { replace: true });
+
+        const poll = async () => {
+          try {
+            const data = await apiClient.get(`/payment/orders/${encodeURIComponent(external_reference)}`, { cache: false });
+            const nextOrder = data?.order || null;
+            if (!stopped) setOrder(nextOrder);
+
+            const st = String(nextOrder?.status || '').toLowerCase().trim();
+            const granted = !!nextOrder?.access_granted_at;
+            if (st === 'approved' && granted) {
+              try {
+                if (refreshProfile) await refreshProfile();
+              } catch { void 0; }
+              if (!stopped) navigate('/dashboard/profile', { replace: true });
+              return;
+            }
+
+            if (st === 'rejected' || st === 'cancelled' || st === 'refunded' || st === 'charged_back' || st === 'fraud') {
+              if (!stopped) setStatusText('Pagamento não aprovado. Se você pagou, aguarde alguns minutos ou fale com o suporte.');
+              return;
+            }
+
+            if (!stopped) setStatusText('Aguardando confirmação de pagamento...');
+          } catch (e) {
+            if (!stopped) {
+              setErrorText('Não foi possível consultar o status do pagamento. Tentando novamente...');
+            }
+          }
+        };
+
+        await poll();
+        intervalId = window.setInterval(poll, 3500);
       };
       run();
-    }, []);
+
+      return () => {
+        stopped = true;
+        if (intervalId) window.clearInterval(intervalId);
+      };
+    }, [location?.search]);
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-6 bg-black">
-        <div className="text-center space-y-2">
-          <div className="text-white font-bold text-xl">Confirmando pagamento...</div>
-          <div className="text-gray-400 text-sm">Você será redirecionado automaticamente.</div>
+        <div className="text-center space-y-2 max-w-xl">
+          <div className="text-white font-bold text-xl">{statusText}</div>
+          <div className="text-gray-400 text-sm">
+            Seu acesso só é liberado após confirmação <span className="text-white font-semibold">approved</span> via webhook.
+          </div>
+          {extRef ? (
+            <div className="text-gray-500 text-xs break-all">
+              Pedido: <span className="text-gray-300">{extRef}</span>
+            </div>
+          ) : null}
+          {order ? (
+            <div className="text-gray-500 text-xs">
+              Status atual: <span className="text-gray-300">{String(order?.status || '')}</span>
+            </div>
+          ) : null}
+          {errorText ? (
+            <div className="text-red-400 text-xs">{errorText}</div>
+          ) : null}
         </div>
       </div>
     );

@@ -149,7 +149,8 @@ function pickWebhookUrl() {
   if (direct) return direct;
   const base = mpEnv('APP_PUBLIC_URL', mpEnv('APP_PUBLIC_API_URL', ''));
   if (!base) return '';
-  return `${base.replace(/\/+$/, '')}/api/webhook`;
+  const norm = String(base).trim().replace(/\/+$/, '').replace(/\/api$/i, '');
+  return `${norm}/api/webhook`;
 }
 
 function pickFrontendUrl() {
@@ -2174,6 +2175,17 @@ router.post('/criar-pagamento', auth, async (req, res) => {
     const webhookUrl = pickWebhookUrl();
     const frontendUrl = pickFrontendUrl();
     const backBase = frontendUrl ? `${frontendUrl.replace(/\/+$/, '')}/pagamento/retorno` : '';
+    try {
+      console.log('[MP] criar-pagamento', {
+        profile_id: req.user?.id || null,
+        external_reference,
+        product_type: product.product_type,
+        product_key: product.product_key,
+        amount_cents: product.amount_cents,
+        notification_url: webhookUrl || null,
+        back_urls_base: backBase || null
+      });
+    } catch { void 0; }
 
     const preference = {
       items: [
@@ -2222,6 +2234,9 @@ router.post('/criar-pagamento', auth, async (req, res) => {
       mp_preference_id: created?.id || null,
       mp_raw: created || null
     });
+    try {
+      console.log('[MP] preferencia-criada', { external_reference, order_id: order.id, preference_id: created?.id || null });
+    } catch { void 0; }
 
     return res.json({
       order_id: order.id,
@@ -2230,6 +2245,7 @@ router.post('/criar-pagamento', auth, async (req, res) => {
       checkout_url
     });
   } catch (err) {
+    try { console.error('[MP] criar-pagamento falhou', err); } catch { void 0; }
     return res.status(500).json({ error: err?.message || 'Erro ao criar pagamento' });
   }
 });
@@ -2340,19 +2356,42 @@ router.get('/exemplo-pagamento', (req, res) => {
 
 router.post('/webhook', async (req, res) => {
   try {
+    try {
+      console.log('[MP webhook] recebido', {
+        path: req.path,
+        query: req.query || {},
+        type: req.body?.type || req.body?.action || null,
+        data: req.body?.data || null,
+        resource: req.body?.resource || null
+      });
+    } catch { void 0; }
+
     const ok = verifyMPWebhookSignature(req);
-    if (!ok) return res.status(401).json({ error: 'Assinatura inválida' });
+    if (!ok) {
+      try { console.warn('[MP webhook] assinatura inválida'); } catch { void 0; }
+      return res.status(401).json({ error: 'Assinatura inválida' });
+    }
 
     const paymentId = getMPWebhookDataId(req);
-    if (!paymentId) return res.json({ ok: true });
+    if (!paymentId) {
+      try { console.log('[MP webhook] sem paymentId'); } catch { void 0; }
+      return res.json({ ok: true });
+    }
 
     const payment = await mpRequest('GET', `/v1/payments/${encodeURIComponent(paymentId)}`);
     const external_reference = String(payment?.external_reference || '').trim();
-    if (!external_reference) return res.json({ ok: true });
+    if (!external_reference) {
+      try { console.log('[MP webhook] pagamento sem external_reference', { paymentId }); } catch { void 0; }
+      return res.json({ ok: true });
+    }
+    try { console.log('[MP webhook] pagamento consultado', { paymentId, external_reference, status: payment?.status || null }); } catch { void 0; }
 
     await sequelize.transaction(async (t) => {
       const order = await PaymentOrder.findOne({ where: { external_reference }, transaction: t });
-      if (!order) return;
+      if (!order) {
+        try { console.warn('[MP webhook] pedido não encontrado', { external_reference }); } catch { void 0; }
+        return;
+      }
 
       const paymentStatus = String(payment?.status || '').toLowerCase().trim();
       const nextStatus =
@@ -2375,10 +2414,16 @@ router.post('/webhook', async (req, res) => {
 
       const alreadyGranted = !!order.access_granted_at;
       if (shouldGrant && !alreadyGranted) {
+        try { console.log('[MP webhook] Pagamento aprovado - liberando acesso', { external_reference, order_id: order.id }); } catch { void 0; }
         const granted = await grantAccessForOrder(order, payment, t);
         if (granted.ok) {
           order.access_granted_at = new Date();
+          try { console.log('[MP webhook] acesso liberado', { external_reference, order_id: order.id }); } catch { void 0; }
+        } else {
+          try { console.warn('[MP webhook] falha ao liberar acesso', { external_reference, order_id: order.id }); } catch { void 0; }
         }
+      } else if (shouldGrant && alreadyGranted) {
+        try { console.log('[MP webhook] já processado (evitando duplicação)', { external_reference, order_id: order.id }); } catch { void 0; }
       }
 
       if (nextStatus === 'approved' && (!amountMatches || !currencyMatches || !extRefMatches)) {
@@ -2413,7 +2458,8 @@ router.post('/webhook', async (req, res) => {
     });
 
     return res.json({ ok: true });
-  } catch {
+  } catch (e) {
+    try { console.error('[MP webhook] erro', e); } catch { void 0; }
     return res.json({ ok: true });
   }
 });
