@@ -28,7 +28,7 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.email || !formData.password) {
-      addToast('Informe email e senha.', 'error');
+      addToast('Informe e-mail e senha.', 'error');
       return;
     }
     setLoading(true);
@@ -63,7 +63,7 @@ const Login = () => {
       <Card className="space-y-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <AnimatedInput
-            label="Email"
+            label="E-mail"
             type="email"
             placeholder="seu@email.com"
             icon={Mail}
