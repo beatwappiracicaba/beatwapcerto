@@ -8,24 +8,6 @@ import { AnimatedButton } from '../ui/AnimatedButton';
 import { AnimatedInput } from '../ui/AnimatedInput';
 import { encryptData, decryptData } from '../../utils/security';
 
-const plans = {
-  'avulso': {
-    name: 'Plano Avulso',
-    price: 'R$ 100,00',
-    link: 'https://mpago.la/1bNzgUz'
-  },
-  'mensal': {
-    name: 'Plano Mensal',
-    price: 'R$ 200,00',
-    link: 'https://mpago.la/13HdzTe'
-  },
-  'anual': {
-    name: 'Plano Anual',
-    price: 'R$ 1.200,00',
-    link: 'https://mpago.la/13wuYRF'
-  }
-};
-
 const CheckoutModal = ({ isOpen, onClose, planType, customData }) => {
   const { user } = useAuth();
   const { addToast } = useToast();
@@ -50,7 +32,12 @@ const CheckoutModal = ({ isOpen, onClose, planType, customData }) => {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   // Determine plan details
-  const selectedPlan = customData || plans[planType] || plans['avulso'];
+  const selectedPlan = customData || {
+    display_name: 'Plano',
+    display_price: '',
+    product_type: 'plan',
+    plan_key: planType
+  };
 
   useEffect(() => {
     if (isOpen && user) {
@@ -158,33 +145,37 @@ Data: ${new Date().toLocaleDateString()}
         });
       }
 
-      // 2. Log purchase attempt (optional, create a table if needed)
-      // await apiClient.post('/purchase_attempts', {...})
+      const payload = {
+        nome: formData.fullName,
+        email: formData.email,
+        user_type: customData?.user_type || customData?.userType || undefined,
+        product_type: customData?.product_type || customData?.productType || undefined,
+        plan_key: customData?.plan_key || customData?.planKey || undefined,
+        quantity: customData?.quantity || undefined,
+        valor: customData?.valor || customData?.value || undefined,
+        descricao: customData?.descricao || customData?.description || customData?.display_name || selectedPlan?.display_name || undefined
+      };
 
-      // 3. Open WhatsApp
-      const plan = selectedPlan;
-      const message = `Olá, acabei de contratar o ${plan.name} na BeatWap! Meu email é ${formData.email}. Gostaria de confirmar o pagamento.`;
-      const whatsappUrl = `https://wa.me/5519981083497?text=${encodeURIComponent(message)}`;
-      const a1 = document.createElement('a');
-      a1.href = whatsappUrl;
-      a1.target = '_blank';
-      a1.rel = 'noopener,noreferrer';
-      document.body.appendChild(a1);
-      a1.click();
-      
-      if (plan.link) {
-        const a2 = document.createElement('a');
-        a2.href = plan.link;
-        a2.target = '_blank';
-        a2.rel = 'noopener,noreferrer';
-        document.body.appendChild(a2);
-        a2.click();
-        a2.remove();
+      const data = await apiClient.post('/criar-pagamento', payload);
+      const url = data?.checkout_url || data?.init_point || data?.sandbox_init_point || null;
+      if (!url) {
+        addToast('Falha ao gerar link de pagamento.', 'error');
+        return;
       }
-      
-      a1.remove();
+
+      const isAnnual =
+        String(customData?.product_type || customData?.productType || '').toLowerCase().trim() === 'plan'
+        && String(customData?.plan_key || customData?.planKey || '').toLowerCase().trim() === 'anual';
+      if (isAnnual) {
+        const msg = `Olá! Iniciei o pagamento do ${selectedPlan.display_name}. Email: ${formData.email}. Pedido: ${data?.external_reference || data?.order_id || ''}`;
+        const wa = `https://wa.me/5519981083497?text=${encodeURIComponent(msg)}`;
+        window.open(wa, '_blank', 'noopener,noreferrer');
+      }
+
       onClose();
       addToast('Redirecionando para pagamento...', 'success');
+      const opened = window.open(url, '_self');
+      if (!opened) window.location.href = url;
 
     } catch (error) {
       console.error('Error processing checkout:', error);
@@ -209,7 +200,7 @@ Data: ${new Date().toLocaleDateString()}
           <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
             <div>
               <h2 className="text-xl font-bold text-white">Finalizar Contratação</h2>
-              <p className="text-beatwap-gold text-sm font-medium">{selectedPlan.name} - {selectedPlan.price}</p>
+              <p className="text-beatwap-gold text-sm font-medium">{selectedPlan.display_name} {selectedPlan.display_price ? `- ${selectedPlan.display_price}` : ''}</p>
             </div>
             <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
               <X size={24} />

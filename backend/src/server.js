@@ -61,6 +61,7 @@ const limiter = rateLimit({
     if (req.method === 'OPTIONS') return true;
     const p = String(req.path || '');
     if (p === '/health' || p === '/api/health' || p === '/api/home') return true;
+    if (p === '/api/webhook') return true;
     const k6 = String(req.headers['x-k6-test'] || '');
     if (k6 === '1') return true;
     return false;

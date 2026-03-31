@@ -1,11 +1,164 @@
 const express = require('express');
-const { Profile, sequelize } = require('../models');
+const { Profile, sequelize, PaymentOrder } = require('../models');
 const { emitEvent } = require('../realtime');
 const jwt = require('jsonwebtoken');
 const { auth } = require('../middleware/auth');
 const { memory, scheduleSave } = require('../memoryStore');
+const crypto = require('crypto');
+const https = require('https');
+const { URL } = require('url');
+const { transporter } = require('../services/mailer');
 
 const router = express.Router();
+
+function mpEnv(k, fallback = '') {
+  const v = process.env[k];
+  if (v == null) return fallback;
+  return String(v).trim();
+}
+
+function mpRequest(method, path, body, extraHeaders = {}) {
+  return new Promise((resolve, reject) => {
+    const token = mpEnv('MP_ACCESS_TOKEN') || mpEnv('ACCESS_TOKEN');
+    if (!token) {
+      const e = new Error('MP_ACCESS_TOKEN não configurado');
+      e.status = 500;
+      reject(e);
+      return;
+    }
+
+    const base = mpEnv('MP_API_BASE_URL', 'https://api.mercadopago.com');
+    const url = new URL(String(path || ''), base);
+    const payload = body != null ? Buffer.from(JSON.stringify(body), 'utf8') : null;
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+      ...(payload ? { 'Content-Type': 'application/json', 'Content-Length': String(payload.length) } : {}),
+      ...extraHeaders
+    };
+
+    const req = https.request(url, { method, headers }, (res) => {
+      const chunks = [];
+      res.on('data', (d) => chunks.push(d));
+      res.on('end', () => {
+        const text = Buffer.concat(chunks).toString('utf8');
+        let data = null;
+        try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(data);
+          return;
+        }
+        const err = new Error((data && (data.message || data.error)) || `Mercado Pago error (${res.statusCode})`);
+        err.status = res.statusCode || 500;
+        err.data = data;
+        reject(err);
+      });
+    });
+
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+function parseMPHeaderKV(headerValue) {
+  const s = String(headerValue || '');
+  const parts = s.split(',').map((x) => x.trim()).filter(Boolean);
+  const out = {};
+  for (const p of parts) {
+    const idx = p.indexOf('=');
+    if (idx < 0) continue;
+    const k = p.slice(0, idx).trim();
+    const v = p.slice(idx + 1).trim();
+    if (k) out[k] = v;
+  }
+  return out;
+}
+
+function getMPWebhookDataId(req) {
+  const q = req.query || {};
+  const fromQuery = q['data.id'] || q['data_id'] || q['id'] || null;
+  const fromBody =
+    req.body?.data?.id ||
+    req.body?.data_id ||
+    req.body?.id ||
+    req.body?.resource ||
+    null;
+  const raw = fromQuery || fromBody;
+  if (!raw) return '';
+  return String(raw).trim();
+}
+
+function verifyMPWebhookSignature(req) {
+  const secret = mpEnv('MP_WEBHOOK_SECRET') || mpEnv('MERCADO_PAGO_WEBHOOK_SECRET');
+  if (!secret) return false;
+
+  const xSignature = req.headers['x-signature'];
+  const xRequestId = req.headers['x-request-id'];
+  const dataId = getMPWebhookDataId(req);
+  if (!xSignature || !xRequestId || !dataId) return false;
+
+  const parsed = parseMPHeaderKV(xSignature);
+  const ts = parsed.ts;
+  const v1 = parsed.v1;
+  if (!ts || !v1) return false;
+
+  const manifest = `id:${dataId};request-id:${String(xRequestId).trim()};ts:${String(ts).trim()};`;
+  const calc = crypto.createHmac('sha256', secret).update(manifest).digest('hex');
+  return calc.toLowerCase() === String(v1).trim().toLowerCase();
+}
+
+function normalizeUserType(raw) {
+  const s = String(raw || '').toLowerCase().trim();
+  if (s === 'artist' || s === 'artista') return 'artist';
+  if (s === 'composer' || s === 'compositor') return 'composer';
+  return 'artist';
+}
+
+function avulsoPriceCents(quantity, userType) {
+  const q = Number(quantity || 0);
+  const n = Number.isFinite(q) ? Math.floor(q) : 0;
+  if (n <= 0) return 0;
+  if (userType === 'composer') {
+    if (n === 1) return 2500;
+    return 2500 + (n - 1) * 1000;
+  }
+  if (n === 1) return 10000;
+  return 10000 + (n - 1) * 5000;
+}
+
+function planPriceCents(planKey, userType) {
+  const k = String(planKey || '').toLowerCase().trim();
+  if (k === 'mensal') return 10000;
+  if (k === 'anual') return 60000;
+  if (k === 'avulso') return avulsoPriceCents(1, userType);
+  return 0;
+}
+
+function planLabel(planKey) {
+  const k = String(planKey || '').toLowerCase().trim();
+  if (k === 'mensal') return 'Mensal';
+  if (k === 'anual') return 'Anual';
+  if (k === 'vitalicio' || k === 'vitalício' || k === 'lifetime') return 'Vitalício';
+  if (k === 'avulso') return 'Avulso';
+  return 'Sem Plano';
+}
+
+function pickWebhookUrl() {
+  const direct = mpEnv('MP_WEBHOOK_URL');
+  if (direct) return direct;
+  const base = mpEnv('APP_PUBLIC_URL', mpEnv('APP_PUBLIC_API_URL', ''));
+  if (!base) return '';
+  return `${base.replace(/\/+$/, '')}/api/webhook`;
+}
+
+function pickFrontendUrl() {
+  const base = mpEnv('APP_PUBLIC_URL', '');
+  const fe = mpEnv('FRONTEND_PUBLIC_URL', '');
+  if (fe) return fe.replace(/\/+$/, '');
+  if (base) return base.replace(/\/+$/, '');
+  return '';
+}
 
 function canonicalizeHashtag(raw) {
   let s = String(raw || '').trim();
@@ -1874,9 +2027,400 @@ router.get('/compositions/latest', async (req, res) => {
     res.json([]);
   }
 });
+
+async function grantAccessForOrder(order, payment, transaction) {
+  const profileId = order?.profile_id ? String(order.profile_id) : '';
+  if (!profileId) return { ok: false };
+
+  const profile = await Profile.findByPk(profileId, { transaction });
+  if (!profile) return { ok: false };
+
+  const productType = String(order?.product_type || '').toLowerCase().trim();
+  const productKey = String(order?.product_key || '').toLowerCase().trim();
+  const qty = Number(order?.quantity || 0);
+  const quantity = Number.isFinite(qty) ? Math.max(0, Math.floor(qty)) : 0;
+
+  const updates = {};
+  if (productType === 'plan') {
+    if (productKey === 'mensal') updates.plano = 'Mensal';
+    if (productKey === 'anual') updates.plano = 'Anual';
+    if (productKey === 'vitalicio' || productKey === 'vitalício') updates.plano = 'Vitalício';
+  }
+
+  if (productType === 'credits_upload') {
+    const cur = Number(profile.creditos_envio || 0);
+    updates.creditos_envio = cur + quantity;
+  }
+
+  if (productType === 'credits_hit') {
+    const cur = Number(profile.creditos_hit_semana || 0);
+    updates.creditos_hit_semana = cur + quantity;
+  }
+
+  const keys = Object.keys(updates);
+  if (!keys.length) return { ok: true };
+
+  for (const k of keys) profile[k] = updates[k];
+  await profile.save({ transaction });
+
+  try { emitEvent('profile.updated', { id: profile.id }, `profile:${profile.id}`); } catch { void 0; }
+  try { emitEvent('profile.payment.approved', { profile_id: profile.id, order_id: order.id, payment_id: payment?.id || null }, `profile:${profile.id}`); } catch { void 0; }
+  return { ok: true };
+}
+
+function productFromCreatePaymentBody(body, user) {
+  const b = body || {};
+  const userType = normalizeUserType(b.user_type || b.userType || user?.cargo);
+
+  const productType = String(b.product_type || b.productType || '').toLowerCase().trim();
+  if (productType === 'plan') {
+    const planKey = String(b.plan_key || b.planKey || b.plan || '').toLowerCase().trim();
+    const amount_cents = planPriceCents(planKey, userType);
+    const installments_max = planKey === 'anual' ? 12 : 1;
+    return {
+      product_type: 'plan',
+      product_key: planKey,
+      quantity: 1,
+      amount_cents,
+      installments_max,
+      description: `Plano ${planLabel(planKey)}`
+    };
+  }
+
+  if (productType === 'credits_upload' || productType === 'creditos_envio') {
+    const q = Number(b.quantity || b.qtd || 0);
+    const quantity = Number.isFinite(q) ? Math.max(1, Math.floor(q)) : 1;
+    const unit = 500;
+    return {
+      product_type: 'credits_upload',
+      product_key: 'creditos_envio',
+      quantity,
+      amount_cents: unit * quantity,
+      installments_max: 1,
+      description: `Créditos de envio (${quantity})`
+    };
+  }
+
+  if (productType === 'credits_hit' || productType === 'creditos_hit') {
+    const q = Number(b.quantity || b.qtd || 0);
+    const quantity = Number.isFinite(q) ? Math.max(1, Math.floor(q)) : 1;
+    const unit = 500;
+    return {
+      product_type: 'credits_hit',
+      product_key: 'creditos_hit_semana',
+      quantity,
+      amount_cents: unit * quantity,
+      installments_max: 1,
+      description: `Créditos Hit da Semana (${quantity})`
+    };
+  }
+
+  const planKey = String(b.plan_key || b.planKey || b.plan || '').toLowerCase().trim();
+  const amount_cents = planPriceCents(planKey, userType);
+  const installments_max = planKey === 'anual' ? 12 : 1;
+  if (amount_cents > 0) {
+    return {
+      product_type: 'plan',
+      product_key: planKey,
+      quantity: 1,
+      amount_cents,
+      installments_max,
+      description: `Plano ${planLabel(planKey)}`
+    };
+  }
+
+  const value = Number(b.valor || b.value || 0);
+  const amount = Number.isFinite(value) ? Math.max(0, value) : 0;
+  return {
+    product_type: 'custom',
+    product_key: 'custom',
+    quantity: 1,
+    amount_cents: Math.round(amount * 100),
+    installments_max: 1,
+    description: String(b.descricao || b.description || 'Pagamento')
+  };
+}
+
+router.post('/criar-pagamento', auth, async (req, res) => {
+  try {
+    const product = productFromCreatePaymentBody(req.body, req.user);
+    if (!product.amount_cents || product.amount_cents <= 0) {
+      return res.status(400).json({ error: 'Valor inválido' });
+    }
+
+    const profile = await Profile.findByPk(req.user?.id);
+    const customer_name = String(req.body?.nome || req.body?.name || profile?.nome || '').trim() || null;
+    const customer_email = String(req.body?.email || profile?.email || '').trim() || null;
+    if (!customer_email) return res.status(400).json({ error: 'Email obrigatório' });
+
+    const idempotency_key = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex');
+    const external_reference = `bw_${Date.now()}_${idempotency_key.slice(0, 8)}`;
+
+    const order = await PaymentOrder.create({
+      profile_id: req.user?.id || null,
+      status: 'created',
+      product_type: product.product_type,
+      product_key: product.product_key,
+      quantity: product.quantity,
+      amount_cents: product.amount_cents,
+      currency: 'BRL',
+      description: product.description,
+      customer_name,
+      customer_email,
+      external_reference,
+      idempotency_key
+    });
+
+    const webhookUrl = pickWebhookUrl();
+    const frontendUrl = pickFrontendUrl();
+    const backBase = frontendUrl ? `${frontendUrl.replace(/\/+$/, '')}/pagamento/retorno` : '';
+
+    const preference = {
+      items: [
+        {
+          title: product.description,
+          quantity: 1,
+          currency_id: 'BRL',
+          unit_price: Number((product.amount_cents / 100).toFixed(2))
+        }
+      ],
+      payer: {
+        name: customer_name || undefined,
+        email: customer_email || undefined
+      },
+      external_reference,
+      ...(webhookUrl ? { notification_url: webhookUrl } : {}),
+      ...(backBase
+        ? {
+          back_urls: {
+            success: `${backBase}?status=success&external_reference=${encodeURIComponent(external_reference)}`,
+            pending: `${backBase}?status=pending&external_reference=${encodeURIComponent(external_reference)}`,
+            failure: `${backBase}?status=failure&external_reference=${encodeURIComponent(external_reference)}`
+          },
+          auto_return: 'approved'
+        }
+        : {}),
+      metadata: {
+        order_id: order.id,
+        profile_id: req.user?.id || null,
+        product_type: product.product_type,
+        product_key: product.product_key,
+        quantity: product.quantity
+      },
+      payment_methods: {
+        installments: product.installments_max || 1
+      }
+    };
+
+    const created = await mpRequest('POST', '/checkout/preferences', preference, { 'X-Idempotency-Key': idempotency_key });
+    const checkout_url = (mpEnv('MP_SANDBOX') === '1' || mpEnv('MP_SANDBOX') === 'true')
+      ? (created?.sandbox_init_point || created?.init_point || null)
+      : (created?.init_point || created?.sandbox_init_point || null);
+
+    await order.update({
+      status: 'preference_created',
+      mp_preference_id: created?.id || null,
+      mp_raw: created || null
+    });
+
+    return res.json({
+      order_id: order.id,
+      external_reference,
+      preference_id: created?.id || null,
+      checkout_url
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err?.message || 'Erro ao criar pagamento' });
+  }
+});
+
+router.get('/exemplo-pagamento', (req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(`<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BeatWap - Exemplo Mercado Pago</title>
+    <style>
+      body { font-family: Arial, sans-serif; background:#0b0b0f; color:#e5e7eb; margin:0; padding:24px; }
+      .box { max-width:720px; margin:0 auto; background:#11121a; border:1px solid #1f2335; border-radius:16px; padding:20px; }
+      label { display:block; font-size:12px; color:#9ca3af; margin-top:12px; }
+      input, select { width:100%; padding:10px 12px; margin-top:6px; border-radius:10px; border:1px solid #2b2f45; background:#0b0b0f; color:#e5e7eb; }
+      button { margin-top:16px; width:100%; padding:12px; border:0; border-radius:12px; background:#facc15; color:#000; font-weight:800; cursor:pointer; }
+      pre { white-space: pre-wrap; word-break: break-word; font-size:12px; background:#0b0b0f; padding:12px; border-radius:12px; border:1px solid #2b2f45; }
+      .muted { color:#9ca3af; font-size:12px; }
+    </style>
+  </head>
+  <body>
+    <div class="box">
+      <h2>Exemplo simples (HTML + JS)</h2>
+      <div class="muted">Requer estar logado no site (token JWT). Cole o token abaixo apenas para teste local.</div>
+
+      <label>Bearer Token</label>
+      <input id="token" placeholder="Cole aqui o token (JWT)..." />
+
+      <label>Nome</label>
+      <input id="nome" placeholder="Seu nome" />
+
+      <label>Email</label>
+      <input id="email" placeholder="seuemail@dominio.com" />
+
+      <label>Tipo</label>
+      <select id="tipo">
+        <option value="plan">Plano</option>
+        <option value="credits_upload">Créditos de envio</option>
+        <option value="credits_hit">Créditos Hit da Semana</option>
+      </select>
+
+      <label id="planLabel">Plano</label>
+      <select id="planKey">
+        <option value="mensal">Mensal</option>
+        <option value="anual">Anual (12x)</option>
+      </select>
+
+      <label id="qtyLabel" style="display:none">Quantidade</label>
+      <input id="qty" type="number" value="1" min="1" style="display:none" />
+
+      <label>User Type</label>
+      <select id="userType">
+        <option value="artist">Artista</option>
+        <option value="composer">Compositor</option>
+      </select>
+
+      <button id="pagar">Pagar</button>
+      <pre id="out"></pre>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const out = (v) => { $('out').textContent = typeof v === 'string' ? v : JSON.stringify(v, null, 2); };
+      const toggle = () => {
+        const tipo = $('tipo').value;
+        const isPlan = tipo === 'plan';
+        $('planLabel').style.display = isPlan ? 'block' : 'none';
+        $('planKey').style.display = isPlan ? 'block' : 'none';
+        $('qtyLabel').style.display = isPlan ? 'none' : 'block';
+        $('qty').style.display = isPlan ? 'none' : 'block';
+      };
+      $('tipo').addEventListener('change', toggle);
+      toggle();
+
+      $('pagar').addEventListener('click', async () => {
+        try {
+          out('Criando pagamento...');
+          const token = $('token').value.trim();
+          const payload = {
+            nome: $('nome').value.trim(),
+            email: $('email').value.trim(),
+            user_type: $('userType').value,
+            product_type: $('tipo').value,
+            plan_key: $('planKey').value,
+            quantity: Number($('qty').value || 1)
+          };
+          const res = await fetch('/api/criar-pagamento', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+            },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json().catch(() => ({}));
+          out(data);
+          if (data && data.checkout_url) window.location.href = data.checkout_url;
+        } catch (e) {
+          out(String(e && e.message ? e.message : e));
+        }
+      });
+    </script>
+  </body>
+</html>`);
+});
+
+router.post('/webhook', async (req, res) => {
+  try {
+    const ok = verifyMPWebhookSignature(req);
+    if (!ok) return res.status(401).json({ error: 'Assinatura inválida' });
+
+    const paymentId = getMPWebhookDataId(req);
+    if (!paymentId) return res.json({ ok: true });
+
+    const payment = await mpRequest('GET', `/v1/payments/${encodeURIComponent(paymentId)}`);
+    const external_reference = String(payment?.external_reference || '').trim();
+    if (!external_reference) return res.json({ ok: true });
+
+    await sequelize.transaction(async (t) => {
+      const order = await PaymentOrder.findOne({ where: { external_reference }, transaction: t });
+      if (!order) return;
+
+      const paymentStatus = String(payment?.status || '').toLowerCase().trim();
+      const nextStatus =
+        paymentStatus === 'approved' ? 'approved'
+          : (paymentStatus === 'pending' || paymentStatus === 'in_process') ? 'pending'
+            : paymentStatus === 'rejected' ? 'rejected'
+              : paymentStatus === 'cancelled' ? 'cancelled'
+                : paymentStatus === 'refunded' ? 'refunded'
+                  : paymentStatus === 'charged_back' ? 'charged_back'
+                    : 'unknown';
+
+      const amount = Number(payment?.transaction_amount || 0);
+      const amountCents = Math.round(amount * 100);
+      const currency = String(payment?.currency_id || 'BRL').trim().toUpperCase();
+      const expectedCents = Number(order.amount_cents || 0);
+      const amountMatches = expectedCents > 0 ? (Math.abs(expectedCents - amountCents) <= 1) : true;
+      const currencyMatches = currency === String(order.currency || 'BRL').trim().toUpperCase();
+      const extRefMatches = String(order.external_reference) === external_reference;
+      const shouldGrant = nextStatus === 'approved' && amountMatches && currencyMatches && extRefMatches;
+
+      const alreadyGranted = !!order.access_granted_at;
+      if (shouldGrant && !alreadyGranted) {
+        const granted = await grantAccessForOrder(order, payment, t);
+        if (granted.ok) {
+          order.access_granted_at = new Date();
+        }
+      }
+
+      if (nextStatus === 'approved' && (!amountMatches || !currencyMatches || !extRefMatches)) {
+        order.status = 'fraud';
+      } else {
+        order.status = nextStatus;
+      }
+
+      order.mp_payment_id = String(payment?.id || paymentId);
+      order.mp_payment_status = payment?.status || null;
+      order.mp_payment_status_detail = payment?.status_detail || null;
+      order.mp_payment_method_id = payment?.payment_method_id || null;
+      order.mp_payment_type_id = payment?.payment_type_id || null;
+      order.mp_installments = Number.isFinite(Number(payment?.installments)) ? Number(payment.installments) : null;
+      order.mp_live_mode = payment?.live_mode != null ? !!payment.live_mode : null;
+      order.mp_raw = payment || null;
+      await order.save({ transaction: t });
+
+      try {
+        if (shouldGrant && !alreadyGranted && transporter && order.customer_email) {
+          const to = String(order.customer_email || '').trim();
+          if (to) {
+            await transporter.sendMail({
+              from: mpEnv('SMTP_FROM', mpEnv('SMTP_USER', 'no-reply@beatwap.com.br')),
+              to,
+              subject: 'Pagamento aprovado',
+              text: `Pagamento aprovado. Produto: ${order.description || order.product_type || 'pedido'}`
+            });
+          }
+        }
+      } catch { void 0; }
+    });
+
+    return res.json({ ok: true });
+  } catch {
+    return res.json({ ok: true });
+  }
+});
 router.get('/sellers/:id/stats', async (req, res) => {
   res.json({ leads: 0, proposals: 0, deals: 0 });
 });
+
 
 // removed conflicting mock endpoints for /profile and /profile/avatar
 

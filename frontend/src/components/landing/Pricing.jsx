@@ -54,9 +54,11 @@ const Pricing = () => {
     const itemName = userType === 'artist' ? 'música(s)' : 'composição(ões)';
     
     setCustomCheckoutData({
-      planName: `Plano Avulso (${q} ${itemName})`,
-      price: `R$ ${price.toFixed(2).replace('.', ',')}`,
-      message: `Olá! Gostaria de adquirir o pacote avulso de ${q} ${itemName} por R$ ${price.toFixed(2).replace('.', ',')}. Meu email é ${user.email}.`
+      display_name: `Plano Avulso (${q} ${itemName})`,
+      display_price: `R$ ${price.toFixed(2).replace('.', ',')}`,
+      product_type: 'credits_upload',
+      quantity: q,
+      user_type: userType
     });
     setSelectedPlanType('custom');
     setIsCheckoutOpen(true);
@@ -77,21 +79,21 @@ const Pricing = () => {
 
     let price = '';
     let name = '';
-    let link = '';
 
     if (userType === 'artist') {
-        if (planKey === 'mensal') { price = 'R$ 100,00'; name = 'Plano Profissional (Artista)'; link = 'https://mpago.la/13HdzTe'; }
-        if (planKey === 'anual') { price = 'R$ 600,00'; name = 'Plano Elite (Artista)'; link = 'https://mpago.la/13wuYRF'; }
+        if (planKey === 'mensal') { price = 'R$ 100,00'; name = 'Plano Profissional (Artista)'; }
+        if (planKey === 'anual') { price = 'R$ 600,00'; name = 'Plano Elite (Artista)'; }
     } else {
-        if (planKey === 'mensal') { price = 'R$ 100,00'; name = 'Plano Destaque (Compositor)'; link = ''; }
-        if (planKey === 'anual') { price = 'R$ 600,00'; name = 'Plano Pro (Compositor)'; link = ''; }
+        if (planKey === 'mensal') { price = 'R$ 100,00'; name = 'Plano Destaque (Compositor)'; }
+        if (planKey === 'anual') { price = 'R$ 600,00'; name = 'Plano Pro (Compositor)'; }
     }
 
     setCustomCheckoutData({
-        planName: name,
-        price: price,
-        link: link, 
-        message: `Olá! Quero assinar o ${name} por ${price}. Email: ${user.email}`
+        display_name: name,
+        display_price: price,
+        product_type: 'plan',
+        plan_key: planKey,
+        user_type: userType
     });
     setSelectedPlanType('custom'); 
     setIsCheckoutOpen(true);

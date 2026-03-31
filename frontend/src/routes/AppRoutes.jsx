@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 // Layouts
 import { AuthLayout } from '../components/AuthLayout';
@@ -53,11 +53,13 @@ import ComoFunciona from '../pages/ComoFunciona';
 
 export const AppRoutes = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [splashMounted, setSplashMounted] = useState(true);
   const [splashMinDone, setSplashMinDone] = useState(false);
   const auth = useAuth() || {};
   const profile = auth.profile || null;
   const loading = auth.loading || false;
+  const refreshProfile = auth.refreshProfile;
   
   useEffect(() => {
     const id = setTimeout(() => setSplashMinDone(true), 3500);
@@ -110,6 +112,28 @@ export const AppRoutes = () => {
     return <LoadingScreen active={splashActive} onComplete={() => setSplashMounted(false)} />;
   }
 
+  const PaymentReturn = () => {
+    useEffect(() => {
+      const run = async () => {
+        try {
+          if (refreshProfile) await refreshProfile();
+        } catch {
+          void 0;
+        }
+        navigate('/dashboard/profile', { replace: true });
+      };
+      run();
+    }, []);
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center px-6 bg-black">
+        <div className="text-center space-y-2">
+          <div className="text-white font-bold text-xl">Confirmando pagamento...</div>
+          <div className="text-gray-400 text-sm">Você será redirecionado automaticamente.</div>
+        </div>
+      </div>
+    );
+  };
+
   const isArtista = profile?.cargo === 'Artista';
   const isProdutor = profile?.cargo === 'Produtor';
   const isCompositor = profile?.cargo === 'Compositor';
@@ -127,6 +151,7 @@ export const AppRoutes = () => {
       <Routes location={location}>
         {/* Public Route - Landing Page */}
         <Route path="/" element={(profile && !allowPublicExplore) ? <Navigate to={routeForRole(profile?.cargo)} replace /> : <Home />} />
+        <Route path="/pagamento/retorno" element={<ProtectedRoute element={<PaymentReturn />} />} />
         <Route path="/como-funciona" element={<ComoFunciona />} />
         <Route path="/composicoes" element={<AllCompositions />} />
         <Route path="/profile/:id" element={<PublicProfile />} />
