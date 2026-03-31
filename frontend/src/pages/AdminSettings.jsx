@@ -64,6 +64,8 @@ export const AdminSettings = () => {
   const [hitAdmin, setHitAdmin] = useState(null);
   const [hitDraft, setHitDraft] = useState(null);
   const [hitSaving, setHitSaving] = useState(false);
+  const [hitCreditDraft, setHitCreditDraft] = useState({ profile_id: '', amount: 1 });
+  const [hitCreditSaving, setHitCreditSaving] = useState(false);
 
   const validEmail = String(form.email).trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
 
@@ -264,6 +266,70 @@ export const AdminSettings = () => {
       });
     } catch (e) {
       addToast(e?.message || 'Erro ao atualizar pagamento', 'error');
+    }
+  };
+
+  const setHitEntryStatus = async (entryId, status) => {
+    try {
+      const body = { status };
+      const tryCall = async (calls) => {
+        let last = null;
+        for (const call of calls) {
+          try {
+            return await call();
+          } catch (e) {
+            last = e;
+            if (Number(e?.status) === 404) continue;
+            throw e;
+          }
+        }
+        throw last || new Error('Not found');
+      };
+
+      const res = await tryCall([
+        () => apiClient.post(`/admin/hit-of-week/entries/${entryId}/status`, body),
+        () => apiClient.post(`/admin/hit_of_week/entries/${entryId}/status`, body),
+        () => apiClient.post(`/hit-of-week/entries/${entryId}/status`, body),
+        () => apiClient.post(`/hit_of_week/entries/${entryId}/status`, body),
+      ]);
+      const entry = res?.entry || null;
+      if (!entry) return;
+      setHitAdmin((prev) => {
+        if (!prev || !Array.isArray(prev.entries)) return prev;
+        return { ...prev, entries: prev.entries.map((e) => (e.id === entryId ? entry : e)) };
+      });
+      setHitDraft((prev) => {
+        if (!prev || !Array.isArray(prev.entries)) return prev;
+        return { ...prev, entries: prev.entries.map((e) => (e.id === entryId ? entry : e)) };
+      });
+      addToast('Status atualizado.', 'success');
+    } catch (e) {
+      addToast(e?.message || 'Erro ao atualizar status', 'error');
+    }
+  };
+
+  const grantHitCredits = async () => {
+    const profile_id = String(hitCreditDraft?.profile_id || '').trim();
+    const amount = Number(hitCreditDraft?.amount || 0);
+    const n = Number.isFinite(amount) ? Math.floor(amount) : 0;
+    if (!profile_id) {
+      addToast('Informe o ID do usuário.', 'warning');
+      return;
+    }
+    if (!Number.isFinite(n) || n <= 0) {
+      addToast('Informe uma quantidade válida.', 'warning');
+      return;
+    }
+    setHitCreditSaving(true);
+    try {
+      const body = { profile_id, amount: n };
+      await apiClient.post('/admin/credits/hit-of-week/grant', body);
+      addToast('Créditos adicionados.', 'success');
+      setHitCreditDraft((prev) => ({ ...prev, amount: 1 }));
+    } catch (e) {
+      addToast(e?.message || 'Erro ao creditar', 'error');
+    } finally {
+      setHitCreditSaving(false);
     }
   };
 
@@ -1199,6 +1265,13 @@ export const AdminSettings = () => {
                               <div className="text-xs text-gray-400 truncate">{e.profile_email || e.profile_id || 'Sem perfil'}</div>
                             </div>
                             <div className="flex items-center gap-2">
+                              <div className={`px-3 py-1.5 rounded-xl border text-xs font-bold ${
+                                String(e.status || 'pending') === 'approved' ? 'bg-green-500/15 text-green-300 border-green-400/30' :
+                                String(e.status || 'pending') === 'rejected' ? 'bg-red-500/15 text-red-300 border-red-400/30' :
+                                'bg-black/20 text-gray-300 border-white/10'
+                              }`}>
+                                {String(e.status || 'pending') === 'approved' ? 'Aprovado' : String(e.status || 'pending') === 'rejected' ? 'Reprovado' : 'Pendente'}
+                              </div>
                               <button
                                 type="button"
                                 className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors ${
@@ -1207,6 +1280,24 @@ export const AdminSettings = () => {
                                 onClick={() => setHitEntryPaid(e.id, !e.paid)}
                               >
                                 {e.paid ? 'Pago' : 'Não pago'}
+                              </button>
+                              <button
+                                type="button"
+                                className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors ${
+                                  String(e.status || 'pending') === 'approved' ? 'bg-beatwap-gold text-black border-beatwap-gold' : 'bg-black/20 text-gray-300 border-white/10 hover:border-white/20'
+                                }`}
+                                onClick={() => setHitEntryStatus(e.id, 'approved')}
+                              >
+                                Aprovar
+                              </button>
+                              <button
+                                type="button"
+                                className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors ${
+                                  String(e.status || 'pending') === 'rejected' ? 'bg-red-500/20 text-red-300 border-red-400/30' : 'bg-black/20 text-gray-300 border-white/10 hover:border-white/20'
+                                }`}
+                                onClick={() => setHitEntryStatus(e.id, 'rejected')}
+                              >
+                                Reprovar
                               </button>
                               <button
                                 type="button"
@@ -1236,6 +1327,36 @@ export const AdminSettings = () => {
                   </div>
                 </div>
               )}
+
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
+                <div className="text-sm font-extrabold text-white">Creditar Hit da Semana</div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2">
+                    <div className="text-xs text-gray-400 mb-1">ID do usuário</div>
+                    <input
+                      value={hitCreditDraft.profile_id}
+                      onChange={(e) => setHitCreditDraft((prev) => ({ ...prev, profile_id: e.target.value }))}
+                      className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
+                      placeholder="profile_id"
+                    />
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-400 mb-1">Qtd.</div>
+                    <input
+                      type="number"
+                      min="1"
+                      value={hitCreditDraft.amount}
+                      onChange={(e) => setHitCreditDraft((prev) => ({ ...prev, amount: e.target.value === '' ? '' : Number(e.target.value) }))}
+                      className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <AnimatedButton onClick={grantHitCredits} isLoading={hitCreditSaving}>
+                    Adicionar créditos
+                  </AnimatedButton>
+                </div>
+              </div>
             </div>
           </div>
         </Card>

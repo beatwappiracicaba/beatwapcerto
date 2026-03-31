@@ -1,5 +1,5 @@
 const express = require('express');
-const { Profile } = require('../models');
+const { Profile, sequelize } = require('../models');
 const { emitEvent } = require('../realtime');
 const jwt = require('jsonwebtoken');
 const { auth } = require('../middleware/auth');
@@ -259,6 +259,66 @@ router.get('/hit-of-week', async (req, res) => {
   }
 });
 
+router.get('/hit-of-week/entries', async (req, res) => {
+  try {
+    const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
+    if (!hit) return res.json([]);
+
+    let meId = null;
+    try {
+      const h = String(req.headers.authorization || '');
+      const token = h.startsWith('Bearer ') ? h.slice(7) : null;
+      if (token) {
+        const payload = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
+        meId = payload?.sub ? String(payload.sub) : null;
+      }
+    } catch {
+      meId = null;
+    }
+
+    const votes = (hit.votes && typeof hit.votes === 'object') ? hit.votes : {};
+    const comps = Array.isArray(memory.compositions) ? memory.compositions : [];
+    const compsById = new Map(comps.map((c) => [String(c.id), c]));
+
+    const visible = (Array.isArray(hit.entries) ? hit.entries : [])
+      .filter((e) => e && (String(e.status || 'pending').toLowerCase() === 'approved') && e.paid === true)
+      .map((e) => {
+        const arr = Array.isArray(votes[e.id]) ? votes[e.id] : [];
+        const voted = meId ? arr.includes(meId) : false;
+        const votes_count = arr.length;
+        const comp = e?.composition_id ? compsById.get(String(e.composition_id)) : null;
+        const title = (comp?.title || e?.title || 'Música').trim();
+        const cover_url = comp?.cover_url || e?.cover_url || null;
+        const audio_url = comp?.audio_url || e?.audio_url || null;
+        const composer_id = comp?.composer_id || e?.composer_id || e?.profile_id || null;
+        return { ...e, title, cover_url, audio_url, composer_id, votes_count, voted };
+      });
+
+    const composerIds = Array.from(new Set(visible.map((e) => e.composer_id).filter(Boolean).map(String)));
+    let profilesById = new Map();
+    try {
+      if (composerIds.length) {
+        const rows = await Profile.findAll({ where: { id: composerIds } });
+        profilesById = new Map((rows || []).map((r) => [String(r.id), r]));
+      }
+    } catch {
+      profilesById = new Map();
+    }
+
+    const enriched = visible.map((e) => {
+      const p = e.composer_id ? profilesById.get(String(e.composer_id)) : null;
+      const composer_name = p?.nome || p?.nome_completo_razao_social || null;
+      return { ...e, composer_name };
+    });
+
+    enriched.sort((a, b) => (Number(b.votes_count || 0) - Number(a.votes_count || 0)) || String(b.created_at || '').localeCompare(String(a.created_at || '')));
+
+    res.json(enriched);
+  } catch {
+    res.json([]);
+  }
+});
+
 router.post('/hit-of-week/entries', auth, async (req, res) => {
   try {
     const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
@@ -274,8 +334,23 @@ router.post('/hit-of-week/entries', auth, async (req, res) => {
       return res.status(400).json({ error: 'Desafio encerrado' });
     }
 
-    const title = String(req.body?.title || '').trim();
-    const url = String(req.body?.url || '').trim();
+    const composition_id = req.body?.composition_id ? String(req.body.composition_id).trim() : null;
+    let composition = null;
+    if (composition_id) {
+      composition = (Array.isArray(memory.compositions) ? memory.compositions : []).find((c) => String(c?.id || '') === composition_id) || null;
+      if (!composition) return res.status(404).json({ error: 'Composição não encontrada' });
+      if (req.user?.cargo !== 'Produtor' && String(composition?.composer_id || '') !== String(req.user?.id || '')) {
+        return res.status(403).json({ error: 'Sem permissão' });
+      }
+      const exists = (Array.isArray(hit.entries) ? hit.entries : []).some((e) => String(e?.composition_id || '') === composition_id && String(e?.hit_id || '') === String(hit.id));
+      if (exists) return res.status(400).json({ error: 'Esta composição já está inscrita.' });
+    }
+
+    const credits = await requireHitCredits(req, 1);
+    if (!credits.ok) return res.status(402).json({ error: credits.error, code: credits.code });
+
+    const title = String(composition?.title || req.body?.title || '').trim();
+    const url = String(req.body?.url || composition?.audio_url || '').trim();
     if (!title) return res.status(400).json({ error: 'Título obrigatório' });
     if (!url) return res.status(400).json({ error: 'Link obrigatório' });
 
@@ -284,9 +359,14 @@ router.post('/hit-of-week/entries', auth, async (req, res) => {
       hit_id: hit.id,
       profile_id: req.user?.id || null,
       profile_email: req.user?.email || null,
+      composer_id: composition?.composer_id || null,
+      composition_id,
       title,
       url,
-      paid: false,
+      cover_url: composition?.cover_url || null,
+      audio_url: composition?.audio_url || null,
+      status: 'pending',
+      paid: true,
       created_at: new Date().toISOString()
     };
     if (!Array.isArray(hit.entries)) hit.entries = [];
@@ -295,6 +375,36 @@ router.post('/hit-of-week/entries', auth, async (req, res) => {
     scheduleSave();
     emitEvent('hit_of_week.entry.created', { entry }, 'public:hit_of_week');
     res.json({ ok: true, entry });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.post('/hit-of-week/entries/:entryId/vote', auth, async (req, res) => {
+  try {
+    const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
+    if (!hit) return res.status(400).json({ error: 'Desafio indisponível' });
+    const entryId = String(req.params.entryId || '').trim();
+    if (!entryId) return res.status(400).json({ error: 'ID inválido' });
+
+    const idx = (Array.isArray(hit.entries) ? hit.entries : []).findIndex((e) => String(e?.id || '') === entryId);
+    if (idx < 0) return res.status(404).json({ error: 'Inscrição não encontrada' });
+    const entry = hit.entries[idx];
+    if (String(entry?.status || 'pending').toLowerCase() !== 'approved' || entry?.paid !== true) {
+      return res.status(403).json({ error: 'Inscrição indisponível para votação' });
+    }
+
+    if (!hit.votes || typeof hit.votes !== 'object') hit.votes = {};
+    const arr = Array.isArray(hit.votes[entryId]) ? hit.votes[entryId] : [];
+    const meId = String(req.user?.id || '').trim();
+    if (!meId) return res.status(401).json({ error: 'Não autenticado' });
+    const exists = arr.includes(meId);
+    const next = exists ? arr.filter((x) => x !== meId) : arr.concat(meId);
+    hit.votes[entryId] = next;
+    hit.updated_at = new Date().toISOString();
+    scheduleSave();
+    emitEvent('hit_of_week.votes.updated', { entry_id: entryId, votes: next.length }, 'public:hit_of_week');
+    res.json({ ok: true, voted: !exists, votes: next.length });
   } catch {
     res.status(500).json({ error: 'Erro interno' });
   }
@@ -562,6 +672,18 @@ async function requireUploadCredits(req, needed) {
   const credits = Number(user?.creditos_envio || 0);
   if (credits < n) return { ok: false, error: 'Créditos insuficientes para envio', code: 'NO_CREDITS' };
   user.creditos_envio = credits - n;
+  await user.save();
+  return { ok: true };
+}
+
+async function requireHitCredits(req, needed) {
+  if (req.user?.cargo === 'Produtor') return { ok: true };
+  const n = Number(needed || 0);
+  if (!Number.isFinite(n) || n <= 0) return { ok: true };
+  const user = await Profile.findByPk(req.user?.id);
+  const credits = Number(user?.creditos_hit_semana || 0);
+  if (credits < n) return { ok: false, error: 'Créditos de Hit da Semana insuficientes', code: 'NO_HIT_CREDITS' };
+  user.creditos_hit_semana = credits - n;
   await user.save();
   return { ok: true };
 }
@@ -1333,6 +1455,7 @@ router.get('/users/:id/quota', async (req, res) => {
     const planRaw = String(user?.plano || 'sem plano');
     const plan = planRaw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const creditos_envio = Number(user?.creditos_envio || 0);
+    const creditos_hit_semana = Number(user?.creditos_hit_semana || 0);
     let uploads_remaining = 0;
     if (plan.includes('vitalicio') || plan.includes('lifetime')) {
       uploads_remaining = Number.MAX_SAFE_INTEGER;
@@ -1350,10 +1473,48 @@ router.get('/users/:id/quota', async (req, res) => {
       plano: user?.plano || 'sem plano',
       bonus_quota: Number(user?.bonus_quota || 0),
       plan_started_at: user?.plan_started_at || null,
-      creditos_envio
+      creditos_envio,
+      creditos_hit_semana
     });
   } catch {
-    res.json({ uploads_remaining: 0, plano: 'sem plano', bonus_quota: 0, plan_started_at: null, creditos_envio: 0 });
+    res.json({ uploads_remaining: 0, plano: 'sem plano', bonus_quota: 0, plan_started_at: null, creditos_envio: 0, creditos_hit_semana: 0 });
+  }
+});
+
+router.post('/credits/hit-of-week/transfer', auth, async (req, res) => {
+  try {
+    const fromId = String(req.user?.id || '').trim();
+    const toId = String(req.body?.to_profile_id || req.body?.to_id || '').trim();
+    const amount = Number(req.body?.amount || 0);
+    const n = Number.isFinite(amount) ? Math.floor(amount) : 0;
+    if (!fromId) return res.status(401).json({ error: 'Não autenticado' });
+    if (!toId) return res.status(400).json({ error: 'Destino obrigatório' });
+    if (String(fromId) === String(toId)) return res.status(400).json({ error: 'Destino inválido' });
+    if (!Number.isFinite(n) || n <= 0) return res.status(400).json({ error: 'Quantidade inválida' });
+
+    const result = await sequelize.transaction(async (t) => {
+      const from = await Profile.findByPk(fromId, { transaction: t });
+      const to = await Profile.findByPk(toId, { transaction: t });
+      if (!from) return { ok: false, status: 404, error: 'Remetente não encontrado' };
+      if (!to) return { ok: false, status: 404, error: 'Destino não encontrado' };
+
+      const fromCredits = Number(from.creditos_hit_semana || 0);
+      if (fromCredits < n) return { ok: false, status: 402, error: 'Créditos insuficientes' };
+      from.creditos_hit_semana = fromCredits - n;
+      to.creditos_hit_semana = Number(to.creditos_hit_semana || 0) + n;
+      await from.save({ transaction: t });
+      await to.save({ transaction: t });
+      return {
+        ok: true,
+        from: { id: from.id, creditos_hit_semana: Number(from.creditos_hit_semana || 0) },
+        to: { id: to.id, creditos_hit_semana: Number(to.creditos_hit_semana || 0) }
+      };
+    });
+
+    if (!result.ok) return res.status(result.status || 400).json({ error: result.error || 'Erro' });
+    res.json(result);
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
   }
 });
 

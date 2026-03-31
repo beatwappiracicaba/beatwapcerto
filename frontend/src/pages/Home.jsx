@@ -34,9 +34,8 @@ const Home = () => {
   const [sellers, setSellers] = useState([]);
   const [featuredPlans, setFeaturedPlans] = useState(null);
   const [hitOfWeek, setHitOfWeek] = useState(null);
-  const [hitEntryTitle, setHitEntryTitle] = useState('');
-  const [hitEntryUrl, setHitEntryUrl] = useState('');
-  const [hitSubmitting, setHitSubmitting] = useState(false);
+  const [hitEntries, setHitEntries] = useState([]);
+  const [hitVotingId, setHitVotingId] = useState(null);
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
   const [activeSponsorMenu, setActiveSponsorMenu] = useState(null);
@@ -298,6 +297,7 @@ const Home = () => {
 
       setFeaturedPlans((data && data.featured_plans) ? data.featured_plans : null);
       setHitOfWeek((data && data.hit_of_week) ? data.hit_of_week : null);
+      fetchHitEntries().catch(() => void 0);
       setComposers(sortProfilesWithFeaturedFirst(filterNoAvulso((data && Array.isArray(data.composers)) ? data.composers : [])));
       setSponsors((data && Array.isArray(data.sponsors)) ? data.sponsors : []);
       setArtists(sortProfilesWithFeaturedFirst(filterNoAvulso((data && Array.isArray(data.artists)) ? data.artists : [])));
@@ -552,32 +552,36 @@ const Home = () => {
     }
   };
 
-  const submitHitOfWeek = async () => {
+  const fetchHitEntries = async () => {
+    try {
+      const list = await apiClient.get('/hit-of-week/entries', { cache: true, cacheTtlMs: 8000 });
+      setHitEntries(Array.isArray(list) ? list : []);
+    } catch {
+      setHitEntries([]);
+    }
+  };
+
+  const toggleHitVote = async (entryId) => {
     if (!user) {
       navigate('/login');
       return;
     }
-    const title = String(hitEntryTitle || '').trim();
-    const url = String(hitEntryUrl || '').trim();
-    if (!title) {
-      window.alert('Informe o nome da música.');
-      return;
-    }
-    if (!url) {
-      window.alert('Informe o link da música (YouTube, Drive, etc.).');
-      return;
-    }
-    setHitSubmitting(true);
+    const id = String(entryId || '').trim();
+    if (!id) return;
+    setHitVotingId(id);
     try {
-      await apiClient.post('/hit-of-week/entries', { title, url });
-      setHitEntryTitle('');
-      setHitEntryUrl('');
-      setHitOfWeek((prev) => prev ? { ...prev, entries_count: (Number(prev.entries_count) || 0) + 1 } : prev);
-      window.alert('Inscrição enviada! Aguarde a confirmação do produtor.');
+      const res = await apiClient.post(`/hit-of-week/entries/${id}/vote`);
+      const votes = Number(res?.votes || 0);
+      const voted = res?.voted === true;
+      setHitEntries((prev) => {
+        const next = (Array.isArray(prev) ? prev : []).map((e) => e.id === id ? { ...e, votes_count: votes, voted } : e);
+        next.sort((a, b) => (Number(b.votes_count || 0) - Number(a.votes_count || 0)) || String(b.created_at || '').localeCompare(String(a.created_at || '')));
+        return next;
+      });
     } catch (e) {
-      window.alert(e?.message || 'Erro ao enviar inscrição');
+      window.alert(e?.message || 'Erro ao votar');
     } finally {
-      setHitSubmitting(false);
+      setHitVotingId(null);
     }
   };
 
@@ -1828,27 +1832,17 @@ const Home = () => {
                 </ul>
 
                 <div className="space-y-3">
-                  <input
-                    value={hitEntryTitle}
-                    onChange={(e) => setHitEntryTitle(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-beatwap-gold"
-                    placeholder="Nome da música"
-                  />
-                  <input
-                    value={hitEntryUrl}
-                    onChange={(e) => setHitEntryUrl(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-beatwap-gold"
-                    placeholder="Link (YouTube, Drive, etc.)"
-                  />
+                  <div className="text-xs text-gray-400">
+                    Inscrições aprovadas para votação: {Array.isArray(hitEntries) ? hitEntries.length : 0}
+                  </div>
                   <AnimatedButton
-                    className="w-full bg-beatwap-gold text-black hover:bg-white disabled:opacity-60"
-                    onClick={submitHitOfWeek}
-                    disabled={hitSubmitting}
+                    className="w-full bg-beatwap-gold text-black hover:bg-white"
+                    onClick={() => navigate(user ? '/dashboard/compositions' : '/login')}
                   >
-                    {hitSubmitting ? 'Enviando...' : 'Enviar música'}
+                    {user ? 'Participar pelo Painel' : 'Entrar para Participar'}
                   </AnimatedButton>
                   <div className="text-xs text-gray-400">
-                    Inscrições enviadas: {Number(hitOfWeek?.entries_count) || 0}
+                    Para participar, envie uma nova composição no seu painel e marque &quot;Participar do Hit da Semana&quot;.
                   </div>
                 </div>
               </div>
@@ -1857,9 +1851,10 @@ const Home = () => {
                 <div className="text-sm font-extrabold text-white mb-3">Como funciona</div>
                 <ul className="space-y-2 text-sm text-gray-300 mb-6">
                   <li>Toda semana um novo tema</li>
-                  <li>Envie sua música e concorra a destaque</li>
-                  <li>O produtor escolhe o vencedor (ou abre votação)</li>
-                  <li>Repete toda semana</li>
+                  <li>Você envia pelo painel (precisa de conta e 1 crédito de Hit da Semana)</li>
+                  <li>O produtor aprova a inscrição</li>
+                  <li>Depois, a música aparece na Home para votação</li>
+                  <li>A mais votada vence o concurso</li>
                 </ul>
 
                 <div className="text-sm font-extrabold text-white mb-3">Ideias de tema</div>
@@ -1871,6 +1866,96 @@ const Home = () => {
                   ))}
                 </div>
               </div>
+            </div>
+
+            <div className="mt-10">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div className="text-lg sm:text-xl font-extrabold text-white">Composições do Hit da Semana</div>
+                <button
+                  type="button"
+                  onClick={fetchHitEntries}
+                  className="text-xs text-gray-300 hover:text-white px-3 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                >
+                  Atualizar
+                </button>
+              </div>
+
+              {(!Array.isArray(hitEntries) || hitEntries.length === 0) ? (
+                <div className="p-6 rounded-2xl border border-white/10 bg-black/20 text-gray-400">
+                  Nenhuma composição aprovada para votação ainda. Aguarde a aprovação do produtor.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {hitEntries.slice(0, 10).map((e, idx) => {
+                    const url = sanitizeUrl(e?.audio_url || e?.url);
+                    const isPlaying = playingTrack === e.id && !isPaused;
+                    const voted = e?.voted === true;
+                    return (
+                      <div key={e.id} className="rounded-2xl border border-white/10 bg-white/5 p-4 flex gap-4">
+                        <div className="w-14 h-14 rounded-xl overflow-hidden bg-black/30 border border-white/10 shrink-0">
+                          {e?.cover_url ? (
+                            <img src={e.cover_url} alt={e.title || 'Capa'} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-500">
+                              <Music size={18} />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-sm font-extrabold text-white truncate">
+                                {idx + 1}º • {e?.title || 'Música'}
+                              </div>
+                              <div className="text-xs text-gray-400 truncate">
+                                {e?.composer_name ? `por ${e.composer_name}` : 'por Compositor'}
+                              </div>
+                            </div>
+                            <div className="text-xs text-gray-300">
+                              <span className="text-beatwap-gold font-extrabold">{Number(e?.votes_count || 0)}</span> votos
+                            </div>
+                          </div>
+
+                          <div className="mt-3 flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => togglePlay(e.id, url)}
+                              className="px-3 py-2 rounded-xl bg-black/30 border border-white/10 hover:bg-black/40 transition-colors text-sm font-bold flex items-center gap-2"
+                              disabled={!url}
+                            >
+                              {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                              {isPlaying ? 'Pausar' : 'Ouvir'}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => toggleHitVote(e.id)}
+                              disabled={hitVotingId === e.id}
+                              className={`px-3 py-2 rounded-xl border transition-colors text-sm font-bold flex items-center gap-2 ${
+                                voted ? 'bg-beatwap-gold text-black border-beatwap-gold' : 'bg-black/30 border-white/10 hover:bg-black/40 text-gray-200'
+                              }`}
+                            >
+                              <Heart size={16} />
+                              {voted ? 'Votado' : (hitVotingId === e.id ? 'Votando...' : 'Votar')}
+                            </button>
+
+                            <a
+                              href={url || '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`ml-auto text-xs ${url ? 'text-gray-300 hover:text-white' : 'text-gray-600'} underline-offset-2 hover:underline`}
+                              onClick={(ev) => { if (!url) ev.preventDefault(); }}
+                            >
+                              Abrir link
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </section>

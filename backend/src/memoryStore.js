@@ -60,6 +60,7 @@ function ensureDefaults(m) {
       ends_at: null,
       entry_fee: 10,
       entries: [],
+      votes: {},
       winner_entry_id: null,
       updated_at: new Date().toISOString()
     };
@@ -70,6 +71,7 @@ function ensureDefaults(m) {
     if (!Object.prototype.hasOwnProperty.call(m.hit_of_week, 'ends_at')) m.hit_of_week.ends_at = null;
     if (!Object.prototype.hasOwnProperty.call(m.hit_of_week, 'entry_fee')) m.hit_of_week.entry_fee = 10;
     if (!Array.isArray(m.hit_of_week.entries)) m.hit_of_week.entries = [];
+    if (!m.hit_of_week.votes || typeof m.hit_of_week.votes !== 'object') m.hit_of_week.votes = {};
     if (!Object.prototype.hasOwnProperty.call(m.hit_of_week, 'winner_entry_id')) m.hit_of_week.winner_entry_id = null;
     if (!m.hit_of_week.updated_at) m.hit_of_week.updated_at = new Date().toISOString();
   }

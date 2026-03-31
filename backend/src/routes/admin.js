@@ -428,6 +428,27 @@ async function markHitEntryPaid(req, res) {
   }
 }
 
+async function setHitEntryStatus(req, res) {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+    const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
+    if (!hit || !Array.isArray(hit.entries)) return res.status(400).json({ error: 'Desafio indisponível' });
+    const entryId = String(req.params.entryId || '').trim();
+    const statusRaw = String(req.body?.status || '').toLowerCase().trim();
+    const status = (statusRaw === 'approved' || statusRaw === 'rejected' || statusRaw === 'pending') ? statusRaw : null;
+    if (!status) return res.status(400).json({ error: 'Status inválido' });
+    const idx = hit.entries.findIndex(e => String(e?.id || '') === entryId);
+    if (idx < 0) return res.status(404).json({ error: 'Inscrição não encontrada' });
+    hit.entries[idx].status = status;
+    hit.updated_at = new Date().toISOString();
+    scheduleSave();
+    emitEvent('hit_of_week.entry.updated', { entry: hit.entries[idx] }, 'public:hit_of_week');
+    res.json({ ok: true, entry: hit.entries[idx] });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+}
+
 async function setHitWinner(req, res) {
   try {
     if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
@@ -543,10 +564,34 @@ router.post('/admin/hit_of_week/entries/:entryId/mark-paid', auth, markHitEntryP
 router.post('/hit-of-week/entries/:entryId/mark-paid', auth, markHitEntryPaid);
 router.post('/hit_of_week/entries/:entryId/mark-paid', auth, markHitEntryPaid);
 
+router.post('/admin/hit-of-week/entries/:entryId/status', auth, setHitEntryStatus);
+router.post('/admin/hit_of_week/entries/:entryId/status', auth, setHitEntryStatus);
+router.post('/hit-of-week/entries/:entryId/status', auth, setHitEntryStatus);
+router.post('/hit_of_week/entries/:entryId/status', auth, setHitEntryStatus);
+
 router.post('/admin/hit-of-week/winner', auth, setHitWinner);
 router.post('/admin/hit_of_week/winner', auth, setHitWinner);
 router.post('/hit-of-week/winner', auth, setHitWinner);
 router.post('/hit_of_week/winner', auth, setHitWinner);
+
+router.post('/admin/credits/hit-of-week/grant', auth, async (req, res) => {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+    const profile_id = String(req.body?.profile_id || req.body?.user_id || req.body?.id || '').trim();
+    const amount = Number(req.body?.amount || 0);
+    const n = Number.isFinite(amount) ? Math.floor(amount) : 0;
+    if (!profile_id) return res.status(400).json({ error: 'profile_id obrigatório' });
+    if (!Number.isFinite(n) || n <= 0) return res.status(400).json({ error: 'Quantidade inválida' });
+    const user = await Profile.findByPk(profile_id);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+    user.creditos_hit_semana = Number(user.creditos_hit_semana || 0) + n;
+    await user.save();
+    emitEvent('profiles.credits_hit_semana.updated', { id: user.id, creditos_hit_semana: Number(user.creditos_hit_semana || 0) }, `profile:${user.id}`);
+    res.json({ ok: true, profile: user });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
 
 router.get('/admin/featured-plans', auth, getFeaturedPlansAdmin);
 router.get('/admin/featured_plans', auth, getFeaturedPlansAdmin);

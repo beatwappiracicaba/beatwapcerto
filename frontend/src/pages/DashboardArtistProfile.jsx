@@ -54,6 +54,9 @@ export const DashboardArtistProfile = () => {
   const [remainingUploads, setRemainingUploads] = useState(null);
   const [isUnlimited, setIsUnlimited] = useState(false);
   const [periodLabel, setPeriodLabel] = useState('');
+  const [transferComposers, setTransferComposers] = useState([]);
+  const [hitTransferLoading, setHitTransferLoading] = useState(false);
+  const [hitTransfer, setHitTransfer] = useState({ to_profile_id: '', amount: 1 });
 
   useEffect(() => {
     if (user && profile) {
@@ -159,6 +162,45 @@ export const DashboardArtistProfile = () => {
     };
     computeQuota();
   }, [user, profile]);
+
+  useEffect(() => {
+    const loadComposers = async () => {
+      if (!user || !profile) return;
+      if (String(profile?.cargo || '').toLowerCase().trim() === 'vendedor') return;
+      try {
+        const rows = await apiClient.get('/composers', { cache: true, cacheTtlMs: 15000 });
+        setTransferComposers(Array.isArray(rows) ? rows : []);
+      } catch {
+        setTransferComposers([]);
+      }
+    };
+    loadComposers();
+  }, [user, profile]);
+
+  const doTransferHitCredits = async () => {
+    const toId = String(hitTransfer?.to_profile_id || '').trim();
+    const amount = Number(hitTransfer?.amount || 0);
+    const n = Number.isFinite(amount) ? Math.floor(amount) : 0;
+    if (!toId) {
+      addToast('Selecione um compositor para receber os créditos.', 'warning');
+      return;
+    }
+    if (!Number.isFinite(n) || n <= 0) {
+      addToast('Informe uma quantidade válida.', 'warning');
+      return;
+    }
+    setHitTransferLoading(true);
+    try {
+      await apiClient.post('/credits/hit-of-week/transfer', { to_profile_id: toId, amount: n });
+      await refreshProfile();
+      addToast('Créditos de Hit da Semana enviados!', 'success');
+      setHitTransfer((prev) => ({ ...prev, amount: 1 }));
+    } catch (e) {
+      addToast(e?.message || 'Erro ao transferir créditos', 'error');
+    } finally {
+      setHitTransferLoading(false);
+    }
+  };
 
   const handleSave = async () => {
     setLoading(true);
@@ -432,6 +474,49 @@ export const DashboardArtistProfile = () => {
                   <div className="flex justify-center gap-4 mt-8">
                     <AnimatedButton variant="secondary">Ver Detalhes</AnimatedButton>
                     <AnimatedButton>Renovar / Upgrade</AnimatedButton>
+                  </div>
+
+                  <div className="max-w-2xl mx-auto pt-6">
+                    <div className="p-5 rounded-2xl border border-white/10 bg-white/5 text-left space-y-4">
+                      <div className="text-lg font-bold text-white">Créditos de Hit da Semana</div>
+                      <div className="text-sm text-gray-300">
+                        Saldo atual: <span className="text-beatwap-gold font-extrabold">{Number(profile?.creditos_hit_semana || 0)}</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="md:col-span-2">
+                          <div className="text-xs text-gray-400 mb-1">Enviar para (Compositor)</div>
+                          <select
+                            value={hitTransfer.to_profile_id}
+                            onChange={(e) => setHitTransfer((prev) => ({ ...prev, to_profile_id: e.target.value }))}
+                            className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
+                          >
+                            <option value="">Selecione um compositor</option>
+                            {transferComposers
+                              .slice()
+                              .sort((a, b) => (a?.nome || a?.nome_completo_razao_social || '').localeCompare(b?.nome || b?.nome_completo_razao_social || ''))
+                              .map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.nome || c.nome_completo_razao_social || c.email || `#${c.id}`}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                        <div>
+                          <AnimatedInput
+                            label="Qtd. créditos"
+                            value={String(hitTransfer.amount)}
+                            onChange={(e) => setHitTransfer((prev) => ({ ...prev, amount: e.target.value }))}
+                            type="number"
+                            placeholder="1"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
+                        <AnimatedButton onClick={doTransferHitCredits} isLoading={hitTransferLoading}>
+                          Enviar créditos
+                        </AnimatedButton>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

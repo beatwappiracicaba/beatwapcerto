@@ -144,6 +144,11 @@ const Profile = sequelize.define('Profile', {
     allowNull: false,
     defaultValue: 0
   },
+  creditos_hit_semana: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0
+  },
   bonus_quota: {
     type: DataTypes.INTEGER,
     allowNull: false,

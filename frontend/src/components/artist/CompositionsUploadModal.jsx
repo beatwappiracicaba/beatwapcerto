@@ -47,6 +47,8 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
   const { addToast } = useToast();
 
   const [loading, setLoading] = useState(false);
+  const [hitInfo, setHitInfo] = useState(null);
+  const [participateHit, setParticipateHit] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     genre: '',
@@ -91,6 +93,8 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
     let cancelled = false;
     setSelectedHashtags([]);
     setCustomHashtag('');
+    setParticipateHit(false);
+    setHitInfo(null);
     const load = async () => {
       try {
         const data = await apiClient.get('/hashtags', { cache: true, cacheTtlMs: 15000 });
@@ -111,6 +115,21 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
       }
     };
     load();
+    return () => { cancelled = true; };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    const loadHit = async () => {
+      try {
+        const hit = await apiClient.get('/hit-of-week', { cache: true, cacheTtlMs: 15000 });
+        if (!cancelled) setHitInfo(hit || null);
+      } catch {
+        if (!cancelled) setHitInfo(null);
+      }
+    };
+    loadHit();
     return () => { cancelled = true; };
   }, [isOpen]);
 
@@ -327,6 +346,15 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
           setErrors(prev => ({ ...prev, submit: msg }));
           return;
         }
+        if (participateHit) {
+          const hitCredits = Number(quota?.creditos_hit_semana || 0);
+          if (hitCredits < 1) {
+            const msg = 'Você não possui créditos de Hit da Semana. Receba/Compre créditos para participar.';
+            addToast(msg, 'error');
+            setErrors(prev => ({ ...prev, submit: msg }));
+            return;
+          }
+        }
       }
 
       // Upload Files
@@ -339,7 +367,7 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
       ];
       const [coverUrl, audioUrl] = await Promise.all(uploads);
 
-      await apiClient.post('/compositions', {
+      const created = await apiClient.post('/compositions', {
         composer_id: ownerId,
         title: formData.title,
         genre: formData.genre,
@@ -352,6 +380,15 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
         hashtags: selectedHashtags,
         status: 'pending'
       });
+
+      if (participateHit) {
+        try {
+          await apiClient.post('/hit-of-week/entries', { composition_id: created?.id });
+          addToast('Inscrição no Hit da Semana enviada. Aguarde a aprovação do produtor.', 'success');
+        } catch (e) {
+          addToast(e?.message || 'Erro ao inscrever no Hit da Semana', 'error');
+        }
+      }
 
       if (onSuccess) onSuccess();
       onClose();
@@ -481,6 +518,26 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
                   placeholder="0.00"
                   type="number"
                 />
+              )}
+              {hitInfo && (
+                <div className="p-4 rounded-xl border border-white/10 bg-white/5 space-y-2">
+                  <div className="text-sm font-bold text-white">Hit da Semana</div>
+                  <div className="text-xs text-gray-300">
+                    Tema: <span className="text-white font-bold">{hitInfo?.theme || '—'}</span>
+                  </div>
+                  <div className="text-xs text-gray-300">
+                    Créditos disponíveis: <span className="text-beatwap-gold font-extrabold">{Number(profile?.creditos_hit_semana || 0)}</span>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-gray-200">
+                    <input
+                      type="checkbox"
+                      className="accent-beatwap-gold"
+                      checked={participateHit}
+                      onChange={(e) => setParticipateHit(e.target.checked)}
+                    />
+                    Participar do Hit da Semana (vai para aprovação do produtor)
+                  </label>
+                </div>
               )}
             </div>
 
