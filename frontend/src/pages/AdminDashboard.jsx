@@ -1446,6 +1446,10 @@ export const AdminComposers = () => {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [planForm, setPlanForm] = useState({ plano: 'Avulso', bonus_quota: 0, plan_started_at: '' });
   const [internalMetrics, setInternalMetrics] = useState({ plays: 0, listeners: 0, time: 0 });
+  const [hitCreditTargets, setHitCreditTargets] = useState([]);
+  const [hitCreditTargetId, setHitCreditTargetId] = useState('');
+  const [hitCreditAmount, setHitCreditAmount] = useState(1);
+  const [hitCreditSaving, setHitCreditSaving] = useState(false);
   const { addToast } = useToast();
   const load = useCallback(async () => {
     try {
@@ -1476,6 +1480,40 @@ export const AdminComposers = () => {
   }, []);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
+    const loadTargets = async () => {
+      try {
+        const [comps, arts] = await Promise.all([
+          apiClient.get('/composers'),
+          apiClient.get('/artists'),
+        ]);
+        const merged = []
+          .concat(Array.isArray(comps) ? comps : [])
+          .concat(Array.isArray(arts) ? arts : []);
+        const uniq = [];
+        const seen = new Set();
+        for (const p of merged) {
+          const id = String(p?.id || '').trim();
+          if (!id || seen.has(id)) continue;
+          seen.add(id);
+          uniq.push({
+            ...p,
+            nome: decryptData(p?.nome),
+            nome_completo_razao_social: decryptData(p?.nome_completo_razao_social),
+          });
+        }
+        uniq.sort((a, b) => (a?.nome || a?.nome_completo_razao_social || '').localeCompare(b?.nome || b?.nome_completo_razao_social || ''));
+        setHitCreditTargets(uniq);
+      } catch {
+        setHitCreditTargets([]);
+      }
+    };
+    loadTargets();
+  }, []);
+  useEffect(() => {
+    if (!selectedComposer) return;
+    setHitCreditTargetId((prev) => prev || String(selectedComposer));
+  }, [selectedComposer]);
+  useEffect(() => {
     const loadPlan = async () => {
       if (!selectedComposer) {
         setPlanForm({ plano: 'Avulso', bonus_quota: 0, plan_started_at: '' });
@@ -1498,6 +1536,29 @@ export const AdminComposers = () => {
     };
     loadMetrics();
   }, [selectedComposer]);
+  const grantHitCredits = async () => {
+    const profile_id = String(hitCreditTargetId || '').trim();
+    const amount = Number(hitCreditAmount || 0);
+    const n = Number.isFinite(amount) ? Math.floor(amount) : 0;
+    if (!profile_id) {
+      addToast('Selecione o compositor ou artista.', 'warning');
+      return;
+    }
+    if (!Number.isFinite(n) || n <= 0) {
+      addToast('Informe uma quantidade válida.', 'warning');
+      return;
+    }
+    setHitCreditSaving(true);
+    try {
+      await apiClient.post('/admin/credits/hit-of-week/grant', { profile_id, amount: n });
+      addToast('Créditos de Hit da Semana enviados.', 'success');
+      setHitCreditAmount(1);
+    } catch (e) {
+      addToast(e?.message || 'Erro ao enviar créditos', 'error');
+    } finally {
+      setHitCreditSaving(false);
+    }
+  };
   const handleSaveProfile = async ({ name, bio, blob }) => {
     try {
       if (!selectedComposer) return;
@@ -1621,6 +1682,32 @@ export const AdminComposers = () => {
           <AnimatedInput placeholder="Envios extras (bonus_quota)" type="number" value={planForm.bonus_quota} onChange={(e) => setPlanForm({ ...planForm, bonus_quota: e.target.value })} />
           <AnimatedInput placeholder="Início do plano" type="date" value={planForm.plan_started_at} onChange={(e) => setPlanForm({ ...planForm, plan_started_at: e.target.value })} />
           <AnimatedButton onClick={handleSavePlan}>Salvar Plano</AnimatedButton>
+        </div>
+      </Card>
+      <Card className="space-y-4">
+        <div className="font-bold">Créditos do Hit da Semana</div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <select
+            className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white"
+            value={hitCreditTargetId || ''}
+            onChange={(e) => setHitCreditTargetId(e.target.value)}
+          >
+            <option value="">Selecionar compositor ou artista</option>
+            {hitCreditTargets.map((p) => (
+              <option key={p.id} value={p.id}>
+                {(p.nome || p.nome_completo_razao_social || 'Sem nome')} ({p.cargo || 'Usuário'})
+              </option>
+            ))}
+          </select>
+          <AnimatedInput
+            placeholder="Créditos (Hit da Semana)"
+            type="number"
+            value={hitCreditAmount}
+            onChange={(e) => setHitCreditAmount(e.target.value)}
+          />
+          <AnimatedButton onClick={grantHitCredits} isLoading={hitCreditSaving}>
+            Enviar créditos
+          </AnimatedButton>
         </div>
       </Card>
       {isProfileOpen && (

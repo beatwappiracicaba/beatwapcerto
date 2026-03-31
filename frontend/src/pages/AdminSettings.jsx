@@ -64,8 +64,6 @@ export const AdminSettings = () => {
   const [hitAdmin, setHitAdmin] = useState(null);
   const [hitDraft, setHitDraft] = useState(null);
   const [hitSaving, setHitSaving] = useState(false);
-  const [hitCreditDraft, setHitCreditDraft] = useState({ profile_id: '', amount: 1 });
-  const [hitCreditSaving, setHitCreditSaving] = useState(false);
 
   const validEmail = String(form.email).trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
 
@@ -305,31 +303,6 @@ export const AdminSettings = () => {
       addToast('Status atualizado.', 'success');
     } catch (e) {
       addToast(e?.message || 'Erro ao atualizar status', 'error');
-    }
-  };
-
-  const grantHitCredits = async () => {
-    const profile_id = String(hitCreditDraft?.profile_id || '').trim();
-    const amount = Number(hitCreditDraft?.amount || 0);
-    const n = Number.isFinite(amount) ? Math.floor(amount) : 0;
-    if (!profile_id) {
-      addToast('Informe o ID do usuário.', 'warning');
-      return;
-    }
-    if (!Number.isFinite(n) || n <= 0) {
-      addToast('Informe uma quantidade válida.', 'warning');
-      return;
-    }
-    setHitCreditSaving(true);
-    try {
-      const body = { profile_id, amount: n };
-      await apiClient.post('/admin/credits/hit-of-week/grant', body);
-      addToast('Créditos adicionados.', 'success');
-      setHitCreditDraft((prev) => ({ ...prev, amount: 1 }));
-    } catch (e) {
-      addToast(e?.message || 'Erro ao creditar', 'error');
-    } finally {
-      setHitCreditSaving(false);
     }
   };
 
@@ -1327,36 +1300,6 @@ export const AdminSettings = () => {
                   </div>
                 </div>
               )}
-
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
-                <div className="text-sm font-extrabold text-white">Creditar Hit da Semana</div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="sm:col-span-2">
-                    <div className="text-xs text-gray-400 mb-1">ID do usuário</div>
-                    <input
-                      value={hitCreditDraft.profile_id}
-                      onChange={(e) => setHitCreditDraft((prev) => ({ ...prev, profile_id: e.target.value }))}
-                      className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
-                      placeholder="profile_id"
-                    />
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-400 mb-1">Qtd.</div>
-                    <input
-                      type="number"
-                      min="1"
-                      value={hitCreditDraft.amount}
-                      onChange={(e) => setHitCreditDraft((prev) => ({ ...prev, amount: e.target.value === '' ? '' : Number(e.target.value) }))}
-                      className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <AnimatedButton onClick={grantHitCredits} isLoading={hitCreditSaving}>
-                    Adicionar créditos
-                  </AnimatedButton>
-                </div>
-              </div>
             </div>
           </div>
         </Card>
