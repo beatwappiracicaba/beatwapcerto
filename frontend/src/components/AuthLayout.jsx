@@ -18,7 +18,7 @@ export const AuthLayout = () => {
         </div>
         
         <div className="absolute bottom-6 text-xs text-gray-600">
-          © 2024 BeatWap. All rights reserved.
+          © 2026 BeatWap. All rights reserved.
         </div>
       </motion.div>
     </div>
