@@ -98,14 +98,35 @@ const Home = () => {
     return m ? m[1] : null;
   };
   const [fileVideoUrl, setFileVideoUrl] = useState(null);
+  const getOtherComposerNames = (c) => {
+    const main = String(c?.composer_name || '').trim().toLowerCase();
+    const list = []
+      .concat(c?.composer_partner_name ? [c.composer_partner_name] : [])
+      .concat(Array.isArray(c?.external_composers) ? c.external_composers : [])
+      .map((x) => String(x || '').trim())
+      .filter((x) => x);
+    const out = [];
+    const seen = new Set();
+    for (const name of list) {
+      const key = name.toLowerCase();
+      if (key === main) continue;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(name);
+    }
+    return out;
+  };
   const enrichCompositionsFromProfiles = async (comps) => {
     const missingIds = new Set();
     (comps || []).forEach((c) => {
       const authorId = c?.composer_id;
-      if (!authorId) return;
-      const hasName = !!(c?.composer_name && c.composer_name !== 'Autor');
-      const hasPhone = !!formatWhatsAppPhone(c?.composer_phone);
-      if (!hasName || !hasPhone) missingIds.add(String(authorId));
+      if (authorId) {
+        const hasName = !!(c?.composer_name && c.composer_name !== 'Autor');
+        const hasPhone = !!formatWhatsAppPhone(c?.composer_phone);
+        if (!hasName || !hasPhone) missingIds.add(String(authorId));
+      }
+      const partnerId = c?.composer_partner_id;
+      if (partnerId && !c?.composer_partner_name) missingIds.add(String(partnerId));
     });
     const ids = Array.from(missingIds);
     if (!ids.length) return comps;
@@ -124,16 +145,19 @@ const Home = () => {
     return (comps || []).map((c) => {
       const authorId = c?.composer_id;
       const p = authorId ? byId.get(String(authorId)) : null;
-      if (!p) return c;
+      const partnerId = c?.composer_partner_id;
+      const pp = partnerId ? byId.get(String(partnerId)) : null;
+      if (!p && !pp) return c;
 
       const name =
         (c?.composer_name && c.composer_name !== 'Autor')
           ? c.composer_name
-          : (decryptData(p.nome) || decryptData(p.nome_completo_razao_social) || 'Autor');
+          : (p ? (decryptData(p.nome) || decryptData(p.nome_completo_razao_social) || 'Autor') : (c?.composer_name || 'Autor'));
 
-      const phone = c?.composer_phone || p.celular || p.phone || null;
+      const phone = c?.composer_phone || (p ? (p.celular || p.phone || null) : null);
+      const partnerName = c?.composer_partner_name || (pp ? (decryptData(pp.nome) || decryptData(pp.nome_completo_razao_social) || null) : null);
 
-      return { ...c, composer_name: name, composer_phone: phone };
+      return { ...c, composer_name: name, composer_phone: phone, composer_partner_name: partnerName };
     });
   };
 
@@ -283,6 +307,9 @@ const Home = () => {
         ...c,
         composer_id: c?.composer_id || c?.composerId || c?.user_id || c?.userId || c?.profile_id || c?.profileId,
         composer_name: decryptData(c?.composer_name || c?.author_name || c?.nome_autor || c?.nome_compositor || c?.nome || '') || 'Autor',
+        composer_partner_id: c?.composer_partner_id || c?.composerPartnerId || null,
+        composer_partner_name: decryptData(c?.composer_partner_name || c?.partner_composer_name || '') || null,
+        external_composers: Array.isArray(c?.external_composers) ? c.external_composers : [],
         composer_phone: c?.composer_phone || c?.celular || c?.whatsapp || c?.phone || null
       })).sort((a, b) => {
         const da = new Date(a.created_at || a.createdAt || 0).getTime();
@@ -381,6 +408,9 @@ const Home = () => {
         ...c,
         composer_id: c?.composer_id || c?.composerId || c?.user_id || c?.userId || c?.profile_id || c?.profileId,
         composer_name: decryptData(c?.composer_name || c?.author_name || c?.nome_autor || c?.nome_compositor || c?.nome || '') || 'Autor',
+        composer_partner_id: c?.composer_partner_id || c?.composerPartnerId || null,
+        composer_partner_name: decryptData(c?.composer_partner_name || c?.partner_composer_name || '') || null,
+        external_composers: Array.isArray(c?.external_composers) ? c.external_composers : [],
         composer_phone: c?.composer_phone || c?.celular || c?.whatsapp || c?.phone || null
       })).sort((a, b) => {
         const da = new Date(a.created_at || a.createdAt || 0).getTime();
@@ -1301,14 +1331,20 @@ const Home = () => {
                           </div>
                           <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent block sm:hidden">
                             <div className="text-white text-sm font-bold truncate">{comp.title}</div>
-                            <div className="text-[11px] text-gray-300 truncate">{comp.composer_name || 'Autor'}</div>
+                            <div className="text-[12px] text-white font-extrabold truncate">{comp.composer_name || 'Autor'}</div>
+                            {getOtherComposerNames(comp).length > 0 && (
+                              <div className="text-[11px] text-gray-400 truncate">{getOtherComposerNames(comp).slice(0, 3).join(' • ')}</div>
+                            )}
                             {Array.isArray(comp.hashtags) && comp.hashtags.length > 0 && (
                               <div className="text-[11px] text-gray-300 truncate">{comp.hashtags.slice(0, 4).join(' ')}</div>
                             )}
                           </div>
                         </div>
                         <h3 className="font-bold text-lg truncate"><span>{comp.title}</span></h3>
-                        <p className="text-sm text-gray-400 truncate"><span>{comp.composer_name || 'Autor'}</span></p>
+                        <p className="text-base text-white font-extrabold truncate"><span>{comp.composer_name || 'Autor'}</span></p>
+                        {getOtherComposerNames(comp).length > 0 && (
+                          <p className="text-xs text-gray-500 truncate"><span>{getOtherComposerNames(comp).slice(0, 3).join(' • ')}</span></p>
+                        )}
                         <p className="text-xs text-beatwap-gold mt-1 uppercase font-bold tracking-wider"><span>{comp.genre || 'Gênero'}</span></p>
                         {Array.isArray(comp.hashtags) && comp.hashtags.length > 0 && (
                           <p className="text-[11px] text-gray-400 mt-1 truncate"><span>{comp.hashtags.slice(0, 6).join(' ')}</span></p>

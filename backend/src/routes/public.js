@@ -191,9 +191,33 @@ router.get('/home', async (req, res) => {
     const sellers = takeDistinctById(sortWithFeaturedFirst(sellersRaw.map(addDerived)), 30);
     const artists = takeDistinctById(sortWithFeaturedFirst(artistsRaw.map(addDerived)), 30);
     const composers = takeDistinctById(sortWithFeaturedFirst(composersRaw.map(addDerived)), 30);
-    const compositionsApproved = memory.compositions.filter(c => String(c.status).toLowerCase() === 'approved').map(c => {
+    const compositionsApprovedRaw = memory.compositions.filter(c => String(c.status).toLowerCase() === 'approved').map(c => {
       const arr = Array.isArray(memory.likes[c.id]) ? memory.likes[c.id] : [];
       return { ...c, likes_count: arr.length };
+    });
+    const compProfileIds = Array.from(
+      new Set(
+        compositionsApprovedRaw
+          .flatMap((c) => [c?.composer_id, c?.composer_partner_id])
+          .filter(Boolean)
+          .map(String)
+      )
+    );
+    let compProfilesById = new Map();
+    try {
+      if (compProfileIds.length) {
+        const rows = await Profile.findAll({ where: { id: compProfileIds } });
+        compProfilesById = new Map((rows || []).map((r) => [String(r.id), r]));
+      }
+    } catch {
+      compProfilesById = new Map();
+    }
+    const compositionsApproved = compositionsApprovedRaw.map((c) => {
+      const p1 = c?.composer_id ? compProfilesById.get(String(c.composer_id)) : null;
+      const p2 = c?.composer_partner_id ? compProfilesById.get(String(c.composer_partner_id)) : null;
+      const composer_name = c?.composer_name || c?.author_name || c?.nome_autor || c?.nome_compositor || p1?.nome || p1?.nome_completo_razao_social || null;
+      const composer_partner_name = c?.composer_partner_name || p2?.nome || p2?.nome_completo_razao_social || null;
+      return { ...c, composer_name, composer_partner_name };
     });
     const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
     const publicHit = hit ? {
@@ -324,14 +348,16 @@ router.post('/hit-of-week/entries', auth, async (req, res) => {
     const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
     if (!hit) return res.status(400).json({ error: 'Desafio indisponível' });
 
-    const now = Date.now();
-    const starts = hit.starts_at ? new Date(hit.starts_at).getTime() : null;
-    const ends = hit.ends_at ? new Date(hit.ends_at).getTime() : null;
-    if (Number.isFinite(starts) && starts && now < starts) {
-      return res.status(400).json({ error: 'Desafio ainda não começou' });
-    }
-    if (Number.isFinite(ends) && ends && now > ends) {
-      return res.status(400).json({ error: 'Desafio encerrado' });
+    if (req.user?.cargo !== 'Produtor') {
+      const now = Date.now();
+      const starts = hit.starts_at ? new Date(hit.starts_at).getTime() : null;
+      const ends = hit.ends_at ? new Date(hit.ends_at).getTime() : null;
+      if (Number.isFinite(starts) && starts && now < starts) {
+        return res.status(400).json({ error: 'Desafio ainda não começou' });
+      }
+      if (Number.isFinite(ends) && ends && now > ends) {
+        return res.status(400).json({ error: 'Desafio encerrado' });
+      }
     }
 
     const composition_id = req.body?.composition_id ? String(req.body.composition_id).trim() : null;
@@ -411,7 +437,48 @@ router.post('/hit-of-week/entries/:entryId/vote', auth, async (req, res) => {
 });
 
 router.get('/releases', (req, res) => res.json([]));
-router.get('/compositions', (req, res) => res.json(memory.compositions));
+router.get('/compositions', async (req, res) => {
+  try {
+    const list = (Array.isArray(memory.compositions) ? memory.compositions : [])
+      .filter((c) => String(c?.status || '').toLowerCase() === 'approved')
+      .map((c) => {
+        const arr = Array.isArray(memory.likes?.[c.id]) ? memory.likes[c.id] : [];
+        return { ...c, likes_count: arr.length };
+      });
+
+    const ids = Array.from(
+      new Set(
+        list
+          .flatMap((c) => [c?.composer_id, c?.composer_partner_id])
+          .filter(Boolean)
+          .map(String)
+      )
+    );
+    let byId = new Map();
+    try {
+      if (ids.length) {
+        const rows = await Profile.findAll({ where: { id: ids } });
+        byId = new Map((rows || []).map((r) => [String(r.id), r]));
+      }
+    } catch {
+      byId = new Map();
+    }
+
+    const enriched = list.map((c) => {
+      const p1 = c?.composer_id ? byId.get(String(c.composer_id)) : null;
+      const p2 = c?.composer_partner_id ? byId.get(String(c.composer_partner_id)) : null;
+      return {
+        ...c,
+        composer_name: c?.composer_name || p1?.nome || p1?.nome_completo_razao_social || null,
+        composer_partner_name: c?.composer_partner_name || p2?.nome || p2?.nome_completo_razao_social || null,
+      };
+    });
+
+    res.json(enriched);
+  } catch {
+    res.json([]);
+  }
+});
 router.get('/projects', (req, res) => res.json([]));
 router.get('/sponsors', (req, res) => {
   try {
@@ -627,7 +694,11 @@ router.get('/profiles/:id/posts', async (req, res) => {
 router.get('/profiles/:id/compositions', async (req, res) => {
   const ownerId = req.params.id;
   const list = memory.compositions
-    .filter(c => (String(c.composer_id) === String(ownerId)) || (String(c.producer_id) === String(ownerId)))
+    .filter(c =>
+      (String(c.composer_id) === String(ownerId)) ||
+      (String(c.producer_id) === String(ownerId)) ||
+      (String(c.composer_partner_id || '') === String(ownerId))
+    )
     .filter(c => String(c.status).toLowerCase() === 'approved')
     .map(c => {
       const arr = Array.isArray(memory.likes[c.id]) ? memory.likes[c.id] : [];
@@ -652,7 +723,7 @@ router.get('/composer/compositions', async (req, res) => {
     }
     if (!composerId) return res.json([]);
     const list = memory.compositions
-      .filter(c => String(c.composer_id) === String(composerId))
+      .filter(c => (String(c.composer_id) === String(composerId)) || (String(c.composer_partner_id || '') === String(composerId)))
       .map(c => {
         const arr = Array.isArray(memory.likes[c.id]) ? memory.likes[c.id] : [];
         return { ...c, likes_count: arr.length };
@@ -712,6 +783,21 @@ router.post('/compositions', auth, async (req, res) => {
     const hashtags = parseHashtags(req.body?.hashtags || req.body?.tags || []);
     for (const t of hashtags) upsertGlobalHashtag(t);
 
+    const is_beatwap_composer_partner = req.body?.is_beatwap_composer_partner === true || String(req.body?.is_beatwap_composer_partner || '').toLowerCase() === 'true';
+    const composer_partner_id_raw = req.body?.composer_partner_id ? String(req.body.composer_partner_id).trim() : '';
+    const composer_partner_id = is_beatwap_composer_partner && composer_partner_id_raw ? composer_partner_id_raw : null;
+    if (composer_partner_id && String(composer_partner_id) === String(composer_id)) {
+      return res.status(400).json({ error: 'Compositor parceiro inválido' });
+    }
+
+    const external_composers_in = Array.isArray(req.body?.external_composers)
+      ? req.body.external_composers
+      : (Array.isArray(req.body?.external_composer_names) ? req.body.external_composer_names : []);
+    const external_composers = (external_composers_in || [])
+      .map((x) => String(x || '').trim())
+      .filter((x) => x)
+      .slice(0, 20);
+
     const item = {
       id,
       composer_id,
@@ -725,6 +811,9 @@ router.post('/compositions', auth, async (req, res) => {
       chorus_start_seconds,
       chorus_end_seconds,
       hashtags,
+      is_beatwap_composer_partner,
+      composer_partner_id,
+      external_composers,
       status: req.body?.status || 'pending',
       created_at: new Date().toISOString()
     };
@@ -732,6 +821,7 @@ router.post('/compositions', auth, async (req, res) => {
     scheduleSave();
     if (item.composer_id) emitEvent('compositions.created', item, `profile:${item.composer_id}`);
     if (item.producer_id) emitEvent('compositions.created', item, `profile:${item.producer_id}`);
+    if (item.composer_partner_id) emitEvent('compositions.created', item, `profile:${item.composer_partner_id}`);
     res.json(item);
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -758,6 +848,7 @@ router.put('/admin/compositions/:id/status', auth, async (req, res) => {
     const updated = memory.compositions[idx];
     if (updated?.composer_id) emitEvent('compositions.updated', { id, item: updated }, `profile:${updated.composer_id}`);
     if (updated?.producer_id) emitEvent('compositions.updated', { id, item: updated }, `profile:${updated.producer_id}`);
+    if (updated?.composer_partner_id) emitEvent('compositions.updated', { id, item: updated }, `profile:${updated.composer_partner_id}`);
     res.json({ ok: true, item: memory.compositions[idx] });
   } catch {
     res.status(500).json({ error: 'Erro interno' });

@@ -216,6 +216,14 @@ router.post('/musics', auth, async (req, res) => {
     const credits = await requireUploadCredits(req, res, 1);
     if (!credits.ok) return res.status(402).json({ error: credits.error, code: credits.code });
 
+    const external_composers_in = Array.isArray(req.body?.external_composers)
+      ? req.body.external_composers
+      : (Array.isArray(req.body?.external_composer_names) ? req.body.external_composer_names : []);
+    const external_composers = (external_composers_in || [])
+      .map((x) => String(x || '').trim())
+      .filter((x) => x)
+      .slice(0, 20);
+
     const id = `music_${Date.now()}`;
     const item = {
       id,
@@ -233,6 +241,7 @@ router.post('/musics', auth, async (req, res) => {
       feat_name: req.body?.feat_name || null,
       composer: req.body?.composer || null,
       producer: req.body?.producer || null,
+      external_composers,
       feat_beatwap_artist_ids: Array.isArray(req.body?.feat_beatwap_artist_ids) ? req.body.feat_beatwap_artist_ids : [],
       is_beatwap_composer_partner: !!req.body?.is_beatwap_composer_partner,
       composer_partner_id: req.body?.composer_partner_id || null,
@@ -278,7 +287,7 @@ router.put('/admin/musics/:id', auth, async (req, res) => {
     const patch = {};
     const allowed = [
       'status','upc','presave_link','release_date','is_beatwap_produced','produced_by','producer_id','show_on_home','isrc','composer_partner_id',
-      'titulo','nome_artista','estilo','cover_url','audio_url','authorization_url'
+      'titulo','nome_artista','estilo','cover_url','audio_url','authorization_url','external_composers'
     ];
     for (const k of allowed) {
       if (Object.prototype.hasOwnProperty.call(req.body, k)) patch[k] = req.body[k];

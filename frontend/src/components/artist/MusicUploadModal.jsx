@@ -31,8 +31,13 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     audio_file: null,
     audio_files: [],
     is_album: false,
+    composer: '',
+    producer: '',
     beatwap_feat_artist_ids: [],
     is_beatwap_composer_partner: false,
+    has_external_composers: false,
+    external_composers: [],
+    external_composer_input: '',
     tracks: [] // [{ titulo, estilo, audio_file, authorization_file, upload_status, upload_progress, audio_url, authorization_url, upload_error }]
   });
 
@@ -174,7 +179,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
   const addTrack = () => {
     setFormData(prev => ({ 
       ...prev, 
-      tracks: [...prev.tracks, { titulo: '', estilo: '', isrc: '', has_feat: false, feat_name: '', composer: '', producer: '', beatwap_feat_artist_ids: [], is_beatwap_composer_partner: false, composer_partner_id: null, audio_file: null, authorization_file: null, upload_status: 'idle', upload_progress: 0, audio_url: null, authorization_url: null, upload_error: null }] 
+      tracks: [...prev.tracks, { titulo: '', estilo: '', isrc: '', has_feat: false, feat_name: '', composer: '', producer: '', beatwap_feat_artist_ids: [], is_beatwap_composer_partner: false, composer_partner_id: null, has_external_composers: false, external_composers: [], external_composer_input: '', audio_file: null, authorization_file: null, upload_status: 'idle', upload_progress: 0, audio_url: null, authorization_url: null, upload_error: null }] 
     }));
   };
   const removeTrack = (index) => {
@@ -258,6 +263,10 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       setErrors(prev => ({ ...prev, submit: 'Selecione o compositor parceiro na faixa.' }));
       return;
     }
+    if (t.has_external_composers && (!Array.isArray(t.external_composers) || t.external_composers.length === 0)) {
+      setErrors(prev => ({ ...prev, submit: 'Adicione pelo menos um compositor fora da BeatWap na faixa (ou desmarque a opção).' }));
+      return;
+    }
 
     updateTrackField(index, 'upload_status', 'uploading');
     updateTrackField(index, 'upload_progress', 0);
@@ -311,7 +320,24 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       }
       const albumId = crypto.randomUUID();
       const rows = formData.tracks.map((t, idx) => {
-        const comp = (t.composer || '').split(',').map(s => s.trim()).filter(Boolean).join(', ');
+        const partnerId = t.is_beatwap_composer_partner ? String(t.composer_partner_id || '').trim() : '';
+        const partnerRow = partnerId ? composerOptions.find((c) => String(c?.id || '') === partnerId) : null;
+        const partnerName = partnerRow ? (partnerRow.nome || partnerRow.nome_completo_razao_social || '') : '';
+        const list = []
+          .concat([String(t.composer || '').trim()])
+          .concat(partnerName ? [String(partnerName).trim()] : [])
+          .concat(Array.isArray(t.external_composers) ? t.external_composers : [])
+          .map((x) => String(x || '').trim())
+          .filter((x) => x);
+        const uniq = [];
+        const seen = new Set();
+        for (const name of list) {
+          const key = name.toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          uniq.push(name);
+        }
+        const comp = uniq.join(', ');
         return {
           artista_id: activeUser.id,
           titulo: t.titulo,
@@ -327,6 +353,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
           feat_name: t.feat_name || null,
           composer: comp || null,
           producer: t.producer || null,
+          external_composers: Array.isArray(t.external_composers) ? t.external_composers : [],
           feat_beatwap_artist_ids: t.beatwap_feat_artist_ids || [],
           is_beatwap_composer_partner: !!t.is_beatwap_composer_partner,
           composer_partner_id: t.is_beatwap_composer_partner ? (t.composer_partner_id || null) : null,
@@ -368,6 +395,10 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       setErrors(prev => ({ ...prev, submit: 'Selecione o compositor parceiro.' }));
       return;
     }
+    if (formData.has_external_composers && (!Array.isArray(formData.external_composers) || formData.external_composers.length === 0)) {
+      setErrors(prev => ({ ...prev, submit: 'Adicione pelo menos um compositor fora da BeatWap (ou desmarque a opção).' }));
+      return;
+    }
 
     setLoading(true);
     setErrors({});
@@ -382,6 +413,25 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       ];
       const [coverUrl, audioUrl, authUrl] = await Promise.all(uploads);
 
+      const partnerId = formData.is_beatwap_composer_partner ? String(formData.composer_partner_id || '').trim() : '';
+      const partnerRow = partnerId ? composerOptions.find((c) => String(c?.id || '') === partnerId) : null;
+      const partnerName = partnerRow ? (partnerRow.nome || partnerRow.nome_completo_razao_social || '') : '';
+      const list = []
+        .concat([String(formData.composer || '').trim()])
+        .concat(partnerName ? [String(partnerName).trim()] : [])
+        .concat(Array.isArray(formData.external_composers) ? formData.external_composers : [])
+        .map((x) => String(x || '').trim())
+        .filter((x) => x);
+      const uniq = [];
+      const seen = new Set();
+      for (const name of list) {
+        const key = name.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        uniq.push(name);
+      }
+      const composerString = uniq.join(', ');
+
       await apiClient.post('/musics', {
         artista_id: activeUser.id,
         titulo: formData.titulo,
@@ -395,8 +445,9 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
         isrc: (formData.isrc || '').trim() || null,
         has_feat: formData.has_feat || false,
         feat_name: formData.feat_name || null,
-        composer: ((formData.composer || '').split(',').map(s => s.trim()).filter(Boolean).join(', ')) || null,
+        composer: composerString || null,
         producer: formData.producer || null,
+        external_composers: Array.isArray(formData.external_composers) ? formData.external_composers : [],
         feat_beatwap_artist_ids: formData.beatwap_feat_artist_ids || [],
         is_beatwap_composer_partner: !!formData.is_beatwap_composer_partner,
         composer_partner_id: formData.is_beatwap_composer_partner ? (formData.composer_partner_id || null) : null
@@ -574,10 +625,10 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                   <>
                     <div className="grid grid-cols-2 gap-4">
                       <AnimatedInput 
-                        label="Compositores" 
+                        label="Compositor principal" 
                         value={formData.composer || ''} 
                         onChange={(e) => setFormData({...formData, composer: e.target.value})} 
-                        placeholder="Separe por vírgula (Ex: Nome 1, Nome 2)"
+                        placeholder="Nome do compositor"
                       />
                       <AnimatedInput 
                         label="Produtor" 
@@ -586,15 +637,14 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                         placeholder="Nome do Produtor"
                       />
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Ex.: Nome 1, Nome 2</p>
                     <div className="flex items-center gap-2 mb-3">
                       <input
                         type="checkbox"
                         checked={!!formData.is_beatwap_composer_partner}
-                        onChange={(e) => setFormData(prev => ({ ...prev, is_beatwap_composer_partner: e.target.checked }))}
+                        onChange={(e) => setFormData(prev => ({ ...prev, is_beatwap_composer_partner: e.target.checked, composer_partner_id: '' }))}
                         className="w-5 h-5 accent-beatwap-gold rounded cursor-pointer"
                       />
-                      <label className="text-sm text-gray-300">Compositor é parceiro BeatWap</label>
+                      <label className="text-sm text-gray-300">Tem compositor parceiro BeatWap</label>
                     </div>
                     {formData.is_beatwap_composer_partner && (
                       <div className="mb-3">
@@ -609,6 +659,62 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                             <option key={c.id} value={c.id}>{c.nome || c.nome_completo_razao_social || 'Sem nome'}</option>
                           ))}
                         </select>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 mb-3">
+                      <input
+                        type="checkbox"
+                        checked={!!formData.has_external_composers}
+                        onChange={(e) => setFormData(prev => ({ ...prev, has_external_composers: e.target.checked }))}
+                        className="w-5 h-5 accent-beatwap-gold rounded cursor-pointer"
+                      />
+                      <label className="text-sm text-gray-300">Tem compositor fora da BeatWap</label>
+                    </div>
+                    {formData.has_external_composers && (
+                      <div className="mb-3 rounded-xl border border-white/10 bg-white/5 p-3 space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <div className="sm:col-span-2">
+                            <AnimatedInput
+                              label="Nome do compositor (fora da BeatWap)"
+                              value={formData.external_composer_input || ''}
+                              onChange={(e) => setFormData(prev => ({ ...prev, external_composer_input: e.target.value }))}
+                              placeholder="Digite um nome"
+                            />
+                          </div>
+                          <div className="flex items-end">
+                            <button
+                              type="button"
+                              className="w-full px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold transition-colors"
+                              onClick={() => {
+                                const name = String(formData.external_composer_input || '').trim();
+                                if (!name) return;
+                                setFormData((prev) => {
+                                  const list = Array.isArray(prev.external_composers) ? prev.external_composers : [];
+                                  const next = list.some((x) => String(x || '').toLowerCase() === name.toLowerCase()) ? list : list.concat(name);
+                                  return { ...prev, external_composers: next, external_composer_input: '' };
+                                });
+                              }}
+                            >
+                              Adicionar
+                            </button>
+                          </div>
+                        </div>
+                        {Array.isArray(formData.external_composers) && formData.external_composers.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {formData.external_composers.map((n) => (
+                              <div key={n} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/30 border border-white/10 text-xs text-gray-200">
+                                <span className="truncate max-w-[220px]">{n}</span>
+                                <button
+                                  type="button"
+                                  className="text-gray-400 hover:text-white"
+                                  onClick={() => setFormData((prev) => ({ ...prev, external_composers: (prev.external_composers || []).filter((x) => x !== n) }))}
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                     <div className="bg-white/5 border border-white/10 rounded-xl p-3">
@@ -731,10 +837,10 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           <AnimatedInput 
-                            label="Compositores" 
+                            label="Compositor principal" 
                             value={t.composer || ''} 
                             onChange={(e) => updateTrackField(idx, 'composer', e.target.value)} 
-                            placeholder="Separe por vírgula (Ex: Nome 1, Nome 2)"
+                            placeholder="Nome do compositor"
                           />
                           <AnimatedInput 
                             label="Produtor" 
@@ -817,6 +923,61 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                                 <option key={c.id} value={c.id}>{c.nome || c.nome_completo_razao_social || 'Sem nome'}</option>
                               ))}
                             </select>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={!!t.has_external_composers}
+                            onChange={(e) => updateTrackField(idx, 'has_external_composers', e.target.checked)}
+                            className="w-4 h-4 accent-beatwap-gold rounded cursor-pointer"
+                          />
+                          <label className="text-xs text-gray-300">Tem compositor fora da BeatWap</label>
+                        </div>
+                        {t.has_external_composers && (
+                          <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <div className="sm:col-span-2">
+                                <AnimatedInput
+                                  label="Nome do compositor (fora da BeatWap)"
+                                  value={t.external_composer_input || ''}
+                                  onChange={(e) => updateTrackField(idx, 'external_composer_input', e.target.value)}
+                                  placeholder="Digite um nome"
+                                />
+                              </div>
+                              <div className="flex items-end">
+                                <button
+                                  type="button"
+                                  className="w-full px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors"
+                                  onClick={() => {
+                                    const name = String(t.external_composer_input || '').trim();
+                                    if (!name) return;
+                                    const list = Array.isArray(t.external_composers) ? t.external_composers : [];
+                                    const next = list.some((x) => String(x || '').toLowerCase() === name.toLowerCase()) ? list : list.concat(name);
+                                    updateTrackField(idx, 'external_composers', next);
+                                    updateTrackField(idx, 'external_composer_input', '');
+                                  }}
+                                >
+                                  Adicionar
+                                </button>
+                              </div>
+                            </div>
+                            {Array.isArray(t.external_composers) && t.external_composers.length > 0 && (
+                              <div className="flex flex-wrap gap-2">
+                                {t.external_composers.map((n) => (
+                                  <div key={n} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/30 border border-white/10 text-xs text-gray-200">
+                                    <span className="truncate max-w-[220px]">{n}</span>
+                                    <button
+                                      type="button"
+                                      className="text-gray-400 hover:text-white"
+                                      onClick={() => updateTrackField(idx, 'external_composers', (t.external_composers || []).filter((x) => x !== n))}
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">

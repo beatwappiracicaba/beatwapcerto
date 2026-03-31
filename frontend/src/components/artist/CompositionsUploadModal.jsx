@@ -49,6 +49,7 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
   const [loading, setLoading] = useState(false);
   const [hitInfo, setHitInfo] = useState(null);
   const [participateHit, setParticipateHit] = useState(false);
+  const [composerOptions, setComposerOptions] = useState([]);
   const [formData, setFormData] = useState({
     title: '',
     genre: '',
@@ -58,7 +59,12 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
     cover_file: null,
     audio_file: null,
     chorus_start_seconds: '',
-    chorus_end_seconds: ''
+    chorus_end_seconds: '',
+    is_beatwap_composer_partner: false,
+    composer_partner_id: '',
+    has_external_composers: false,
+    external_composer_input: '',
+    external_composers: []
   });
 
   const [previews, setPreviews] = useState({
@@ -78,6 +84,18 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
   const [suggestedHashtags, setSuggestedHashtags] = useState(DEFAULT_HASHTAGS);
   const [selectedHashtags, setSelectedHashtags] = useState([]);
   const [customHashtag, setCustomHashtag] = useState('');
+
+  useEffect(() => {
+    const loadComposers = async () => {
+      try {
+        const data = await apiClient.get('/composers');
+        setComposerOptions(Array.isArray(data) ? data : []);
+      } catch {
+        setComposerOptions([]);
+      }
+    };
+    loadComposers();
+  }, []);
 
   useEffect(() => {
     if (!coverImageSrc) return;
@@ -329,6 +347,14 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
         }
       }
     }
+    if (formData.is_beatwap_composer_partner && !formData.composer_partner_id) {
+      setErrors(prev => ({ ...prev, submit: 'Selecione o compositor parceiro.' }));
+      return;
+    }
+    if (formData.has_external_composers && (!Array.isArray(formData.external_composers) || formData.external_composers.length === 0)) {
+      setErrors(prev => ({ ...prev, submit: 'Adicione pelo menos um compositor fora da BeatWap (ou desmarque a opção).' }));
+      return;
+    }
 
     setLoading(true);
     setErrors({});
@@ -378,6 +404,9 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
         chorus_start_seconds: formData.chorus_start_seconds !== '' ? Number(formData.chorus_start_seconds) : null,
         chorus_end_seconds: formData.chorus_end_seconds !== '' ? Number(formData.chorus_end_seconds) : null,
         hashtags: selectedHashtags,
+        is_beatwap_composer_partner: !!formData.is_beatwap_composer_partner,
+        composer_partner_id: formData.is_beatwap_composer_partner ? (formData.composer_partner_id || null) : null,
+        external_composers: Array.isArray(formData.external_composers) ? formData.external_composers : [],
         status: 'pending'
       });
 
@@ -460,6 +489,92 @@ export const CompositionsUploadModal = ({ isOpen, onClose, onSuccess, composerId
                 onChange={(e) => setFormData({...formData, genre: e.target.value})} 
                 placeholder="Ex: Sertanejo, Pagode"
               />
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={!!formData.is_beatwap_composer_partner}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, is_beatwap_composer_partner: e.target.checked, composer_partner_id: '' }))}
+                    className="w-5 h-5 accent-beatwap-gold rounded cursor-pointer"
+                  />
+                  <label className="text-sm text-gray-300">Tem compositor parceiro BeatWap</label>
+                </div>
+                {formData.is_beatwap_composer_partner && (
+                  <div>
+                    <label className="text-sm font-bold text-gray-400">Selecionar compositor parceiro</label>
+                    <select
+                      className="mt-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white w-full"
+                      value={formData.composer_partner_id || ''}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, composer_partner_id: e.target.value }))}
+                    >
+                      <option value="">Selecione o compositor parceiro</option>
+                      {composerOptions
+                        .filter((c) => String(c?.id || '') !== String(composerId || user?.id || ''))
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.nome || c.nome_completo_razao_social || 'Sem nome'}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={!!formData.has_external_composers}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, has_external_composers: e.target.checked }))}
+                    className="w-5 h-5 accent-beatwap-gold rounded cursor-pointer"
+                  />
+                  <label className="text-sm text-gray-300">Tem compositor fora da BeatWap</label>
+                </div>
+                {formData.has_external_composers && (
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div className="sm:col-span-2">
+                        <AnimatedInput
+                          label="Nome do compositor (fora da BeatWap)"
+                          value={formData.external_composer_input || ''}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, external_composer_input: e.target.value }))}
+                          placeholder="Digite um nome"
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <AnimatedButton
+                          type="button"
+                          className="w-full"
+                          onClick={() => {
+                            const name = String(formData.external_composer_input || '').trim();
+                            if (!name) return;
+                            setFormData((prev) => {
+                              const list = Array.isArray(prev.external_composers) ? prev.external_composers : [];
+                              const next = list.some((x) => String(x || '').toLowerCase() === name.toLowerCase()) ? list : list.concat(name);
+                              return { ...prev, external_composers: next, external_composer_input: '' };
+                            });
+                          }}
+                        >
+                          Adicionar
+                        </AnimatedButton>
+                      </div>
+                    </div>
+                    {Array.isArray(formData.external_composers) && formData.external_composers.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {formData.external_composers.map((n) => (
+                          <div key={n} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/30 border border-white/10 text-xs text-gray-200">
+                            <span className="truncate max-w-[220px]">{n}</span>
+                            <button
+                              type="button"
+                              className="text-gray-400 hover:text-white"
+                              onClick={() => setFormData((prev) => ({ ...prev, external_composers: (prev.external_composers || []).filter((x) => x !== n) }))}
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-400">Hashtags de estilo</label>
                 <div className="flex flex-wrap gap-2">
