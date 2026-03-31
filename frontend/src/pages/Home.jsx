@@ -937,6 +937,31 @@ const Home = () => {
                                     {item.type === 'album' ? (item.title || 'Álbum') : (item.titulo || 'Lançamento')}
                                   </div>
                                   <div className="text-[11px] text-gray-300 truncate">{item.nome_artista || 'Artista'}</div>
+                                  {item.presave_link && (
+                                    <div className="mt-2">
+                                      <AnimatedButton
+                                        fullWidth
+                                        className="px-3 py-2 text-xs rounded-lg"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (item.type === 'album') {
+                                            const firstTrack = item.tracks?.[0];
+                                            const musicId = firstTrack?.id;
+                                            const artistId = firstTrack?.artista_id || item.artista_id;
+                                            if (musicId) {
+                                              recordEvent({ type: 'music_click_presave', music_id: musicId, artist_id: artistId });
+                                            }
+                                            window.open(item.presave_link, '_blank');
+                                            return;
+                                          }
+                                          recordEvent({ type: 'music_click_presave', music_id: item.id, artist_id: item.artista_id });
+                                          window.open(item.presave_link, '_blank');
+                                        }}
+                                      >
+                                        Pré-save
+                                      </AnimatedButton>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                               <div className="hidden sm:flex p-4 flex-1 flex-col justify-between min-h-[120px]">
@@ -1104,6 +1129,31 @@ const Home = () => {
                                     {item.type === 'album' ? (item.title || 'Álbum') : (item.titulo || 'Lançamento')}
                                   </div>
                                   <div className="text-[11px] text-gray-300 truncate">{item.nome_artista || 'Artista'}</div>
+                                  {item.presave_link && (
+                                    <div className="mt-2">
+                                      <AnimatedButton
+                                        fullWidth
+                                        className="px-3 py-2 text-xs rounded-lg"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (item.type === 'album') {
+                                            const firstTrack = item.tracks?.[0];
+                                            const musicId = firstTrack?.id;
+                                            const artistId = firstTrack?.artista_id || item.artista_id;
+                                            if (musicId) {
+                                              recordEvent({ type: 'music_click_smartlink', music_id: musicId, artist_id: artistId });
+                                            }
+                                            window.open(item.presave_link, '_blank');
+                                            return;
+                                          }
+                                          recordEvent({ type: 'music_click_smartlink', music_id: item.id, artist_id: item.artista_id });
+                                          window.open(item.presave_link, '_blank');
+                                        }}
+                                      >
+                                        Pré-save
+                                      </AnimatedButton>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                               <div className="hidden sm:flex p-4 flex-1 flex-col justify-between min-h-[120px]">
