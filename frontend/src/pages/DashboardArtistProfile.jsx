@@ -60,7 +60,6 @@ export const DashboardArtistProfile = () => {
   const [customCheckoutData, setCustomCheckoutData] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [buyHitQty, setBuyHitQty] = useState('1');
-  const [buyUploadQty, setBuyUploadQty] = useState('1');
 
   useEffect(() => {
     if (user && profile) {
@@ -203,14 +202,13 @@ export const DashboardArtistProfile = () => {
 
   const openCreditsCheckout = (type) => {
     const t = String(type || '').toLowerCase().trim();
-    if (t !== 'credits_hit' && t !== 'credits_upload') return;
-    const rawQty = t === 'credits_hit' ? buyHitQty : buyUploadQty;
+    if (t !== 'credits_hit') return;
+    const rawQty = buyHitQty;
     const parsed = Number(rawQty);
     const quantity = Number.isFinite(parsed) ? Math.max(1, Math.floor(parsed)) : 1;
 
-    const title = t === 'credits_hit' ? 'Créditos Hit da Semana' : 'Créditos de envio';
     setCustomCheckoutData({
-      display_name: `${title} (${quantity})`,
+      display_name: `Créditos Hit da Semana (${quantity})`,
       display_price: '',
       product_type: t,
       quantity,
@@ -556,31 +554,6 @@ export const DashboardArtistProfile = () => {
                             />
                           </div>
                           <AnimatedButton className="justify-center" onClick={() => openCreditsCheckout('credits_hit')}>
-                            Comprar
-                          </AnimatedButton>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3 p-4 rounded-xl border border-white/10 bg-black/20">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <div className="text-white font-bold">Créditos de envio</div>
-                            <div className="text-sm text-gray-300">
-                              Saldo atual: <span className="text-beatwap-gold font-extrabold">{Number(profile?.creditos_envio || 0)}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-                          <div className="md:col-span-2">
-                            <AnimatedInput
-                              label="Qtd. créditos"
-                              value={String(buyUploadQty)}
-                              onChange={(e) => setBuyUploadQty(e.target.value)}
-                              type="number"
-                              placeholder="1"
-                            />
-                          </div>
-                          <AnimatedButton className="justify-center" onClick={() => openCreditsCheckout('credits_upload')}>
                             Comprar
                           </AnimatedButton>
                         </div>

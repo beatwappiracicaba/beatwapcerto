@@ -137,7 +137,7 @@ const Profile = sequelize.define('Profile', {
   plano: {
     type: DataTypes.STRING,
     allowNull: true,
-    defaultValue: 'avulso'
+    defaultValue: 'Avulso'
   },
   creditos_envio: {
     type: DataTypes.INTEGER,

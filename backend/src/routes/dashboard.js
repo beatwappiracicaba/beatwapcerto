@@ -197,7 +197,7 @@ router.post('/profile/cancel-plan', auth, async (req, res) => {
     const canCancel = plan.includes('mensal') || plan.includes('anual');
     if (!canCancel) return res.status(400).json({ ok: false, error: 'Nenhum plano ativo para cancelar' });
 
-    existing.plano = 'Gratuito';
+    existing.plano = 'Avulso';
     existing.plan_started_at = null;
     await existing.save();
 

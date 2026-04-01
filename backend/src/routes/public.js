@@ -778,6 +778,7 @@ router.get('/profiles/:id', async (req, res) => {
 
 router.put('/profiles/:id', auth, async (req, res) => {
   try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
     const id = String(req.params.id || '').trim();
     const allowed = ['plano', 'bonus_quota', 'plan_started_at'];
     const patch = {};
@@ -1702,14 +1703,24 @@ router.get('/users/:id/quota', async (req, res) => {
   try {
     const id = String(req.params.id || '').trim();
     const user = await Profile.findByPk(id);
-    const planRaw = String(user?.plano || 'sem plano');
+    const planRaw = String(user?.plano || '');
     const plan = planRaw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const creditos_envio = Number(user?.creditos_envio || 0);
     const creditos_hit_semana = Number(user?.creditos_hit_semana || 0);
+    let plano = 'Sem Plano';
+    if (plan.includes('vitalicio') || plan.includes('lifetime')) {
+      plano = 'Vitalicio';
+    } else if (plan.includes('anual')) {
+      plano = 'Anual';
+    } else if (plan.includes('mensal') || plan.includes('premium')) {
+      plano = 'Mensal';
+    } else if (plan.includes('avulso') || plan.includes('gratuito') || plan.includes('free')) {
+      plano = 'Avulso';
+    }
     let uploads_remaining = 0;
     if (plan.includes('vitalicio') || plan.includes('lifetime')) {
       uploads_remaining = Number.MAX_SAFE_INTEGER;
-    } else if (plan.includes('avulso')) {
+    } else if (plan.includes('avulso') || plan.includes('gratuito') || plan.includes('free')) {
       uploads_remaining = 1;
     } else if (plan.includes('mensal')) {
       uploads_remaining = 4;
@@ -1720,14 +1731,14 @@ router.get('/users/:id/quota', async (req, res) => {
     }
     res.json({
       uploads_remaining,
-      plano: user?.plano || 'sem plano',
+      plano,
       bonus_quota: Number(user?.bonus_quota || 0),
       plan_started_at: user?.plan_started_at || null,
       creditos_envio,
       creditos_hit_semana
     });
   } catch {
-    res.json({ uploads_remaining: 0, plano: 'sem plano', bonus_quota: 0, plan_started_at: null, creditos_envio: 0, creditos_hit_semana: 0 });
+    res.json({ uploads_remaining: 0, plano: 'Sem Plano', bonus_quota: 0, plan_started_at: null, creditos_envio: 0, creditos_hit_semana: 0 });
   }
 });
 
@@ -2045,7 +2056,9 @@ async function grantAccessForOrder(order, payment, transaction) {
   if (productType === 'plan') {
     if (productKey === 'mensal') updates.plano = 'Mensal';
     if (productKey === 'anual') updates.plano = 'Anual';
-    if (productKey === 'vitalicio' || productKey === 'vitalício') updates.plano = 'Vitalício';
+    if (productKey === 'vitalicio' || productKey === 'vitalício') updates.plano = 'Vitalicio';
+    if (productKey === 'avulso' || productKey === 'gratuito') updates.plano = 'Avulso';
+    if (updates.plano) updates.plan_started_at = new Date();
   }
 
   if (productType === 'credits_upload') {

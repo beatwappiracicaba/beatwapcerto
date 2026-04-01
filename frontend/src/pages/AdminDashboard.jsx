@@ -360,7 +360,7 @@ export const AdminArtists = () => {
 
   useEffect(() => {
     const loadPlan = async () => {
-      if (!selectedArtist) { setPlanForm({ plano: 'Gratuito', bonus_quota: 0, plan_started_at: '' }); return; }
+      if (!selectedArtist) { setPlanForm({ plano: 'Avulso', bonus_quota: 0, plan_started_at: '' }); return; }
       const data = await apiClient.get(`/users/${selectedArtist}/quota`);
       setPlanForm({
         plano: data?.plano || 'Avulso',
@@ -435,7 +435,7 @@ export const AdminArtists = () => {
       if (planForm.plan_started_at) {
         update.plan_started_at = new Date(planForm.plan_started_at).toISOString();
       }
-      await apiClient.put(`/profiles/${selectedArtist}`, update);
+      await apiClient.put(`/admin/profiles/${selectedArtist}`, update);
       addToast('Plano do artista atualizado', 'success');
     } catch {
       addToast('Falha ao atualizar plano', 'error');
@@ -1577,7 +1577,7 @@ export const AdminComposers = () => {
       if (bio) updateData.bio = bio;
       if (avatar_url) updateData.avatar_url = avatar_url;
       if (Object.keys(updateData).length) {
-        await apiClient.put(`/profiles/${selectedComposer}`, updateData);
+        await apiClient.put(`/admin/profiles/${selectedComposer}`, updateData);
       }
       addToast('Perfil do compositor atualizado', 'success');
       setIsProfileOpen(false);
@@ -1594,7 +1594,7 @@ export const AdminComposers = () => {
         bonus_quota: Number(planForm.bonus_quota || 0),
       };
       if (planForm.plan_started_at) update.plan_started_at = new Date(planForm.plan_started_at).toISOString();
-      await apiClient.put(`/profiles/${selectedComposer}`, update);
+      await apiClient.put(`/admin/profiles/${selectedComposer}`, update);
       addToast('Plano do compositor atualizado', 'success');
     } catch {
       addToast('Falha ao atualizar plano', 'error');

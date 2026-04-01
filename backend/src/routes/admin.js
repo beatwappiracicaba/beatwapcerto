@@ -643,7 +643,8 @@ router.put('/admin/profiles/:id', auth, async (req, res) => {
     const allowed = [
       'nome','email','bio','genero_musical',
       'youtube_url','spotify_url','deezer_url','tiktok_url','instagram_url','site_url',
-      'avatar_url'
+      'avatar_url',
+      'plano','bonus_quota','plan_started_at'
     ];
     const patch = {};
     for (const k of allowed) {

@@ -31,9 +31,10 @@ function normalizeCargoInput(value) {
 function normalizePlanoInput(value) {
   const s = String(value || '').trim().toLowerCase();
   if (!s) return null;
-  if (s === 'avulso') return 'avulso';
-  if (s === 'mensal') return 'mensal';
-  if (s === 'premium') return 'premium';
+  if (s === 'avulso' || s === 'gratuito' || s === 'free') return 'Avulso';
+  if (s === 'mensal' || s === 'premium') return 'Mensal';
+  if (s === 'anual') return 'Anual';
+  if (s === 'vitalicio' || s === 'vitalício' || s === 'lifetime') return 'Vitalicio';
   return String(value || '').trim();
 }
 
@@ -189,7 +190,7 @@ router.post('/register', async (req, res) => {
     if (!v.ok) return res.status(400).json({ ok: false, error: v.error });
 
     const hash = await bcrypt.hash(password, 10);
-    const plano = 'avulso';
+    const plano = 'Avulso';
     const acIn = req.body.access_control;
     let access_control = null;
     if (acIn && typeof acIn === 'object') {
@@ -500,7 +501,7 @@ router.post('/register-with-invite', async (req, res) => {
     if (!v.ok) return res.status(400).json({ ok: false, error: v.error });
 
     const hash = await bcrypt.hash(password, 10);
-    const plano = normalizePlanoInput(req.body.plano) || normalizePlanoInput(invite.plano) || 'avulso';
+    const plano = normalizePlanoInput(req.body.plano) || normalizePlanoInput(invite.plano) || 'Avulso';
     const access_control = (invite.access_control && typeof invite.access_control === 'object')
       ? invite.access_control
       : { verified: true, chat: true };
