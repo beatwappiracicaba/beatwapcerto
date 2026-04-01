@@ -215,7 +215,10 @@ export const AdminSettings = () => {
         () => apiClient.get('/hit_of_week'),
       ]);
       setHitAdmin(data || null);
-      setHitDraft(data ? { ...data } : null);
+      setHitDraft(data ? {
+        ...data,
+        theme_ideas: Array.isArray(data?.theme_ideas) ? data.theme_ideas : ['Sofrência que dói', 'Música de bar', 'Pisadinha apaixonada', 'Refrão chiclete', 'História de traição']
+      } : null);
     } catch {
       setHitAdmin(null);
       setHitDraft(null);
@@ -228,6 +231,7 @@ export const AdminSettings = () => {
     try {
       const payload = {
         theme: hitDraft.theme,
+        theme_ideas: Array.isArray(hitDraft.theme_ideas) ? hitDraft.theme_ideas : [],
         home_subtitle: hitDraft.home_subtitle,
         home_helper_text: hitDraft.home_helper_text,
         starts_at: hitDraft.starts_at || null,
@@ -1216,6 +1220,30 @@ export const AdminSettings = () => {
                     onChange={(e) => setHitDraft((prev) => prev ? { ...prev, theme: e.target.value } : prev)}
                     className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
                     placeholder="Hit da Semana BeatWap"
+                  />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <div className="text-xs text-gray-400">Ideias de tema (1 por linha)</div>
+                  <textarea
+                    value={Array.isArray(hitDraft?.theme_ideas) ? hitDraft.theme_ideas.join('\n') : ''}
+                    onChange={(e) => {
+                      const rows = String(e.target.value || '').split(/\r?\n/);
+                      const cleaned = [];
+                      const seen = new Set();
+                      for (const r of rows) {
+                        const s = String(r || '').trim();
+                        if (!s) continue;
+                        const key = s.toLowerCase();
+                        if (seen.has(key)) continue;
+                        seen.add(key);
+                        cleaned.push(s);
+                        if (cleaned.length >= 30) break;
+                      }
+                      setHitDraft((prev) => (prev ? { ...prev, theme_ideas: cleaned } : prev));
+                    }}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none min-h-[80px]"
+                    rows={4}
+                    placeholder={'Sofrência que dói\nMúsica de bar\nPisadinha apaixonada'}
                   />
                 </div>
                 <div className="space-y-1">

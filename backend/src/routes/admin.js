@@ -400,6 +400,7 @@ async function putHitAdmin(req, res) {
     if (!hit) return res.status(400).json({ error: 'Desafio indisponível' });
 
     const theme = Object.prototype.hasOwnProperty.call(req.body, 'theme') ? String(req.body.theme || '').trim() : null;
+    const theme_ideas_raw = Object.prototype.hasOwnProperty.call(req.body, 'theme_ideas') ? req.body.theme_ideas : undefined;
     const home_subtitle = Object.prototype.hasOwnProperty.call(req.body, 'home_subtitle') ? String(req.body.home_subtitle || '').trim() : null;
     const home_helper_text = Object.prototype.hasOwnProperty.call(req.body, 'home_helper_text') ? String(req.body.home_helper_text || '').trim() : null;
     const starts_at = Object.prototype.hasOwnProperty.call(req.body, 'starts_at') ? (req.body.starts_at || null) : null;
@@ -407,6 +408,25 @@ async function putHitAdmin(req, res) {
     const entry_fee = Object.prototype.hasOwnProperty.call(req.body, 'entry_fee') ? Number(req.body.entry_fee) : null;
 
     if (theme !== null) hit.theme = theme || hit.theme;
+    if (theme_ideas_raw !== undefined) {
+      const next = Array.isArray(theme_ideas_raw)
+        ? theme_ideas_raw
+        : typeof theme_ideas_raw === 'string'
+          ? String(theme_ideas_raw).split(/\r?\n/)
+          : [];
+      const cleaned = [];
+      const seen = new Set();
+      for (const row of next) {
+        const s = String(row || '').trim();
+        if (!s) continue;
+        const key = s.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        cleaned.push(s);
+        if (cleaned.length >= 30) break;
+      }
+      hit.theme_ideas = cleaned;
+    }
     if (home_subtitle !== null) hit.home_subtitle = home_subtitle;
     if (home_helper_text !== null) hit.home_helper_text = home_helper_text;
     if (starts_at !== null) hit.starts_at = starts_at;

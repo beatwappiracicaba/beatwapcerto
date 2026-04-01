@@ -467,6 +467,7 @@ router.get('/home', async (req, res) => {
     const publicHit = hit ? {
       id: hit.id,
       theme: hit.theme,
+      theme_ideas: Array.isArray(hit.theme_ideas) ? hit.theme_ideas : [],
       home_subtitle: hit.home_subtitle || null,
       home_helper_text: hit.home_helper_text || null,
       starts_at: hit.starts_at || null,
@@ -529,6 +530,7 @@ router.get('/hit-of-week', async (req, res) => {
     res.json({
       id: hit.id,
       theme: hit.theme,
+      theme_ideas: Array.isArray(hit.theme_ideas) ? hit.theme_ideas : [],
       home_subtitle: hit.home_subtitle || null,
       home_helper_text: hit.home_helper_text || null,
       starts_at: hit.starts_at || null,

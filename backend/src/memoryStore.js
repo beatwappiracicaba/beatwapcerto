@@ -56,6 +56,7 @@ function ensureDefaults(m) {
     m.hit_of_week = {
       id: `hit_${Date.now()}`,
       theme: 'Hit da Semana BeatWap',
+      theme_ideas: ['Sofrência que dói', 'Música de bar', 'Pisadinha apaixonada', 'Refrão chiclete', 'História de traição'],
       home_subtitle: 'Sua música pode ser a próxima a estourar',
       home_helper_text: 'Para participar, envie uma nova composição no seu painel e marque "Participar do Hit da Semana".',
       starts_at: null,
@@ -70,6 +71,7 @@ function ensureDefaults(m) {
   } else {
     if (!m.hit_of_week.id) m.hit_of_week.id = `hit_${Date.now()}`;
     if (!m.hit_of_week.theme) m.hit_of_week.theme = 'Hit da Semana BeatWap';
+    if (!Array.isArray(m.hit_of_week.theme_ideas)) m.hit_of_week.theme_ideas = ['Sofrência que dói', 'Música de bar', 'Pisadinha apaixonada', 'Refrão chiclete', 'História de traição'];
     if (!Object.prototype.hasOwnProperty.call(m.hit_of_week, 'home_subtitle')) m.hit_of_week.home_subtitle = 'Sua música pode ser a próxima a estourar';
     if (!Object.prototype.hasOwnProperty.call(m.hit_of_week, 'home_helper_text')) m.hit_of_week.home_helper_text = 'Para participar, envie uma nova composição no seu painel e marque "Participar do Hit da Semana".';
     if (!Object.prototype.hasOwnProperty.call(m.hit_of_week, 'starts_at')) m.hit_of_week.starts_at = null;

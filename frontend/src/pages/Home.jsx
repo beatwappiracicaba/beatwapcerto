@@ -2000,7 +2000,10 @@ const Home = () => {
 
                 <div className="text-sm font-extrabold text-white mb-3">Ideias de tema</div>
                 <div className="flex flex-wrap gap-2 text-xs">
-                  {['Sofrência que dói', 'Música de bar', 'Pisadinha apaixonada', 'Refrão chiclete', 'História de traição'].map((t) => (
+                  {(Array.isArray(hitOfWeek?.theme_ideas) && hitOfWeek.theme_ideas.length
+                    ? hitOfWeek.theme_ideas
+                    : ['Sofrência que dói', 'Música de bar', 'Pisadinha apaixonada', 'Refrão chiclete', 'História de traição']
+                  ).map((t) => (
                     <span key={t} className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-200">
                       {t}
                     </span>
