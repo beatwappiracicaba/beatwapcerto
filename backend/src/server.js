@@ -114,6 +114,52 @@ app.get(['/health', '/api/health'], async (req, res) => {
   }
 });
 
+app.get('/pagamento/retorno', (req, res) => {
+  const fe = String(process.env.FRONTEND_PUBLIC_URL || '').trim().replace(/\/+$/g, '');
+  const qs = req.originalUrl && String(req.originalUrl).includes('?')
+    ? String(req.originalUrl).slice(String(req.originalUrl).indexOf('?'))
+    : '';
+  const target = fe ? `${fe}/pagamento/retorno${qs}` : '';
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.status(200).send(`<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Aguardando confirmação</title>
+    ${target ? `<meta http-equiv="refresh" content="1;url=${target.replace(/"/g, '&quot;')}" />` : ''}
+    <style>
+      body { margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:#000; color:#fff; }
+      .wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+      .card { width:100%; max-width:720px; border:1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); border-radius:18px; padding:22px; }
+      .title { font-size:22px; font-weight:800; margin:0 0 10px 0; }
+      .sub { margin:0 0 16px 0; color: rgba(255,255,255,.72); line-height:1.45; }
+      .row { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+      .btn { appearance:none; border:0; cursor:pointer; font-weight:800; padding:12px 14px; border-radius:12px; background:#f5c542; color:#111; }
+      .btn2 { appearance:none; border:1px solid rgba(255,255,255,.2); cursor:pointer; font-weight:800; padding:12px 14px; border-radius:12px; background:transparent; color:#fff; }
+      .muted { margin-top:12px; font-size:12px; color: rgba(255,255,255,.55); word-break: break-word; }
+      code { background: rgba(255,255,255,.06); padding:2px 6px; border-radius:8px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <h1 class="title">Aguardando confirmação</h1>
+        <p class="sub">Recebemos o seu retorno do pagamento. Estamos confirmando a transação com o Mercado Pago. Isso pode levar alguns segundos.</p>
+        <p class="sub">Seu acesso só é liberado após confirmação <b>approved</b> via webhook (segurança antifraude).</p>
+        <div class="row">
+          ${target ? `<button class="btn" onclick="window.location.href='${target.replace(/'/g, '&#39;')}'">Verificar pagamento</button>` : `<button class="btn2" onclick="window.location.reload()">Recarregar</button>`}
+          ${target ? `<button class="btn2" onclick="window.location.href='${target.replace(/'/g, '&#39;')}'">Ir para a página de confirmação</button>` : ''}
+        </div>
+        <div class="muted">Rota: <code>/pagamento/retorno</code>${target ? `<br/>Redirecionando para: <code>${target.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code>` : ''}</div>
+      </div>
+    </div>
+    ${target ? `<script>setTimeout(function(){ window.location.href='${target.replace(/'/g, "\\'")}'; }, 900);</script>` : ''}
+  </body>
+</html>`);
+});
+
 const publicRoutes = require('./routes/public');
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api', publicRoutes);
