@@ -767,7 +767,28 @@ router.get('/sponsors', (req, res) => {
 router.get('/composers', async (req, res) => {
   try {
     const composers = await Profile.findAll({ where: { cargo: 'Compositor' } });
-    res.json(composers);
+    const compIds = Array.from(
+      new Set(
+        (Array.isArray(memory.compositions) ? memory.compositions : [])
+          .flatMap((c) => [c?.composer_id, c?.composer_partner_id])
+          .filter(Boolean)
+          .map(String)
+      )
+    ).slice(0, 500);
+
+    let artistsWithCompositions = [];
+    if (compIds.length) {
+      try {
+        artistsWithCompositions = await Profile.findAll({ where: { cargo: 'Artista', id: compIds } });
+      } catch {
+        artistsWithCompositions = [];
+      }
+    }
+
+    const merged = new Map();
+    (Array.isArray(composers) ? composers : []).forEach((p) => merged.set(String(p?.id || ''), p));
+    (Array.isArray(artistsWithCompositions) ? artistsWithCompositions : []).forEach((p) => merged.set(String(p?.id || ''), p));
+    res.json(Array.from(merged.values()).filter((p) => p && p.id));
   } catch {
     res.json([]);
   }
@@ -2064,7 +2085,6 @@ router.get('/profiles/:id/recorded-musics', async (req, res) => {
   const list = memory.musics
     .filter(m => String(m.composer_partner_id) === String(composerId))
     .filter(m => String(m.status).toLowerCase() === 'aprovado')
-    .filter(m => m.is_beatwap_produced === true || String(m.produced_by).toLowerCase() === 'beatwap')
     .map(m => {
       const arr = Array.isArray(memory.likes[m.id]) ? memory.likes[m.id] : [];
       return { ...m, likes_count: arr.length };

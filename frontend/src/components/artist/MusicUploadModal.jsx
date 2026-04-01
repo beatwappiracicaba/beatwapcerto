@@ -17,6 +17,29 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
   const activeUser = targetArtist ? { id: targetArtist.id } : user;
   const isProducerMode = !!targetArtist;
 
+  const createEmptyTrack = () => ({
+    titulo: '',
+    estilo: '',
+    isrc: '',
+    has_feat: false,
+    feat_name: '',
+    composer: '',
+    producer: '',
+    beatwap_feat_artist_ids: [],
+    is_beatwap_composer_partner: false,
+    composer_partner_id: null,
+    has_external_composers: false,
+    external_composers: [],
+    external_composer_input: '',
+    audio_file: null,
+    authorization_file: null,
+    upload_status: 'idle',
+    upload_progress: 0,
+    audio_url: null,
+    authorization_url: null,
+    upload_error: null
+  });
+
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     titulo: '',
@@ -50,6 +73,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
   const [errors, setErrors] = useState({});
   const [artistOptions, setArtistOptions] = useState([]);
   const [composerOptions, setComposerOptions] = useState([]);
+  const [activeAlbumTrackIndex, setActiveAlbumTrackIndex] = useState(null);
 
   useEffect(() => {
     const loadArtists = async () => {
@@ -179,7 +203,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
   const addTrack = () => {
     setFormData(prev => ({ 
       ...prev, 
-      tracks: [...prev.tracks, { titulo: '', estilo: '', isrc: '', has_feat: false, feat_name: '', composer: '', producer: '', beatwap_feat_artist_ids: [], is_beatwap_composer_partner: false, composer_partner_id: null, has_external_composers: false, external_composers: [], external_composer_input: '', audio_file: null, authorization_file: null, upload_status: 'idle', upload_progress: 0, audio_url: null, authorization_url: null, upload_error: null }] 
+      tracks: [...prev.tracks, createEmptyTrack()] 
     }));
   };
   const removeTrack = (index) => {
@@ -187,6 +211,12 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       ...prev,
       tracks: prev.tracks.filter((_, i) => i !== index)
     }));
+    setActiveAlbumTrackIndex((prev) => {
+      if (prev === null || prev === undefined) return prev;
+      if (prev === index) return null;
+      if (prev > index) return prev - 1;
+      return prev;
+    });
   };
   const updateTrackField = (index, field, value) => {
     setFormData(prev => {
@@ -282,6 +312,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       updateTrackField(index, 'upload_progress', 100);
       updateTrackField(index, 'upload_status', 'uploaded');
       addToast(`Faixa ${index + 1} enviada`, 'success');
+      setActiveAlbumTrackIndex(null);
     } catch (err) {
       updateTrackField(index, 'upload_status', 'error');
       updateTrackField(index, 'upload_error', err?.message || 'Falha ao enviar faixa');
@@ -769,7 +800,17 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                     type="checkbox" 
                     id="is-album" 
                     checked={formData.is_album} 
-                    onChange={(e) => setFormData(prev => ({ ...prev, is_album: e.target.checked, audio_files: e.target.checked ? prev.audio_files : [], audio_file: e.target.checked ? null : prev.audio_file }))}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setFormData((prev) => {
+                        if (checked) {
+                          const tracks = Array.isArray(prev.tracks) && prev.tracks.length > 0 ? prev.tracks : [createEmptyTrack()];
+                          return { ...prev, is_album: true, tracks, audio_files: [], audio_file: null };
+                        }
+                        return { ...prev, is_album: false, tracks: [], audio_files: [], audio_file: prev.audio_file };
+                      });
+                      setActiveAlbumTrackIndex(checked ? 0 : null);
+                    }}
                   />
                   <label htmlFor="is-album" className="text-sm text-gray-300">Enviar álbum (várias faixas)</label>
                 </div>
@@ -777,278 +818,27 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
             </div>
 
             {/* Audio & Docs */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-400">Arquivo(s) de Áudio (MP3/WAV)</label>
-                {!formData.is_album ? (
-                  <>
-                    <div className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-xl">
-                      <div className="p-2 bg-beatwap-gold/20 rounded-lg text-beatwap-gold">
-                        <Music size={20} />
-                      </div>
-                      <div className="flex-1 overflow-hidden">
-                        <p className="text-sm text-white truncate">{formData.audio_file ? formData.audio_file.name : 'Nenhum arquivo'}</p>
-                      </div>
-                      <label className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs cursor-pointer transition-colors">
-                        Escolher
-                        <input type="file" accept=".mp3,.wav" className="hidden" onChange={(e) => handleFileChange(e, 'audio_file')} />
-                      </label>
+            {!formData.is_album ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-400">Arquivo(s) de Áudio (MP3/WAV)</label>
+                  <div className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-xl">
+                    <div className="p-2 bg-beatwap-gold/20 rounded-lg text-beatwap-gold">
+                      <Music size={20} />
                     </div>
-                    {previews.audio && (
-                      <audio controls src={previews.audio} className="w-full h-8 mt-2" />
-                    )}
-                  </>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-400">Faixas</span>
-                      <button 
-                        onClick={addTrack} 
-                        className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs cursor-pointer transition-colors"
-                      >
-                        Adicionar Faixa
-                      </button>
+                    <div className="flex-1 overflow-hidden">
+                      <p className="text-sm text-white truncate">{formData.audio_file ? formData.audio_file.name : 'Nenhum arquivo'}</p>
                     </div>
-                    {formData.tracks.map((t, idx) => (
-                      <div key={idx} className="p-3 bg-white/5 border border-white/10 rounded-xl space-y-2">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-xs font-bold text-gray-500">Faixa #{idx + 1}</span>
-                          <button 
-                            onClick={() => removeTrack(idx)}
-                            className="p-1.5 hover:bg-red-500/10 text-gray-500 hover:text-red-500 rounded-lg transition-colors"
-                            title="Remover faixa"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          <AnimatedInput 
-                            label="Título da faixa" 
-                            value={t.titulo} 
-                            onChange={(e) => updateTrackField(idx, 'titulo', e.target.value)} 
-                            placeholder="Ex: Intro (Prod. ...)"
-                          />
-                          <AnimatedInput 
-                            label="Estilo / Gênero da faixa" 
-                            value={t.estilo} 
-                            onChange={(e) => updateTrackField(idx, 'estilo', e.target.value)} 
-                            placeholder="Ex: Trap, Funk, Pop"
-                          />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          <AnimatedInput 
-                            label="Compositor principal" 
-                            value={t.composer || ''} 
-                            onChange={(e) => updateTrackField(idx, 'composer', e.target.value)} 
-                            placeholder="Nome do compositor"
-                          />
-                          <AnimatedInput 
-                            label="Produtor" 
-                            value={t.producer || ''} 
-                            onChange={(e) => updateTrackField(idx, 'producer', e.target.value)} 
-                            placeholder="Produtor"
-                          />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          <AnimatedInput 
-                            label="ISRC (Opcional)" 
-                            value={t.isrc || ''} 
-                            onChange={(e) => updateTrackField(idx, 'isrc', e.target.value)} 
-                            placeholder="ISRC"
-                          />
-                          <div className="bg-white/5 border border-white/10 rounded-xl p-2">
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="text-xs font-medium text-gray-400">Possui Feat?</label>
-                              <input 
-                                type="checkbox" 
-                                checked={t.has_feat || false} 
-                                onChange={(e) => updateTrackField(idx, 'has_feat', e.target.checked)}
-                                className="w-4 h-4 accent-beatwap-gold rounded cursor-pointer"
-                              />
-                            </div>
-                            {t.has_feat && (
-                              <div className="space-y-2">
-                                <AnimatedInput 
-                                  label="Nome do Feat" 
-                                  value={t.feat_name || ''} 
-                                  onChange={(e) => updateTrackField(idx, 'feat_name', e.target.value)} 
-                                  placeholder="Nome do Artista"
-                                />
-                                <div>
-                                  <div className="text-xs font-medium text-gray-400 mb-1">Selecionar artistas BeatWap</div>
-                                  <div className="max-h-32 overflow-auto grid grid-cols-1 md:grid-cols-2 gap-1">
-                                    {artistOptions.map(a => {
-                                      const label = a.nome || a.nome_completo_razao_social || 'Sem nome';
-                                      const checked = (t.beatwap_feat_artist_ids || []).includes(a.id);
-                                      return (
-                                        <label key={a.id} className="flex items-center gap-2 text-xs text-gray-300">
-                                          <input
-                                            type="checkbox"
-                                            checked={checked}
-                                            onChange={() => toggleTrackFeatArtist(idx, a.id)}
-                                            className="w-4 h-4 accent-beatwap-gold rounded cursor-pointer"
-                                          />
-                                          <span>{label}</span>
-                                        </label>
-                                      );
-                                    })}
-                                    {artistOptions.length === 0 && (
-                                      <div className="text-xs text-gray-500">Nenhum artista BeatWap encontrado</div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={!!t.is_beatwap_composer_partner}
-                            onChange={(e) => updateTrackField(idx, 'is_beatwap_composer_partner', e.target.checked)}
-                            className="w-4 h-4 accent-beatwap-gold rounded cursor-pointer"
-                          />
-                          <label className="text-xs text-gray-300">Compositor é parceiro BeatWap</label>
-                        </div>
-                        {t.is_beatwap_composer_partner && (
-                          <div className="mb-2">
-                            <label className="text-xs font-medium text-gray-400">Selecionar compositor parceiro</label>
-                            <select
-                              className="mt-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white w-full text-xs"
-                              value={t.composer_partner_id || ''}
-                              onChange={(e) => updateTrackField(idx, 'composer_partner_id', e.target.value)}
-                            >
-                              <option value="">Selecione o compositor parceiro</option>
-                              {composerOptions.map(c => (
-                                <option key={c.id} value={c.id}>{c.nome || c.nome_completo_razao_social || 'Sem nome'}</option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={!!t.has_external_composers}
-                            onChange={(e) => updateTrackField(idx, 'has_external_composers', e.target.checked)}
-                            className="w-4 h-4 accent-beatwap-gold rounded cursor-pointer"
-                          />
-                          <label className="text-xs text-gray-300">Tem compositor fora da BeatWap</label>
-                        </div>
-                        {t.has_external_composers && (
-                          <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                              <div className="sm:col-span-2">
-                                <AnimatedInput
-                                  label="Nome do compositor (fora da BeatWap)"
-                                  value={t.external_composer_input || ''}
-                                  onChange={(e) => updateTrackField(idx, 'external_composer_input', e.target.value)}
-                                  placeholder="Digite um nome"
-                                />
-                              </div>
-                              <div className="flex items-end">
-                                <button
-                                  type="button"
-                                  className="w-full px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors"
-                                  onClick={() => {
-                                    const name = String(t.external_composer_input || '').trim();
-                                    if (!name) return;
-                                    const list = Array.isArray(t.external_composers) ? t.external_composers : [];
-                                    const next = list.some((x) => String(x || '').toLowerCase() === name.toLowerCase()) ? list : list.concat(name);
-                                    updateTrackField(idx, 'external_composers', next);
-                                    updateTrackField(idx, 'external_composer_input', '');
-                                  }}
-                                >
-                                  Adicionar
-                                </button>
-                              </div>
-                            </div>
-                            {Array.isArray(t.external_composers) && t.external_composers.length > 0 && (
-                              <div className="flex flex-wrap gap-2">
-                                {t.external_composers.map((n) => (
-                                  <div key={n} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/30 border border-white/10 text-xs text-gray-200">
-                                    <span className="truncate max-w-[220px]">{n}</span>
-                                    <button
-                                      type="button"
-                                      className="text-gray-400 hover:text-white"
-                                      onClick={() => updateTrackField(idx, 'external_composers', (t.external_composers || []).filter((x) => x !== n))}
-                                    >
-                                      <X size={14} />
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          <div className="flex items-center gap-3 p-3 bg-black/20 border border-white/10 rounded-xl">
-                            <div className="p-2 bg-beatwap-gold/20 rounded-lg text-beatwap-gold">
-                              <Music size={20} />
-                            </div>
-                            <div className="flex-1 overflow-hidden">
-                              <p className="text-xs text-white truncate">{t.audio_file ? t.audio_file.name : 'Nenhum arquivo'}</p>
-                            </div>
-                            <label className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs cursor-pointer transition-colors">
-                              Áudio
-                              <input type="file" accept=".mp3,.wav" className="hidden" onChange={(e) => handleTrackFileChange(idx, e, 'audio_file')} />
-                            </label>
-                          </div>
-                          <div className="flex items-center gap-3 p-3 bg-black/20 border border-white/10 rounded-xl">
-                            <div className="p-2 bg-blue-500/20 rounded-lg text-blue-500">
-                              <FileText size={20} />
-                            </div>
-                            <div className="flex-1 overflow-hidden">
-                              <p className="text-xs text-white truncate">{t.authorization_file ? t.authorization_file.name : 'Nenhum arquivo'}</p>
-                            </div>
-                            <label className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs cursor-pointer transition-colors">
-                              Autorização (opcional)
-                              <input type="file" accept=".pdf,.doc,.docx,.jpg,.png" className="hidden" onChange={(e) => handleTrackFileChange(idx, e, 'authorization_file')} />
-                            </label>
-                          </div>
-                        </div>
-                        <div className="pt-2 space-y-2">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="text-xs text-gray-400">
-                              {t.upload_status === 'uploaded' && 'Status: enviada'}
-                              {t.upload_status === 'uploading' && `Enviando... ${t.upload_progress || 0}%`}
-                              {t.upload_status === 'error' && 'Status: erro no envio'}
-                              {(t.upload_status === 'idle' || !t.upload_status) && 'Status: não enviada'}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => uploadAlbumTrack(idx)}
-                              disabled={loading || t.upload_status === 'uploading'}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                                t.upload_status === 'uploaded'
-                                  ? 'bg-green-500/15 text-green-400 hover:bg-green-500/20'
-                                  : 'bg-white/10 text-white hover:bg-white/20'
-                              } ${loading || t.upload_status === 'uploading' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                              {t.upload_status === 'uploaded' ? 'Reenviar música' : 'Enviar música'}
-                            </button>
-                          </div>
-                          {t.upload_status === 'uploading' && (
-                            <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
-                              <div
-                                className="h-2 bg-beatwap-gold rounded-full transition-all"
-                                style={{ width: `${Math.max(0, Math.min(100, Number(t.upload_progress || 0)))}%` }}
-                              />
-                            </div>
-                          )}
-                          {t.upload_error && (
-                            <div className="text-xs text-red-400">{t.upload_error}</div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    {formData.tracks.length === 0 && (
-                      <div className="text-xs text-gray-500">Nenhuma faixa adicionada.</div>
-                    )}
+                    <label className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs cursor-pointer transition-colors">
+                      Escolher
+                      <input type="file" accept=".mp3,.wav" className="hidden" onChange={(e) => handleFileChange(e, 'audio_file')} />
+                    </label>
                   </div>
-                )}
-              </div>
+                  {previews.audio && (
+                    <audio controls src={previews.audio} className="w-full h-8 mt-2" />
+                  )}
+                </div>
 
-              {!formData.is_album && (
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-400">Autorização (Opcional)</label>
                   <div className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-xl">
@@ -1064,8 +854,355 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                     </label>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <label className="text-sm font-bold text-gray-400">Faixas do Álbum</label>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Lista de faixas</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextIndex = formData.tracks.length;
+                          addTrack();
+                          setActiveAlbumTrackIndex(nextIndex);
+                        }}
+                        className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs cursor-pointer transition-colors"
+                      >
+                        Adicionar Faixa
+                      </button>
+                    </div>
+                    {formData.tracks.length === 0 ? (
+                      <div className="text-xs text-gray-500">Nenhuma faixa adicionada.</div>
+                    ) : (
+                      <div className="space-y-2">
+                        {formData.tracks.map((t, idx) => {
+                          const status = String(t.upload_status || 'idle');
+                          const statusLabel =
+                            status === 'uploaded'
+                              ? 'Enviada'
+                              : status === 'uploading'
+                                ? 'Enviando'
+                                : status === 'error'
+                                  ? 'Erro'
+                                  : 'Não enviada';
+                          const statusClass =
+                            status === 'uploaded'
+                              ? 'border-green-500/30 bg-green-500/10 text-green-400'
+                              : status === 'uploading'
+                                ? 'border-beatwap-gold/30 bg-beatwap-gold/10 text-beatwap-gold'
+                                : status === 'error'
+                                  ? 'border-red-500/30 bg-red-500/10 text-red-400'
+                                  : 'border-white/10 bg-white/5 text-gray-300';
+                          return (
+                            <div
+                              key={idx}
+                              onClick={() => setActiveAlbumTrackIndex(idx)}
+                              className={`p-3 rounded-xl border transition-colors cursor-pointer ${
+                                activeAlbumTrackIndex === idx ? 'bg-white/10 border-beatwap-gold/30' : 'bg-white/5 border-white/10 hover:bg-white/10'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="text-xs font-bold text-gray-500">Faixa #{idx + 1}</div>
+                                  <div className="text-sm text-white truncate">{String(t.titulo || '').trim() || 'Sem título'}</div>
+                                  <div className="text-xs text-gray-400 truncate">{String(t.estilo || '').trim() || 'Sem gênero'}</div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-[10px] px-2 py-1 rounded-full border ${statusClass}`}>{statusLabel}</span>
+                                  <button
+                                    type="button"
+                                    className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveAlbumTrackIndex(idx);
+                                    }}
+                                  >
+                                    Editar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="p-1.5 hover:bg-red-500/10 text-gray-500 hover:text-red-500 rounded-lg transition-colors"
+                                    title="Remover faixa"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      removeTrack(idx);
+                                    }}
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                    {activeAlbumTrackIndex === null || !formData.tracks[activeAlbumTrackIndex] ? (
+                      <div className="text-sm text-gray-400">Selecione uma faixa para editar ou clique em “Adicionar Faixa”.</div>
+                    ) : (
+                      (() => {
+                        const idx = activeAlbumTrackIndex;
+                        const t = formData.tracks[idx];
+                        return (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <div className="text-xs font-bold text-gray-500">Editando</div>
+                                <div className="text-sm font-bold text-white">Faixa #{idx + 1}</div>
+                              </div>
+                              <button
+                                type="button"
+                                className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors"
+                                onClick={() => setActiveAlbumTrackIndex(null)}
+                              >
+                                Fechar
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              <AnimatedInput
+                                label="Título da faixa"
+                                value={t.titulo}
+                                onChange={(e) => updateTrackField(idx, 'titulo', e.target.value)}
+                                placeholder="Ex: Intro (Prod. ...)"
+                              />
+                              <AnimatedInput
+                                label="Estilo / Gênero da faixa"
+                                value={t.estilo}
+                                onChange={(e) => updateTrackField(idx, 'estilo', e.target.value)}
+                                placeholder="Ex: Trap, Funk, Pop"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              <AnimatedInput
+                                label="Compositor principal"
+                                value={t.composer || ''}
+                                onChange={(e) => updateTrackField(idx, 'composer', e.target.value)}
+                                placeholder="Nome do compositor"
+                              />
+                              <AnimatedInput
+                                label="Produtor"
+                                value={t.producer || ''}
+                                onChange={(e) => updateTrackField(idx, 'producer', e.target.value)}
+                                placeholder="Produtor"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              <AnimatedInput
+                                label="ISRC (Opcional)"
+                                value={t.isrc || ''}
+                                onChange={(e) => updateTrackField(idx, 'isrc', e.target.value)}
+                                placeholder="ISRC"
+                              />
+                              <div className="bg-white/5 border border-white/10 rounded-xl p-2">
+                                <div className="flex items-center justify-between mb-1">
+                                  <label className="text-xs font-medium text-gray-400">Possui Feat?</label>
+                                  <input
+                                    type="checkbox"
+                                    checked={t.has_feat || false}
+                                    onChange={(e) => updateTrackField(idx, 'has_feat', e.target.checked)}
+                                    className="w-4 h-4 accent-beatwap-gold rounded cursor-pointer"
+                                  />
+                                </div>
+                                {t.has_feat && (
+                                  <div className="space-y-2">
+                                    <AnimatedInput
+                                      label="Nome do Feat"
+                                      value={t.feat_name || ''}
+                                      onChange={(e) => updateTrackField(idx, 'feat_name', e.target.value)}
+                                      placeholder="Nome do Artista"
+                                    />
+                                    <div>
+                                      <div className="text-xs font-medium text-gray-400 mb-1">Selecionar artistas BeatWap</div>
+                                      <div className="max-h-32 overflow-auto grid grid-cols-1 md:grid-cols-2 gap-1">
+                                        {artistOptions.map((a) => {
+                                          const label = a.nome || a.nome_completo_razao_social || 'Sem nome';
+                                          const checked = (t.beatwap_feat_artist_ids || []).includes(a.id);
+                                          return (
+                                            <label key={a.id} className="flex items-center gap-2 text-xs text-gray-300">
+                                              <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                onChange={() => toggleTrackFeatArtist(idx, a.id)}
+                                                className="w-4 h-4 accent-beatwap-gold rounded cursor-pointer"
+                                              />
+                                              <span>{label}</span>
+                                            </label>
+                                          );
+                                        })}
+                                        {artistOptions.length === 0 && (
+                                          <div className="text-xs text-gray-500">Nenhum artista BeatWap encontrado</div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={!!t.is_beatwap_composer_partner}
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  updateTrackField(idx, 'is_beatwap_composer_partner', checked);
+                                  if (!checked) updateTrackField(idx, 'composer_partner_id', null);
+                                }}
+                                className="w-4 h-4 accent-beatwap-gold rounded cursor-pointer"
+                              />
+                              <label className="text-xs text-gray-300">Tem compositor parceiro BeatWap</label>
+                            </div>
+                            {t.is_beatwap_composer_partner && (
+                              <div>
+                                <label className="text-xs font-medium text-gray-400">Selecionar compositor parceiro</label>
+                                <select
+                                  className="mt-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white w-full text-xs"
+                                  value={t.composer_partner_id || ''}
+                                  onChange={(e) => updateTrackField(idx, 'composer_partner_id', e.target.value)}
+                                >
+                                  <option value="">Selecione o compositor parceiro</option>
+                                  {composerOptions.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                      {c.nome || c.nome_completo_razao_social || 'Sem nome'}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={!!t.has_external_composers}
+                                onChange={(e) => updateTrackField(idx, 'has_external_composers', e.target.checked)}
+                                className="w-4 h-4 accent-beatwap-gold rounded cursor-pointer"
+                              />
+                              <label className="text-xs text-gray-300">Tem compositor fora da BeatWap</label>
+                            </div>
+                            {t.has_external_composers && (
+                              <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                  <div className="sm:col-span-2">
+                                    <AnimatedInput
+                                      label="Nome do compositor (fora da BeatWap)"
+                                      value={t.external_composer_input || ''}
+                                      onChange={(e) => updateTrackField(idx, 'external_composer_input', e.target.value)}
+                                      placeholder="Digite um nome"
+                                    />
+                                  </div>
+                                  <div className="flex items-end">
+                                    <button
+                                      type="button"
+                                      className="w-full px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors"
+                                      onClick={() => {
+                                        const name = String(t.external_composer_input || '').trim();
+                                        if (!name) return;
+                                        const list = Array.isArray(t.external_composers) ? t.external_composers : [];
+                                        const next = list.some((x) => String(x || '').toLowerCase() === name.toLowerCase()) ? list : list.concat(name);
+                                        updateTrackField(idx, 'external_composers', next);
+                                        updateTrackField(idx, 'external_composer_input', '');
+                                      }}
+                                    >
+                                      Adicionar
+                                    </button>
+                                  </div>
+                                </div>
+                                {Array.isArray(t.external_composers) && t.external_composers.length > 0 && (
+                                  <div className="flex flex-wrap gap-2">
+                                    {t.external_composers.map((n) => (
+                                      <div key={n} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/30 border border-white/10 text-xs text-gray-200">
+                                        <span className="truncate max-w-[220px]">{n}</span>
+                                        <button
+                                          type="button"
+                                          className="text-gray-400 hover:text-white"
+                                          onClick={() => updateTrackField(idx, 'external_composers', (t.external_composers || []).filter((x) => x !== n))}
+                                        >
+                                          <X size={14} />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              <div className="flex items-center gap-3 p-3 bg-black/20 border border-white/10 rounded-xl">
+                                <div className="p-2 bg-beatwap-gold/20 rounded-lg text-beatwap-gold">
+                                  <Music size={20} />
+                                </div>
+                                <div className="flex-1 overflow-hidden">
+                                  <p className="text-xs text-white truncate">{t.audio_file ? t.audio_file.name : 'Nenhum arquivo'}</p>
+                                </div>
+                                <label className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs cursor-pointer transition-colors">
+                                  Áudio
+                                  <input type="file" accept=".mp3,.wav" className="hidden" onChange={(e) => handleTrackFileChange(idx, e, 'audio_file')} />
+                                </label>
+                              </div>
+                              <div className="flex items-center gap-3 p-3 bg-black/20 border border-white/10 rounded-xl">
+                                <div className="p-2 bg-blue-500/20 rounded-lg text-blue-500">
+                                  <FileText size={20} />
+                                </div>
+                                <div className="flex-1 overflow-hidden">
+                                  <p className="text-xs text-white truncate">{t.authorization_file ? t.authorization_file.name : 'Nenhum arquivo'}</p>
+                                </div>
+                                <label className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs cursor-pointer transition-colors">
+                                  Autorização (opcional)
+                                  <input type="file" accept=".pdf,.doc,.docx,.jpg,.png" className="hidden" onChange={(e) => handleTrackFileChange(idx, e, 'authorization_file')} />
+                                </label>
+                              </div>
+                            </div>
+
+                            <div className="pt-2 space-y-2">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="text-xs text-gray-400">
+                                  {t.upload_status === 'uploaded' && 'Status: enviada'}
+                                  {t.upload_status === 'uploading' && `Enviando... ${t.upload_progress || 0}%`}
+                                  {t.upload_status === 'error' && 'Status: erro no envio'}
+                                  {(t.upload_status === 'idle' || !t.upload_status) && 'Status: não enviada'}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => uploadAlbumTrack(idx)}
+                                  disabled={loading || t.upload_status === 'uploading'}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                                    t.upload_status === 'uploaded'
+                                      ? 'bg-green-500/15 text-green-400 hover:bg-green-500/20'
+                                      : 'bg-white/10 text-white hover:bg-white/20'
+                                  } ${loading || t.upload_status === 'uploading' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                  {t.upload_status === 'uploaded' ? 'Reenviar música' : 'Enviar música'}
+                                </button>
+                              </div>
+                              {t.upload_status === 'uploading' && (
+                                <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                                  <div
+                                    className="h-2 bg-beatwap-gold rounded-full transition-all"
+                                    style={{ width: `${Math.max(0, Math.min(100, Number(t.upload_progress || 0)))}%` }}
+                                  />
+                                </div>
+                              )}
+                              {t.upload_error && (
+                                <div className="text-xs text-red-400">{t.upload_error}</div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Additional Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

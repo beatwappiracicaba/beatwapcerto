@@ -367,9 +367,12 @@ const PublicProfile = () => {
 
   const displayName = profile.nome || profile.nome_completo_razao_social || 'Compositor';
   const cargoLower = String(profile.cargo || '').toLowerCase().trim();
-  const itemsToRender = cargoLower === 'produtor'
+  const baseItemsToRender = cargoLower === 'produtor'
     ? (producerTab === 'composicoes' ? producerCompositions : producerProductions)
     : items;
+  const itemsToRender = cargoLower === 'artista'
+    ? (Array.isArray(baseItemsToRender) ? baseItemsToRender.filter((m) => !String(m?.album_id || '').trim()) : [])
+    : baseItemsToRender;
   const phoneDigits = profile.celular ? String(decryptData(profile.celular) || '').replace(/\D/g, '') : '';
   
 
@@ -1013,67 +1016,71 @@ const PublicProfile = () => {
                 </button>
               </div>
             )}
-            <h2 className="text-xl md:text-2xl font-bold flex items-center gap-3 mb-4">
-              <Music className="text-beatwap-gold" />
-              {cargoLower === 'artista'
-                ? 'Músicas Lançadas'
-                : (cargoLower === 'produtor'
-                  ? (producerTab === 'composicoes' ? 'Composições' : 'Produções')
-                  : 'Composições')} ({itemsToRender.length})
-            </h2>
+            {!(cargoLower === 'artista' && albumGroups.length > 0 && itemsToRender.length === 0) && (
+              <>
+                <h2 className="text-xl md:text-2xl font-bold flex items-center gap-3 mb-4">
+                  <Music className="text-beatwap-gold" />
+                  {cargoLower === 'artista'
+                    ? 'Músicas Lançadas'
+                    : (cargoLower === 'produtor'
+                      ? (producerTab === 'composicoes' ? 'Composições' : 'Produções')
+                      : 'Composições')} ({itemsToRender.length})
+                </h2>
 
-            {itemsToRender.length === 0 ? (
-              <div className="text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/10">
-                <Music size={48} className="mx-auto mb-4 opacity-20" />
-                <p className="text-gray-400">
-                  Nenhuma {cargoLower === 'artista' ? 'música' : (cargoLower === 'produtor' ? (producerTab === 'composicoes' ? 'composição' : 'produção') : 'composição')} encontrada.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {itemsToRender.map((item) => (
-                  <motion.div 
-                    key={item.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:bg-white/10 transition-colors group"
-                  >
-                    <div className="aspect-square relative group cursor-pointer" onClick={() => togglePlay(item.id, item.audio_url || item.file_url)}>
-                      {item.cover_url || item.image_url ? (
-                        <img src={sanitizeUrl(item.cover_url || item.image_url)} alt={item.title || item.titulo || 'Capa'} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gray-800 text-gray-600">
-                          <Music size={40} />
+                {itemsToRender.length === 0 ? (
+                  <div className="text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/10">
+                    <Music size={48} className="mx-auto mb-4 opacity-20" />
+                    <p className="text-gray-400">
+                      Nenhuma {cargoLower === 'artista' ? 'música' : (cargoLower === 'produtor' ? (producerTab === 'composicoes' ? 'composição' : 'produção') : 'composição')} encontrada.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {itemsToRender.map((item) => (
+                      <motion.div 
+                        key={item.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:bg-white/10 transition-colors group"
+                      >
+                        <div className="aspect-square relative group cursor-pointer" onClick={() => togglePlay(item.id, item.audio_url || item.file_url)}>
+                          {item.cover_url || item.image_url ? (
+                            <img src={sanitizeUrl(item.cover_url || item.image_url)} alt={item.title || item.titulo || 'Capa'} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gray-800 text-gray-600">
+                              <Music size={40} />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <button className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black hover:scale-110 transition-transform">
+                              {playingTrack === item.id && audioElement && !audioElement.paused ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}
+                            </button>
+                          </div>
                         </div>
-                      )}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black hover:scale-110 transition-transform">
-                          {playingTrack === item.id && audioElement && !audioElement.paused ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-bold text-base md:text-lg mb-1 whitespace-normal break-words">{item.title || item.titulo}</h3>
-                      <p className="text-sm text-beatwap-gold uppercase font-bold tracking-wider mb-3">{item.genre || item.estilo || item.style || 'Gênero'}</p>
-                      
-                      {(cargoLower === 'compositor' || (cargoLower === 'produtor' && producerTab === 'composicoes')) && phoneDigits && (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const title = item.title || item.titulo || '';
-                            const text = encodeURIComponent(`Olá, vi sua composição "${title}" na BeatWap e gostaria de saber mais.`);
-                            window.open(`https://wa.me/55${phoneDigits}?text=${text}`, '_blank');
-                          }}
-                          className="w-full py-2 rounded-lg bg-green-500/10 text-green-400 text-xs font-bold flex items-center justify-center gap-2 hover:bg-green-500/20 transition-colors"
-                        >
-                          <MessageCircle size={14} />
-                          Negociar Obra
-                        </button>
-                      )}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+                        <div className="p-4">
+                          <h3 className="font-bold text-base md:text-lg mb-1 whitespace-normal break-words">{item.title || item.titulo}</h3>
+                          <p className="text-sm text-beatwap-gold uppercase font-bold tracking-wider mb-3">{item.genre || item.estilo || item.style || 'Gênero'}</p>
+                          
+                          {(cargoLower === 'compositor' || (cargoLower === 'produtor' && producerTab === 'composicoes')) && phoneDigits && (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const title = item.title || item.titulo || '';
+                                const text = encodeURIComponent(`Olá, vi sua composição "${title}" na BeatWap e gostaria de saber mais.`);
+                                window.open(`https://wa.me/55${phoneDigits}?text=${text}`, '_blank');
+                              }}
+                              className="w-full py-2 rounded-lg bg-green-500/10 text-green-400 text-xs font-bold flex items-center justify-center gap-2 hover:bg-green-500/20 transition-colors"
+                            >
+                              <MessageCircle size={14} />
+                              Negociar Obra
+                            </button>
+                          )}
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
             {(cargoLower === 'compositor' || cargoLower === 'produtor' || cargoLower === 'artista') && (
               <div className="mt-10">
