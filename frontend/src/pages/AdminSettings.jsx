@@ -65,6 +65,41 @@ export const AdminSettings = () => {
   const [hitDraft, setHitDraft] = useState(null);
   const [hitSaving, setHitSaving] = useState(false);
 
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const formatDateLocal = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const isoToDateInput = (iso) => {
+    const s = String(iso || '').trim();
+    if (!s) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const d = new Date(s);
+    if (!Number.isFinite(d.getTime())) return '';
+    return d.toISOString().slice(0, 10);
+  };
+  const startIsoFromDateInput = (dateStr) => (dateStr ? `${dateStr}T00:00:00.000Z` : '');
+  const endIsoFromDateInput = (dateStr) => (dateStr ? `${dateStr}T23:59:59.999Z` : '');
+  const applyHitPreset = (key) => {
+    if (!hitDraft) return;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    if (key === 'none') {
+      setHitDraft((prev) => (prev ? { ...prev, starts_at: '', ends_at: '' } : prev));
+      return;
+    }
+    if (key === 'today') {
+      const d = formatDateLocal(now);
+      setHitDraft((prev) => (prev ? { ...prev, starts_at: startIsoFromDateInput(d), ends_at: endIsoFromDateInput(d) } : prev));
+      return;
+    }
+    const day = (now.getDay() + 6) % 7;
+    const start = new Date(now);
+    start.setDate(start.getDate() - day + (key === 'next_week' ? 7 : 0));
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    const s = formatDateLocal(start);
+    const e = formatDateLocal(end);
+    setHitDraft((prev) => (prev ? { ...prev, starts_at: startIsoFromDateInput(s), ends_at: endIsoFromDateInput(e) } : prev));
+  };
+
   const validEmail = String(form.email).trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
 
   useEffect(() => {
@@ -193,6 +228,8 @@ export const AdminSettings = () => {
     try {
       const payload = {
         theme: hitDraft.theme,
+        home_subtitle: hitDraft.home_subtitle,
+        home_helper_text: hitDraft.home_helper_text,
         starts_at: hitDraft.starts_at || null,
         ends_at: hitDraft.ends_at || null,
         entry_fee: hitDraft.entry_fee
@@ -1182,22 +1219,87 @@ export const AdminSettings = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <div className="text-xs text-gray-400">Início (ISO ou vazio)</div>
+                  <div className="text-xs text-gray-400">Texto 1 (Home)</div>
                   <input
-                    value={hitDraft?.starts_at || ''}
-                    onChange={(e) => setHitDraft((prev) => prev ? { ...prev, starts_at: e.target.value } : prev)}
+                    value={hitDraft?.home_subtitle || ''}
+                    onChange={(e) => setHitDraft((prev) => prev ? { ...prev, home_subtitle: e.target.value } : prev)}
                     className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
-                    placeholder="2026-03-19T00:00:00.000Z"
+                    placeholder="Sua música pode ser a próxima a estourar"
                   />
                 </div>
                 <div className="space-y-1">
-                  <div className="text-xs text-gray-400">Fim (ISO ou vazio)</div>
-                  <input
-                    value={hitDraft?.ends_at || ''}
-                    onChange={(e) => setHitDraft((prev) => prev ? { ...prev, ends_at: e.target.value } : prev)}
-                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
-                    placeholder="2026-03-26T00:00:00.000Z"
+                  <div className="text-xs text-gray-400">Texto 2 (Home)</div>
+                  <textarea
+                    value={hitDraft?.home_helper_text || ''}
+                    onChange={(e) => setHitDraft((prev) => prev ? { ...prev, home_helper_text: e.target.value } : prev)}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none min-h-[42px]"
+                    rows={2}
+                    placeholder={'Para participar, envie uma nova composição no seu painel e marque "Participar do Hit da Semana".'}
                   />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <div className="text-xs text-gray-400">Período (opções prontas)</div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="px-3 py-2 rounded-xl bg-black/20 border border-white/10 text-xs font-bold text-gray-200 hover:border-white/20 transition-colors"
+                      onClick={() => applyHitPreset('none')}
+                    >
+                      Sem período
+                    </button>
+                    <button
+                      type="button"
+                      className="px-3 py-2 rounded-xl bg-black/20 border border-white/10 text-xs font-bold text-gray-200 hover:border-white/20 transition-colors"
+                      onClick={() => applyHitPreset('none')}
+                    >
+                      Limpar datas
+                    </button>
+                    <button
+                      type="button"
+                      className="px-3 py-2 rounded-xl bg-black/20 border border-white/10 text-xs font-bold text-gray-200 hover:border-white/20 transition-colors"
+                      onClick={() => applyHitPreset('today')}
+                    >
+                      Hoje
+                    </button>
+                    <button
+                      type="button"
+                      className="px-3 py-2 rounded-xl bg-black/20 border border-white/10 text-xs font-bold text-gray-200 hover:border-white/20 transition-colors"
+                      onClick={() => applyHitPreset('this_week')}
+                    >
+                      Semana atual
+                    </button>
+                    <button
+                      type="button"
+                      className="px-3 py-2 rounded-xl bg-black/20 border border-white/10 text-xs font-bold text-gray-200 hover:border-white/20 transition-colors"
+                      onClick={() => applyHitPreset('next_week')}
+                    >
+                      Próxima semana
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs text-gray-400">Início</div>
+                  <input
+                    type="date"
+                    value={isoToDateInput(hitDraft?.starts_at)}
+                    onChange={(e) => setHitDraft((prev) => prev ? { ...prev, starts_at: startIsoFromDateInput(e.target.value) } : prev)}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
+                  />
+                  <div className="text-[10px] text-gray-500 truncate">
+                    {hitDraft?.starts_at ? `Salva como: ${hitDraft.starts_at}` : 'Sem data (sempre aberto)'}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs text-gray-400">Fim</div>
+                  <input
+                    type="date"
+                    value={isoToDateInput(hitDraft?.ends_at)}
+                    onChange={(e) => setHitDraft((prev) => prev ? { ...prev, ends_at: endIsoFromDateInput(e.target.value) } : prev)}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
+                  />
+                  <div className="text-[10px] text-gray-500 truncate">
+                    {hitDraft?.ends_at ? `Salva como: ${hitDraft.ends_at}` : 'Sem data (sempre aberto)'}
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-xs text-gray-400">Taxa (R$)</div>

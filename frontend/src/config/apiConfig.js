@@ -6,3 +6,6 @@ const normalized = ENV_API
       .replace(/\/+$/, '')
   : '';
 export const API_BASE_URL = normalized.replace(/\/api\/?$/, '');
+
+const envMP = String(import.meta?.env?.VITE_MP_CHECKOUT_ENABLED || '').trim().toLowerCase();
+export const MP_CHECKOUT_ENABLED = envMP === '1' || envMP === 'true' || envMP === 'yes';

@@ -12,7 +12,7 @@ import SpecialOffer from '../components/landing/SpecialOffer';
 import Contact from '../components/landing/Contact';
 import Footer from '../components/landing/Footer';
 import { apiClient } from '../services/apiClient';
-import { Play, Pause, BadgeCheck, Music, MessageCircle, ChevronLeft, ChevronRight, User, Info, X, Heart } from 'lucide-react';
+import { Play, Pause, BadgeCheck, Music, MessageCircle, ChevronLeft, ChevronRight, User, Info, X, Heart, Share2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Instagram, Globe, Youtube, Video } from 'lucide-react';
@@ -34,6 +34,7 @@ const Home = () => {
   const [sellers, setSellers] = useState([]);
   const [featuredPlans, setFeaturedPlans] = useState(null);
   const [hitOfWeek, setHitOfWeek] = useState(null);
+  const [hitWinner, setHitWinner] = useState(null);
   const [hitEntries, setHitEntries] = useState([]);
   const [hitVotingId, setHitVotingId] = useState(null);
   const [playingTrack, setPlayingTrack] = useState(null);
@@ -44,6 +45,7 @@ const Home = () => {
   const [playStartTS, setPlayStartTS] = useState(null);
   const [activeProjectVideo, setActiveProjectVideo] = useState(null);
   const [openDescriptionId, setOpenDescriptionId] = useState(null);
+  const [highlightedHitEntryId, setHighlightedHitEntryId] = useState(null);
   const upcomingRef = useRef(null);
   const releasedRef = useRef(null);
   const compositionsRef = useRef(null);
@@ -186,6 +188,13 @@ const Home = () => {
   }, [location]);
 
   useEffect(() => {
+    const params = new URLSearchParams(location?.search || '');
+    const vote = String(params.get('vote') || '').trim();
+    if (!vote) return;
+    setHighlightedHitEntryId(vote);
+  }, [location?.search]);
+
+  useEffect(() => {
     return () => {
       if (audioElement) {
         audioElement.pause();
@@ -324,6 +333,7 @@ const Home = () => {
 
       setFeaturedPlans((data && data.featured_plans) ? data.featured_plans : null);
       setHitOfWeek((data && data.hit_of_week) ? data.hit_of_week : null);
+      setHitWinner((data && data.hit_winner) ? data.hit_winner : null);
       fetchHitEntries().catch(() => void 0);
       setComposers(sortProfilesWithFeaturedFirst(filterNoAvulso((data && Array.isArray(data.composers)) ? data.composers : [])));
       setSponsors((data && Array.isArray(data.sponsors)) ? data.sponsors : []);
@@ -508,6 +518,7 @@ const Home = () => {
   const [previewTimer, setPreviewTimer] = useState(null);
   const togglePlay = (trackId, url, opts = {}) => {
     if (!url) return;
+    const full = opts?.full === true;
     if (playingTrack === trackId && audioElement) {
       if (isPaused) {
         audioElement.play().catch(() => {});
@@ -542,12 +553,15 @@ const Home = () => {
     };
     const start = Math.max(0, Number(opts.startSeconds ?? 0));
     const endOpt = opts.endSeconds;
-    let segLen = 30;
-    if (Number.isFinite(Number(endOpt))) {
-      const diff = Number(endOpt) - start;
-      if (diff > 0) segLen = diff;
+    let durationLimit = null;
+    if (!full) {
+      let segLen = 30;
+      if (Number.isFinite(Number(endOpt))) {
+        const diff = Number(endOpt) - start;
+        if (diff > 0) segLen = diff;
+      }
+      durationLimit = Math.min(30, Math.max(20, segLen));
     }
-    const durationLimit = Math.min(30, Math.max(20, segLen));
     audio.addEventListener('loadedmetadata', () => {
       try { audio.currentTime = start; } catch (e) { void e; }
     }, { once: true });
@@ -560,14 +574,16 @@ const Home = () => {
       clearTimeout(previewTimer);
       setPreviewTimer(null);
     }
-    const t = setTimeout(() => {
-      try { audio.pause(); } catch (e) { void e; }
-      setPlayingTrack(null);
-      setAudioElement(null);
-      setIsPaused(false);
-      setPlayStartTS(null);
-    }, durationLimit * 1000);
-    setPreviewTimer(t);
+    if (durationLimit) {
+      const t = setTimeout(() => {
+        try { audio.pause(); } catch (e) { void e; }
+        setPlayingTrack(null);
+        setAudioElement(null);
+        setIsPaused(false);
+        setPlayStartTS(null);
+      }, durationLimit * 1000);
+      setPreviewTimer(t);
+    }
   };
 
   const fetchComposers = async () => {
@@ -592,19 +608,17 @@ const Home = () => {
   };
 
   const toggleHitVote = async (entryId) => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
     const id = String(entryId || '').trim();
     if (!id) return;
     setHitVotingId(id);
     try {
       const res = await apiClient.post(`/hit-of-week/entries/${id}/vote`);
       const votes = Number(res?.votes || 0);
-      const voted = res?.voted === true;
       setHitEntries((prev) => {
-        const next = (Array.isArray(prev) ? prev : []).map((e) => e.id === id ? { ...e, votes_count: votes, voted } : e);
+        const next = (Array.isArray(prev) ? prev : []).map((e) => {
+          if (e.id === id) return { ...e, votes_count: votes, voted: true };
+          return { ...e, voted: false };
+        });
         next.sort((a, b) => (Number(b.votes_count || 0) - Number(a.votes_count || 0)) || String(b.created_at || '').localeCompare(String(a.created_at || '')));
         return next;
       });
@@ -613,6 +627,19 @@ const Home = () => {
     } finally {
       setHitVotingId(null);
     }
+  };
+
+  const shareHitEntry = (entry) => {
+    const id = String(entry?.id || '').trim();
+    if (!id) return;
+    const title = String(entry?.title || 'minha composição').trim();
+    const u = new URL(window.location.href);
+    u.searchParams.set('vote', id);
+    u.hash = 'hit-da-semana';
+    const link = u.toString();
+    const msg = `Vote em minha composição "${title}" para ser a ganhadora do Hit da Semana BeatWap! ${link}`;
+    const wa = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(wa, '_blank');
   };
 
   return (
@@ -1856,6 +1883,69 @@ const Home = () => {
           );
         })()}
 
+        {hitWinner ? (
+          <section id="hit-ganhador-da-semana" className="py-16 px-6 bg-black/30 border-b border-white/5">
+            <div className="max-w-7xl mx-auto">
+              <div className="text-center mb-10">
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3">
+                  <span>🏆 Hit Ganhador da Semana</span>
+                </h2>
+                <p className="text-gray-300 max-w-3xl mx-auto">
+                  <span>O ganhador fica em evidência até o próximo vencer.</span>
+                </p>
+              </div>
+
+              <div className="max-w-3xl mx-auto rounded-2xl border border-beatwap-gold/30 bg-white/5 p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-16 h-16 rounded-2xl overflow-hidden bg-black/30 border border-white/10 shrink-0">
+                    {hitWinner?.cover_url ? (
+                      <img src={hitWinner.cover_url} alt={hitWinner.title || 'Capa'} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-500">
+                        <Music size={20} />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm text-gray-300 mb-1">
+                      Tema: <span className="text-white font-bold">{hitOfWeek?.theme || 'Hit da Semana BeatWap'}</span>
+                    </div>
+                    <div className="text-xl font-extrabold text-white truncate">{hitWinner?.title || 'Música vencedora'}</div>
+                    <div className="text-xs text-gray-400 truncate">
+                      {hitWinner?.composer_name ? `por ${hitWinner.composer_name}` : 'por Compositor'}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-300">
+                      <span className="text-beatwap-gold font-extrabold">{Number(hitWinner?.votes_count || 0)}</span> votos
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => togglePlay(hitWinner?.entry_id || 'hit_winner', sanitizeUrl(hitWinner?.audio_url || hitWinner?.url), { full: true })}
+                        className="px-4 py-2 rounded-xl bg-beatwap-gold text-black hover:bg-white transition-colors text-sm font-bold flex items-center gap-2"
+                        disabled={!sanitizeUrl(hitWinner?.audio_url || hitWinner?.url)}
+                      >
+                        <Play size={16} />
+                        Ouvir completo
+                      </button>
+                      <a
+                        href={sanitizeUrl(hitWinner?.audio_url || hitWinner?.url) || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`text-sm ${sanitizeUrl(hitWinner?.audio_url || hitWinner?.url) ? 'text-gray-300 hover:text-white' : 'text-gray-600'} underline-offset-2 hover:underline`}
+                        onClick={(ev) => { if (!sanitizeUrl(hitWinner?.audio_url || hitWinner?.url)) ev.preventDefault(); }}
+                      >
+                        Abrir link
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         <section id="hit-da-semana" className="py-16 px-6 bg-gradient-to-b from-black/10 to-black/40 border-b border-white/5">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-10">
@@ -1863,7 +1953,7 @@ const Home = () => {
                 <span>🔥 Hit da Semana BeatWap</span>
               </h2>
               <p className="text-gray-300 max-w-3xl mx-auto">
-                <span>Sua música pode ser a próxima a estourar</span>
+                <span>{hitOfWeek?.home_subtitle || 'Sua música pode ser a próxima a estourar'}</span>
               </p>
             </div>
 
@@ -1893,7 +1983,7 @@ const Home = () => {
                     {user ? 'Participar pelo Painel' : 'Entrar para Participar'}
                   </AnimatedButton>
                   <div className="text-xs text-gray-400">
-                    Para participar, envie uma nova composição no seu painel e marque &quot;Participar do Hit da Semana&quot;.
+                    {hitOfWeek?.home_helper_text || 'Para participar, envie uma nova composição no seu painel e marque "Participar do Hit da Semana".'}
                   </div>
                 </div>
               </div>
@@ -1931,82 +2021,107 @@ const Home = () => {
                 </button>
               </div>
 
-              {(!Array.isArray(hitEntries) || hitEntries.length === 0) ? (
-                <div className="p-6 rounded-2xl border border-white/10 bg-black/20 text-gray-400">
-                  Nenhuma composição aprovada para votação ainda. Aguarde a aprovação do produtor.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {hitEntries.slice(0, 10).map((e, idx) => {
-                    const url = sanitizeUrl(e?.audio_url || e?.url);
-                    const isPlaying = playingTrack === e.id && !isPaused;
-                    const voted = e?.voted === true;
-                    return (
-                      <div key={e.id} className="rounded-2xl border border-white/10 bg-white/5 p-4 flex gap-4">
-                        <div className="w-14 h-14 rounded-xl overflow-hidden bg-black/30 border border-white/10 shrink-0">
-                          {e?.cover_url ? (
-                            <img src={e.cover_url} alt={e.title || 'Capa'} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-500">
-                              <Music size={18} />
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="text-sm font-extrabold text-white truncate">
-                                {idx + 1}º • {e?.title || 'Música'}
+              {(() => {
+                const endsMs = hitOfWeek?.ends_at ? new Date(String(hitOfWeek.ends_at)).getTime() : null;
+                const ended = Number.isFinite(endsMs) && endsMs && Date.now() > endsMs;
+                if (ended && hitWinner) {
+                  return (
+                    <div className="p-6 rounded-2xl border border-white/10 bg-black/20 text-gray-300">
+                      Votação encerrada. Veja o ganhador na seção &quot;Hit Ganhador da Semana&quot;.
+                    </div>
+                  );
+                }
+                if (!Array.isArray(hitEntries) || hitEntries.length === 0) {
+                  return (
+                    <div className="p-6 rounded-2xl border border-white/10 bg-black/20 text-gray-400">
+                      Nenhuma composição aprovada para votação ainda. Aguarde a aprovação do produtor.
+                    </div>
+                  );
+                }
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {hitEntries.slice(0, 10).map((e, idx) => {
+                      const url = sanitizeUrl(e?.audio_url || e?.url);
+                      const isPlaying = playingTrack === e.id && !isPaused;
+                      const voted = e?.voted === true;
+                      const highlighted = highlightedHitEntryId && String(highlightedHitEntryId) === String(e.id);
+                      const cardBorder = highlighted ? 'border-beatwap-gold/60 shadow-[0_0_0_1px_rgba(245,197,66,0.25)]' : 'border-white/10';
+                      return (
+                        <div key={e.id} className={`rounded-2xl border ${cardBorder} bg-white/5 p-4 flex gap-4`}>
+                          <div className="w-14 h-14 rounded-xl overflow-hidden bg-black/30 border border-white/10 shrink-0">
+                            {e?.cover_url ? (
+                              <img src={e.cover_url} alt={e.title || 'Capa'} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-500">
+                                <Music size={18} />
                               </div>
-                              <div className="text-xs text-gray-400 truncate">
-                                {e?.composer_name ? `por ${e.composer_name}` : 'por Compositor'}
-                              </div>
-                            </div>
-                            <div className="text-xs text-gray-300">
-                              <span className="text-beatwap-gold font-extrabold">{Number(e?.votes_count || 0)}</span> votos
-                            </div>
+                            )}
                           </div>
 
-                          <div className="mt-3 flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => togglePlay(e.id, url)}
-                              className="px-3 py-2 rounded-xl bg-black/30 border border-white/10 hover:bg-black/40 transition-colors text-sm font-bold flex items-center gap-2"
-                              disabled={!url}
-                            >
-                              {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-                              {isPlaying ? 'Pausar' : 'Ouvir'}
-                            </button>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-sm font-extrabold text-white truncate">
+                                  {idx + 1}º • {e?.title || 'Música'}
+                                </div>
+                                <div className="text-xs text-gray-400 truncate">
+                                  {e?.composer_name ? `por ${e.composer_name}` : 'por Compositor'}
+                                </div>
+                              </div>
+                              <div className="text-xs text-gray-300">
+                                <span className="text-beatwap-gold font-extrabold">{Number(e?.votes_count || 0)}</span> votos
+                              </div>
+                            </div>
 
-                            <button
-                              type="button"
-                              onClick={() => toggleHitVote(e.id)}
-                              disabled={hitVotingId === e.id}
-                              className={`px-3 py-2 rounded-xl border transition-colors text-sm font-bold flex items-center gap-2 ${
-                                voted ? 'bg-beatwap-gold text-black border-beatwap-gold' : 'bg-black/30 border-white/10 hover:bg-black/40 text-gray-200'
-                              }`}
-                            >
-                              <Heart size={16} />
-                              {voted ? 'Votado' : (hitVotingId === e.id ? 'Votando...' : 'Votar')}
-                            </button>
+                            <div className="mt-3 flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => togglePlay(e.id, url)}
+                                className="px-3 py-2 rounded-xl bg-black/30 border border-white/10 hover:bg-black/40 transition-colors text-sm font-bold flex items-center gap-2"
+                                disabled={!url}
+                              >
+                                {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                                {isPlaying ? 'Pausar' : 'Ouvir'}
+                              </button>
 
-                            <a
-                              href={url || '#'}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={`ml-auto text-xs ${url ? 'text-gray-300 hover:text-white' : 'text-gray-600'} underline-offset-2 hover:underline`}
-                              onClick={(ev) => { if (!url) ev.preventDefault(); }}
-                            >
-                              Abrir link
-                            </a>
+                              <button
+                                type="button"
+                                onClick={() => toggleHitVote(e.id)}
+                                disabled={hitVotingId === e.id || voted}
+                                className={`px-3 py-2 rounded-xl border transition-colors text-sm font-bold flex items-center gap-2 ${
+                                  voted ? 'bg-beatwap-gold text-black border-beatwap-gold' : 'bg-black/30 border-white/10 hover:bg-black/40 text-gray-200'
+                                }`}
+                              >
+                                <Heart size={16} />
+                                {voted ? 'Votado' : (hitVotingId === e.id ? 'Votando...' : 'Votar')}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => shareHitEntry(e)}
+                                className="px-3 py-2 rounded-xl bg-black/30 border border-white/10 hover:bg-black/40 transition-colors text-sm font-bold flex items-center gap-2 text-gray-200"
+                              >
+                                <Share2 size={16} />
+                                Compartilhar
+                              </button>
+
+                              <a
+                                href={url || '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`ml-auto text-xs ${url ? 'text-gray-300 hover:text-white' : 'text-gray-600'} underline-offset-2 hover:underline`}
+                                onClick={(ev) => { if (!url) ev.preventDefault(); }}
+                              >
+                                Abrir link
+                              </a>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </section>

@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import CheckoutModal from './CheckoutModal';
 import { authApi } from '../../services/apiClient';
 import { useToast } from '../../context/ToastContext';
+import { MP_CHECKOUT_ENABLED } from '../../config/apiConfig';
 
 const Pricing = () => {
   const { user, profile, refreshProfile } = useAuth();
@@ -43,7 +44,24 @@ const Pricing = () => {
     } catch { void 0; }
   };
 
+  const openWhatsAppCheckout = (data) => {
+    const type = String(data?.product_type || '').toLowerCase().trim();
+    const planKey = String(data?.plan_key || '').toLowerCase().trim();
+    const qty = Number(data?.quantity || 0);
+    const who = userType === 'artist' ? 'Artista' : 'Compositor';
+    let msg = `Olá! Quero comprar um plano na BeatWap (${who}).`;
+    if (type === 'plan') msg = `Olá! Quero contratar o plano ${planKey || '(plano)'} (${who}).`;
+    if (type === 'credits_upload') msg = `Olá! Quero contratar Avulso (${Number.isFinite(qty) && qty > 0 ? `${qty} envios` : 'envios'}).`;
+    if (type === 'credits_hit') msg = `Olá! Quero comprar créditos Hit da Semana (${Number.isFinite(qty) && qty > 0 ? qty : 1}).`;
+    const wa = `https://wa.me/5519981083497?text=${encodeURIComponent(msg)}`;
+    window.open(wa, '_blank');
+  };
+
   const beginCheckoutFlow = (data) => {
+    if (!MP_CHECKOUT_ENABLED) {
+      openWhatsAppCheckout(data);
+      return;
+    }
     const normalizedUserType = profile?.cargo === 'Compositor' ? 'composer' : 'artist';
     const prepared = user ? { ...(data || {}), user_type: normalizedUserType } : data;
     if (user) {
@@ -277,7 +295,7 @@ const Pricing = () => {
             </ul>
 
             <AnimatedButton variant="outline" className="w-full" onClick={handleAvulsoBuy}>
-              Comprar Pacote
+              {MP_CHECKOUT_ENABLED ? 'Comprar Pacote' : 'Falar no WhatsApp'}
             </AnimatedButton>
           </div>
 
@@ -341,7 +359,7 @@ const Pricing = () => {
             </ul>
 
             <AnimatedButton className="w-full bg-beatwap-gold text-black hover:bg-white" onClick={() => openPlan('mensal')}>
-              Assinar Mensal
+              {MP_CHECKOUT_ENABLED ? 'Assinar Mensal' : 'Falar no WhatsApp'}
             </AnimatedButton>
           </div>
 
@@ -398,7 +416,7 @@ const Pricing = () => {
             </ul>
 
             <AnimatedButton variant="outline" className="w-full" onClick={() => openPlan('anual')}>
-              Assinar Anual
+              {MP_CHECKOUT_ENABLED ? 'Assinar Anual' : 'Falar no WhatsApp'}
             </AnimatedButton>
           </div>
 
@@ -565,12 +583,14 @@ const Pricing = () => {
             </div>
           </div>
         ) : null}
-        <CheckoutModal 
-          isOpen={isCheckoutOpen} 
-          onClose={() => setIsCheckoutOpen(false)} 
-          planType={selectedPlanType}
-          customData={customCheckoutData}
-        />
+        {MP_CHECKOUT_ENABLED ? (
+          <CheckoutModal 
+            isOpen={isCheckoutOpen} 
+            onClose={() => setIsCheckoutOpen(false)} 
+            planType={selectedPlanType}
+            customData={customCheckoutData}
+          />
+        ) : null}
       </div>
     </section>
   );

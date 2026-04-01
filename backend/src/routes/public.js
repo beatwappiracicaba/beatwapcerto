@@ -11,6 +11,95 @@ const { transporter } = require('../services/mailer');
 
 const router = express.Router();
 
+function getClientIp(req) {
+  const xf = req?.headers?.['x-forwarded-for'];
+  const first = typeof xf === 'string' ? xf.split(',')[0] : (Array.isArray(xf) ? xf[0] : null);
+  const raw = first || req?.ip || req?.connection?.remoteAddress || req?.socket?.remoteAddress || '';
+  return String(raw || '').trim().replace(/^::ffff:/, '') || 'unknown';
+}
+
+function countVotesByIp(votesByIp) {
+  const src = votesByIp && typeof votesByIp === 'object' ? votesByIp : {};
+  const counts = {};
+  for (const entryId of Object.values(src)) {
+    const id = String(entryId || '').trim();
+    if (!id) continue;
+    counts[id] = (counts[id] || 0) + 1;
+  }
+  return counts;
+}
+
+function ensureHitWinnerIfEnded(hit) {
+  if (!hit || typeof hit !== 'object') return null;
+  const endsMs = hit.ends_at ? new Date(String(hit.ends_at)).getTime() : null;
+  if (!Number.isFinite(endsMs) || !endsMs) return null;
+  if (Date.now() <= endsMs) return null;
+
+  const entries = (Array.isArray(hit.entries) ? hit.entries : [])
+    .filter((e) => e && String(e.status || 'pending').toLowerCase() === 'approved' && e.paid === true);
+  if (!entries.length) return null;
+
+  if (!hit.votes_by_ip || typeof hit.votes_by_ip !== 'object') hit.votes_by_ip = {};
+  const counts = countVotesByIp(hit.votes_by_ip);
+
+  let winner = null;
+  for (const e of entries) {
+    const id = String(e.id || '').trim();
+    if (!id) continue;
+    const votesCount = Number(counts[id] || 0);
+    const createdMs = e.created_at ? new Date(String(e.created_at)).getTime() : 0;
+    if (!winner) {
+      winner = { entry_id: id, votes_count: votesCount, created_ms: Number.isFinite(createdMs) ? createdMs : 0 };
+      continue;
+    }
+    if (votesCount > winner.votes_count) {
+      winner = { entry_id: id, votes_count: votesCount, created_ms: Number.isFinite(createdMs) ? createdMs : 0 };
+      continue;
+    }
+    if (votesCount === winner.votes_count) {
+      const t = Number.isFinite(createdMs) ? createdMs : 0;
+      if (t && (!winner.created_ms || t < winner.created_ms)) {
+        winner = { entry_id: id, votes_count: votesCount, created_ms: t };
+      }
+    }
+  }
+
+  if (!winner?.entry_id) return null;
+
+  const entry = entries.find((e) => String(e?.id || '') === winner.entry_id) || null;
+  const composer_id = entry?.composer_id || entry?.profile_id || null;
+  const snapshot = {
+    hit_id: hit.id,
+    entry_id: winner.entry_id,
+    title: entry?.title || null,
+    url: entry?.url || null,
+    cover_url: entry?.cover_url || null,
+    audio_url: entry?.audio_url || null,
+    composer_id,
+    votes_count: winner.votes_count,
+    decided_at: new Date().toISOString()
+  };
+
+  const shouldUpdateHit = String(hit.winner_entry_id || '') !== String(winner.entry_id || '');
+  const prev = memory.hit_winner && typeof memory.hit_winner === 'object' ? memory.hit_winner : null;
+  const shouldUpdateWinner =
+    !prev ||
+    String(prev?.entry_id || '') !== String(snapshot.entry_id || '') ||
+    String(prev?.hit_id || '') !== String(snapshot.hit_id || '') ||
+    Number(prev?.votes_count || 0) !== Number(snapshot.votes_count || 0);
+
+  if (shouldUpdateHit) hit.winner_entry_id = winner.entry_id;
+  if (shouldUpdateWinner) memory.hit_winner = snapshot;
+
+  if (shouldUpdateHit || shouldUpdateWinner) {
+    hit.updated_at = new Date().toISOString();
+    scheduleSave();
+    emitEvent('hit_of_week.winner.updated', { winner_entry_id: hit.winner_entry_id }, 'public:hit_of_week');
+  }
+
+  return snapshot;
+}
+
 function mpEnv(k, fallback = '') {
   const v = process.env[k];
   if (v == null) return fallback;
@@ -374,9 +463,12 @@ router.get('/home', async (req, res) => {
       return { ...c, composer_name, composer_partner_name };
     });
     const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
+    ensureHitWinnerIfEnded(hit);
     const publicHit = hit ? {
       id: hit.id,
       theme: hit.theme,
+      home_subtitle: hit.home_subtitle || null,
+      home_helper_text: hit.home_helper_text || null,
       starts_at: hit.starts_at || null,
       ends_at: hit.ends_at || null,
       entry_fee: Number(hit.entry_fee) || 10,
@@ -384,6 +476,16 @@ router.get('/home', async (req, res) => {
       winner_entry_id: hit.winner_entry_id || null,
       updated_at: hit.updated_at || null
     } : null;
+    const hitWinner = memory.hit_winner && typeof memory.hit_winner === 'object' ? memory.hit_winner : null;
+    let publicHitWinner = hitWinner ? { ...hitWinner } : null;
+    if (publicHitWinner?.composer_id) {
+      try {
+        const p = await Profile.findByPk(String(publicHitWinner.composer_id));
+        if (p) publicHitWinner.composer_name = p?.nome || p?.nome_completo_razao_social || null;
+      } catch {
+        void 0;
+      }
+    }
     return res.json({
       hero: { title: 'Beatwap', subtitle: 'Plataforma musical' },
       producers: producers.slice(0, 6),
@@ -395,6 +497,7 @@ router.get('/home', async (req, res) => {
       projects: [],
       sponsors: [],
       hit_of_week: publicHit,
+      hit_winner: publicHitWinner,
       featured_plans: featuredPlans
     });
   } catch {
@@ -413,6 +516,7 @@ router.get('/home', async (req, res) => {
       projects: [],
       sponsors: [],
       hit_of_week: null,
+      hit_winner: null,
       featured_plans: null
     });
   }
@@ -425,6 +529,8 @@ router.get('/hit-of-week', async (req, res) => {
     res.json({
       id: hit.id,
       theme: hit.theme,
+      home_subtitle: hit.home_subtitle || null,
+      home_helper_text: hit.home_helper_text || null,
       starts_at: hit.starts_at || null,
       ends_at: hit.ends_at || null,
       entry_fee: Number(hit.entry_fee) || 10,
@@ -441,29 +547,20 @@ router.get('/hit-of-week/entries', async (req, res) => {
   try {
     const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
     if (!hit) return res.json([]);
-
-    let meId = null;
-    try {
-      const h = String(req.headers.authorization || '');
-      const token = h.startsWith('Bearer ') ? h.slice(7) : null;
-      if (token) {
-        const payload = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
-        meId = payload?.sub ? String(payload.sub) : null;
-      }
-    } catch {
-      meId = null;
-    }
-
-    const votes = (hit.votes && typeof hit.votes === 'object') ? hit.votes : {};
+    ensureHitWinnerIfEnded(hit);
+    const clientIp = getClientIp(req);
+    if (!hit.votes_by_ip || typeof hit.votes_by_ip !== 'object') hit.votes_by_ip = {};
+    const votesByIp = hit.votes_by_ip;
+    const myVoteEntryId = votesByIp[clientIp] ? String(votesByIp[clientIp]) : null;
+    const voteCounts = countVotesByIp(votesByIp);
     const comps = Array.isArray(memory.compositions) ? memory.compositions : [];
     const compsById = new Map(comps.map((c) => [String(c.id), c]));
 
     const visible = (Array.isArray(hit.entries) ? hit.entries : [])
       .filter((e) => e && (String(e.status || 'pending').toLowerCase() === 'approved') && e.paid === true)
       .map((e) => {
-        const arr = Array.isArray(votes[e.id]) ? votes[e.id] : [];
-        const voted = meId ? arr.includes(meId) : false;
-        const votes_count = arr.length;
+        const voted = myVoteEntryId ? myVoteEntryId === String(e.id) : false;
+        const votes_count = Number(voteCounts[String(e.id)] || 0);
         const comp = e?.composition_id ? compsById.get(String(e.composition_id)) : null;
         const title = (comp?.title || e?.title || 'Música').trim();
         const cover_url = comp?.cover_url || e?.cover_url || null;
@@ -560,12 +657,23 @@ router.post('/hit-of-week/entries', auth, async (req, res) => {
   }
 });
 
-router.post('/hit-of-week/entries/:entryId/vote', auth, async (req, res) => {
+router.post('/hit-of-week/entries/:entryId/vote', async (req, res) => {
   try {
     const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
     if (!hit) return res.status(400).json({ error: 'Desafio indisponível' });
     const entryId = String(req.params.entryId || '').trim();
     if (!entryId) return res.status(400).json({ error: 'ID inválido' });
+
+    ensureHitWinnerIfEnded(hit);
+    const now = Date.now();
+    const starts = hit.starts_at ? new Date(hit.starts_at).getTime() : null;
+    const ends = hit.ends_at ? new Date(hit.ends_at).getTime() : null;
+    if (Number.isFinite(starts) && starts && now < starts) {
+      return res.status(400).json({ error: 'Votação ainda não começou' });
+    }
+    if (Number.isFinite(ends) && ends && now > ends) {
+      return res.status(400).json({ error: 'Votação encerrada' });
+    }
 
     const idx = (Array.isArray(hit.entries) ? hit.entries : []).findIndex((e) => String(e?.id || '') === entryId);
     if (idx < 0) return res.status(404).json({ error: 'Inscrição não encontrada' });
@@ -574,17 +682,20 @@ router.post('/hit-of-week/entries/:entryId/vote', auth, async (req, res) => {
       return res.status(403).json({ error: 'Inscrição indisponível para votação' });
     }
 
-    if (!hit.votes || typeof hit.votes !== 'object') hit.votes = {};
-    const arr = Array.isArray(hit.votes[entryId]) ? hit.votes[entryId] : [];
-    const meId = String(req.user?.id || '').trim();
-    if (!meId) return res.status(401).json({ error: 'Não autenticado' });
-    const exists = arr.includes(meId);
-    const next = exists ? arr.filter((x) => x !== meId) : arr.concat(meId);
-    hit.votes[entryId] = next;
+    const clientIp = getClientIp(req);
+    if (!hit.votes_by_ip || typeof hit.votes_by_ip !== 'object') hit.votes_by_ip = {};
+    const prevVote = hit.votes_by_ip[clientIp] ? String(hit.votes_by_ip[clientIp]) : null;
+    if (prevVote && prevVote !== entryId) {
+      return res.status(400).json({ error: 'Este aparelho já votou nesta semana' });
+    }
+    if (!prevVote) hit.votes_by_ip[clientIp] = entryId;
+
+    const counts = countVotesByIp(hit.votes_by_ip);
+    const votesCount = Number(counts[entryId] || 0);
     hit.updated_at = new Date().toISOString();
     scheduleSave();
-    emitEvent('hit_of_week.votes.updated', { entry_id: entryId, votes: next.length }, 'public:hit_of_week');
-    res.json({ ok: true, voted: !exists, votes: next.length });
+    emitEvent('hit_of_week.votes.updated', { entry_id: entryId, votes: votesCount }, 'public:hit_of_week');
+    res.json({ ok: true, voted: true, votes: votesCount });
   } catch {
     res.status(500).json({ error: 'Erro interno' });
   }

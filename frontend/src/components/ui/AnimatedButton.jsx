@@ -33,7 +33,7 @@ export const AnimatedButton = ({
       {isLoading ? (
         <Loader2 className="w-5 h-5 animate-spin" />
       ) : (
-        <span>{children}</span>
+        <span className="inline-flex items-center justify-center gap-2 [&>svg]:shrink-0 [&>svg]:block">{children}</span>
       )}
       {variant === 'primary' && (
         <motion.div

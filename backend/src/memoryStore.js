@@ -56,25 +56,32 @@ function ensureDefaults(m) {
     m.hit_of_week = {
       id: `hit_${Date.now()}`,
       theme: 'Hit da Semana BeatWap',
+      home_subtitle: 'Sua música pode ser a próxima a estourar',
+      home_helper_text: 'Para participar, envie uma nova composição no seu painel e marque "Participar do Hit da Semana".',
       starts_at: null,
       ends_at: null,
       entry_fee: 10,
       entries: [],
       votes: {},
+      votes_by_ip: {},
       winner_entry_id: null,
       updated_at: new Date().toISOString()
     };
   } else {
     if (!m.hit_of_week.id) m.hit_of_week.id = `hit_${Date.now()}`;
     if (!m.hit_of_week.theme) m.hit_of_week.theme = 'Hit da Semana BeatWap';
+    if (!Object.prototype.hasOwnProperty.call(m.hit_of_week, 'home_subtitle')) m.hit_of_week.home_subtitle = 'Sua música pode ser a próxima a estourar';
+    if (!Object.prototype.hasOwnProperty.call(m.hit_of_week, 'home_helper_text')) m.hit_of_week.home_helper_text = 'Para participar, envie uma nova composição no seu painel e marque "Participar do Hit da Semana".';
     if (!Object.prototype.hasOwnProperty.call(m.hit_of_week, 'starts_at')) m.hit_of_week.starts_at = null;
     if (!Object.prototype.hasOwnProperty.call(m.hit_of_week, 'ends_at')) m.hit_of_week.ends_at = null;
     if (!Object.prototype.hasOwnProperty.call(m.hit_of_week, 'entry_fee')) m.hit_of_week.entry_fee = 10;
     if (!Array.isArray(m.hit_of_week.entries)) m.hit_of_week.entries = [];
     if (!m.hit_of_week.votes || typeof m.hit_of_week.votes !== 'object') m.hit_of_week.votes = {};
+    if (!m.hit_of_week.votes_by_ip || typeof m.hit_of_week.votes_by_ip !== 'object') m.hit_of_week.votes_by_ip = {};
     if (!Object.prototype.hasOwnProperty.call(m.hit_of_week, 'winner_entry_id')) m.hit_of_week.winner_entry_id = null;
     if (!m.hit_of_week.updated_at) m.hit_of_week.updated_at = new Date().toISOString();
   }
+  if (!Object.prototype.hasOwnProperty.call(m, 'hit_winner')) m.hit_winner = null;
   return m;
 }
 

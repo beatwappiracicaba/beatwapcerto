@@ -16,6 +16,7 @@ import { ProfileEditModal } from '../components/ui/ProfileEditModal';
 import { GalleryManager } from '../components/profile/GalleryManager';
 import { buildDistributionContractHTML } from '../utils/contractTemplate';
 import { encryptFormFields, decryptData } from '../utils/security';
+import { MP_CHECKOUT_ENABLED } from '../config/apiConfig';
 
 export const DashboardArtistProfile = () => {
   const { user, profile, refreshProfile } = useAuth();
@@ -181,6 +182,13 @@ export const DashboardArtistProfile = () => {
   };
 
   const openPlanCheckout = (planKey) => {
+    if (!MP_CHECKOUT_ENABLED) {
+      const who = normalizedUserType === 'composer' ? 'Compositor' : 'Artista';
+      const k0 = String(planKey || '').toLowerCase().trim();
+      const msg = `Olá! Quero contratar o plano ${k0 || '(plano)'} (${who}).`;
+      window.open(`https://wa.me/5519981083497?text=${encodeURIComponent(msg)}`, '_blank');
+      return;
+    }
     const k = String(planKey || '').toLowerCase().trim();
     if (!k) return;
     const name =
@@ -201,6 +209,13 @@ export const DashboardArtistProfile = () => {
   };
 
   const openCreditsCheckout = (type) => {
+    if (!MP_CHECKOUT_ENABLED) {
+      const parsed = Number(buyHitQty);
+      const quantity = Number.isFinite(parsed) ? Math.max(1, Math.floor(parsed)) : 1;
+      const msg = `Olá! Quero comprar créditos Hit da Semana (${quantity}).`;
+      window.open(`https://wa.me/5519981083497?text=${encodeURIComponent(msg)}`, '_blank');
+      return;
+    }
     const t = String(type || '').toLowerCase().trim();
     if (t !== 'credits_hit') return;
     const rawQty = buyHitQty;
@@ -494,8 +509,8 @@ export const DashboardArtistProfile = () => {
                         <AnimatedButton onClick={() => window.open('https://wa.me/5519981083497?text=Quero%20contratar%20mais%20envios', '_blank')} variant="secondary">
                           Falar no WhatsApp
                         </AnimatedButton>
-                        <AnimatedButton onClick={() => window.open('/#planos', '_self')}>
-                          Contratar mais plano
+                        <AnimatedButton onClick={() => (MP_CHECKOUT_ENABLED ? window.open('/#planos', '_self') : window.open('https://wa.me/5519981083497?text=' + encodeURIComponent('Olá! Quero contratar um plano na BeatWap.'), '_blank'))}>
+                          {MP_CHECKOUT_ENABLED ? 'Contratar mais plano' : 'Falar no WhatsApp'}
                         </AnimatedButton>
                       </div>
                     </div>
@@ -505,61 +520,75 @@ export const DashboardArtistProfile = () => {
                     </p>
                   )}
                   <div className="flex flex-col md:flex-row justify-center gap-3 mt-8">
-                    <AnimatedButton
-                      className="justify-center"
-                      onClick={() => openPlanCheckout('mensal')}
-                    >
-                      Contratar Mensal
-                    </AnimatedButton>
-                    <AnimatedButton
-                      variant="outline"
-                      className="justify-center"
-                      onClick={() => openPlanCheckout('anual')}
-                    >
-                      Contratar Anual (12x)
-                    </AnimatedButton>
-                    {(planKeyFromString(profile?.plano || formData.plano) === 'mensal' || planKeyFromString(profile?.plano || formData.plano) === 'anual') ? (
+                    {MP_CHECKOUT_ENABLED ? (
+                      <>
+                        <AnimatedButton
+                          className="justify-center"
+                          onClick={() => openPlanCheckout('mensal')}
+                        >
+                          Contratar Mensal
+                        </AnimatedButton>
+                        <AnimatedButton
+                          variant="outline"
+                          className="justify-center"
+                          onClick={() => openPlanCheckout('anual')}
+                        >
+                          Contratar Anual (12x)
+                        </AnimatedButton>
+                        {(planKeyFromString(profile?.plano || formData.plano) === 'mensal' || planKeyFromString(profile?.plano || formData.plano) === 'anual') ? (
+                          <AnimatedButton
+                            variant="secondary"
+                            className="justify-center"
+                            isLoading={cancelLoading}
+                            onClick={cancelPlan}
+                          >
+                            Cancelar plano
+                          </AnimatedButton>
+                        ) : null}
+                      </>
+                    ) : (
                       <AnimatedButton
+                        onClick={() => window.open('https://wa.me/5519981083497?text=' + encodeURIComponent('Olá! Quero contratar um plano na BeatWap.'), '_blank')}
                         variant="secondary"
                         className="justify-center"
-                        isLoading={cancelLoading}
-                        onClick={cancelPlan}
                       >
-                        Cancelar plano
+                        Falar no WhatsApp
                       </AnimatedButton>
-                    ) : null}
+                    )}
                   </div>
 
-                  <div className="max-w-2xl mx-auto pt-6">
-                    <div className="p-5 rounded-2xl border border-white/10 bg-white/5 text-left space-y-4">
-                      <div className="text-lg font-bold text-white">Comprar créditos</div>
+                  {MP_CHECKOUT_ENABLED ? (
+                    <div className="max-w-2xl mx-auto pt-6">
+                      <div className="p-5 rounded-2xl border border-white/10 bg-white/5 text-left space-y-4">
+                        <div className="text-lg font-bold text-white">Comprar créditos</div>
 
-                      <div className="space-y-3 p-4 rounded-xl border border-white/10 bg-black/20">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <div className="text-white font-bold">Créditos de Hit da Semana</div>
-                            <div className="text-sm text-gray-300">
-                              Saldo atual: <span className="text-beatwap-gold font-extrabold">{Number(profile?.creditos_hit_semana || 0)}</span>
+                        <div className="space-y-3 p-4 rounded-xl border border-white/10 bg-black/20">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <div className="text-white font-bold">Créditos de Hit da Semana</div>
+                              <div className="text-sm text-gray-300">
+                                Saldo atual: <span className="text-beatwap-gold font-extrabold">{Number(profile?.creditos_hit_semana || 0)}</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-                          <div className="md:col-span-2">
-                            <AnimatedInput
-                              label="Qtd. créditos"
-                              value={String(buyHitQty)}
-                              onChange={(e) => setBuyHitQty(e.target.value)}
-                              type="number"
-                              placeholder="1"
-                            />
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                            <div className="md:col-span-2">
+                              <AnimatedInput
+                                label="Qtd. créditos"
+                                value={String(buyHitQty)}
+                                onChange={(e) => setBuyHitQty(e.target.value)}
+                                type="number"
+                                placeholder="1"
+                              />
+                            </div>
+                            <AnimatedButton className="justify-center" onClick={() => openCreditsCheckout('credits_hit')}>
+                              Comprar
+                            </AnimatedButton>
                           </div>
-                          <AnimatedButton className="justify-center" onClick={() => openCreditsCheckout('credits_hit')}>
-                            Comprar
-                          </AnimatedButton>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  ) : null}
                 </div>
               )}
 
@@ -608,12 +637,14 @@ export const DashboardArtistProfile = () => {
         </Card>
       </div>
 
-      <CheckoutModal
-        isOpen={isCheckoutOpen}
-        onClose={() => setIsCheckoutOpen(false)}
-        planType={selectedPlanType}
-        customData={customCheckoutData}
-      />
+      {MP_CHECKOUT_ENABLED ? (
+        <CheckoutModal
+          isOpen={isCheckoutOpen}
+          onClose={() => setIsCheckoutOpen(false)}
+          planType={selectedPlanType}
+          customData={customCheckoutData}
+        />
+      ) : null}
     </DashboardLayout>
   );
 };

@@ -7,6 +7,7 @@ import { Card } from '../components/ui/Card';
 import { apiClient, authApi } from '../services/apiClient';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import { MP_CHECKOUT_ENABLED } from '../config/apiConfig';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -210,6 +211,18 @@ const Register = () => {
         const pending = pendingRaw ? JSON.parse(pendingRaw) : null;
         const customData = pending?.customData || null;
         if (shouldCheckout && customData) {
+          if (!MP_CHECKOUT_ENABLED) {
+            const type = String(customData?.product_type || '').toLowerCase().trim();
+            const planKey = String(customData?.plan_key || '').toLowerCase().trim();
+            const qty = Number(customData?.quantity || 0);
+            const who = String(customData?.user_type || '').toLowerCase().trim() === 'composer' ? 'Compositor' : 'Artista';
+            let msg = `Olá! Quero comprar um plano na BeatWap (${who}).`;
+            if (type === 'plan') msg = `Olá! Quero contratar o plano ${planKey || '(plano)'} (${who}).`;
+            if (type === 'credits_upload') msg = `Olá! Quero contratar Avulso (${Number.isFinite(qty) && qty > 0 ? `${qty} envios` : 'envios'}).`;
+            if (type === 'credits_hit') msg = `Olá! Quero comprar créditos Hit da Semana (${Number.isFinite(qty) && qty > 0 ? qty : 1}).`;
+            localStorage.removeItem('bw_pending_checkout');
+            window.open(`https://wa.me/5519981083497?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer');
+          } else {
           const payload = {
             nome: String(formData.nome_completo || formData.name || '').trim(),
             email: String(formData.email || '').trim(),
@@ -233,6 +246,7 @@ const Register = () => {
             localStorage.removeItem('bw_pending_checkout');
             window.location.href = url;
             return;
+          }
           }
         }
       } catch (e) { void e; }

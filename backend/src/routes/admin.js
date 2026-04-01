@@ -400,11 +400,15 @@ async function putHitAdmin(req, res) {
     if (!hit) return res.status(400).json({ error: 'Desafio indisponível' });
 
     const theme = Object.prototype.hasOwnProperty.call(req.body, 'theme') ? String(req.body.theme || '').trim() : null;
+    const home_subtitle = Object.prototype.hasOwnProperty.call(req.body, 'home_subtitle') ? String(req.body.home_subtitle || '').trim() : null;
+    const home_helper_text = Object.prototype.hasOwnProperty.call(req.body, 'home_helper_text') ? String(req.body.home_helper_text || '').trim() : null;
     const starts_at = Object.prototype.hasOwnProperty.call(req.body, 'starts_at') ? (req.body.starts_at || null) : null;
     const ends_at = Object.prototype.hasOwnProperty.call(req.body, 'ends_at') ? (req.body.ends_at || null) : null;
     const entry_fee = Object.prototype.hasOwnProperty.call(req.body, 'entry_fee') ? Number(req.body.entry_fee) : null;
 
     if (theme !== null) hit.theme = theme || hit.theme;
+    if (home_subtitle !== null) hit.home_subtitle = home_subtitle;
+    if (home_helper_text !== null) hit.home_helper_text = home_helper_text;
     if (starts_at !== null) hit.starts_at = starts_at;
     if (ends_at !== null) hit.ends_at = ends_at;
     if (entry_fee !== null && Number.isFinite(entry_fee) && entry_fee >= 0) hit.entry_fee = entry_fee;
@@ -465,6 +469,38 @@ async function setHitWinner(req, res) {
     if (!hit) return res.status(400).json({ error: 'Desafio indisponível' });
     const winner_entry_id = String(req.body?.winner_entry_id || '').trim() || null;
     hit.winner_entry_id = winner_entry_id;
+    if (winner_entry_id) {
+      const entry = (Array.isArray(hit.entries) ? hit.entries : []).find((e) => String(e?.id || '') === winner_entry_id) || null;
+      const composer_id = entry?.composer_id || entry?.profile_id || null;
+      let composer_name = null;
+      if (composer_id) {
+        try {
+          const p = await Profile.findByPk(String(composer_id));
+          composer_name = p?.nome || p?.nome_completo_razao_social || null;
+        } catch {
+          composer_name = null;
+        }
+      }
+      const votesByIp = hit.votes_by_ip && typeof hit.votes_by_ip === 'object' ? hit.votes_by_ip : {};
+      let votes_count = 0;
+      for (const entryId of Object.values(votesByIp)) {
+        if (String(entryId || '') === winner_entry_id) votes_count += 1;
+      }
+      memory.hit_winner = {
+        hit_id: hit.id,
+        entry_id: winner_entry_id,
+        title: entry?.title || null,
+        url: entry?.url || null,
+        cover_url: entry?.cover_url || null,
+        audio_url: entry?.audio_url || null,
+        composer_id,
+        composer_name,
+        votes_count,
+        decided_at: new Date().toISOString()
+      };
+    } else {
+      memory.hit_winner = null;
+    }
     hit.updated_at = new Date().toISOString();
     scheduleSave();
     emitEvent('hit_of_week.winner.updated', { winner_entry_id }, 'public:hit_of_week');
