@@ -190,7 +190,7 @@ router.post('/register', async (req, res) => {
     if (!v.ok) return res.status(400).json({ ok: false, error: v.error });
 
     const hash = await bcrypt.hash(password, 10);
-    const plano = 'Avulso';
+    const plano = null;
     const acIn = req.body.access_control;
     let access_control = null;
     if (acIn && typeof acIn === 'object') {
@@ -501,7 +501,7 @@ router.post('/register-with-invite', async (req, res) => {
     if (!v.ok) return res.status(400).json({ ok: false, error: v.error });
 
     const hash = await bcrypt.hash(password, 10);
-    const plano = normalizePlanoInput(req.body.plano) || normalizePlanoInput(invite.plano) || 'Avulso';
+    const plano = null;
     const access_control = (invite.access_control && typeof invite.access_control === 'object')
       ? invite.access_control
       : { verified: true, chat: true };

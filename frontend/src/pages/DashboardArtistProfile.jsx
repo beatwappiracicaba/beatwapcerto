@@ -45,7 +45,7 @@ export const DashboardArtistProfile = () => {
     cidade: '',
     estado: '',
     // Plano
-    plano: 'Gratuito',
+    plano: 'Sem Plano',
     // Senha
     nova_senha: '',
     confirmar_senha: ''
@@ -84,7 +84,7 @@ export const DashboardArtistProfile = () => {
         bairro: decryptData(profile.bairro || ''),
         cidade: profile.cidade || '',
         estado: profile.estado || '',
-        plano: profile.plano || 'Gratuito'
+        plano: profile.plano || 'Sem Plano'
       }));
       
       // Check mandatory fields
