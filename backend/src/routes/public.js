@@ -1029,6 +1029,13 @@ async function requireUploadCredits(req, needed) {
   const n = Number(needed || 0);
   if (!Number.isFinite(n) || n <= 0) return { ok: true };
   const user = await Profile.findByPk(req.user?.id);
+  if (!user) return { ok: false, error: 'Usuário não encontrado', code: 'USER_NOT_FOUND' };
+  const plan = String(user?.plano || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+  if (plan.includes('vitalicio') || plan.includes('lifetime')) return { ok: true };
   const credits = Number(user?.creditos_envio || 0);
   if (credits < n) return { ok: false, error: 'Créditos insuficientes para envio', code: 'NO_CREDITS' };
   user.creditos_envio = credits - n;
@@ -1041,6 +1048,13 @@ async function requireHitCredits(req, needed) {
   const n = Number(needed || 0);
   if (!Number.isFinite(n) || n <= 0) return { ok: true };
   const user = await Profile.findByPk(req.user?.id);
+  if (!user) return { ok: false, error: 'Usuário não encontrado', code: 'USER_NOT_FOUND' };
+  const plan = String(user?.plano || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+  if (plan.includes('vitalicio') || plan.includes('lifetime')) return { ok: true };
   const credits = Number(user?.creditos_hit_semana || 0);
   if (credits < n) return { ok: false, error: 'Créditos de Hit da Semana insuficientes', code: 'NO_HIT_CREDITS' };
   user.creditos_hit_semana = credits - n;
