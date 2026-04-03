@@ -901,17 +901,34 @@ const Home = () => {
         {latestReleases.length > 0 && (() => {
           const today = new Date(); today.setHours(0, 0, 0, 0);
           const upcomingBase = latestReleases.filter(r => {
-            if (!r.release_date) return true;
+            if (!r.release_date) return false;
             const [y, m, d] = r.release_date.split('-'); const date = new Date(y, m - 1, d);
             return date > today;
           });
           const releasedBase = latestReleases.filter(r => {
-            if (!r.release_date) return false;
+            if (!r.release_date) return true;
             const [y, m, d] = r.release_date.split('-'); const date = new Date(y, m - 1, d);
             return date <= today;
           });
           const upcoming = groupReleasesByAlbum(upcomingBase);
-          const released = groupReleasesByAlbum(releasedBase);
+          const toMs = (v) => {
+            const t = new Date(v || 0).getTime();
+            return Number.isFinite(t) ? t : 0;
+          };
+          const sortTs = (item) => {
+            if (!item) return 0;
+            if (item.type === 'album') {
+              const candidate = [];
+              if (item.release_date) candidate.push(item.release_date);
+              if (Array.isArray(item.tracks)) {
+                item.tracks.forEach((t) => candidate.push(t?.release_date || t?.created_at || 0));
+              }
+              candidate.push(item.created_at || 0);
+              return Math.max(...candidate.map(toMs));
+            }
+            return toMs(item.release_date || item.created_at || 0);
+          };
+          const released = groupReleasesByAlbum(releasedBase).sort((a, b) => sortTs(b) - sortTs(a));
           return (
             <>
               {upcoming.length > 0 && (
