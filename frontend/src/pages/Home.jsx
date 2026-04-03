@@ -900,14 +900,23 @@ const Home = () => {
         {/* Latest Releases Section */}
         {latestReleases.length > 0 && (() => {
           const today = new Date(); today.setHours(0, 0, 0, 0);
+          const parseReleaseDate = (raw) => {
+            const s = String(raw || '').trim();
+            if (!s) return null;
+            const iso = s.includes('T') ? s : `${s}T00:00:00`;
+            const t = new Date(iso).getTime();
+            return Number.isFinite(t) ? new Date(t) : null;
+          };
           const upcomingBase = latestReleases.filter(r => {
-            if (!r.release_date) return false;
-            const [y, m, d] = r.release_date.split('-'); const date = new Date(y, m - 1, d);
+            if (!r.release_date) return !!r.presave_link;
+            const date = parseReleaseDate(r.release_date);
+            if (!date) return !!r.presave_link;
             return date > today;
           });
           const releasedBase = latestReleases.filter(r => {
-            if (!r.release_date) return true;
-            const [y, m, d] = r.release_date.split('-'); const date = new Date(y, m - 1, d);
+            if (!r.release_date) return !r.presave_link;
+            const date = parseReleaseDate(r.release_date);
+            if (!date) return !r.presave_link;
             return date <= today;
           });
           const upcoming = groupReleasesByAlbum(upcomingBase);
