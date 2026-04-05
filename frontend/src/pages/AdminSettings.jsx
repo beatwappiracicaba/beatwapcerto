@@ -761,7 +761,7 @@ export const AdminSettings = () => {
       return;
     }
     if (!migrateAcknowledge) {
-      addToast('Confirme que você entende que esta ação apaga os dados do perfil.', 'error');
+      addToast('Confirme que você entende a mudança de cargo.', 'error');
       return;
     }
     if (String(migratePin || '').trim() !== '18084907') {
@@ -771,7 +771,7 @@ export const AdminSettings = () => {
     setMigrateLoading(true);
     try {
       await apiClient.post(`/admin/users/${migrateTarget.id}/migrate-role`, { to_role: migrateToRole, confirm: migrateConfirm });
-      addToast('Cargo migrado e perfil zerado com sucesso!', 'success');
+      addToast('Cargo migrado com sucesso! Dados do perfil preservados.', 'success');
       setMigrateUserId('');
       setMigrateConfirm('');
       setMigrateAcknowledge(false);
@@ -1093,7 +1093,7 @@ export const AdminSettings = () => {
               <div className="space-y-4">
                 <div className="text-sm text-gray-300">
                   Troca o cargo de um perfil existente entre <span className="text-white font-bold">Artista</span> e <span className="text-white font-bold">Compositor</span>.
-                  Esta ação apaga as músicas/composições/feed/galeria/marketing/eventos/tarefas do perfil para iniciar do zero.
+                  Esta ação preserva os dados do perfil (foto, nome, WhatsApp, endereço e demais informações).
                 </div>
 
                 <div className="space-y-2">
@@ -1140,7 +1140,7 @@ export const AdminSettings = () => {
                 {migrateTarget?.email && (
                   <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 space-y-2">
                     <div className="text-sm font-extrabold text-red-200 flex items-center gap-2">
-                      <Trash2 size={16} className="text-red-300" /> Atenção: ação irreversível
+                      <Shield size={16} className="text-red-300" /> Atenção: ação sensível
                     </div>
                     <div className="text-xs text-red-100/80">
                       Para confirmar, digite: <span className="text-white font-extrabold">{migrateExpected}</span>
@@ -1159,7 +1159,7 @@ export const AdminSettings = () => {
                         onChange={(e) => setMigrateAcknowledge(e.target.checked)}
                         className="rounded border-red-500/40 text-red-300 focus:ring-red-400 bg-transparent"
                       />
-                      Eu entendo que o perfil será zerado para migração.
+                      Eu entendo que o cargo será alterado e os dados do perfil serão preservados.
                     </label>
                     <div className="relative">
                       <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-red-200/70" />
@@ -1178,7 +1178,7 @@ export const AdminSettings = () => {
                       className="w-full bg-red-500 text-white hover:bg-red-600"
                       disabled={migrateLoading || !migrateTarget?.email}
                     >
-                      Migrar Cargo e Zerar Perfil
+                      Migrar Cargo
                     </AnimatedButton>
                   </div>
                 )}
