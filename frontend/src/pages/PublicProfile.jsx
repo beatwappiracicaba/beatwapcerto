@@ -451,8 +451,8 @@ const PublicProfile = () => {
               </div>
               
               <div className="flex-1 w-full min-w-0 text-center md:text-left space-y-4">
-                <div>
-                  <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 whitespace-normal break-words leading-tight" style={{ overflowWrap: 'anywhere' }}>
+                <div className="min-w-0">
+                  <h1 className="max-w-full text-3xl sm:text-4xl font-bold text-white mb-2 whitespace-normal break-words break-all leading-tight" style={{ overflowWrap: 'anywhere' }}>
                     {displayName}
                   </h1>
                   <p className="text-xl text-beatwap-gold font-medium">{profile.cargo || 'Compositor'}</p>

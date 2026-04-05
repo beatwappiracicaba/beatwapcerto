@@ -1535,7 +1535,7 @@ const Home = () => {
               <div className="text-xs text-gray-400 mb-2 px-4 md:hidden">
                 Arraste para o lado e veja todos
               </div>
-              <div className="overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2 no-scrollbar snap-x snap-mandatory">
+              <div className="overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 scroll-pl-4 scroll-pr-4 sm:scroll-pl-14 sm:scroll-pr-14 md:scroll-pl-16 md:scroll-pr-16 pb-2 no-scrollbar snap-x snap-mandatory">
                 <div className="flex gap-4 sm:gap-6 justify-start">
                   {latestProjects.map((p, index) => (
                     <div key={p.id} className="flex-none w-[240px] sm:w-[280px] snap-start">

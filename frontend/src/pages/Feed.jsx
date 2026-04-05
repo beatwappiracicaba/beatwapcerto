@@ -749,7 +749,7 @@ const Feed = () => {
               <Music size={18} />
               <span>Álbuns</span>
             </div>
-            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
               {feedAlbums.slice(0, 8).map((a) => (
                 <button
                   key={a.id}
@@ -1323,7 +1323,7 @@ const Feed = () => {
                 </Card>
                 <Card className="p-4">
                   <div className="text-white font-bold">Álbuns</div>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {Array.from(
                       (panelMusics || []).reduce((map, m) => {
                         const aid = String(m?.album_id || '').trim();
