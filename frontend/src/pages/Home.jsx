@@ -368,6 +368,28 @@ const Home = () => {
         const s = String(m.status || '').toLowerCase();
         return s === 'aprovado' || s === 'approved';
       });
+      const parseDateOnly = (raw) => {
+        const s = String(raw || '').trim();
+        if (!s) return null;
+        const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (iso) {
+          const y = Number(iso[1]);
+          const m = Number(iso[2]);
+          const d = Number(iso[3]);
+          if (Number.isFinite(y) && Number.isFinite(m) && Number.isFinite(d)) return new Date(y, m - 1, d);
+        }
+        const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+        if (br) {
+          const d = Number(br[1]);
+          const m = Number(br[2]);
+          const y = Number(br[3]);
+          if (Number.isFinite(y) && Number.isFinite(m) && Number.isFinite(d)) return new Date(y, m - 1, d);
+        }
+        const t = new Date(s).getTime();
+        if (!Number.isFinite(t)) return null;
+        const dt = new Date(t);
+        return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+      };
       const mapped = approved.map(m => ({
         id: m.id,
         titulo: m.titulo,
@@ -387,10 +409,13 @@ const Home = () => {
       }));
       // Ordenação semelhante ao fluxo anterior
       const today = new Date();
+      today.setHours(0, 0, 0, 0);
       const parsed = mapped.map(r => {
-        const rd = r.release_date ? new Date(r.release_date) : null;
-        const isUpcoming = rd ? rd >= new Date(today.getFullYear(), today.getMonth(), today.getDate()) : false;
-        return { ...r, _rd: rd, _isUpcoming: isUpcoming };
+        const rd = r.release_date ? parseDateOnly(r.release_date) : null;
+        const cd = parseDateOnly(r.created_at);
+        const effective = rd || cd;
+        const isUpcoming = effective ? effective > today : false;
+        return { ...r, _rd: effective, _isUpcoming: isUpcoming };
       });
       const upcoming = parsed.filter(r => r._isUpcoming).sort((a, b) => (a._rd - b._rd));
       const pastOrNoDate = parsed.filter(r => !r._isUpcoming).sort((a, b) => {
@@ -912,7 +937,7 @@ const Home = () => {
                 return new Date(y, m - 1, d);
               }
             }
-            const brMatch = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+            const brMatch = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
             if (brMatch) {
               const d = Number(brMatch[1]);
               const m = Number(brMatch[2]);
@@ -927,14 +952,12 @@ const Home = () => {
             return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
           };
           const upcomingBase = latestReleases.filter(r => {
-            if (!r.release_date) return !!r.presave_link;
-            const date = parseReleaseDate(r.release_date);
+            const date = parseReleaseDate(r.release_date || r.created_at);
             if (!date) return !!r.presave_link;
             return date > today;
           });
           const releasedBase = latestReleases.filter(r => {
-            if (!r.release_date) return !r.presave_link;
-            const date = parseReleaseDate(r.release_date);
+            const date = parseReleaseDate(r.release_date || r.created_at);
             if (!date) return !r.presave_link;
             return date <= today;
           });
