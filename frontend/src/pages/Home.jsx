@@ -903,9 +903,28 @@ const Home = () => {
           const parseReleaseDate = (raw) => {
             const s = String(raw || '').trim();
             if (!s) return null;
-            const iso = s.includes('T') ? s : `${s}T00:00:00`;
-            const t = new Date(iso).getTime();
-            return Number.isFinite(t) ? new Date(t) : null;
+            const datePartMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (datePartMatch) {
+              const y = Number(datePartMatch[1]);
+              const m = Number(datePartMatch[2]);
+              const d = Number(datePartMatch[3]);
+              if (Number.isFinite(y) && Number.isFinite(m) && Number.isFinite(d)) {
+                return new Date(y, m - 1, d);
+              }
+            }
+            const brMatch = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+            if (brMatch) {
+              const d = Number(brMatch[1]);
+              const m = Number(brMatch[2]);
+              const y = Number(brMatch[3]);
+              if (Number.isFinite(y) && Number.isFinite(m) && Number.isFinite(d)) {
+                return new Date(y, m - 1, d);
+              }
+            }
+            const t = new Date(s).getTime();
+            if (!Number.isFinite(t)) return null;
+            const dt = new Date(t);
+            return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
           };
           const upcomingBase = latestReleases.filter(r => {
             if (!r.release_date) return !!r.presave_link;
@@ -1513,10 +1532,13 @@ const Home = () => {
                 <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4"><span>Últimos Projetos de Vídeos Feitos</span></h2>
                 <p className="text-gray-400"><span>Conteúdos recentes publicados pela produtora</span></p>
               </div>
-              <div className="overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2">
-                <div className="flex gap-6 justify-center md:justify-start">
+              <div className="text-xs text-gray-400 mb-2 px-4 md:hidden">
+                Arraste para o lado e veja todos
+              </div>
+              <div className="overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2 no-scrollbar snap-x snap-mandatory">
+                <div className="flex gap-4 sm:gap-6 justify-start">
                   {latestProjects.map((p, index) => (
-                    <div key={p.id} className="flex-none w-[280px]">
+                    <div key={p.id} className="flex-none w-[240px] sm:w-[280px] snap-start">
                       <motion.div 
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -1561,7 +1583,7 @@ const Home = () => {
                               : <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm"><span>{p.platform || 'Projeto'}</span></div>;
                           })()}
                           {activeProjectVideo !== p.id ? (
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <div className="absolute inset-0 bg-black/40 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <button 
                                 className="px-4 py-2 bg-beatwap-gold rounded-full text-black font-bold hover:bg-white"
                                 onClick={() => {

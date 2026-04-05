@@ -15,6 +15,34 @@ const state = {
   aiHistory: [],
 };
 
+function purgeUserChatData(userIdRaw) {
+  const userId = String(userIdRaw || '').trim();
+  if (!userId) return;
+
+  const removedChatIds = new Set();
+  state.chats = (Array.isArray(state.chats) ? state.chats : []).filter((c) => {
+    const ids = Array.isArray(c?.participant_ids) ? c.participant_ids : [];
+    const has = ids.map((x) => String(x)).includes(userId);
+    if (has && c?.id) removedChatIds.add(String(c.id));
+    return !has;
+  });
+
+  state.messages = (Array.isArray(state.messages) ? state.messages : []).filter((m) => {
+    const chatId = String(m?.chat_id || '').trim();
+    if (chatId && removedChatIds.has(chatId)) return false;
+    const sender = String(m?.sender_id || '').trim();
+    const receiver = String(m?.receiver_id || '').trim();
+    if (sender === userId || receiver === userId) return false;
+    return true;
+  });
+
+  state.queue = (Array.isArray(state.queue) ? state.queue : []).filter((q) => String(q?.requester_id || '').trim() !== userId);
+  state.notifications = (Array.isArray(state.notifications) ? state.notifications : []).filter((n) => String(n?.recipient_id || '').trim() !== userId);
+  state.aiHistory = (Array.isArray(state.aiHistory) ? state.aiHistory : []).filter((h) => String(h?.user_id || '').trim() !== userId);
+}
+
+router.purgeUserChatData = purgeUserChatData;
+
 function nowIso() {
   return new Date().toISOString();
 }

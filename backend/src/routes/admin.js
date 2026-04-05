@@ -2,6 +2,7 @@ const express = require('express');
 const { Profile } = require('../models');
 const { auth } = require('../middleware/auth');
 const { memory, scheduleSave } = require('../memoryStore');
+const chatRouter = require('./chat');
 
 const router = express.Router();
 
@@ -692,6 +693,216 @@ router.post('/admin/users/:id/purge', auth, async (req, res) => {
     if (confirm !== expected) return res.status(400).json({ error: 'Confirmação inválida' });
     await user.destroy();
     return res.json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: 'Erro interno' });
+  }
+});
+
+// Migrate user role (Artista <-> Compositor) and purge all profile-related data
+router.post('/admin/users/:id/migrate-role', auth, async (req, res) => {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ error: 'ID inválido' });
+    const user = await Profile.findByPk(id);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+    const toRoleRaw = String(req.body?.to_role || req.body?.toRole || req.body?.cargo || '').trim();
+    const toRole = toRoleRaw === 'Compositor' ? 'Compositor' : (toRoleRaw === 'Artista' ? 'Artista' : '');
+    if (!toRole) return res.status(400).json({ error: 'Cargo de destino inválido' });
+    const fromRole = String(user.cargo || '').trim();
+    if (fromRole !== 'Artista' && fromRole !== 'Compositor') {
+      return res.status(400).json({ error: 'A migração está disponível apenas para Artista e Compositor' });
+    }
+    if (toRole === fromRole) return res.status(400).json({ error: 'Cargo de destino deve ser diferente do atual' });
+
+    const confirm = String(req.body?.confirm || '');
+    const expected = `MIGRAR ${user.email} PARA ${toRole}`;
+    if (confirm !== expected) return res.status(400).json({ error: 'Confirmação inválida' });
+
+    const userId = String(user.id);
+    const userEmailKey = String(user.email || '').trim().toLowerCase();
+
+    const removedMusicIds = new Set();
+    const removedCompositionIds = new Set();
+    const removedPostIds = new Set();
+
+    const musicsBefore = Array.isArray(memory.musics) ? memory.musics.length : 0;
+    memory.musics = (Array.isArray(memory.musics) ? memory.musics : []).filter((m) => {
+      const owner = String(m?.artista_id ?? '');
+      const keep = owner !== userId;
+      if (!keep && m?.id) removedMusicIds.add(String(m.id));
+      return keep;
+    });
+
+    const compositionsBefore = Array.isArray(memory.compositions) ? memory.compositions.length : 0;
+    memory.compositions = (Array.isArray(memory.compositions) ? memory.compositions : []).filter((c) => {
+      const owner = String(c?.composer_id ?? '');
+      const keep = owner !== userId;
+      if (!keep && c?.id) removedCompositionIds.add(String(c.id));
+      return keep;
+    });
+
+    const postsBefore = Array.isArray(memory.posts) ? memory.posts.length : 0;
+    memory.posts = (Array.isArray(memory.posts) ? memory.posts : []).filter((p) => {
+      const owner = String(p?.user_id ?? '');
+      const keep = owner !== userId;
+      if (!keep && p?.id) removedPostIds.add(String(p.id));
+      return keep;
+    });
+
+    if (memory.profileGallery && typeof memory.profileGallery === 'object') {
+      delete memory.profileGallery[userId];
+    }
+
+    if (memory.marketing && typeof memory.marketing === 'object') {
+      delete memory.marketing[userId];
+    }
+
+    memory.artist_work_events = (Array.isArray(memory.artist_work_events) ? memory.artist_work_events : []).filter(
+      (e) => String(e?.artista_id ?? '') !== userId
+    );
+    memory.artist_todos = (Array.isArray(memory.artist_todos) ? memory.artist_todos : []).filter(
+      (t) => String(t?.artista_id ?? '') !== userId
+    );
+
+    memory.events = (Array.isArray(memory.events) ? memory.events : []).filter(
+      (ev) => String(ev?.artista_id ?? '') !== userId
+    );
+
+    const likes = memory.likes && typeof memory.likes === 'object' ? memory.likes : {};
+    for (const mid of removedMusicIds) delete likes[mid];
+    for (const cid of removedCompositionIds) delete likes[cid];
+    for (const pid of removedPostIds) delete likes[pid];
+    memory.likes = likes;
+
+    if (memory.externalMetrics && typeof memory.externalMetrics === 'object') {
+      const next = {};
+      for (const [k, v] of Object.entries(memory.externalMetrics)) {
+        const musicId = String(v?.music_id || '').trim() || String(k).split('::')[0];
+        if (musicId && removedMusicIds.has(String(musicId))) continue;
+        next[k] = v;
+      }
+      memory.externalMetrics = next;
+    }
+
+    if (Array.isArray(memory.analytics) && removedMusicIds.size) {
+      const removeSet = removedMusicIds;
+      memory.analytics = memory.analytics.filter((ev) => {
+        const t = String(ev?.type || '').trim();
+        if (t !== 'music_play') return true;
+        const p = ev?.payload && typeof ev.payload === 'object' ? ev.payload : {};
+        const mid = String(
+          p?.music_id ||
+            p?.musicId ||
+            p?.id ||
+            ev?.music_id ||
+            ev?.musicId ||
+            ''
+        ).trim();
+        if (!mid) return true;
+        return !removeSet.has(mid);
+      });
+    }
+
+    if (memory.comments && typeof memory.comments === 'object') {
+      const next = {};
+      for (const [postId, arr] of Object.entries(memory.comments)) {
+        if (removedPostIds.has(String(postId))) continue;
+        const list = Array.isArray(arr) ? arr : [];
+        next[postId] = list.filter((c) => String(c?.user_id ?? '') !== userId);
+      }
+      memory.comments = next;
+    }
+
+    if (memory.follows && typeof memory.follows === 'object') {
+      const next = { ...memory.follows };
+      delete next[userId];
+      for (const [followerId, arr] of Object.entries(next)) {
+        if (!Array.isArray(arr)) continue;
+        next[followerId] = arr.filter((x) => String(x) !== userId);
+      }
+      memory.follows = next;
+    }
+
+    const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
+    if (hit) {
+      const removedEntries = new Set();
+      hit.entries = (Array.isArray(hit.entries) ? hit.entries : []).filter((e) => {
+        const entryId = String(e?.id || '').trim();
+        const pid = String(e?.profile_id || '').trim();
+        const cid = String(e?.composer_id || '').trim();
+        const compId = String(e?.composition_id || '').trim();
+        const keep = pid !== userId && cid !== userId && (!compId || !removedCompositionIds.has(compId));
+        if (!keep && entryId) removedEntries.add(entryId);
+        return keep;
+      });
+      if (hit.votes_by_ip && typeof hit.votes_by_ip === 'object' && removedEntries.size) {
+        const vb = {};
+        for (const [ip, entryId] of Object.entries(hit.votes_by_ip)) {
+          if (removedEntries.has(String(entryId))) continue;
+          vb[ip] = entryId;
+        }
+        hit.votes_by_ip = vb;
+      }
+      if (hit.winner_entry_id && removedEntries.has(String(hit.winner_entry_id))) hit.winner_entry_id = null;
+      hit.updated_at = new Date().toISOString();
+    }
+
+    const prevAC = user.access_control && typeof user.access_control === 'object' ? user.access_control : {};
+    const preserved = {};
+    if (Object.prototype.hasOwnProperty.call(prevAC, 'verified')) preserved.verified = prevAC.verified;
+    if (Object.prototype.hasOwnProperty.call(prevAC, 'plan_override')) preserved.plan_override = prevAC.plan_override;
+
+    if (userEmailKey && memory.email_verification && typeof memory.email_verification === 'object') {
+      delete memory.email_verification[userEmailKey];
+    }
+
+    if (chatRouter && typeof chatRouter.purgeUserChatData === 'function') {
+      chatRouter.purgeUserChatData(userId);
+    }
+
+    user.cargo = toRole;
+    user.nome = null;
+    user.nome_completo = null;
+    user.razao_social = null;
+    user.nome_completo_razao_social = null;
+    user.cpf = null;
+    user.cnpj = null;
+    user.cpf_cnpj = null;
+    user.celular = null;
+    user.telefone = null;
+    user.tema = null;
+    user.cep = null;
+    user.logradouro = null;
+    user.complemento = null;
+    user.bairro = null;
+    user.cidade = null;
+    user.estado = null;
+    user.avatar_url = null;
+    user.bio = null;
+    user.genero_musical = null;
+    user.youtube_url = null;
+    user.spotify_url = null;
+    user.deezer_url = null;
+    user.tiktok_url = null;
+    user.instagram_url = null;
+    user.site_url = null;
+    user.access_control = Object.keys(preserved).length ? preserved : null;
+    await user.save();
+
+    scheduleSave();
+
+    res.json({
+      ok: true,
+      profile: user,
+      purged: {
+        musics_removed: musicsBefore - (Array.isArray(memory.musics) ? memory.musics.length : 0),
+        compositions_removed: compositionsBefore - (Array.isArray(memory.compositions) ? memory.compositions.length : 0),
+        posts_removed: postsBefore - (Array.isArray(memory.posts) ? memory.posts.length : 0)
+      }
+    });
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'Erro interno' });
   }

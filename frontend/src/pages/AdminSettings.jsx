@@ -58,6 +58,12 @@ export const AdminSettings = () => {
   const [purgeAcknowledge, setPurgeAcknowledge] = useState(false);
   const [purgeLoading, setPurgeLoading] = useState(false);
   const [purgePin, setPurgePin] = useState('');
+  const [migrateUserId, setMigrateUserId] = useState('');
+  const [migrateToRole, setMigrateToRole] = useState('Compositor');
+  const [migrateConfirm, setMigrateConfirm] = useState('');
+  const [migrateAcknowledge, setMigrateAcknowledge] = useState(false);
+  const [migratePin, setMigratePin] = useState('');
+  const [migrateLoading, setMigrateLoading] = useState(false);
   const [featuredPlansAdmin, setFeaturedPlansAdmin] = useState(null);
   const [featuredPlansDraft, setFeaturedPlansDraft] = useState(null);
   const [featuredPlansSaving, setFeaturedPlansSaving] = useState(false);
@@ -724,6 +730,60 @@ export const AdminSettings = () => {
     setPurgePin('');
   };
 
+  const migrateTarget = migrateUserId ? artists.find((a) => String(a.id) === String(migrateUserId)) : null;
+  const migrateExpected = migrateTarget?.email ? `MIGRAR ${migrateTarget.email} PARA ${migrateToRole}` : '';
+
+  useEffect(() => {
+    if (!migrateTarget) return;
+    const fromRole = String(migrateTarget.cargo || '').trim();
+    const next = fromRole === 'Artista' ? 'Compositor' : fromRole === 'Compositor' ? 'Artista' : migrateToRole;
+    if (next !== migrateToRole) setMigrateToRole(next);
+    setMigrateConfirm('');
+    setMigrateAcknowledge(false);
+    setMigratePin('');
+  }, [migrateUserId]);
+
+  const migrateRole = async () => {
+    if (!migrateTarget?.id) {
+      addToast('Selecione um usuário para migrar.', 'error');
+      return;
+    }
+    if (!['Artista', 'Compositor'].includes(String(migrateTarget.cargo || '').trim())) {
+      addToast('A migração está disponível apenas para Artista e Compositor.', 'error');
+      return;
+    }
+    if (!['Artista', 'Compositor'].includes(String(migrateToRole || '').trim())) {
+      addToast('Selecione o cargo de destino.', 'error');
+      return;
+    }
+    if (String(migrateConfirm || '').trim() !== migrateExpected) {
+      addToast('Confirmação inválida. Digite exatamente a frase solicitada.', 'error');
+      return;
+    }
+    if (!migrateAcknowledge) {
+      addToast('Confirme que você entende que esta ação apaga os dados do perfil.', 'error');
+      return;
+    }
+    if (String(migratePin || '').trim() !== '18084907') {
+      addToast('PIN incorreto', 'error');
+      return;
+    }
+    setMigrateLoading(true);
+    try {
+      await apiClient.post(`/admin/users/${migrateTarget.id}/migrate-role`, { to_role: migrateToRole, confirm: migrateConfirm });
+      addToast('Cargo migrado e perfil zerado com sucesso!', 'success');
+      setMigrateUserId('');
+      setMigrateConfirm('');
+      setMigrateAcknowledge(false);
+      setMigratePin('');
+      await fetchArtists();
+    } catch (e) {
+      addToast(e?.message || 'Erro ao migrar cargo', 'error');
+    } finally {
+      setMigrateLoading(false);
+    }
+  };
+
   const purgeAccount = async () => {
     if (!purgeTarget?.id) return;
     const expected = `APAGAR ${purgeTarget.email}`;
@@ -1030,12 +1090,99 @@ export const AdminSettings = () => {
               <div className="text-base md:text-lg font-bold flex items-center gap-2">
                 <Shield size={18} /> Migração de Cargos
               </div>
-              <ul className="space-y-3 text-sm text-gray-400 list-disc list-inside">
-                <li>Use este formulário para convidar novos artistas ou produtores.</li>
-                <li>Defina as permissões iniciais que o usuário terá ao se cadastrar.</li>
-                <li>O link gerado contém todas as configurações e expira apenas se o email mudar.</li>
-                <li>Para usuários existentes, use a seção &quot;Gerenciar Permissões&quot; abaixo.</li>
-              </ul>
+              <div className="space-y-4">
+                <div className="text-sm text-gray-300">
+                  Troca o cargo de um perfil existente entre <span className="text-white font-bold">Artista</span> e <span className="text-white font-bold">Compositor</span>.
+                  Esta ação apaga as músicas/composições/feed/galeria/marketing/eventos/tarefas do perfil para iniciar do zero.
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-sm text-gray-300">Usuário</div>
+                  <select
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
+                    value={migrateUserId}
+                    onChange={(e) => setMigrateUserId(e.target.value)}
+                  >
+                    <option value="" className="bg-[#121212]">Selecionar Artista/Compositor</option>
+                    {artists
+                      .filter((a) => a && ['Artista', 'Compositor'].includes(a.cargo))
+                      .slice()
+                      .sort((a, b) => (a.nome || a.nome_completo_razao_social || a.email || '').localeCompare(b.nome || b.nome_completo_razao_social || b.email || ''))
+                      .map((a) => (
+                        <option key={a.id} value={a.id} className="bg-[#121212]">
+                          {(a.nome || a.nome_completo_razao_social || a.email || `#${a.id}`)} ({a.cargo})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <div className="text-sm text-gray-300">Cargo de destino</div>
+                    <select
+                      className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
+                      value={migrateToRole}
+                      onChange={(e) => setMigrateToRole(e.target.value)}
+                      disabled={!migrateTarget}
+                    >
+                      <option value="Artista" className="bg-[#121212]">Artista</option>
+                      <option value="Compositor" className="bg-[#121212]">Compositor</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-sm text-gray-300">Email</div>
+                    <div className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200 truncate">
+                      {migrateTarget?.email || '—'}
+                    </div>
+                  </div>
+                </div>
+
+                {migrateTarget?.email && (
+                  <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 space-y-2">
+                    <div className="text-sm font-extrabold text-red-200 flex items-center gap-2">
+                      <Trash2 size={16} className="text-red-300" /> Atenção: ação irreversível
+                    </div>
+                    <div className="text-xs text-red-100/80">
+                      Para confirmar, digite: <span className="text-white font-extrabold">{migrateExpected}</span>
+                    </div>
+                    <input
+                      type="text"
+                      value={migrateConfirm}
+                      onChange={(e) => setMigrateConfirm(e.target.value)}
+                      placeholder={migrateExpected}
+                      className="w-full bg-black/20 border border-red-500/30 rounded-lg px-3 py-2 text-white focus:border-red-400 outline-none"
+                    />
+                    <label className="flex items-center gap-2 text-xs text-red-100/90">
+                      <input
+                        type="checkbox"
+                        checked={migrateAcknowledge}
+                        onChange={(e) => setMigrateAcknowledge(e.target.checked)}
+                        className="rounded border-red-500/40 text-red-300 focus:ring-red-400 bg-transparent"
+                      />
+                      Eu entendo que o perfil será zerado para migração.
+                    </label>
+                    <div className="relative">
+                      <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-red-200/70" />
+                      <input
+                        type="password"
+                        value={migratePin}
+                        onChange={(e) => setMigratePin(e.target.value)}
+                        placeholder="PIN"
+                        className="w-full bg-black/20 border border-red-500/30 rounded-lg pl-9 pr-3 py-2 text-white focus:border-red-400 outline-none"
+                      />
+                    </div>
+
+                    <AnimatedButton
+                      onClick={migrateRole}
+                      isLoading={migrateLoading}
+                      className="w-full bg-red-500 text-white hover:bg-red-600"
+                      disabled={migrateLoading || !migrateTarget?.email}
+                    >
+                      Migrar Cargo e Zerar Perfil
+                    </AnimatedButton>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </Card>

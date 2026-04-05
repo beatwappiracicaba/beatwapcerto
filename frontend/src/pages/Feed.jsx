@@ -839,9 +839,9 @@ const Feed = () => {
                             <Music size={40} />
                           </div>
                         )}
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="absolute inset-0 bg-black/40 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           <button
-                            className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
+                            className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-100 sm:scale-0 sm:group-hover:scale-100 transition-transform duration-300 hover:bg-white"
                             onClick={(e) => {
                               e.stopPropagation();
                               togglePlay(`composition:${it.id}`, c.audio_url);
@@ -906,9 +906,9 @@ const Feed = () => {
                           </div>
                         )}
                         {!m.album_id && (
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="absolute inset-0 bg-black/40 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <button
-                              className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
+                              className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-100 sm:scale-0 sm:group-hover:scale-100 transition-transform duration-300 hover:bg-white"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 togglePlay(`music:${it.id}`, url, { artistId });
@@ -973,7 +973,7 @@ const Feed = () => {
                 if (mediaType === 'text') {
                   return (
                     <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
-                      {caption && <div className="text-sm text-white whitespace-pre-line">{caption}</div>}
+                      {caption && <div className="text-sm text-white whitespace-pre-line break-words" style={{ overflowWrap: 'anywhere' }}>{caption}</div>}
                       {linkUrl && (
                         <button
                           type="button"
@@ -1084,7 +1084,7 @@ const Feed = () => {
                     </div>
                     {(caption || linkUrl) && (
                       <div className="p-4 space-y-3">
-                        {caption && <div className="text-sm text-white whitespace-pre-line">{caption}</div>}
+                        {caption && <div className="text-sm text-white whitespace-pre-line break-words" style={{ overflowWrap: 'anywhere' }}>{caption}</div>}
                         {linkUrl && (
                           <button
                             type="button"
@@ -1129,7 +1129,7 @@ const Feed = () => {
                             {comments.slice(-6).map((c) => (
                               <div key={c.id} className="text-xs text-gray-200">
                                 <span className="text-gray-400 font-bold">{displayName(c.owner)}:</span>{' '}
-                                <span className="text-gray-200">{String(c.text || '')}</span>
+                                <span className="text-gray-200 break-words" style={{ overflowWrap: 'anywhere' }}>{String(c.text || '')}</span>
                               </div>
                             ))}
                           </div>
@@ -1190,7 +1190,7 @@ const Feed = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div className="min-w-0">
             <div className="text-2xl font-bold text-white truncate">BeatWap</div>
             <div className="text-sm text-gray-400 truncate">
@@ -1220,18 +1220,35 @@ const Feed = () => {
               </button>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto sm:justify-end">
             {activeTab === 'feed' && (
               <>
-                <AnimatedButton onClick={() => { setActiveTab('search'); navigate('/dashboard/pesquisar'); }}>
-                  <span className="inline-flex items-center gap-2"><Search size={16} /> Pesquisar</span>
+                <AnimatedButton
+                  onClick={() => { setActiveTab('search'); navigate('/dashboard/pesquisar'); }}
+                  className="w-full sm:w-auto px-4 py-2 text-xs"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <Search size={16} />
+                    <span className="hidden sm:inline">Pesquisar</span>
+                    <span className="sm:hidden">Buscar</span>
+                  </span>
                 </AnimatedButton>
-                <AnimatedButton onClick={() => setPostModalOpen(true)} disabled={!meId}>
-                  <span className="inline-flex items-center gap-2"><Plus size={16} /> Postar</span>
+                <AnimatedButton
+                  onClick={() => setPostModalOpen(true)}
+                  disabled={!meId}
+                  className="w-full sm:w-auto px-4 py-2 text-xs"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <Plus size={16} />
+                    <span>Postar</span>
+                  </span>
                 </AnimatedButton>
               </>
             )}
-            <AnimatedButton onClick={activeTab === 'painel' ? loadPanel : refresh}>
+            <AnimatedButton
+              onClick={activeTab === 'painel' ? loadPanel : refresh}
+              className="w-full sm:w-auto px-4 py-2 text-xs"
+            >
               Atualizar
             </AnimatedButton>
           </div>
