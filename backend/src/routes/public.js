@@ -2082,10 +2082,42 @@ router.get('/profiles/:id/feats', async (req, res) => {
 
 router.get('/profiles/:id/produced-musics', async (req, res) => {
   const ownerId = req.params.id;
+  const normalize = (v) => String(v || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  let owner = null;
+  try {
+    owner = await Profile.findByPk(ownerId);
+  } catch {
+    owner = null;
+  }
+
+  const ownerNames = new Set(
+    [owner?.nome, owner?.nome_completo_razao_social]
+      .map(normalize)
+      .filter((x) => x)
+  );
+
   const list = memory.musics
-    .filter(m => String(m.producer_id) === String(ownerId))
-    .filter(m => String(m.status).toLowerCase() === 'aprovado')
-    .filter(m => m.is_beatwap_produced === true || String(m.produced_by).toLowerCase() === 'beatwap')
+    .filter(m => {
+      const s = String(m.status || '').toLowerCase().trim();
+      if (s !== 'aprovado' && s !== 'aprovada' && s !== 'approved' && s !== 'aceito' && s !== 'aceita') return false;
+
+      if (String(m.producer_id || '') === String(ownerId)) return true;
+      if (String(m.produced_by || '') === String(ownerId)) return true;
+
+      const producerName = normalize(m.producer);
+      if (producerName && ownerNames.has(producerName)) return true;
+
+      const producedByName = normalize(m.produced_by);
+      if (producedByName && ownerNames.has(producedByName)) return true;
+
+      return false;
+    })
     .map(m => {
       const arr = Array.isArray(memory.likes[m.id]) ? memory.likes[m.id] : [];
       return { ...m, likes_count: arr.length };

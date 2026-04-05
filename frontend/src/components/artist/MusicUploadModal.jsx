@@ -25,6 +25,8 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     feat_name: '',
     composer: '',
     producer: '',
+    is_beatwap_produced: false,
+    producer_id: '',
     beatwap_feat_artist_ids: [],
     is_beatwap_composer_partner: false,
     composer_partner_id: null,
@@ -56,6 +58,8 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     is_album: false,
     composer: '',
     producer: '',
+    is_beatwap_produced: false,
+    producer_id: '',
     beatwap_feat_artist_ids: [],
     is_beatwap_composer_partner: false,
     has_external_composers: false,
@@ -73,6 +77,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
   const [errors, setErrors] = useState({});
   const [artistOptions, setArtistOptions] = useState([]);
   const [composerOptions, setComposerOptions] = useState([]);
+  const [producerOptions, setProducerOptions] = useState([]);
   const [activeAlbumTrackIndex, setActiveAlbumTrackIndex] = useState(null);
 
   useEffect(() => {
@@ -88,6 +93,13 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       setComposerOptions(data || []);
     };
     loadComposers();
+  }, []);
+  useEffect(() => {
+    const loadProducers = async () => {
+      const data = await apiClient.get('/producers');
+      setProducerOptions(data || []);
+    };
+    loadProducers();
   }, []);
 
   useEffect(() => {
@@ -285,7 +297,8 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
   const uploadAlbumTrack = async (index) => {
     const t = formData.tracks[index];
     if (!t) return;
-    if (!t.titulo || !t.estilo || !t.audio_file || !t.composer || !t.producer || (t.has_feat && !t.feat_name)) {
+    const hasProducer = !!(t.is_beatwap_produced ? String(t.producer_id || '').trim() : String(t.producer || '').trim());
+    if (!t.titulo || !t.estilo || !t.audio_file || !t.composer || !hasProducer || (t.has_feat && !t.feat_name)) {
       setErrors(prev => ({ ...prev, submit: 'Preencha título, estilo, áudio, compositor, produtor e feat (se houver) antes de enviar a faixa.' }));
       return;
     }
@@ -369,6 +382,9 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
           uniq.push(name);
         }
         const comp = uniq.join(', ');
+        const producerId = t.is_beatwap_produced ? String(t.producer_id || '').trim() : '';
+        const producerRow = producerId ? producerOptions.find((p) => String(p?.id || '') === producerId) : null;
+        const producerName = t.is_beatwap_produced ? (producerRow ? (producerRow.nome || producerRow.nome_completo_razao_social || '') : t.producer) : t.producer;
         return {
           artista_id: activeUser.id,
           titulo: t.titulo,
@@ -383,7 +399,10 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
           has_feat: t.has_feat || false,
           feat_name: t.feat_name || null,
           composer: comp || null,
-          producer: t.producer || null,
+          producer: String(producerName || '').trim() || null,
+          is_beatwap_produced: !!t.is_beatwap_produced,
+          producer_id: producerId || null,
+          produced_by: producerId || null,
           external_composers: Array.isArray(t.external_composers) ? t.external_composers : [],
           feat_beatwap_artist_ids: t.beatwap_feat_artist_ids || [],
           is_beatwap_composer_partner: !!t.is_beatwap_composer_partner,
@@ -418,7 +437,8 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       setErrors(prev => ({ ...prev, submit: 'Informe o nome do Feat.' }));
       return;
     }
-    if (!formData.composer || !formData.producer) {
+    const hasProducer = !!(formData.is_beatwap_produced ? String(formData.producer_id || '').trim() : String(formData.producer || '').trim());
+    if (!formData.composer || !hasProducer) {
       setErrors(prev => ({ ...prev, submit: 'Informe o Compositor e Produtor.' }));
       return;
     }
@@ -462,6 +482,9 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
         uniq.push(name);
       }
       const composerString = uniq.join(', ');
+      const producerId = formData.is_beatwap_produced ? String(formData.producer_id || '').trim() : '';
+      const producerRow = producerId ? producerOptions.find((p) => String(p?.id || '') === producerId) : null;
+      const producerName = formData.is_beatwap_produced ? (producerRow ? (producerRow.nome || producerRow.nome_completo_razao_social || '') : formData.producer) : formData.producer;
 
       await apiClient.post('/musics', {
         artista_id: activeUser.id,
@@ -477,7 +500,10 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
         has_feat: formData.has_feat || false,
         feat_name: formData.feat_name || null,
         composer: composerString || null,
-        producer: formData.producer || null,
+        producer: String(producerName || '').trim() || null,
+        is_beatwap_produced: !!formData.is_beatwap_produced,
+        producer_id: producerId || null,
+        produced_by: producerId || null,
         external_composers: Array.isArray(formData.external_composers) ? formData.external_composers : [],
         feat_beatwap_artist_ids: formData.beatwap_feat_artist_ids || [],
         is_beatwap_composer_partner: !!formData.is_beatwap_composer_partner,
@@ -661,12 +687,48 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                         onChange={(e) => setFormData({...formData, composer: e.target.value})} 
                         placeholder="Nome do compositor"
                       />
-                      <AnimatedInput 
-                        label="Produtor" 
-                        value={formData.producer || ''} 
-                        onChange={(e) => setFormData({...formData, producer: e.target.value})} 
-                        placeholder="Nome do Produtor"
-                      />
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium text-gray-400">Produtor BeatWap</label>
+                          <input
+                            type="checkbox"
+                            checked={!!formData.is_beatwap_produced}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setFormData(prev => ({
+                                ...prev,
+                                is_beatwap_produced: checked,
+                                producer_id: checked ? (prev.producer_id || '') : ''
+                              }));
+                            }}
+                            className="w-5 h-5 accent-beatwap-gold rounded cursor-pointer"
+                          />
+                        </div>
+                        {formData.is_beatwap_produced ? (
+                          <select
+                            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white"
+                            value={formData.producer_id || ''}
+                            onChange={(e) => {
+                              const id = e.target.value;
+                              const row = producerOptions.find((p) => String(p?.id || '') === String(id || '')) || null;
+                              const name = row ? (row.nome || row.nome_completo_razao_social || '') : '';
+                              setFormData(prev => ({ ...prev, producer_id: id, producer: name || prev.producer || '' }));
+                            }}
+                          >
+                            <option value="">Selecionar produtor</option>
+                            {producerOptions.map(p => (
+                              <option key={p.id} value={p.id}>{p.nome || p.nome_completo_razao_social || 'Produtor'}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <AnimatedInput
+                            label="Produtor"
+                            value={formData.producer || ''}
+                            onChange={(e) => setFormData({...formData, producer: e.target.value})}
+                            placeholder="Nome do Produtor"
+                          />
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 mb-3">
                       <input
@@ -987,12 +1049,46 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                                 onChange={(e) => updateTrackField(idx, 'composer', e.target.value)}
                                 placeholder="Nome do compositor"
                               />
-                              <AnimatedInput
-                                label="Produtor"
-                                value={t.producer || ''}
-                                onChange={(e) => updateTrackField(idx, 'producer', e.target.value)}
-                                placeholder="Produtor"
-                              />
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-xs font-medium text-gray-400">Produtor BeatWap</label>
+                                  <input
+                                    type="checkbox"
+                                    checked={!!t.is_beatwap_produced}
+                                    onChange={(e) => {
+                                      const checked = e.target.checked;
+                                      updateTrackField(idx, 'is_beatwap_produced', checked);
+                                      if (!checked) updateTrackField(idx, 'producer_id', '');
+                                    }}
+                                    className="w-4 h-4 accent-beatwap-gold rounded cursor-pointer"
+                                  />
+                                </div>
+                                {t.is_beatwap_produced ? (
+                                  <select
+                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-white text-sm"
+                                    value={t.producer_id || ''}
+                                    onChange={(e) => {
+                                      const id = e.target.value;
+                                      const row = producerOptions.find((p) => String(p?.id || '') === String(id || '')) || null;
+                                      const name = row ? (row.nome || row.nome_completo_razao_social || '') : '';
+                                      updateTrackField(idx, 'producer_id', id);
+                                      if (name) updateTrackField(idx, 'producer', name);
+                                    }}
+                                  >
+                                    <option value="">Selecionar produtor</option>
+                                    {producerOptions.map(p => (
+                                      <option key={p.id} value={p.id}>{p.nome || p.nome_completo_razao_social || 'Produtor'}</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <AnimatedInput
+                                    label="Produtor"
+                                    value={t.producer || ''}
+                                    onChange={(e) => updateTrackField(idx, 'producer', e.target.value)}
+                                    placeholder="Produtor"
+                                  />
+                                )}
+                              </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">

@@ -232,6 +232,14 @@ router.post('/musics', auth, async (req, res) => {
       .filter((x) => x)
       .slice(0, 20);
 
+    const producerIdIn = req.body?.producer_id ?? req.body?.produced_by ?? null;
+    const isBeatwapProducedRaw = req.body?.is_beatwap_produced;
+    const isBeatwapProduced = (isBeatwapProducedRaw === undefined || isBeatwapProducedRaw === null)
+      ? !!producerIdIn
+      : !!isBeatwapProducedRaw;
+    const producerId = isBeatwapProduced && producerIdIn ? producerIdIn : null;
+    const producedBy = isBeatwapProduced ? (req.body?.produced_by ?? producerId ?? null) : null;
+
     const id = `music_${Date.now()}`;
     const item = {
       id,
@@ -249,6 +257,9 @@ router.post('/musics', auth, async (req, res) => {
       feat_name: req.body?.feat_name || null,
       composer: req.body?.composer || null,
       producer: req.body?.producer || null,
+      is_beatwap_produced: isBeatwapProduced,
+      produced_by: producedBy,
+      producer_id: producerId,
       external_composers,
       feat_beatwap_artist_ids: Array.isArray(req.body?.feat_beatwap_artist_ids) ? req.body.feat_beatwap_artist_ids : [],
       is_beatwap_composer_partner: !!req.body?.is_beatwap_composer_partner,
