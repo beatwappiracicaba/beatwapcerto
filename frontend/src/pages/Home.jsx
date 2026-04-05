@@ -424,7 +424,7 @@ const Home = () => {
         if (!a._rd && b._rd) return 1;
         return new Date(b.created_at) - new Date(a.created_at);
       });
-      const combined = [...upcoming, ...pastOrNoDate].slice(0, 10).map(r => {
+      const combined = [...upcoming, ...pastOrNoDate].map(r => {
         const o = { ...r };
         delete o._rd;
         delete o._isUpcoming;
@@ -961,7 +961,7 @@ const Home = () => {
             if (!date) return !r.presave_link;
             return date <= today;
           });
-          const upcoming = groupReleasesByAlbum(upcomingBase);
+          const upcoming = groupReleasesByAlbum(upcomingBase).slice(0, 10);
           const toMs = (v) => {
             const t = new Date(v || 0).getTime();
             return Number.isFinite(t) ? t : 0;
@@ -979,7 +979,7 @@ const Home = () => {
             }
             return toMs(item.release_date || item.created_at || 0);
           };
-          const released = groupReleasesByAlbum(releasedBase).sort((a, b) => sortTs(b) - sortTs(a));
+          const released = groupReleasesByAlbum(releasedBase).sort((a, b) => sortTs(b) - sortTs(a)).slice(0, 10);
           return (
             <>
               {upcoming.length > 0 && (
