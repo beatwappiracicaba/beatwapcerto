@@ -23,7 +23,6 @@ const PublicProfile = () => {
   const [restricted, setRestricted] = useState(false);
   const [producerProductions, setProducerProductions] = useState([]);
   const [producerCompositions, setProducerCompositions] = useState([]);
-  const [recordedMusics, setRecordedMusics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
@@ -51,6 +50,25 @@ const PublicProfile = () => {
       return db - da;
     });
   }, [items]);
+  const producerProductionAlbumGroups = useMemo(() => {
+    const map = new Map();
+    (producerProductions || []).forEach(m => {
+      const aid = String(m?.album_id || '').trim();
+      if (!aid) return;
+      const cur = map.get(aid) || { id: aid, title: m.album_title || 'Álbum', cover_url: m.cover_url || null, release_date: m.release_date || null, count: 0 };
+      if (!cur.cover_url && m.cover_url) cur.cover_url = m.cover_url;
+      cur.count += 1;
+      map.set(aid, cur);
+    });
+    return Array.from(map.values()).sort((a, b) => {
+      const da = a.release_date ? new Date(a.release_date).getTime() : 0;
+      const db = b.release_date ? new Date(b.release_date).getTime() : 0;
+      return db - da;
+    });
+  }, [producerProductions]);
+  const producerProductionSingles = useMemo(() => {
+    return (producerProductions || []).filter(m => !String(m?.album_id || '').trim());
+  }, [producerProductions]);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -228,7 +246,6 @@ const PublicProfile = () => {
         setItems([]);
         setProducerProductions([]);
         setProducerCompositions([]);
-        setRecordedMusics([]);
         setLoading(false);
         return;
       }
@@ -265,9 +282,7 @@ const PublicProfile = () => {
         setProducerCompositions(compositionsData || []);
       } else {
         const musicData = await apiClient.get(`/profiles/${id}/compositions`);
-        const recorded = await apiClient.get(`/profiles/${id}/recorded-musics`);
         setItems(musicData || []);
-        setRecordedMusics(recorded || []);
       }
 
     } catch (error) {
@@ -372,7 +387,10 @@ const PublicProfile = () => {
     : items;
   const itemsToRender = cargoLower === 'artista'
     ? (Array.isArray(baseItemsToRender) ? baseItemsToRender.filter((m) => !String(m?.album_id || '').trim()) : [])
-    : baseItemsToRender;
+    : (cargoLower === 'produtor' && producerTab === 'producoes' ? producerProductionSingles : baseItemsToRender);
+  const itemsCount = cargoLower === 'produtor' && producerTab === 'producoes'
+    ? producerProductionSingles.length + producerProductionAlbumGroups.length
+    : itemsToRender.length;
   const phoneDigits = profile.celular ? String(decryptData(profile.celular) || '').replace(/\D/g, '') : '';
   
 
@@ -1018,7 +1036,38 @@ const PublicProfile = () => {
                 </button>
               </div>
             )}
-            {!(cargoLower === 'artista' && albumGroups.length > 0 && itemsToRender.length === 0) && (
+            {cargoLower === 'produtor' && producerTab === 'producoes' && producerProductionAlbumGroups.length > 0 && (
+              <div className="mb-12">
+                <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                  <Music className="text-beatwap-gold" />
+                  Álbuns
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                  {producerProductionAlbumGroups.map(a => (
+                    <button
+                      key={a.id}
+                      onClick={() => navigate(`/album/${a.id}`)}
+                      className="text-left bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:bg-white/10 transition-colors"
+                    >
+                      <div className="aspect-square bg-gray-800">
+                        {a.cover_url ? (
+                          <img src={a.cover_url} alt={a.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-500">
+                            <Music size={40} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <div className="font-bold text-white truncate">{a.title}</div>
+                        <div className="text-xs text-gray-400">{a.count} faixas</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {!((cargoLower === 'artista' && albumGroups.length > 0 && itemsToRender.length === 0) || (cargoLower === 'produtor' && producerTab === 'producoes' && producerProductionAlbumGroups.length > 0 && producerProductionSingles.length === 0)) && (
               <>
                 <h2 className="text-xl md:text-2xl font-bold flex items-center gap-3 mb-4">
                   <Music className="text-beatwap-gold" />
@@ -1026,10 +1075,10 @@ const PublicProfile = () => {
                     ? 'Músicas Lançadas'
                     : (cargoLower === 'produtor'
                       ? (producerTab === 'composicoes' ? 'Composições' : 'Produções')
-                      : 'Composições')} ({itemsToRender.length})
+                      : 'Composições')} ({itemsCount})
                 </h2>
 
-                {itemsToRender.length === 0 ? (
+                {itemsCount === 0 ? (
                   <div className="text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/10">
                     <Music size={48} className="mx-auto mb-4 opacity-20" />
                     <p className="text-gray-400">
@@ -1083,50 +1132,6 @@ const PublicProfile = () => {
                   </div>
                 )}
               </>
-            )}
-            {(cargoLower === 'compositor' || cargoLower === 'produtor' || cargoLower === 'artista') && (
-              <div className="mt-10">
-                <h2 className="text-xl md:text-2xl font-bold flex items-center gap-3 mb-4">
-                  <Music className="text-beatwap-gold" />
-                  Composições Gravadas ({recordedMusics.length})
-                </h2>
-                {recordedMusics.length === 0 ? (
-                  <div className="text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/10">
-                    <Music size={48} className="mx-auto mb-4 opacity-20" />
-                    <p className="text-gray-400">Nenhuma composição gravada encontrada.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {recordedMusics.map((item) => (
-                      <motion.div 
-                        key={item.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:bg-white/10 transition-colors group"
-                      >
-                        <div className="aspect-square relative group cursor-pointer" onClick={() => togglePlay(item.id, item.audio_url, item.artista_id)}>
-                          {item.cover_url ? (
-                            <img src={sanitizeUrl(item.cover_url)} alt={item.titulo} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-gray-800 text-gray-600">
-                              <Music size={40} />
-                            </div>
-                          )}
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <button className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black hover:scale-110 transition-transform">
-                              {playingTrack === item.id && audioElement && !audioElement.paused ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}
-                            </button>
-                          </div>
-                        </div>
-                        <div className="p-4">
-                          <h3 className="font-bold text-base md:text-lg mb-1 whitespace-normal break-words">{item.titulo}</h3>
-                          <p className="text-sm text-beatwap-gold uppercase font-bold tracking-wider mb-3">{item.estilo || 'Gênero'}</p>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
-              </div>
             )}
               </>
             )}
