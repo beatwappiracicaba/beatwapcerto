@@ -1566,7 +1566,7 @@ const Home = () => {
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.1 }}
-                        className="group relative bg-white/5 border border-white/10 rounded-2xl overflow-hidden"
+                        className="group relative rounded-2xl overflow-hidden border-2 border-beatwap-gold/80 bg-gradient-to-b from-beatwap-gold/10 via-white/5 to-black/30 shadow-[0_0_0_1px_rgba(245,197,66,0.35),0_0_30px_rgba(245,197,66,0.22)] hover:border-beatwap-gold hover:shadow-[0_0_0_1px_rgba(245,197,66,0.55),0_0_40px_rgba(245,197,66,0.32)] transition-shadow"
                       >
                         <div className="aspect-video bg-gray-800 relative overflow-hidden">
                           {(() => {
@@ -1685,8 +1685,8 @@ const Home = () => {
                 Arraste para o lado e veja todos
               </div>
               <div className="relative -mx-6">
-                <div ref={composersRef} className="overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2 no-scrollbar">
-                  <div className="flex gap-6 justify-start">
+                <div ref={composersRef} className="overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 scroll-pl-4 scroll-pr-4 sm:scroll-pl-14 sm:scroll-pr-14 md:scroll-pl-16 md:scroll-pr-16 pb-2 no-scrollbar snap-x snap-mandatory">
+                  <div className="flex gap-6 justify-center md:justify-start">
                   {composers.map((composer, index) => {
                     const isVerified = composer?.verified === true || composer?.access_control?.verified === true;
                     const featured = composer?.access_control?.featured && typeof composer.access_control.featured === 'object' ? composer.access_control.featured : null;
@@ -1707,7 +1707,7 @@ const Home = () => {
                           : 'border-beatwap-gold/70 shadow-[0_0_0_1px_rgba(255,200,0,0.18),0_0_24px_rgba(255,200,0,0.10)]';
 
                     return (
-                      <div key={composer.id} className="flex-none w-[280px]">
+                      <div key={composer.id} className="flex-none w-[280px] snap-center">
                         <motion.div
                           initial={{ opacity: 0, y: 20 }}
                           whileInView={{ opacity: 1, y: 0 }}
