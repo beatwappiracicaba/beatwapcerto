@@ -851,7 +851,7 @@ export const DashboardArtistChat = () => {
     <DashboardLayout>
       <Card className="space-y-4">
         <div className="text-sm text-beatwap-gold font-bold"><span>Chat com Compositor</span></div>
-        <div className="flex -space-x-2">
+        <div className="flex flex-wrap sm:flex-nowrap items-center justify-center sm:justify-start gap-2 sm:gap-0 sm:-space-x-2">
           {composers.slice(0, 6).map(s => {
             const st = presence.find(p => p.profile_id === s.id);
             const fresh = st?.updated_at ? (Date.now() - new Date(st.updated_at).getTime()) < 120000 : false;
