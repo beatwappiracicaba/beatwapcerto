@@ -107,41 +107,6 @@ export const AdminSettings = () => {
     setHitDraft((prev) => (prev ? { ...prev, starts_at: startIsoFromDateInput(s), ends_at: endIsoFromDateInput(e) } : prev));
   };
 
-  const pad2 = (n) => String(n).padStart(2, '0');
-  const formatDateLocal = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-  const isoToDateInput = (iso) => {
-    const s = String(iso || '').trim();
-    if (!s) return '';
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    const d = new Date(s);
-    if (!Number.isFinite(d.getTime())) return '';
-    return d.toISOString().slice(0, 10);
-  };
-  const startIsoFromDateInput = (dateStr) => (dateStr ? `${dateStr}T00:00:00.000Z` : '');
-  const endIsoFromDateInput = (dateStr) => (dateStr ? `${dateStr}T23:59:59.999Z` : '');
-  const applyHitPreset = (key) => {
-    if (!hitDraft) return;
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    if (key === 'none') {
-      setHitDraft((prev) => (prev ? { ...prev, starts_at: '', ends_at: '' } : prev));
-      return;
-    }
-    if (key === 'today') {
-      const d = formatDateLocal(now);
-      setHitDraft((prev) => (prev ? { ...prev, starts_at: startIsoFromDateInput(d), ends_at: endIsoFromDateInput(d) } : prev));
-      return;
-    }
-    const day = (now.getDay() + 6) % 7;
-    const start = new Date(now);
-    start.setDate(start.getDate() - day + (key === 'next_week' ? 7 : 0));
-    const end = new Date(start);
-    end.setDate(end.getDate() + 6);
-    const s = formatDateLocal(start);
-    const e = formatDateLocal(end);
-    setHitDraft((prev) => (prev ? { ...prev, starts_at: startIsoFromDateInput(s), ends_at: endIsoFromDateInput(e) } : prev));
-  };
-
   const validEmail = String(form.email).trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
 
   useEffect(() => {
