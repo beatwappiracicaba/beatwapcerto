@@ -108,6 +108,18 @@ export const AdminHome = () => {
         <Card><div className="text-sm text-gray-400">Músicas</div><div className="text-3xl font-bold">{counts.musics}</div></Card>
         <Card><div className="text-sm text-gray-400">Pendentes</div><div className="text-3xl font-bold">{counts.pending}</div></Card>
       </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <Card>
+          <div className="text-sm text-gray-400">Acessos na Home</div>
+          <div className="text-3xl font-bold">{dashboardMetrics?.totals?.home_page_views_total ?? 0}</div>
+          <div className="text-xs text-gray-500 mt-1">Últimas 24h: {dashboardMetrics?.totals?.home_page_views_24h ?? 0}</div>
+        </Card>
+        <Card>
+          <div className="text-sm text-gray-400">Visitantes Únicos</div>
+          <div className="text-3xl font-bold">{dashboardMetrics?.totals?.home_unique_visitors_total ?? 0}</div>
+          <div className="text-xs text-gray-500 mt-1">Últimas 24h: {dashboardMetrics?.totals?.home_unique_visitors_24h ?? 0}</div>
+        </Card>
+      </div>
 
       <Card className="space-y-4 mb-6">
         <div className="flex items-start justify-between gap-3">

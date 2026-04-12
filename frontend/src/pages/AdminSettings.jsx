@@ -70,6 +70,42 @@ export const AdminSettings = () => {
   const [hitAdmin, setHitAdmin] = useState(null);
   const [hitDraft, setHitDraft] = useState(null);
   const [hitSaving, setHitSaving] = useState(false);
+  const [hitClearLoading, setHitClearLoading] = useState(false);
+
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const formatDateLocal = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const isoToDateInput = (iso) => {
+    const s = String(iso || '').trim();
+    if (!s) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const d = new Date(s);
+    if (!Number.isFinite(d.getTime())) return '';
+    return d.toISOString().slice(0, 10);
+  };
+  const startIsoFromDateInput = (dateStr) => (dateStr ? `${dateStr}T00:00:00.000Z` : '');
+  const endIsoFromDateInput = (dateStr) => (dateStr ? `${dateStr}T23:59:59.999Z` : '');
+  const applyHitPreset = (key) => {
+    if (!hitDraft) return;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    if (key === 'none') {
+      setHitDraft((prev) => (prev ? { ...prev, starts_at: '', ends_at: '' } : prev));
+      return;
+    }
+    if (key === 'today') {
+      const d = formatDateLocal(now);
+      setHitDraft((prev) => (prev ? { ...prev, starts_at: startIsoFromDateInput(d), ends_at: endIsoFromDateInput(d) } : prev));
+      return;
+    }
+    const day = (now.getDay() + 6) % 7;
+    const start = new Date(now);
+    start.setDate(start.getDate() - day + (key === 'next_week' ? 7 : 0));
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    const s = formatDateLocal(start);
+    const e = formatDateLocal(end);
+    setHitDraft((prev) => (prev ? { ...prev, starts_at: startIsoFromDateInput(s), ends_at: endIsoFromDateInput(e) } : prev));
+  };
 
   const pad2 = (n) => String(n).padStart(2, '0');
   const formatDateLocal = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -384,6 +420,43 @@ export const AdminSettings = () => {
       addToast('Vencedor atualizado.', 'success');
     } catch (e) {
       addToast(e?.message || 'Erro ao definir vencedor', 'error');
+    }
+  };
+
+  const clearHitHistory = async () => {
+    const ok = window.confirm('Apagar todo o histórico de inscrições do Hit da Semana? Essa ação não pode ser desfeita.');
+    if (!ok) return;
+    setHitClearLoading(true);
+    try {
+      const tryCall = async (calls) => {
+        let last = null;
+        for (const call of calls) {
+          try {
+            return await call();
+          } catch (e) {
+            last = e;
+            if (Number(e?.status) === 404) continue;
+            throw e;
+          }
+        }
+        throw last || new Error('Not found');
+      };
+      const res = await tryCall([
+        () => apiClient.post('/admin/hit-of-week/entries/clear'),
+        () => apiClient.post('/admin/hit_of_week/entries/clear'),
+        () => apiClient.post('/hit-of-week/entries/clear'),
+        () => apiClient.post('/hit_of_week/entries/clear'),
+      ]);
+      const next = res?.hit || null;
+      if (next) {
+        setHitAdmin(next);
+        setHitDraft({ ...next });
+      }
+      addToast('Histórico apagado.', 'success');
+    } catch (e) {
+      addToast(e?.message || 'Erro ao apagar histórico', 'error');
+    } finally {
+      setHitClearLoading(false);
     }
   };
 
@@ -1495,7 +1568,7 @@ export const AdminSettings = () => {
               </div>
 
               <div className="flex items-center justify-end gap-2">
-                <AnimatedButton onClick={fetchHitAdmin} variant="outline">
+                <AnimatedButton onClick={fetchHitAdmin} variant="secondary">
                   Recarregar
                 </AnimatedButton>
                 <AnimatedButton onClick={saveHitAdmin} isLoading={hitSaving}>
@@ -1505,6 +1578,12 @@ export const AdminSettings = () => {
 
               {Array.isArray(hitAdmin?.entries) && hitAdmin.entries.length > 0 && (
                 <div className="rounded-2xl border border-white/10 bg-black/20 overflow-hidden">
+                  <div className="p-3 border-b border-white/10 flex items-center justify-end">
+                    <AnimatedButton variant="danger" onClick={clearHitHistory} isLoading={hitClearLoading} className="px-4 py-2 text-xs">
+                      <Trash2 size={14} />
+                      Apagar histórico
+                    </AnimatedButton>
+                  </div>
                   <div className="max-h-[320px] overflow-auto">
                     <div className="divide-y divide-white/10">
                       {hitAdmin.entries.map((e) => (

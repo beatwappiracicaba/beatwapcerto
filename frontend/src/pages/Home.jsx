@@ -169,6 +169,13 @@ const Home = () => {
     fetchHomeData();
     (async () => {
       try {
+        await apiClient.post('/analytics', { type: 'page_view', page: 'home', path: '/' });
+      } catch {
+        void 0;
+      }
+    })();
+    (async () => {
+      try {
         const res = await fetch('https://api.ipify.org?format=json');
         const json = await res.json();
         setIpHash(json?.ip || null);
@@ -480,9 +487,14 @@ const Home = () => {
         t === 'music_play' ||
         t === 'music_click_presave' ||
         t === 'music_click_smartlink' ||
+        t === 'page_view' ||
         t.startsWith('artist_click_') ||
         t === 'sponsor_click';
       if (!allowed) {
+        return;
+      }
+      if (t === 'page_view') {
+        await apiClient.post('/analytics', { ...payload });
         return;
       }
       await apiClient.post('/analytics', { ...payload, ip_hash: ipHash || 'unknown' });
@@ -2121,7 +2133,7 @@ const Home = () => {
                       const highlighted = highlightedHitEntryId && String(highlightedHitEntryId) === String(e.id);
                       const cardBorder = highlighted ? 'border-beatwap-gold/60 shadow-[0_0_0_1px_rgba(245,197,66,0.25)]' : 'border-white/10';
                       return (
-                        <div key={e.id} className={`rounded-2xl border ${cardBorder} bg-white/5 p-4 flex gap-4`}>
+                        <div key={e.id} className={`rounded-2xl border ${cardBorder} bg-white/5 p-4 flex flex-col sm:flex-row gap-4`}>
                           <div className="w-14 h-14 rounded-xl overflow-hidden bg-black/30 border border-white/10 shrink-0">
                             {e?.cover_url ? (
                               <img src={e.cover_url} alt={e.title || 'Capa'} className="w-full h-full object-cover" />
@@ -2147,11 +2159,11 @@ const Home = () => {
                               </div>
                             </div>
 
-                            <div className="mt-3 flex items-center gap-2">
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
                               <button
                                 type="button"
-                                onClick={() => togglePlay(e.id, url)}
-                                className="px-3 py-2 rounded-xl bg-black/30 border border-white/10 hover:bg-black/40 transition-colors text-sm font-bold flex items-center gap-2"
+                                onClick={() => togglePlay(e.id, url, { full: true })}
+                                className="px-3 py-2 rounded-xl bg-black/30 border border-white/10 hover:bg-black/40 transition-colors text-sm font-bold flex items-center gap-2 flex-1 sm:flex-none justify-center"
                                 disabled={!url}
                               >
                                 {isPlaying ? <Pause size={16} /> : <Play size={16} />}
@@ -2162,7 +2174,7 @@ const Home = () => {
                                 type="button"
                                 onClick={() => toggleHitVote(e.id)}
                                 disabled={hitVotingId === e.id || voted}
-                                className={`px-3 py-2 rounded-xl border transition-colors text-sm font-bold flex items-center gap-2 ${
+                                className={`px-3 py-2 rounded-xl border transition-colors text-sm font-bold flex items-center gap-2 flex-1 sm:flex-none justify-center ${
                                   voted ? 'bg-beatwap-gold text-black border-beatwap-gold' : 'bg-black/30 border-white/10 hover:bg-black/40 text-gray-200'
                                 }`}
                               >
@@ -2173,7 +2185,7 @@ const Home = () => {
                               <button
                                 type="button"
                                 onClick={() => shareHitEntry(e)}
-                                className="px-3 py-2 rounded-xl bg-black/30 border border-white/10 hover:bg-black/40 transition-colors text-sm font-bold flex items-center gap-2 text-gray-200"
+                                className="px-3 py-2 rounded-xl bg-black/30 border border-white/10 hover:bg-black/40 transition-colors text-sm font-bold flex items-center gap-2 text-gray-200 flex-1 sm:flex-none justify-center"
                               >
                                 <Share2 size={16} />
                                 Compartilhar
@@ -2183,7 +2195,7 @@ const Home = () => {
                                 href={url || '#'}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className={`ml-auto text-xs ${url ? 'text-gray-300 hover:text-white' : 'text-gray-600'} underline-offset-2 hover:underline`}
+                                className={`w-full sm:w-auto sm:ml-auto text-xs ${url ? 'text-gray-300 hover:text-white' : 'text-gray-600'} underline-offset-2 hover:underline`}
                                 onClick={(ev) => { if (!url) ev.preventDefault(); }}
                               >
                                 Abrir link

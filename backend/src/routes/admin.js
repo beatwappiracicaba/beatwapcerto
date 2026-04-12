@@ -55,8 +55,29 @@ router.get('/admin/dashboard-metrics', auth, async (req, res) => {
     const analytics = Array.isArray(memory.analytics) ? memory.analytics : [];
     const playsByMusic = new Map();
     const durationByMusic = new Map();
+    let homeViewsTotal = 0;
+    const homeVisitors = new Set();
+    let homeViews24h = 0;
+    const homeVisitors24h = new Set();
+    const now = Date.now();
     for (const ev of analytics) {
       const t = String(ev?.type || '').trim();
+      if (t === 'page_view') {
+        const p = ev?.payload && typeof ev.payload === 'object' ? ev.payload : {};
+        const path = String(p?.path || p?.pathname || '').trim();
+        const page = String(p?.page || '').trim();
+        const isHome = path === '/' || page === 'home';
+        if (isHome) {
+          homeViewsTotal += 1;
+          if (ev?.ip_hash) homeVisitors.add(String(ev.ip_hash));
+          const ts = new Date(String(ev?.created_at || '')).getTime();
+          if (Number.isFinite(ts) && (now - ts) <= 24 * 60 * 60 * 1000) {
+            homeViews24h += 1;
+            if (ev?.ip_hash) homeVisitors24h.add(String(ev.ip_hash));
+          }
+        }
+        continue;
+      }
       if (t !== 'music_play') continue;
       const p = ev?.payload && typeof ev.payload === 'object' ? ev.payload : {};
       const mid = String(
@@ -100,7 +121,11 @@ router.get('/admin/dashboard-metrics', auth, async (req, res) => {
       musics_total: musics.length,
       plays_total: Array.from(playsByMusic.values()).reduce((a, b) => a + b, 0),
       play_seconds_total: Array.from(durationByMusic.values()).reduce((a, b) => a + b, 0),
-      music_likes_total: enriched.reduce((a, b) => a + (Number(b.likes) || 0), 0)
+      music_likes_total: enriched.reduce((a, b) => a + (Number(b.likes) || 0), 0),
+      home_page_views_total: homeViewsTotal,
+      home_unique_visitors_total: homeVisitors.size,
+      home_page_views_24h: homeViews24h,
+      home_unique_visitors_24h: homeVisitors24h.size
     };
 
     res.json({ topMusics, totals });
@@ -549,6 +574,24 @@ async function setHitWinner(req, res) {
   }
 }
 
+async function clearHitEntries(req, res) {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+    const hit = memory.hit_of_week && typeof memory.hit_of_week === 'object' ? memory.hit_of_week : null;
+    if (!hit) return res.status(400).json({ error: 'Desafio indisponível' });
+    hit.entries = [];
+    hit.votes_by_ip = {};
+    hit.winner_entry_id = null;
+    memory.hit_winner = null;
+    hit.updated_at = new Date().toISOString();
+    scheduleSave();
+    emitEvent('hit_of_week.updated', { hit }, 'public:hit_of_week');
+    res.json({ ok: true, hit });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+}
+
 async function getFeaturedPlansAdmin(req, res) {
   try {
     if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
@@ -658,6 +701,10 @@ router.post('/admin/hit_of_week/winner', auth, setHitWinner);
 router.post('/hit-of-week/winner', auth, setHitWinner);
 router.post('/hit_of_week/winner', auth, setHitWinner);
 
+router.post('/admin/hit-of-week/entries/clear', auth, clearHitEntries);
+router.post('/admin/hit_of_week/entries/clear', auth, clearHitEntries);
+router.post('/hit-of-week/entries/clear', auth, clearHitEntries);
+router.post('/hit_of_week/entries/clear', auth, clearHitEntries);
 router.post('/admin/credits/hit-of-week/grant', auth, async (req, res) => {
   try {
     if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });

@@ -170,6 +170,7 @@ const AllCompositions = () => {
   const [previewTimer, setPreviewTimer] = useState(null);
   const togglePlay = (id, url, opts = {}) => {
     if (!url) return;
+    const full = opts?.full === true;
     if (playingTrack === id && audioElement) {
       if (isPaused) {
         audioElement.play();
@@ -186,12 +187,15 @@ const AllCompositions = () => {
     const audio = new Audio(url);
     const start = Math.max(0, Number(opts.startSeconds ?? 0));
     const endOpt = opts.endSeconds;
-    let segLen = 30;
-    if (Number.isFinite(Number(endOpt))) {
-      const diff = Number(endOpt) - start;
-      if (diff > 0) segLen = diff;
+    let durationLimit = null;
+    if (!full) {
+      let segLen = 30;
+      if (Number.isFinite(Number(endOpt))) {
+        const diff = Number(endOpt) - start;
+        if (diff > 0) segLen = diff;
+      }
+      durationLimit = Math.min(30, Math.max(20, segLen));
     }
-    const durationLimit = Math.min(30, Math.max(20, segLen));
     audio.addEventListener('loadedmetadata', () => {
       try { audio.currentTime = start; } catch (e) { void e; }
     }, { once: true });
@@ -208,13 +212,15 @@ const AllCompositions = () => {
       clearTimeout(previewTimer);
       setPreviewTimer(null);
     }
-    const t = setTimeout(() => {
-      try { audio.pause(); } catch (e) { void e; }
-      setPlayingTrack(null);
-      setAudioElement(null);
-      setIsPaused(false);
-    }, durationLimit * 1000);
-    setPreviewTimer(t);
+    if (durationLimit) {
+      const t = setTimeout(() => {
+        try { audio.pause(); } catch (e) { void e; }
+        setPlayingTrack(null);
+        setAudioElement(null);
+        setIsPaused(false);
+      }, durationLimit * 1000);
+      setPreviewTimer(t);
+    }
   };
 
   const folders = (() => {
@@ -382,7 +388,7 @@ const AllCompositions = () => {
                           <div key={`top_${comp.id}`} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
                             <div
                               className="w-12 h-12 rounded-lg overflow-hidden bg-gray-800 shrink-0 cursor-pointer relative"
-                              onClick={() => togglePlay(comp.id, caudio, { startSeconds: Number(comp.chorus_start_seconds ?? 0), endSeconds: Number(comp.chorus_end_seconds ?? NaN) })}
+                              onClick={() => togglePlay(comp.id, caudio, { full: true })}
                             >
                               {ccover ? (
                                 <img src={ccover} alt={comp.title} className="w-full h-full object-cover" />
@@ -463,7 +469,7 @@ const AllCompositions = () => {
                       <div key={comp.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
                         <div
                           className="w-16 h-16 rounded-lg overflow-hidden bg-gray-800 shrink-0 cursor-pointer relative"
-                          onClick={() => togglePlay(comp.id, caudio, { startSeconds: Number(comp.chorus_start_seconds ?? 0), endSeconds: Number(comp.chorus_end_seconds ?? NaN) })}
+                          onClick={() => togglePlay(comp.id, caudio, { full: true })}
                         >
                           {ccover ? (
                             <img src={ccover} alt={comp.title} className="w-full h-full object-cover" />
