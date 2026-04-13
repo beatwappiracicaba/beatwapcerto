@@ -79,7 +79,7 @@ export const AppRoutes = () => {
 
   const routeForRole = (role) => {
     const r = normalizeRole(role);
-    if (r === 'Produtor') return '/dashboard/painel';
+    if (r === 'Produtor') return '/admin';
     if (r === 'Vendedor') return '/dashboard/painel';
     if (r === 'Artista') return '/dashboard/painel';
     if (r === 'Compositor') return '/dashboard/painel';
@@ -219,6 +219,15 @@ export const AppRoutes = () => {
     }
   })();
 
+  const DashboardPanel = () => {
+    const r = normalizeRole(profile?.cargo);
+    if (r === 'Produtor') return <Navigate to="/admin" replace />;
+    if (r === 'Vendedor') return <SellerDashboard />;
+    if (r === 'Artista') return <DashboardArtistHome />;
+    if (r === 'Compositor') return <DashboardCompositions />;
+    return <Navigate to="/" replace />;
+  };
+
   return (
       <Routes location={location}>
         {/* Public Route - Landing Page */}
@@ -245,7 +254,7 @@ export const AppRoutes = () => {
 
         <Route path="/dashboard" element={<ProtectedRoute element={<Navigate to={routeForRole(profile?.cargo)} replace />} />} />
         <Route path="/dashboard/feed" element={<ProtectedRoute element={<Feed />} />} />
-        <Route path="/dashboard/painel" element={<ProtectedRoute element={<Feed />} />} />
+        <Route path="/dashboard/painel" element={<ProtectedRoute element={<DashboardPanel />} />} />
         <Route path="/dashboard/pesquisar" element={<ProtectedRoute element={<Feed />} />} />
         <Route path="/dashboard/musics" element={isArtista ? <DashboardArtistMusics /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/compositions" element={(isArtista || isCompositor) ? <DashboardCompositions /> : <Navigate to="/" replace />} />
@@ -294,10 +303,10 @@ export const AppRoutes = () => {
         
         <Route path="/notifications/:id" element={profile ? <NotificationDetails /> : <Navigate to="/" replace />} />
 
-        <Route path="/dashboard-produtor" element={<RoleBasedRoute roles={['Produtor']} element={<AdminHome />} />} />
-        <Route path="/dashboard-vendedor" element={<RoleBasedRoute roles={['Vendedor']} element={<SellerDashboard />} />} />
-        <Route path="/dashboard-artista" element={<RoleBasedRoute roles={['Artista']} element={<DashboardArtistHome />} />} />
-        <Route path="/dashboard-compositor" element={<RoleBasedRoute roles={['Compositor']} element={<DashboardCompositions />} />} />
+        <Route path="/dashboard-produtor" element={<ProtectedRoute element={<Navigate to="/admin" replace />} />} />
+        <Route path="/dashboard-vendedor" element={<ProtectedRoute element={<Navigate to="/dashboard/painel" replace />} />} />
+        <Route path="/dashboard-artista" element={<ProtectedRoute element={<Navigate to="/dashboard/painel" replace />} />} />
+        <Route path="/dashboard-compositor" element={<ProtectedRoute element={<Navigate to="/dashboard/painel" replace />} />} />
 
         {/* Fallback - Redirect to Home */}
         <Route path="*" element={<Navigate to="/" replace />} />

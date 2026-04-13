@@ -18,10 +18,10 @@ const Login = () => {
   const routeForRole = (role) => {
     if (!role) return '/';
     const s = String(role).toLowerCase();
-    if (s === 'produtor' || s === 'admin') return '/dashboard-produtor';
-    if (s === 'vendedor' || s === 'seller') return '/dashboard-vendedor';
-    if (s === 'artista' || s === 'artist') return '/dashboard-artista';
-    if (s === 'compositor' || s === 'composer') return '/dashboard-compositor';
+    if (s === 'produtor' || s === 'admin') return '/admin';
+    if (s === 'vendedor' || s === 'seller') return '/dashboard/painel';
+    if (s === 'artista' || s === 'artist') return '/dashboard/painel';
+    if (s === 'compositor' || s === 'composer') return '/dashboard/painel';
     return '/';
   };
 
