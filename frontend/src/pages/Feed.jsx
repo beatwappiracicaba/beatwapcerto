@@ -764,8 +764,13 @@ const Feed = () => {
     setBoostedProfilesLoading(true);
     setBoostedProfilesError('');
     try {
-      const data = await apiClient.get('/profiles');
-      const list = Array.isArray(data) ? data : [];
+      const data = await apiClient.get('/home', { cache: true, cacheTtlMs: 15000 });
+      const fromHome = []
+        .concat(Array.isArray(data?.producers) ? data.producers : [])
+        .concat(Array.isArray(data?.sellers) ? data.sellers : [])
+        .concat(Array.isArray(data?.artists) ? data.artists : [])
+        .concat(Array.isArray(data?.composers) ? data.composers : []);
+      const list = Array.isArray(fromHome) ? fromHome : [];
       const cleaned = list
         .map((p) => ({
           id: String(p?.id || '').trim(),
