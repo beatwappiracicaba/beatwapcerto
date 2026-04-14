@@ -126,8 +126,6 @@
   width: 64px;
   height: 64px;
   border-radius: 9999px;
-  animation: bw-fire-flicker 1200ms ease-in-out infinite;
-  will-change: transform, filter, opacity;
 }
 
 .bw-story-ring::before {
@@ -149,6 +147,7 @@
       #ffe47a 360deg
     );
   animation: bw-fire-orbit 2.2s linear infinite, bw-fire-flicker 850ms ease-in-out infinite alternate;
+  will-change: transform, filter, opacity;
   filter: drop-shadow(0 0 12px rgba(255, 122, 0, 0.52)) drop-shadow(0 0 5px rgba(255, 194, 74, 0.35));
 }
 
@@ -160,7 +159,6 @@
   background:
     radial-gradient(circle at 48% 20%, rgba(255, 160, 60, 0.15) 0 30%, rgba(255, 160, 60, 0) 58%),
     rgba(0, 0, 0, 0.86);
-  animation: bw-fire-core-pulse 1.3s ease-in-out infinite;
 }
 
 .bw-story-avatar {
