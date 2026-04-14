@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Cropper from 'react-easy-crop';
-import { Play, Pause, Music, Image, Video, ExternalLink, Search, Plus, X, TrendingUp, Heart, MessageCircle, Send } from 'lucide-react';
+import { Play, Pause, Music, Image, Video, ExternalLink, Search, Plus, X, TrendingUp, Heart, MessageCircle, Send, Pencil, Trash2 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card } from '../components/ui/Card';
@@ -27,6 +27,7 @@ const Feed = () => {
     if (/\/pesquisar(?:\/|$)/.test(p)) return 'search';
     return 'feed';
   }); // feed | painel | search
+  const [feedSubTab, setFeedSubTab] = useState('posts'); // posts | musics | mine
 
   useEffect(() => {
     const p = String(location?.pathname || '');
@@ -77,12 +78,21 @@ const Feed = () => {
   const [profilesLoading, setProfilesLoading] = useState(false);
   const [profilesError, setProfilesError] = useState('');
   const [profiles, setProfiles] = useState([]);
+  const [boostedProfilesLoading, setBoostedProfilesLoading] = useState(false);
+  const [boostedProfilesError, setBoostedProfilesError] = useState('');
+  const [boostedProfiles, setBoostedProfiles] = useState([]);
+  const [myPostsLoading, setMyPostsLoading] = useState(false);
+  const [myPostsError, setMyPostsError] = useState('');
+  const [myPosts, setMyPosts] = useState([]);
+  const [editingPostId, setEditingPostId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const sentinelRef = useRef(null);
   const subscribedRoomsRef = useRef([]);
   const refreshTimerRef = useRef(null);
   const panelLoadingRef = useRef(false);
   const profilesLoadingRef = useRef(false);
+  const boostedProfilesLoadingRef = useRef(false);
+  const myPostsLoadingRef = useRef(false);
 
   const sanitizeUrl = useCallback((raw) => {
     const v = String(raw || '').trim();
@@ -90,6 +100,24 @@ const Feed = () => {
     if (v.startsWith('data:')) return v;
     if (/^https?:\/\//i.test(v)) return v;
     return v;
+  }, []);
+
+  const featuredWeight = useCallback((lvl) => {
+    const x = String(lvl || '').toLowerCase();
+    if (x === 'top') return 3;
+    if (x === 'pro') return 2;
+    if (x === 'basic') return 1;
+    return 0;
+  }, []);
+
+  const isFeaturedActive = useCallback((row) => {
+    const f = row?.access_control?.featured && typeof row.access_control.featured === 'object' ? row.access_control.featured : null;
+    if (!f) return false;
+    if (f.enabled === false) return false;
+    const endsAt = f.ends_at || f.until || f.end_at || null;
+    if (!endsAt) return true;
+    const t = new Date(endsAt).getTime();
+    return Number.isFinite(t) ? t > Date.now() : false;
   }, []);
 
   const feedAlbums = useMemo(() => {
@@ -223,23 +251,34 @@ const Feed = () => {
     const src = sanitizeUrl(url);
     if (!src) return;
     if (playingTrack === trackId && audioElement) {
-      if (isPaused) {
-        audioElement.play().catch(() => {});
-        setIsPaused(false);
-        if (String(trackId || '').startsWith('music:') && !playStartRef.current) {
-          playStartRef.current = Date.now();
-        }
-      } else {
+      try {
         audioElement.pause();
-        setIsPaused(true);
-        if (String(trackId || '').startsWith('music:')) {
-          await finalizeCurrentMusicPlay();
-        }
+        audioElement.currentTime = 0;
+        audioElement.src = '';
+        audioElement.load();
+      } catch (e) {
+        void e;
       }
+      if (String(trackId || '').startsWith('music:')) {
+        await finalizeCurrentMusicPlay();
+      } else {
+        playStartRef.current = null;
+        playMetaRef.current = { musicId: null, artistId: null };
+      }
+      setPlayingTrack(null);
+      setAudioElement(null);
+      setIsPaused(false);
       return;
     }
     if (audioElement) {
-      audioElement.pause();
+      try {
+        audioElement.pause();
+        audioElement.currentTime = 0;
+        audioElement.src = '';
+        audioElement.load();
+      } catch (e) {
+        void e;
+      }
       await finalizeCurrentMusicPlay();
     }
     const audio = new Audio(src);
@@ -273,7 +312,11 @@ const Feed = () => {
   useEffect(() => {
     return () => {
       try {
-        if (audioElement) audioElement.pause();
+        if (audioElement) {
+          audioElement.pause();
+          audioElement.src = '';
+          audioElement.load();
+        }
       } catch {
         void 0;
       }
@@ -366,6 +409,7 @@ const Feed = () => {
     const onAnyUpdate = () => refresh();
     socket.on('posts.created', onAnyUpdate);
     socket.on('posts.deleted', onAnyUpdate);
+    socket.on('posts.updated', onAnyUpdate);
     socket.on('compositions.created', onAnyUpdate);
     socket.on('compositions.updated', onAnyUpdate);
     socket.on('musics.created', onAnyUpdate);
@@ -374,6 +418,7 @@ const Feed = () => {
       for (const r of rooms) unsubscribe(r);
       socket.off('posts.created', onAnyUpdate);
       socket.off('posts.deleted', onAnyUpdate);
+      socket.off('posts.updated', onAnyUpdate);
       socket.off('compositions.created', onAnyUpdate);
       socket.off('compositions.updated', onAnyUpdate);
       socket.off('musics.created', onAnyUpdate);
@@ -383,6 +428,7 @@ const Feed = () => {
 
   const closePostModal = useCallback(() => {
     setPostModalOpen(false);
+    setEditingPostId(null);
     setPostType('text');
     setPostFormat('square');
     setPostCaption('');
@@ -532,13 +578,41 @@ const Feed = () => {
     const caption = String(postCaption || '').trim();
     const linkUrl = String(postLinkUrl || '').trim();
     const type = String(postType || 'text').toLowerCase().trim();
+    const isEditing = !!editingPostId;
 
-    if (type === 'text' && !caption) return;
-    if (type === 'link' && !linkUrl) return;
-    if ((type === 'image' || type === 'video') && !postFile) return;
+    if (!isEditing) {
+      if (type === 'text' && !caption) return;
+      if (type === 'link' && !linkUrl) return;
+      if ((type === 'image' || type === 'video') && !postFile) return;
+    } else {
+      if (type === 'text' && !caption) return;
+      if (type === 'link' && !linkUrl) return;
+    }
 
     setPosting(true);
     try {
+      if (isEditing) {
+        const res = await apiClient.patch(`/feed/posts/${editingPostId}`, {
+          caption,
+          link_url: type === 'link' ? linkUrl : null,
+          format: (type === 'image' || type === 'video') ? postFormat : null,
+          object_position: type === 'video' ? postObjectPos : null
+        });
+        const updated = res?.post || null;
+        if (updated) {
+          setMyPosts((prev) => (Array.isArray(prev) ? prev.map((p) => (String(p?.id || '') === String(updated.id || '') ? { ...p, ...updated } : p)) : prev));
+          setItems((prev) => (Array.isArray(prev) ? prev.map((it) => {
+            if (it?.type !== 'post') return it;
+            const pid = String(it?.id || it?.data?.id || '').trim();
+            if (pid !== String(updated.id || '').trim()) return it;
+            const data = it?.data || {};
+            return { ...it, data: { ...data, ...updated } };
+          }) : prev));
+        }
+        closePostModal();
+        return;
+      }
+
       let mediaUrl = null;
       if (type === 'image' || type === 'video') {
         setPostProgress(0);
@@ -564,7 +638,7 @@ const Feed = () => {
         setPostProgress(100);
       }
 
-      await apiClient.post('/feed/posts', {
+      const created = await apiClient.post('/feed/posts', {
         media_type: type,
         caption,
         link_url: type === 'link' ? linkUrl : null,
@@ -572,6 +646,14 @@ const Feed = () => {
         format: (type === 'image' || type === 'video') ? postFormat : null,
         object_position: type === 'video' ? postObjectPos : null
       });
+      if (feedSubTab === 'mine' && created && created.id) {
+        setMyPosts((prev) => {
+          const arr = Array.isArray(prev) ? prev : [];
+          const id = String(created.id || '').trim();
+          const next = arr.filter((p) => String(p?.id || '').trim() !== id);
+          return [created, ...next];
+        });
+      }
       closePostModal();
       refresh();
     } catch {
@@ -579,7 +661,68 @@ const Feed = () => {
     } finally {
       setPosting(false);
     }
-  }, [closePostModal, meId, postCaption, postFile, postFormat, postLinkUrl, postObjectPos, postType, posting, refresh]);
+  }, [closePostModal, editingPostId, feedSubTab, meId, postCaption, postFile, postFormat, postLinkUrl, postObjectPos, postType, posting, refresh]);
+
+  const openEditPost = useCallback((p) => {
+    const id = String(p?.id || '').trim();
+    if (!id) return;
+    const type = String(p?.media_type || 'text').toLowerCase().trim() || 'text';
+    setEditingPostId(id);
+    setPostModalOpen(true);
+    setPostType(type);
+    setPostFormat(String(p?.format || '').toLowerCase().trim() || (type === 'video' ? 'vertical' : 'square'));
+    setPostCaption(String(p?.caption || ''));
+    setPostLinkUrl(String(p?.link_url || ''));
+    const rawPos = p?.object_position && typeof p.object_position === 'object' ? p.object_position : null;
+    setPostObjectPos({ x: Math.max(0, Math.min(100, Number(rawPos?.x ?? 50) || 50)), y: Math.max(0, Math.min(100, Number(rawPos?.y ?? 50) || 50)) });
+    setPostProgress(0);
+    setPostFile(null);
+    setPostPreviewUrl('');
+    setImageCropSrc(null);
+    setImageCrop({ x: 0, y: 0 });
+    setImageZoom(1);
+    setImageCroppedAreaPixels(null);
+  }, []);
+
+  const deleteMyPost = useCallback(async (postId) => {
+    const id = String(postId || '').trim();
+    if (!id) return;
+    if (!window.confirm('Apagar esta postagem?')) return;
+    setPostActionLoadingById((prev) => ({ ...prev, [`delete:${id}`]: true }));
+    try {
+      await apiClient.del(`/feed/posts/${id}`);
+      setMyPosts((prev) => (Array.isArray(prev) ? prev.filter((p) => String(p?.id || '') !== id) : prev));
+      setItems((prev) => (Array.isArray(prev) ? prev.filter((it) => {
+        if (it?.type !== 'post') return true;
+        const pid = String(it?.id || it?.data?.id || '').trim();
+        return pid !== id;
+      }) : prev));
+      if (String(editingPostId || '') === id) closePostModal();
+    } catch {
+      void 0;
+    } finally {
+      setPostActionLoadingById((prev) => ({ ...prev, [`delete:${id}`]: false }));
+    }
+  }, [closePostModal, editingPostId]);
+
+  const loadMyPosts = useCallback(async () => {
+    if (!meId) return;
+    if (myPostsLoadingRef.current) return;
+    myPostsLoadingRef.current = true;
+    setMyPostsLoading(true);
+    setMyPostsError('');
+    try {
+      const res = await apiClient.get('/feed/my-posts');
+      const list = Array.isArray(res?.items) ? res.items : [];
+      setMyPosts(list);
+    } catch {
+      setMyPosts([]);
+      setMyPostsError('Falha ao carregar suas postagens');
+    } finally {
+      setMyPostsLoading(false);
+      myPostsLoadingRef.current = false;
+    }
+  }, [meId]);
 
   const loadProfiles = useCallback(async () => {
     if (profilesLoadingRef.current) return;
@@ -595,7 +738,9 @@ const Feed = () => {
           cargo: String(p?.cargo || '').trim(),
           nome: p?.nome || p?.nome_completo_razao_social || p?.email || 'Usuário',
           avatar_url: p?.avatar_url || null,
-          verified: p?.verified === true || p?.access_control?.verified === true
+          verified: p?.verified === true || p?.access_control?.verified === true,
+          access_control: p?.access_control || null,
+          created_at: p?.created_at || null
         }))
         .filter((p) => p.id && p.id !== meId);
       cleaned.sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'));
@@ -608,6 +753,49 @@ const Feed = () => {
       profilesLoadingRef.current = false;
     }
   }, [meId]);
+
+  const loadBoostedProfiles = useCallback(async () => {
+    if (boostedProfilesLoadingRef.current) return;
+    boostedProfilesLoadingRef.current = true;
+    setBoostedProfilesLoading(true);
+    setBoostedProfilesError('');
+    try {
+      const data = await apiClient.get('/profiles');
+      const list = Array.isArray(data) ? data : [];
+      const cleaned = list
+        .map((p) => ({
+          id: String(p?.id || '').trim(),
+          cargo: String(p?.cargo || '').trim(),
+          nome: p?.nome || p?.nome_completo_razao_social || p?.email || 'Usuário',
+          avatar_url: p?.avatar_url || null,
+          verified: p?.verified === true || p?.access_control?.verified === true,
+          access_control: p?.access_control || null,
+          created_at: p?.created_at || null
+        }))
+        .filter((p) => p.id && p.id !== meId && isFeaturedActive(p));
+
+      cleaned.sort((a, b) => {
+        const wa = featuredWeight(a?.access_control?.featured?.level);
+        const wb = featuredWeight(b?.access_control?.featured?.level);
+        if (wa !== wb) return wb - wa;
+        const pa = a?.access_control?.featured?.pinned === true;
+        const pb = b?.access_control?.featured?.pinned === true;
+        if (pa !== pb) return pb ? 1 : -1;
+        const ea = new Date(a?.access_control?.featured?.ends_at || a?.access_control?.featured?.until || 0).getTime();
+        const eb = new Date(b?.access_control?.featured?.ends_at || b?.access_control?.featured?.until || 0).getTime();
+        if (Number.isFinite(ea) && Number.isFinite(eb) && ea !== eb) return eb - ea;
+        return String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR');
+      });
+
+      setBoostedProfiles(cleaned.slice(0, 16));
+    } catch {
+      setBoostedProfiles([]);
+      setBoostedProfilesError('Falha ao carregar perfis impulsionados');
+    } finally {
+      setBoostedProfilesLoading(false);
+      boostedProfilesLoadingRef.current = false;
+    }
+  }, [featuredWeight, isFeaturedActive, meId]);
 
   const formatSeconds = useCallback((totalSeconds) => {
     const s = Math.max(0, Number(totalSeconds || 0));
@@ -693,7 +881,14 @@ const Feed = () => {
   useEffect(() => {
     if (activeTab === 'search') loadProfiles();
     if (activeTab === 'painel') loadPanel();
-  }, [activeTab, loadPanel, loadProfiles]);
+    if (activeTab === 'feed') loadBoostedProfiles();
+  }, [activeTab, loadBoostedProfiles, loadPanel, loadProfiles]);
+
+  useEffect(() => {
+    if (activeTab !== 'feed') return;
+    if (feedSubTab !== 'mine') return;
+    loadMyPosts();
+  }, [activeTab, feedSubTab, loadMyPosts]);
 
   const getEmbedUrl = useCallback((url) => {
     if (!url) return null;
@@ -714,6 +909,159 @@ const Feed = () => {
   }, []);
 
   const content = useMemo(() => {
+    if (feedSubTab === 'mine') {
+      if (!meId) {
+        return (
+          <Card className="p-6">
+            <div className="text-gray-400">Faça login para ver suas postagens.</div>
+          </Card>
+        );
+      }
+      if (myPostsLoading) {
+        return (
+          <Card className="p-6">
+            <div className="text-gray-400">Carregando suas postagens...</div>
+          </Card>
+        );
+      }
+      if (myPostsError) {
+        return (
+          <Card className="p-6">
+            <div className="text-red-400">{myPostsError}</div>
+          </Card>
+        );
+      }
+      const list = Array.isArray(myPosts) ? myPosts : [];
+      if (list.length === 0) {
+        return (
+          <Card className="p-6">
+            <div className="text-gray-400">Você ainda não fez nenhuma postagem.</div>
+          </Card>
+        );
+      }
+      return (
+        <div className="space-y-4">
+          {list.map((p) => {
+            const postId = String(p?.id || '').trim();
+            const caption = String(p?.caption || '');
+            const mediaType = String(p?.media_type || '').toLowerCase();
+            const mediaUrl = sanitizeUrl(p?.media_url);
+            const linkUrl = String(p?.link_url || '').trim();
+            const embed = linkUrl ? getEmbedUrl(linkUrl) : null;
+            const format = String(p?.format || '').toLowerCase().trim() || (mediaType === 'video' ? 'vertical' : 'square');
+            const aspectClass = format === 'vertical' ? 'aspect-[9/16]' : 'aspect-square';
+            const delLoading = postActionLoadingById?.[`delete:${postId}`] === true;
+            return (
+              <Card key={`mine-${postId}`} className="p-4 sm:p-6">
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div className="min-w-0">
+                    <div className="font-bold text-white truncate">Minhas postagens</div>
+                    <div className="text-xs text-gray-400 truncate">{timeAgo(p?.created_at)}</div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => openEditPost(p)}
+                      className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10"
+                      title="Editar"
+                    >
+                      <Pencil size={16} className="text-gray-200" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={delLoading}
+                      onClick={() => deleteMyPost(postId)}
+                      className={`p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 ${delLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                      title="Apagar"
+                    >
+                      <Trash2 size={16} className="text-red-300" />
+                    </button>
+                  </div>
+                </div>
+                {mediaType === 'text' && (
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+                    {caption && <div className="text-sm text-white whitespace-pre-line break-words" style={{ overflowWrap: 'anywhere' }}>{caption}</div>}
+                    {linkUrl && (
+                      <button
+                        type="button"
+                        onClick={() => window.open(linkUrl, '_blank')}
+                        className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-beatwap-gold underline"
+                      >
+                        <ExternalLink size={14} />
+                        <span>Abrir link</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+                {mediaType !== 'text' && (
+                  <div className="space-y-3">
+                    {(caption || linkUrl) && (
+                      <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+                        {caption && <div className="text-sm text-white whitespace-pre-line break-words" style={{ overflowWrap: 'anywhere' }}>{caption}</div>}
+                        {linkUrl && (
+                          <button
+                            type="button"
+                            onClick={() => window.open(linkUrl, '_blank')}
+                            className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-beatwap-gold underline"
+                          >
+                            <ExternalLink size={14} />
+                            <span>Abrir link</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {embed ? (
+                      <div className={`w-full ${aspectClass} rounded-xl overflow-hidden border border-white/10 bg-black`}>
+                        <iframe
+                          width="100%"
+                          height="100%"
+                          src={embed}
+                          title="Link"
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                        />
+                      </div>
+                    ) : mediaType === 'image' ? (
+                      <button
+                        type="button"
+                        onClick={() => setVideoModalPost({ ...p, media_url: mediaUrl, link_url: linkUrl })}
+                        className={`w-full ${aspectClass} rounded-xl overflow-hidden border border-white/10 bg-black/30`}
+                      >
+                        {mediaUrl ? (
+                          <img src={mediaUrl} alt={caption || 'Imagem'} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-500">
+                            <Image size={28} />
+                          </div>
+                        )}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setVideoModalPost({ ...p, media_url: mediaUrl, link_url: linkUrl })}
+                        className={`w-full ${aspectClass} rounded-xl overflow-hidden border border-white/10 bg-black/30`}
+                      >
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          <Video size={28} />
+                        </div>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      );
+    }
+
+    const feedItems = (Array.isArray(items) ? items : []).filter((it) => (
+      feedSubTab === 'musics'
+        ? it?.type === 'music'
+        : it?.type !== 'music'
+    ));
+
     if (loading && items.length === 0) {
       return (
         <Card className="p-6">
@@ -733,17 +1081,19 @@ const Feed = () => {
       );
     }
 
-    if (!loading && items.length === 0) {
+    if (!loading && feedItems.length === 0) {
       return (
         <Card className="p-6">
-          <div className="text-gray-400">Nenhuma novidade ainda.</div>
+          <div className="text-gray-400">
+            {feedSubTab === 'musics' ? 'Nenhum lançamento de música ainda.' : 'Nenhuma novidade ainda.'}
+          </div>
         </Card>
       );
     }
 
     return (
       <div className="space-y-4">
-        {feedAlbums.length > 0 && (
+        {feedSubTab === 'musics' && feedAlbums.length > 0 && (
           <Card className="p-4 sm:p-6">
             <div className="flex items-center gap-2 text-white font-bold">
               <Music size={18} />
@@ -776,7 +1126,7 @@ const Feed = () => {
             </div>
           </Card>
         )}
-        {items.map((it) => {
+        {feedItems.map((it) => {
           const owner = it?.owner || {};
           const ownerName = displayName(owner);
           const ownerRole = roleLabel(owner);
@@ -1170,7 +1520,7 @@ const Feed = () => {
         )}
       </div>
     );
-  }, [buildWhatsAppHref, commentDraftByPostId, commentPostingById, commentsByPostId, commentsLoadingById, commentsOpenById, displayName, feedAlbums, followLoadingById, followingCount, getEmbedUrl, isFollowing, isPaused, items, loading, loadingMore, meId, navigate, playingTrack, postActionLoadingById, roleLabel, sanitizeUrl, sendComment, timeAgo, toggleComments, toggleFollow, togglePlay, togglePostLike]);
+  }, [buildWhatsAppHref, commentDraftByPostId, commentPostingById, commentsByPostId, commentsLoadingById, commentsOpenById, deleteMyPost, displayName, feedAlbums, feedSubTab, followLoadingById, followingCount, getEmbedUrl, isFollowing, isPaused, items, loading, loadingMore, meId, myPosts, myPostsError, myPostsLoading, navigate, openEditPost, playingTrack, postActionLoadingById, roleLabel, sanitizeUrl, sendComment, timeAgo, toggleComments, toggleFollow, togglePlay, togglePostLike]);
 
   const Layout = isProdutor ? AdminLayout : DashboardLayout;
 
@@ -1186,6 +1536,67 @@ const Feed = () => {
       })
       .slice(0, 60);
   }, [profiles, searchQuery]);
+
+  const boostedStories = useMemo(() => {
+    if (activeTab !== 'feed') return null;
+    if (boostedProfilesLoading) {
+      return (
+        <Card className="p-4">
+          <div className="text-sm text-gray-400">Carregando impulsionados...</div>
+        </Card>
+      );
+    }
+    if (boostedProfilesError) {
+      return (
+        <Card className="p-4">
+          <div className="text-sm text-red-400">{boostedProfilesError}</div>
+        </Card>
+      );
+    }
+    if (!boostedProfiles || boostedProfiles.length === 0) return null;
+    return (
+      <Card className="p-3">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="text-sm font-bold text-white">Impulsionados</div>
+          <div className="text-xs text-gray-400">Perfis em destaque</div>
+        </div>
+        <div className="flex gap-3 overflow-x-auto pb-2 bw-stories-scroll">
+          {boostedProfiles.map((p) => {
+            const name = String(p?.nome || 'Usuário');
+            const initial = name.trim() ? name.trim()[0].toUpperCase() : 'U';
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => navigate(`/profile/${p.id}`)}
+                className="shrink-0 w-[78px] text-center"
+                aria-label={`Ver perfil de ${name}`}
+              >
+                <div className="bw-story-ring mx-auto">
+                  <div className="bw-story-avatar">
+                    {p.avatar_url ? (
+                      <img
+                        src={sanitizeUrl(p.avatar_url)}
+                        alt={name}
+                        className="w-full h-full object-cover"
+                        draggable="false"
+                        style={{ userSelect: 'none' }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-white/5 text-white font-bold">
+                        {initial}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-1 text-[11px] text-gray-200 truncate">{name}</div>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+    );
+  }, [activeTab, boostedProfiles, boostedProfilesError, boostedProfilesLoading, navigate, sanitizeUrl]);
 
   return (
     <Layout>
@@ -1254,7 +1665,43 @@ const Feed = () => {
           </div>
         </div>
 
-        {activeTab === 'feed' && content}
+        {activeTab === 'feed' && (
+          <>
+            {boostedStories}
+            <Card className="p-3">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFeedSubTab('posts')}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                    feedSubTab === 'posts' ? 'bg-white/10 border-white/15 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
+                  }`}
+                >
+                  Feed
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFeedSubTab('musics')}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                    feedSubTab === 'musics' ? 'bg-white/10 border-white/15 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
+                  }`}
+                >
+                  Músicas lançadas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFeedSubTab('mine')}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                    feedSubTab === 'mine' ? 'bg-white/10 border-white/15 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
+                  }`}
+                >
+                  Minhas postagens
+                </button>
+              </div>
+            </Card>
+            {content}
+          </>
+        )}
 
         {activeTab === 'painel' && (
           <div className="space-y-4">
@@ -1504,7 +1951,7 @@ const Feed = () => {
         <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={closePostModal}>
           <div className="w-full max-w-xl bg-[#121212] border border-white/10 rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <div className="text-white font-bold">Novo post</div>
+              <div className="text-white font-bold">{editingPostId ? 'Editar post' : 'Novo post'}</div>
               <button type="button" onClick={closePostModal} className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10">
                 <X size={18} className="text-gray-300" />
               </button>
@@ -1520,7 +1967,9 @@ const Feed = () => {
                   <button
                     key={opt.key}
                     type="button"
+                    disabled={!!editingPostId}
                     onClick={() => {
+                      if (editingPostId) return;
                       setPostType(opt.key);
                       setPostProgress(0);
                       setPostFile(null);
@@ -1537,7 +1986,7 @@ const Feed = () => {
                     }}
                     className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
                       postType === opt.key ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
-                    }`}
+                    } ${editingPostId ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
                     {opt.label}
                   </button>
@@ -1603,13 +2052,15 @@ const Feed = () => {
                           <X size={16} className="text-gray-300" />
                         </button>
                       )}
-                      <label className="px-3 py-2 rounded-xl text-xs font-bold bg-white/10 border border-white/10 hover:bg-white/15 cursor-pointer">
+                      <label className={`px-3 py-2 rounded-xl text-xs font-bold bg-white/10 border border-white/10 hover:bg-white/15 cursor-pointer ${editingPostId ? 'opacity-60 cursor-not-allowed' : ''}`}>
                         Escolher
                         <input
                           type="file"
                           accept={postType === 'image' ? 'image/*' : 'video/*'}
                           className="hidden"
+                          disabled={!!editingPostId}
                           onChange={async (e) => {
+                            if (editingPostId) return;
                             const f = e.target.files?.[0] || null;
                             setPostFile(f);
                             setPostObjectPos({ x: 50, y: 50 });
@@ -1748,11 +2199,11 @@ const Feed = () => {
                     posting
                     || (postType === 'text' && !String(postCaption || '').trim())
                     || (postType === 'link' && !String(postLinkUrl || '').trim())
-                    || ((postType === 'image' || postType === 'video') && !postFile)
-                    || (postType === 'image' && imageCropSrc)
+                    || (!editingPostId && ((postType === 'image' || postType === 'video') && !postFile))
+                    || (!editingPostId && (postType === 'image' && imageCropSrc))
                   }
                 >
-                  {posting ? 'Publicando...' : 'Publicar'}
+                  {posting ? (editingPostId ? 'Salvando...' : 'Publicando...') : (editingPostId ? 'Salvar' : 'Publicar')}
                 </AnimatedButton>
               </div>
               <div className="text-xs text-gray-400">

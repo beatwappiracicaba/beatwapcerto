@@ -553,37 +553,63 @@ const Home = () => {
   };
 
   const [previewTimer, setPreviewTimer] = useState(null);
+  const stopPlayback = (trackIdForAnalytics = null) => {
+    if (previewTimer) {
+      clearTimeout(previewTimer);
+      setPreviewTimer(null);
+    }
+    if (audioElement) {
+      try {
+        audioElement.pause();
+        audioElement.currentTime = 0;
+        audioElement.src = '';
+        audioElement.load();
+      } catch (e) {
+        void e;
+      }
+    }
+    if (playStartTS) {
+      const duration = Math.max(0, Math.round((Date.now() - playStartTS) / 1000));
+      const relId = trackIdForAnalytics || playingTrack;
+      const rel = latestReleases.find(r => r.id === relId);
+      if (rel) recordEvent({ type: 'music_play', music_id: rel.id, artist_id: rel.artista_id, duration_seconds: duration });
+      setPlayStartTS(null);
+    }
+    setPlayingTrack(null);
+    setAudioElement(null);
+    setIsPaused(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      try {
+        if (audioElement) {
+          audioElement.pause();
+          audioElement.src = '';
+          audioElement.load();
+        }
+      } catch (e) {
+        void e;
+      }
+      try {
+        if (previewTimer) clearTimeout(previewTimer);
+      } catch (e) {
+        void e;
+      }
+    };
+  }, [audioElement, previewTimer]);
+
   const togglePlay = (trackId, url, opts = {}) => {
     if (!url) return;
     const full = opts?.full === true;
     if (playingTrack === trackId && audioElement) {
-      if (isPaused) {
-        audioElement.play().catch(() => {});
-        setIsPaused(false);
-        setPlayStartTS(Date.now());
-      } else {
-        audioElement.pause();
-        setIsPaused(true);
-        if (playStartTS) {
-          const duration = Math.max(0, Math.round((Date.now() - playStartTS) / 1000));
-          const rel = latestReleases.find(r => r.id === trackId);
-          if (rel) recordEvent({ type: 'music_play', music_id: rel.id, artist_id: rel.artista_id, duration_seconds: duration });
-          setPlayStartTS(null);
-        }
-      }
+      stopPlayback(trackId);
       return;
     }
-    if (audioElement) {
-      audioElement.pause();
-    }
+    if (audioElement) stopPlayback(trackId);
     const audio = new Audio(url);
     audio.onended = () => {
-      if (playStartTS) {
-        const duration = Math.max(0, Math.round((Date.now() - playStartTS) / 1000));
-        const rel = latestReleases.find(r => r.id === trackId);
-        if (rel) recordEvent({ type: 'music_play', music_id: rel.id, artist_id: rel.artista_id, duration_seconds: duration });
-        setPlayStartTS(null);
-      }
+      stopPlayback(trackId);
       setPlayingTrack(null);
       setAudioElement(null);
       setIsPaused(false);
@@ -613,11 +639,7 @@ const Home = () => {
     }
     if (durationLimit) {
       const t = setTimeout(() => {
-        try { audio.pause(); } catch (e) { void e; }
-        setPlayingTrack(null);
-        setAudioElement(null);
-        setIsPaused(false);
-        setPlayStartTS(null);
+        stopPlayback(trackId);
       }, durationLimit * 1000);
       setPreviewTimer(t);
     }

@@ -59,3 +59,51 @@
   object-fit: cover !important;
   background-color: transparent !important;
 }
+
+@keyframes bw-fire-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.bw-story-ring {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 9999px;
+}
+
+.bw-story-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: conic-gradient(from 0deg, #ffd400, #ff7a00, #ff2d00, #ffd400, #ff7a00);
+  animation: bw-fire-rotate 1.8s linear infinite;
+  filter: drop-shadow(0 0 10px rgba(255, 122, 0, 0.55));
+}
+
+.bw-story-ring::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.bw-story-avatar {
+  position: absolute;
+  inset: 4px;
+  border-radius: 9999px;
+  overflow: hidden;
+  z-index: 1;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.bw-stories-scroll {
+  scroll-snap-type: x mandatory;
+}
+
+.bw-stories-scroll > * {
+  scroll-snap-align: start;
+}

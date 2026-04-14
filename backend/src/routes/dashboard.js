@@ -365,6 +365,35 @@ router.get('/follow/followers', auth, async (req, res) => {
   }
 });
 
+router.get('/feed/my-posts', auth, async (req, res) => {
+  try {
+    const meId = normId(req.user?.id);
+    if (!meId) return res.status(401).json({ error: 'Não autorizado' });
+
+    const posts = Array.isArray(memory.posts) ? memory.posts : [];
+    const likes = memory.likes && typeof memory.likes === 'object' ? memory.likes : {};
+    const comments = memory.comments && typeof memory.comments === 'object' ? memory.comments : {};
+
+    const mine = posts
+      .filter((p) => normId(p?.user_id) === meId)
+      .map((p) => {
+        const id = String(p?.id || '').trim();
+        const arrLikes = Array.isArray(likes[id]) ? likes[id] : [];
+        const arrComments = Array.isArray(comments[id]) ? comments[id] : [];
+        return {
+          ...p,
+          likes_count: arrLikes.length,
+          comments_count: arrComments.length,
+          liked: arrLikes.includes(meId)
+        };
+      });
+
+    res.json({ items: mine });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 router.post('/feed/posts', auth, async (req, res) => {
   try {
     const meId = normId(req.user?.id);
@@ -416,6 +445,84 @@ router.post('/feed/posts', auth, async (req, res) => {
 
     const arr = Array.isArray(memory.likes && memory.likes[id]) ? memory.likes[id] : [];
     res.json({ ...item, likes_count: arr.length });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.patch('/feed/posts/:id', auth, async (req, res) => {
+  try {
+    const meId = normId(req.user?.id);
+    if (!meId) return res.status(401).json({ error: 'Não autorizado' });
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ error: 'ID inválido' });
+
+    if (!Array.isArray(memory.posts)) memory.posts = [];
+    const idx = memory.posts.findIndex((p) => String(p?.id || '') === id);
+    if (idx < 0) return res.status(404).json({ error: 'Post não encontrado' });
+    const cur = memory.posts[idx] || {};
+    if (normId(cur?.user_id) !== meId) return res.status(403).json({ error: 'Sem permissão' });
+
+    const media_type = String(cur?.media_type || 'text').toLowerCase().trim();
+    const caption = req.body?.caption == null ? String(cur?.caption || '') : String(req.body.caption || '').trim();
+    const link_url = req.body?.link_url == null ? (String(cur?.link_url || '').trim() || null) : (String(req.body.link_url || '').trim() || null);
+    const format = req.body?.format == null ? (String(cur?.format || '').trim() || null) : (String(req.body.format || '').toLowerCase().trim() || null);
+    const object_position = req.body?.object_position && typeof req.body.object_position === 'object'
+      ? req.body.object_position
+      : (req.body?.object_position === null ? null : cur?.object_position || null);
+
+    let media_url = String(cur?.media_url || '').trim() || null;
+
+    if (media_type === 'link' && link_url) {
+      const safe = String(link_url || '').replace(/[`"'<>]/g, '').trim();
+      const m = safe.match(/^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/i);
+      const vid = m && m[2] && m[2].length === 11 ? m[2] : null;
+      if (vid) media_url = `https://img.youtube.com/vi/${vid}/hqdefault.jpg`;
+    }
+    if (media_type === 'text') {
+      media_url = null;
+    }
+
+    const next = {
+      ...cur,
+      caption,
+      link_url,
+      media_url,
+      format,
+      object_position,
+      updated_at: new Date().toISOString()
+    };
+    memory.posts[idx] = next;
+    scheduleSave();
+    emitEvent('posts.updated', next, `profile:${meId}`);
+
+    const arrLikes = Array.isArray(memory.likes && memory.likes[id]) ? memory.likes[id] : [];
+    const arrComments = Array.isArray(memory.comments && memory.comments[id]) ? memory.comments[id] : [];
+    res.json({ ok: true, post: { ...next, likes_count: arrLikes.length, comments_count: arrComments.length, liked: arrLikes.includes(meId) } });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.delete('/feed/posts/:id', auth, async (req, res) => {
+  try {
+    const meId = normId(req.user?.id);
+    if (!meId) return res.status(401).json({ error: 'Não autorizado' });
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ error: 'ID inválido' });
+
+    if (!Array.isArray(memory.posts)) memory.posts = [];
+    const idx = memory.posts.findIndex((p) => String(p?.id || '') === id);
+    if (idx < 0) return res.status(404).json({ error: 'Post não encontrado' });
+    const cur = memory.posts[idx] || {};
+    if (normId(cur?.user_id) !== meId) return res.status(403).json({ error: 'Sem permissão' });
+
+    memory.posts.splice(idx, 1);
+    if (memory.likes && typeof memory.likes === 'object') delete memory.likes[id];
+    if (memory.comments && typeof memory.comments === 'object') delete memory.comments[id];
+    scheduleSave();
+    emitEvent('posts.deleted', { id }, `profile:${meId}`);
+    res.json({ ok: true });
   } catch {
     res.status(500).json({ error: 'Erro interno' });
   }

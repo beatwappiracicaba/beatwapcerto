@@ -277,21 +277,52 @@ export const DashboardArtistHome = () => {
   }, [user, enrichCompositionsFromProfiles, planAllowsPublicProfile]);
 
   const [previewTimer, setPreviewTimer] = useState(null);
+  useEffect(() => {
+    return () => {
+      try {
+        if (audioElement) {
+          audioElement.pause();
+          audioElement.src = '';
+          audioElement.load();
+        }
+      } catch (e) {
+        void e;
+      }
+      try {
+        if (previewTimer) clearTimeout(previewTimer);
+      } catch (e) {
+        void e;
+      }
+    };
+  }, [audioElement, previewTimer]);
+
+  const stopPlayback = () => {
+    if (previewTimer) {
+      clearTimeout(previewTimer);
+      setPreviewTimer(null);
+    }
+    if (audioElement) {
+      try {
+        audioElement.pause();
+        audioElement.currentTime = 0;
+        audioElement.src = '';
+        audioElement.load();
+      } catch (e) {
+        void e;
+      }
+    }
+    setPlayingTrack(null);
+    setAudioElement(null);
+    setIsPaused(false);
+  };
+
   const togglePlay = (id, url, opts = {}) => {
     if (!url) return;
     if (playingTrack === id && audioElement) {
-      if (isPaused) {
-        audioElement.play();
-        setIsPaused(false);
-      } else {
-        audioElement.pause();
-        setIsPaused(true);
-      }
+      stopPlayback();
       return;
     }
-    if (audioElement) {
-      audioElement.pause();
-    }
+    if (audioElement) stopPlayback();
     const audio = new Audio(url);
     const start = Math.max(0, Number(opts.startSeconds ?? 0));
     const endOpt = opts.endSeconds;
@@ -305,9 +336,7 @@ export const DashboardArtistHome = () => {
       try { audio.currentTime = start; } catch (e) { void e; }
     }, { once: true });
     audio.onended = () => {
-      setPlayingTrack(null);
-      setAudioElement(null);
-      setIsPaused(false);
+      stopPlayback();
     };
     audio.play().catch(() => {});
     setAudioElement(audio);
@@ -318,10 +347,7 @@ export const DashboardArtistHome = () => {
       setPreviewTimer(null);
     }
     const t = setTimeout(() => {
-      try { audio.pause(); } catch (e) { void e; }
-      setPlayingTrack(null);
-      setAudioElement(null);
-      setIsPaused(false);
+      stopPlayback();
     }, durationLimit * 1000);
     setPreviewTimer(t);
   };

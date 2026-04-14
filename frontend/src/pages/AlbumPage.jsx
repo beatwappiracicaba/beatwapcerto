@@ -24,7 +24,13 @@ const AlbumPage = () => {
   useEffect(() => {
     return () => {
       if (audioElement) {
-        audioElement.pause();
+        try {
+          audioElement.pause();
+          audioElement.src = '';
+          audioElement.load();
+        } catch (e) {
+          void e;
+        }
       }
     };
   }, [audioElement]);
@@ -64,21 +70,32 @@ const AlbumPage = () => {
   const togglePlay = (trackId, url, artistId) => {
     if (!url) return;
     if (playingTrack === trackId && audioElement) {
-      if (audioElement.paused) {
-        audioElement.play().catch(() => {});
-        setPlayStartTS(Date.now());
-      } else {
+      try {
         audioElement.pause();
-        if (playStartTS) {
-          const duration = Math.max(0, Math.round((Date.now() - playStartTS) / 1000));
-          recordEvent({ type: 'music_play', music_id: trackId, artist_id: artistId, duration_seconds: duration });
-          setPlayStartTS(null);
-        }
+        audioElement.currentTime = 0;
+        audioElement.src = '';
+        audioElement.load();
+      } catch (e) {
+        void e;
       }
+      if (playStartTS) {
+        const duration = Math.max(0, Math.round((Date.now() - playStartTS) / 1000));
+        recordEvent({ type: 'music_play', music_id: trackId, artist_id: artistId, duration_seconds: duration });
+        setPlayStartTS(null);
+      }
+      setPlayingTrack(null);
+      setAudioElement(null);
       return;
     }
     if (audioElement) {
-      audioElement.pause();
+      try {
+        audioElement.pause();
+        audioElement.currentTime = 0;
+        audioElement.src = '';
+        audioElement.load();
+      } catch (e) {
+        void e;
+      }
     }
     const audio = new Audio(url);
     audio.onended = () => {
