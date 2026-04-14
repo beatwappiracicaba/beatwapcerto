@@ -2,12 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from './ui/Card';
 import { apiClient } from '../services/apiClient';
-import { useAuth } from '../context/AuthContext';
 
 export const BoostedProfilesStories = ({ limit = 16, className = '' }) => {
   const navigate = useNavigate();
-  const { profile } = useAuth();
-  const meId = String(profile?.id || '').trim();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [items, setItems] = useState([]);
@@ -51,13 +48,8 @@ export const BoostedProfilesStories = ({ limit = 16, className = '' }) => {
       setLoading(true);
       setError('');
       try {
-        const data = await apiClient.get('/home', { cache: true, cacheTtlMs: 15000 });
-        const fromHome = []
-          .concat(Array.isArray(data?.producers) ? data.producers : [])
-          .concat(Array.isArray(data?.sellers) ? data.sellers : [])
-          .concat(Array.isArray(data?.artists) ? data.artists : [])
-          .concat(Array.isArray(data?.composers) ? data.composers : []);
-        const list = Array.isArray(fromHome) ? fromHome : [];
+        const data = await apiClient.get('/boosted-profiles', { cache: true, cacheTtlMs: 15000 });
+        const list = Array.isArray(data) ? data : [];
         const cleaned = list
           .map((p) => ({
             id: String(p?.id || '').trim(),
@@ -65,7 +57,7 @@ export const BoostedProfilesStories = ({ limit = 16, className = '' }) => {
             avatar_url: p?.avatar_url || null,
             access_control: p?.access_control || null,
           }))
-          .filter((p) => p.id && p.id !== meId && isFeaturedActive(p) && isVisibleOnHome(p));
+          .filter((p) => p.id && isFeaturedActive(p) && isVisibleOnHome(p));
 
         cleaned.sort((a, b) => {
           const wa = featuredWeight(a?.access_control?.featured?.level);
@@ -95,7 +87,7 @@ export const BoostedProfilesStories = ({ limit = 16, className = '' }) => {
     return () => {
       cancelled = true;
     };
-  }, [featuredWeight, isFeaturedActive, isVisibleOnHome, limit, meId]);
+  }, [featuredWeight, isFeaturedActive, isVisibleOnHome, limit]);
 
   const content = useMemo(() => {
     if (loading) {

@@ -764,13 +764,8 @@ const Feed = () => {
     setBoostedProfilesLoading(true);
     setBoostedProfilesError('');
     try {
-      const data = await apiClient.get('/home', { cache: true, cacheTtlMs: 15000 });
-      const fromHome = []
-        .concat(Array.isArray(data?.producers) ? data.producers : [])
-        .concat(Array.isArray(data?.sellers) ? data.sellers : [])
-        .concat(Array.isArray(data?.artists) ? data.artists : [])
-        .concat(Array.isArray(data?.composers) ? data.composers : []);
-      const list = Array.isArray(fromHome) ? fromHome : [];
+      const data = await apiClient.get('/boosted-profiles', { cache: true, cacheTtlMs: 15000 });
+      const list = Array.isArray(data) ? data : [];
       const cleaned = list
         .map((p) => ({
           id: String(p?.id || '').trim(),
@@ -781,7 +776,7 @@ const Feed = () => {
           access_control: p?.access_control || null,
           created_at: p?.created_at || null
         }))
-        .filter((p) => p.id && p.id !== meId && isFeaturedActive(p) && isVisibleOnHome(p));
+        .filter((p) => p.id && isFeaturedActive(p) && isVisibleOnHome(p));
 
       cleaned.sort((a, b) => {
         const wa = featuredWeight(a?.access_control?.featured?.level);
