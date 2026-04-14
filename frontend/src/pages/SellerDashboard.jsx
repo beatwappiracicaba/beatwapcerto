@@ -6,7 +6,6 @@ import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
 import { TrendingUp, Calendar, Users, DollarSign, Target, Award } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { BoostedProfilesStories } from '../components/BoostedProfilesStories';
 
 const SellerDashboard = () => {
   const { profile } = useAuth();
@@ -47,8 +46,6 @@ const SellerDashboard = () => {
             </AnimatedButton>
           </div>
         </div>
-
-        <BoostedProfilesStories />
 
         {/* Metas Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

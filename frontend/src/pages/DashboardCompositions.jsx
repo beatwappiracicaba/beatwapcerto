@@ -5,7 +5,6 @@ import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { CompositionsUploadModal } from '../components/artist/CompositionsUploadModal';
-import { BoostedProfilesStories } from '../components/BoostedProfilesStories';
 import { Plus, Music } from 'lucide-react';
 
 export const DashboardCompositions = () => {
@@ -50,7 +49,6 @@ export const DashboardCompositions = () => {
 
   return (
     <DashboardLayout>
-      <BoostedProfilesStories className="mb-6" />
       <Card>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-3">
           <div className="text-xl font-semibold text-white"><span>Minhas Composições</span></div>

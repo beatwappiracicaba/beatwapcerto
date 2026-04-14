@@ -6,7 +6,6 @@ import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { MusicUploadModal } from '../components/artist/MusicUploadModal';
-import { BoostedProfilesStories } from '../components/BoostedProfilesStories';
 import { Plus, DollarSign, Folder, ChevronDown, ChevronRight, MessageCircle, Play, Pause } from 'lucide-react';
 import { decryptData } from '../utils/security';
 
@@ -354,7 +353,6 @@ export const DashboardArtistHome = () => {
   };
   return (
     <DashboardLayout>
-      <BoostedProfilesStories className="mb-6" />
       {!isCompositor && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
           <Card>

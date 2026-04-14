@@ -116,32 +116,33 @@ export const BoostedProfilesStories = ({ limit = 16, className = '' }) => {
             const name = String(p?.nome || 'Usuário');
             const initial = name.trim() ? name.trim()[0].toUpperCase() : 'U';
             return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => navigate(`/profile/${p.id}`)}
-                className="shrink-0 w-[78px] text-center"
-                aria-label={`Ver perfil de ${name}`}
-              >
-                <div className="bw-story-ring mx-auto">
-                  <div className="bw-story-avatar">
-                    {p.avatar_url ? (
-                      <img
-                        src={sanitizeUrl(p.avatar_url)}
-                        alt={name}
-                        className="w-full h-full object-cover"
-                        draggable="false"
-                        style={{ userSelect: 'none' }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-white/5 text-white font-bold">
-                        {initial}
-                      </div>
-                    )}
+              <div key={p.id} className="shrink-0 w-[78px] text-center">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/profile/${p.id}`)}
+                  className="block mx-auto w-[64px] h-[64px] rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                  aria-label={`Ver perfil de ${name}`}
+                >
+                  <div className="bw-story-ring">
+                    <div className="bw-story-avatar">
+                      {p.avatar_url ? (
+                        <img
+                          src={sanitizeUrl(p.avatar_url)}
+                          alt={name}
+                          className="w-full h-full object-cover"
+                          draggable="false"
+                          style={{ userSelect: 'none' }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-white/5 text-white font-bold">
+                          {initial}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </button>
                 <div className="mt-1 text-[11px] text-gray-200 truncate">{name}</div>
-              </button>
+              </div>
             );
           })}
         </div>
