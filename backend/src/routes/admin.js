@@ -53,13 +53,36 @@ router.get('/admin/dashboard-metrics', auth, async (req, res) => {
     await ensureArtistIds();
 
     const analytics = Array.isArray(memory.analytics) ? memory.analytics : [];
+    const homeVisits = (memory.home_visits && typeof memory.home_visits === 'object' && !Array.isArray(memory.home_visits))
+      ? memory.home_visits
+      : {};
     const playsByMusic = new Map();
     const durationByMusic = new Map();
     let homeViewsTotal = 0;
-    const homeVisitors = new Set();
     let homeViews24h = 0;
-    const homeVisitors24h = new Set();
+    let homeUniqueTotal = 0;
+    let homeUnique24h = 0;
     const now = Date.now();
+
+    const homeVisitRows = Object.values(homeVisits || {}).filter((x) => x && typeof x === 'object');
+    const homeVisitIps = new Set(
+      homeVisitRows
+        .map((row) => String(row?.ip_hash || '').trim())
+        .filter(Boolean)
+    );
+    const legacyHomeIps = new Set();
+    const legacyHomeIps24h = new Set();
+    if (homeVisitRows.length > 0) {
+      homeViewsTotal = homeVisitRows.reduce((acc, row) => acc + (Number(row?.visits_count || 0) || 0), 0);
+      homeUnique24h = homeVisitRows.filter((row) => {
+        const ts = new Date(String(row?.last_counted_at || '')).getTime();
+        return Number.isFinite(ts) && (now - ts) <= 24 * 60 * 60 * 1000;
+      }).length;
+      homeViews24h = homeUnique24h;
+    }
+
+    const homeVisitorsFallback = new Set();
+    const homeVisitors24hFallback = new Set();
     for (const ev of analytics) {
       const t = String(ev?.type || '').trim();
       if (t === 'page_view') {
@@ -68,12 +91,18 @@ router.get('/admin/dashboard-metrics', auth, async (req, res) => {
         const page = String(p?.page || '').trim();
         const isHome = path === '/' || page === 'home';
         if (isHome) {
-          homeViewsTotal += 1;
-          if (ev?.ip_hash) homeVisitors.add(String(ev.ip_hash));
+          if (ev?.ip_hash) legacyHomeIps.add(String(ev.ip_hash));
+          if (homeVisitRows.length === 0) {
+            homeViewsTotal += 1;
+            if (ev?.ip_hash) homeVisitorsFallback.add(String(ev.ip_hash));
+          }
           const ts = new Date(String(ev?.created_at || '')).getTime();
           if (Number.isFinite(ts) && (now - ts) <= 24 * 60 * 60 * 1000) {
-            homeViews24h += 1;
-            if (ev?.ip_hash) homeVisitors24h.add(String(ev.ip_hash));
+            if (ev?.ip_hash) legacyHomeIps24h.add(String(ev.ip_hash));
+            if (homeVisitRows.length === 0) {
+              homeViews24h += 1;
+              if (ev?.ip_hash) homeVisitors24hFallback.add(String(ev.ip_hash));
+            }
           }
         }
         continue;
@@ -92,6 +121,24 @@ router.get('/admin/dashboard-metrics', auth, async (req, res) => {
       playsByMusic.set(mid, (playsByMusic.get(mid) || 0) + 1);
       const d = Number(p?.duration_seconds ?? p?.duration ?? ev?.duration_seconds ?? ev?.duration ?? 0);
       if (Number.isFinite(d) && d > 0) durationByMusic.set(mid, (durationByMusic.get(mid) || 0) + d);
+    }
+
+    if (homeVisitRows.length > 0) {
+      for (const ip of legacyHomeIps) {
+        if (!homeVisitIps.has(ip)) {
+          homeUniqueTotal += 1;
+          homeViewsTotal += 1;
+        }
+      }
+      homeUniqueTotal += homeVisitIps.size;
+      const combined24h = new Set([...legacyHomeIps24h]);
+      for (const row of homeVisitRows) {
+        const ts = new Date(String(row?.last_counted_at || '')).getTime();
+        const ip = String(row?.ip_hash || '').trim();
+        if (ip && Number.isFinite(ts) && (now - ts) <= 24 * 60 * 60 * 1000) combined24h.add(ip);
+      }
+      homeUnique24h = combined24h.size;
+      homeViews24h = homeUnique24h;
     }
 
     const likes = memory.likes && typeof memory.likes === 'object' ? memory.likes : {};
@@ -123,9 +170,9 @@ router.get('/admin/dashboard-metrics', auth, async (req, res) => {
       play_seconds_total: Array.from(durationByMusic.values()).reduce((a, b) => a + b, 0),
       music_likes_total: enriched.reduce((a, b) => a + (Number(b.likes) || 0), 0),
       home_page_views_total: homeViewsTotal,
-      home_unique_visitors_total: homeVisitors.size,
+      home_unique_visitors_total: homeVisitRows.length > 0 ? homeUniqueTotal : homeVisitorsFallback.size,
       home_page_views_24h: homeViews24h,
-      home_unique_visitors_24h: homeVisitors24h.size
+      home_unique_visitors_24h: homeVisitRows.length > 0 ? homeUnique24h : homeVisitors24hFallback.size
     };
 
     res.json({ topMusics, totals });

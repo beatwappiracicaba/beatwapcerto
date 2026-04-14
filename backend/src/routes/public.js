@@ -336,6 +336,10 @@ router.get('/home', async (req, res) => {
       const t = new Date(endsAt).getTime();
       return Number.isFinite(t) ? t > nowMs : false;
     };
+    const isVisibleOnHome = (row) => {
+      const ac = row?.access_control || {};
+      return ac?.show_on_home !== false;
+    };
     const sortWithFeaturedFirst = (items) => {
       const arr = Array.isArray(items) ? items.slice() : [];
       return arr.sort((a, b) => {
@@ -431,10 +435,10 @@ router.get('/home', async (req, res) => {
       const ac = row?.access_control || {};
       return { ...row.toJSON?.() ? row.toJSON() : row, verified: ac?.verified === true };
     };
-    const producers = takeDistinctById(sortWithFeaturedFirst(producersRaw.map(addDerived)), 30);
-    const sellers = takeDistinctById(sortWithFeaturedFirst(sellersRaw.map(addDerived)), 30);
-    const artists = takeDistinctById(sortWithFeaturedFirst(artistsRaw.map(addDerived)), 30);
-    const composers = takeDistinctById(sortWithFeaturedFirst(composersRaw.map(addDerived)), 30);
+    const producers = takeDistinctById(sortWithFeaturedFirst(producersRaw.map(addDerived).filter(isVisibleOnHome)), 30);
+    const sellers = takeDistinctById(sortWithFeaturedFirst(sellersRaw.map(addDerived).filter(isVisibleOnHome)), 30);
+    const artists = takeDistinctById(sortWithFeaturedFirst(artistsRaw.map(addDerived).filter(isVisibleOnHome)), 30);
+    const composers = takeDistinctById(sortWithFeaturedFirst(composersRaw.map(addDerived).filter(isVisibleOnHome)), 30);
     const compositionsApprovedRaw = memory.compositions.filter(c => String(c.status).toLowerCase() === 'approved').map(c => {
       const arr = Array.isArray(memory.likes[c.id]) ? memory.likes[c.id] : [];
       return { ...c, likes_count: arr.length };
@@ -1273,6 +1277,35 @@ router.post('/analytics', async (req, res) => {
     const artist_id = payload?.artist_id || payload?.profile_id || payload?.artista_id || null;
     const music_id = payload?.music_id || payload?.id || payload?.track_id || null;
     const duration_seconds = Number(payload?.duration_seconds || 0) || 0;
+
+    if (type === 'page_view') {
+      const path = String(payload?.path || payload?.pathname || '').trim();
+      const page = String(payload?.page || '').trim();
+      const isHome = path === '/' || page === 'home';
+      if (isHome) {
+        if (!memory.home_visits || typeof memory.home_visits !== 'object' || Array.isArray(memory.home_visits)) {
+          memory.home_visits = {};
+        }
+        const nowIso = new Date().toISOString();
+        const nowMs = Date.now();
+        const current = memory.home_visits[ip_hash] && typeof memory.home_visits[ip_hash] === 'object'
+          ? memory.home_visits[ip_hash]
+          : {};
+        const firstSeenAt = current.first_seen_at || nowIso;
+        const lastCountedAt = current.last_counted_at || null;
+        const lastMs = lastCountedAt ? new Date(String(lastCountedAt)).getTime() : null;
+        const canCountAgain = !Number.isFinite(lastMs) || (nowMs - lastMs) >= (24 * 60 * 60 * 1000);
+        const visitsCount = Number(current.visits_count || 0);
+
+        memory.home_visits[ip_hash] = {
+          ip_hash,
+          first_seen_at: firstSeenAt,
+          last_seen_at: nowIso,
+          last_counted_at: canCountAgain ? nowIso : (current.last_counted_at || nowIso),
+          visits_count: canCountAgain ? (visitsCount + 1) : visitsCount
+        };
+      }
+    }
 
     if (!Array.isArray(memory.analytics)) memory.analytics = [];
     memory.analytics.push({

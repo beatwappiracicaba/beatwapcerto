@@ -109,14 +109,14 @@ export const AdminHome = () => {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <Card>
-          <div className="text-sm text-gray-400">Acessos na Home</div>
-          <div className="text-3xl font-bold">{dashboardMetrics?.totals?.home_page_views_total ?? 0}</div>
-          <div className="text-xs text-gray-500 mt-1">Últimas 24h: {dashboardMetrics?.totals?.home_page_views_24h ?? 0}</div>
+          <div className="text-sm text-gray-400">Visitas Diárias (IP único / 24h)</div>
+          <div className="text-3xl font-bold">{dashboardMetrics?.totals?.home_page_views_24h ?? 0}</div>
+          <div className="text-xs text-gray-500 mt-1">Acumulado de janelas 24h: {dashboardMetrics?.totals?.home_page_views_total ?? 0}</div>
         </Card>
         <Card>
-          <div className="text-sm text-gray-400">Visitantes Únicos</div>
+          <div className="text-sm text-gray-400">Total de IPs únicos</div>
           <div className="text-3xl font-bold">{dashboardMetrics?.totals?.home_unique_visitors_total ?? 0}</div>
-          <div className="text-xs text-gray-500 mt-1">Últimas 24h: {dashboardMetrics?.totals?.home_unique_visitors_24h ?? 0}</div>
+          <div className="text-xs text-gray-500 mt-1">IPs únicos em 24h: {dashboardMetrics?.totals?.home_unique_visitors_24h ?? 0}</div>
         </Card>
       </div>
 

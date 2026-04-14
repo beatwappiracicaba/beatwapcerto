@@ -11,6 +11,7 @@ function ensureDefaults(m) {
   if (!m.analytics) m.analytics = [];
   if (!m.events) m.events = [];
   if (!m.posts) m.posts = [];
+  if (!m.home_visits || typeof m.home_visits !== 'object' || Array.isArray(m.home_visits)) m.home_visits = {};
   if (!m.likes) m.likes = {};
   if (!m.comments) m.comments = {};
   if (!Array.isArray(m.notifications)) m.notifications = [];

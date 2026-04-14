@@ -539,6 +539,7 @@ export const AdminSettings = () => {
           finance: true,
           musics: true,
           public_profile: true,
+          show_on_home: true,
           work: true,
           marketing: true,
           verified: false,
@@ -682,7 +683,7 @@ export const AdminSettings = () => {
     setArtists(artists.map(a => {
       if (a.id === artistId) {
         const policy = planPolicyFor(a);
-        if (policy?.locked?.[key]) {
+        if (key !== 'show_on_home' && policy?.locked?.[key]) {
           return a;
         }
         return {
@@ -947,6 +948,9 @@ export const AdminSettings = () => {
     return { forced, locked };
   };
   const getPermState = (artist, key) => {
+    if (key === 'show_on_home') {
+      return { enabled: artist?.access_control?.show_on_home !== false, locked: false };
+    }
     const policy = planPolicyFor(artist);
     const locked = !!policy.locked?.[key];
     const forcedValue = policy.forced?.[key];
@@ -1764,6 +1768,7 @@ export const AdminSettings = () => {
                                   {[
                                     { key: 'marketing', label: 'Marketing' },
                                     { key: 'chat', label: 'Chat' },
+                                    { key: 'show_on_home', label: 'Mostrar na Home' },
                                   ].map((perm) => (
                                     <PermissionPill
                                       key={perm.key}
@@ -1820,6 +1825,16 @@ export const AdminSettings = () => {
                                       handlePermissionChange(artist.id, 'chat', !artist.access_control.chat);
                                     }}
                                   />
+                                  <PermissionPill
+                                    enabled={getPermState(artist, 'show_on_home').enabled}
+                                    locked={getPermState(artist, 'show_on_home').locked}
+                                    label="Mostrar na Home"
+                                    onClick={() => {
+                                      const s = getPermState(artist, 'show_on_home');
+                                      if (s.locked) return;
+                                      handlePermissionChange(artist.id, 'show_on_home', artist?.access_control?.show_on_home === false);
+                                    }}
+                                  />
                                 </div>
                               </div>
                             </>
@@ -1868,6 +1883,16 @@ export const AdminSettings = () => {
                                       const s = getPermState(artist, 'public_profile');
                                       if (s.locked) return;
                                       handlePermissionChange(artist.id, 'public_profile', !artist.access_control.public_profile);
+                                    }}
+                                  />
+                                  <PermissionPill
+                                    enabled={getPermState(artist, 'show_on_home').enabled}
+                                    locked={getPermState(artist, 'show_on_home').locked}
+                                    label="Mostrar na Home"
+                                    onClick={() => {
+                                      const s = getPermState(artist, 'show_on_home');
+                                      if (s.locked) return;
+                                      handlePermissionChange(artist.id, 'show_on_home', artist?.access_control?.show_on_home === false);
                                     }}
                                   />
                                 </div>
@@ -1920,6 +1945,16 @@ export const AdminSettings = () => {
                                       const s = getPermState(artist, 'public_profile');
                                       if (s.locked) return;
                                       handlePermissionChange(artist.id, 'public_profile', !artist.access_control.public_profile);
+                                    }}
+                                  />
+                                  <PermissionPill
+                                    enabled={getPermState(artist, 'show_on_home').enabled}
+                                    locked={getPermState(artist, 'show_on_home').locked}
+                                    label="Mostrar na Home"
+                                    onClick={() => {
+                                      const s = getPermState(artist, 'show_on_home');
+                                      if (s.locked) return;
+                                      handlePermissionChange(artist.id, 'show_on_home', artist?.access_control?.show_on_home === false);
                                     }}
                                   />
                                 </div>
