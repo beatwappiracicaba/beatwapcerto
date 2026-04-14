@@ -2,7 +2,7 @@ const express = require('express');
 const { Profile } = require('../models');
 const { auth } = require('../middleware/auth');
 const { memory, scheduleSave } = require('../memoryStore');
-const chatRouter = require('./chat');
+const { createNotification } = require('../services/notifications');
 
 const router = express.Router();
 
@@ -336,9 +336,37 @@ router.put('/admin/musics/:id', auth, async (req, res) => {
     for (const k of allowed) {
       if (Object.prototype.hasOwnProperty.call(req.body, k)) patch[k] = req.body[k];
     }
-    memory.musics[idx] = { ...memory.musics[idx], ...patch, updated_at: new Date().toISOString() };
+    const previous = memory.musics[idx] || {};
+    memory.musics[idx] = { ...previous, ...patch, updated_at: new Date().toISOString() };
     scheduleSave();
     const updated = memory.musics[idx];
+    const prevStatus = String(previous?.status || '').toLowerCase().trim();
+    const nextStatus = String(updated?.status || '').toLowerCase().trim();
+    const changedStatus = prevStatus !== nextStatus;
+
+    if (updated?.artista_id && changedStatus) {
+      if (nextStatus === 'aprovado' || nextStatus === 'approved' || nextStatus === 'aceito' || nextStatus === 'aceita') {
+        createNotification({
+          recipient_id: updated.artista_id,
+          type: 'success',
+          title: 'Música aprovada',
+          message: `Sua música "${updated?.titulo || 'Sem título'}" foi aprovada.`,
+          link: '/dashboard/musicas'
+        });
+      } else if (nextStatus === 'recusado' || nextStatus === 'rejected' || nextStatus === 'reprovado' || nextStatus === 'reprovada') {
+        const reason = String(req.body?.motivo_recusa || req.body?.feedback || '').trim();
+        createNotification({
+          recipient_id: updated.artista_id,
+          type: 'error',
+          title: 'Música reprovada',
+          message: reason
+            ? `Sua música "${updated?.titulo || 'Sem título'}" foi reprovada. Motivo: ${reason}`
+            : `Sua música "${updated?.titulo || 'Sem título'}" foi reprovada.`,
+          link: '/dashboard/musicas'
+        });
+      }
+    }
+
     emitEvent('musics.updated', { id, item: updated }, `music:${id}`);
     if (updated?.artista_id) emitEvent('musics.updated', { id, item: updated }, `profile:${updated.artista_id}`);
     if (updated?.producer_id) emitEvent('musics.updated', { id, item: updated }, `profile:${updated.producer_id}`);

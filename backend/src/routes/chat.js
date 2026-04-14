@@ -2,6 +2,13 @@ const express = require('express');
 const { auth } = require('../middleware/auth');
 const { Op } = require('sequelize');
 const { Profile } = require('../models');
+const {
+  createNotification,
+  listNotificationsByRecipient,
+  markAsRead,
+  markAllAsRead,
+} = require('../services/notifications');
+const { memory } = require('../memoryStore');
 
 const router = express.Router();
 
@@ -37,7 +44,7 @@ function purgeUserChatData(userIdRaw) {
   });
 
   state.queue = (Array.isArray(state.queue) ? state.queue : []).filter((q) => String(q?.requester_id || '').trim() !== userId);
-  state.notifications = (Array.isArray(state.notifications) ? state.notifications : []).filter((n) => String(n?.recipient_id || '').trim() !== userId);
+  memory.notifications = (Array.isArray(memory.notifications) ? memory.notifications : []).filter((n) => String(n?.recipient_id || '').trim() !== userId);
   state.aiHistory = (Array.isArray(state.aiHistory) ? state.aiHistory : []).filter((h) => String(h?.user_id || '').trim() !== userId);
 }
 
@@ -120,23 +127,18 @@ router.post('/queue', (req, res) => {
 
 // Notifications
 router.get('/notifications', auth, async (req, res) => {
-  const list = state.notifications.filter(n => String(n.recipient_id) === String(req.user.id));
+  const list = listNotificationsByRecipient(req.user?.id);
   res.json(list);
 });
 router.post('/notifications', auth, async (req, res) => {
-  const id = `n_${Date.now()}`;
-  const recipient_id = req.body?.recipient_id || req.body?.recipientId || req.user.id;
-  const item = {
-    id,
-    recipient_id,
+  const item = createNotification({
+    recipient_id: req.body?.recipient_id || req.body?.recipientId || req.user?.id,
     title: req.body?.title || 'Notificação',
     message: req.body?.message || '',
     type: req.body?.type || 'info',
     link: req.body?.link || null,
-    read: false,
-    created_at: nowIso(),
-  };
-  state.notifications.unshift(item);
+  });
+  if (!item) return res.status(400).json({ error: 'recipient_id obrigatório' });
   res.json(item);
 });
 router.post('/broadcast-notifications', auth, async (req, res) => {
@@ -151,32 +153,26 @@ router.post('/broadcast-notifications', auth, async (req, res) => {
       recipients = rows.map(r => r.id);
     }
   } catch { recipients = []; }
-  const created = recipients.map((rid) => {
-    const id = `n_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
-    const item = {
-      id,
-      recipient_id: rid,
-      title: req.body?.title || 'Aviso',
-      message: req.body?.message || '',
-      type: 'info',
-      link: req.body?.link || null,
-      read: false,
-      created_at: nowIso(),
-    };
-    state.notifications.unshift(item);
-    return item;
-  });
+  const created = recipients
+    .map((rid) =>
+      createNotification({
+        recipient_id: rid,
+        title: req.body?.title || 'Aviso',
+        message: req.body?.message || '',
+        type: 'info',
+        link: req.body?.link || null,
+      })
+    )
+    .filter(Boolean);
   res.json({ ok: true, count: created.length });
 });
 router.post('/notifications/:id/read', auth, async (req, res) => {
-  const id = req.params.id;
-  const idx = state.notifications.findIndex(n => n.id === id && String(n.recipient_id) === String(req.user.id));
-  if (idx < 0) return res.status(404).json({ error: 'Notificação não encontrada' });
-  state.notifications[idx] = { ...state.notifications[idx], read: true };
+  const out = markAsRead(req.user?.id, req.params.id);
+  if (!out.ok) return res.status(404).json({ error: 'Notificação não encontrada' });
   res.json({ ok: true });
 });
 router.post('/notifications/read-all', auth, async (req, res) => {
-  state.notifications = state.notifications.map(n => String(n.recipient_id) === String(req.user.id) ? { ...n, read: true } : n);
+  markAllAsRead(req.user?.id);
   res.json({ ok: true });
 });
 
@@ -368,44 +364,6 @@ router.post('/typing', auth, (req, res) => {
   const is_typing = !!(req.body?.is_typing ?? req.body?.isTyping);
   if (!chat_id) return res.status(400).json({ error: 'chat_id obrigatório' });
   emitStreamEvent('typing', { chat_id, user_id: req.user?.id || null, is_typing });
-  res.json({ ok: true });
-});
-
-// Notifications
-router.get('/notifications', auth, (req, res) => {
-  const list = state.notifications.filter(n => !n.recipient_id || n.recipient_id === req.user.id);
-  res.json(list);
-});
-router.post('/notifications', auth, (req, res) => {
-  const n = {
-    id: `n_${Date.now()}`,
-    recipient_id: req.body?.recipient_id || req.user?.id || null,
-    title: req.body?.title || 'Aviso',
-    message: req.body?.message || '',
-    link: req.body?.link || null,
-    read: false,
-    created_at: nowIso(),
-  };
-  state.notifications.push(n);
-  res.json(n);
-});
-router.post('/broadcast-notifications', auth, (req, res) => {
-  const n = {
-    id: `n_${Date.now()}`,
-    recipient_id: null,
-    title: req.body?.title || 'Aviso',
-    message: req.body?.message || '',
-    link: req.body?.link || null,
-    read: false,
-    created_at: nowIso(),
-  };
-  state.notifications.push(n);
-  res.json({ ok: true });
-});
-router.post('/notifications/read-all', auth, (req, res) => {
-  state.notifications.forEach(n => {
-    if (!n.recipient_id || n.recipient_id === req.user.id) n.read = true;
-  });
   res.json({ ok: true });
 });
 

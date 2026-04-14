@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const https = require('https');
 const { URL } = require('url');
 const { transporter } = require('../services/mailer');
+const { createNotification } = require('../services/notifications');
 
 const router = express.Router();
 
@@ -1151,9 +1152,60 @@ router.put('/admin/compositions/:id/status', auth, async (req, res) => {
     if (!allowed.includes(status)) return res.status(400).json({ error: 'Status inválido' });
     const idx = memory.compositions.findIndex(c => c.id === id);
     if (idx < 0) return res.status(404).json({ error: 'Composição não encontrada' });
-    memory.compositions[idx] = { ...memory.compositions[idx], status, feedback };
+    const previous = memory.compositions[idx] || {};
+    memory.compositions[idx] = { ...previous, status, feedback };
     scheduleSave();
     const updated = memory.compositions[idx];
+    const prevStatus = String(previous?.status || '').toLowerCase().trim();
+    const nextStatus = String(updated?.status || '').toLowerCase().trim();
+    const changedStatus = prevStatus !== nextStatus;
+
+    if (updated?.composer_id && changedStatus) {
+      if (nextStatus === 'approved') {
+        createNotification({
+          recipient_id: updated.composer_id,
+          type: 'success',
+          title: 'Composição aprovada',
+          message: `Sua composição "${updated?.title || 'Sem título'}" foi aprovada.`,
+          link: '/dashboard/composicoes'
+        });
+      } else if (nextStatus === 'rejected') {
+        const reason = String(feedback || '').trim();
+        createNotification({
+          recipient_id: updated.composer_id,
+          type: 'error',
+          title: 'Composição reprovada',
+          message: reason
+            ? `Sua composição "${updated?.title || 'Sem título'}" foi reprovada. Motivo: ${reason}`
+            : `Sua composição "${updated?.title || 'Sem título'}" foi reprovada.`,
+          link: '/dashboard/composicoes'
+        });
+      }
+    }
+
+    if (updated?.composer_partner_id && changedStatus) {
+      if (nextStatus === 'approved') {
+        createNotification({
+          recipient_id: updated.composer_partner_id,
+          type: 'success',
+          title: 'Composição aprovada',
+          message: `Uma composição vinculada a você ("${updated?.title || 'Sem título'}") foi aprovada.`,
+          link: '/dashboard/composicoes'
+        });
+      } else if (nextStatus === 'rejected') {
+        const reason = String(feedback || '').trim();
+        createNotification({
+          recipient_id: updated.composer_partner_id,
+          type: 'error',
+          title: 'Composição reprovada',
+          message: reason
+            ? `Uma composição vinculada a você ("${updated?.title || 'Sem título'}") foi reprovada. Motivo: ${reason}`
+            : `Uma composição vinculada a você ("${updated?.title || 'Sem título'}") foi reprovada.`,
+          link: '/dashboard/composicoes'
+        });
+      }
+    }
+
     if (updated?.composer_id) emitEvent('compositions.updated', { id, item: updated }, `profile:${updated.composer_id}`);
     if (updated?.producer_id) emitEvent('compositions.updated', { id, item: updated }, `profile:${updated.producer_id}`);
     if (updated?.composer_partner_id) emitEvent('compositions.updated', { id, item: updated }, `profile:${updated.composer_partner_id}`);

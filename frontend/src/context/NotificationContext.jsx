@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { apiClient } from '../services/apiClient';
+import { API_BASE_URL } from '../config/apiConfig';
+import { connectRealtime, subscribe, unsubscribe } from '../services/realtime';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 
@@ -25,11 +27,25 @@ export const NotificationProvider = ({ children }) => {
     if (user) {
       fetchNotifications();
       const id = setInterval(fetchNotifications, 30000);
-      return () => clearInterval(id);
+
+      const room = `profile:${user.id}`;
+      const socket = connectRealtime(API_BASE_URL || 'https://api.beatwap.com.br');
+      subscribe(room);
+      const onCreated = () => fetchNotifications();
+      const onUnreadUpdate = () => fetchNotifications();
+      socket.on('notifications.created', onCreated);
+      socket.on('notifications.unread.updated', onUnreadUpdate);
+
+      return () => {
+        clearInterval(id);
+        socket.off('notifications.created', onCreated);
+        socket.off('notifications.unread.updated', onUnreadUpdate);
+        unsubscribe(room);
+      };
     } else {
       setNotifications([]);
     }
-  }, [user, fetchNotifications, addToast]);
+  }, [user, fetchNotifications]);
 
   const getNotifications = () => {
     return notifications; 

@@ -13,6 +13,7 @@ function ensureDefaults(m) {
   if (!m.posts) m.posts = [];
   if (!m.likes) m.likes = {};
   if (!m.comments) m.comments = {};
+  if (!Array.isArray(m.notifications)) m.notifications = [];
   if (!m.follows || typeof m.follows !== 'object') m.follows = {};
   if (Array.isArray(m.follows)) {
     const next = {};

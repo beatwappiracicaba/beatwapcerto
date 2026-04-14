@@ -7,7 +7,6 @@ import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AdminLayout } from '../components/AdminLayout';
 import { useAuth } from '../context/AuthContext';
-import { useNotification } from '../context/NotificationContext';
 import { useToast } from '../context/ToastContext';
 import { apiClient } from '../services/apiClient';
 import Cropper from 'react-easy-crop';
@@ -245,7 +244,6 @@ export const AdminArtists = () => {
   const [metricsForm, setMetricsForm] = useState({ plays: '', listeners: '', revenue: '', growth: '' });
   const [planForm, setPlanForm] = useState({ plano: 'Avulso', bonus_quota: 0, plan_started_at: '' });
   const [searchName, setSearchName] = useState('');
-  const { addNotification } = useNotification();
   const { addToast } = useToast();
   const { getArtistById, updateArtistMetrics } = useData();
   const [workEventForm, setWorkEventForm] = useState({ title: '', date: '', type: 'lançamento' });
@@ -761,7 +759,6 @@ export const AdminArtists = () => {
 };
 
 export const AdminMusics = () => {
-  const { addNotification } = useNotification();
   const { addToast } = useToast();
   const [musics, setMusics] = useState([]);
   const [statusFilter, setStatusFilter] = useState('pendente');
@@ -895,13 +892,6 @@ export const AdminMusics = () => {
       show_on_home: showHome,
       isrc: isrcVal || null
     });
-    await addNotification({
-      recipientId: m.artista_id,
-      title: 'Música aprovada',
-      message: `UPC: ${upcVal}. Pre-save: ${presaveVal || 'N/A'}. Lançamento: ${releaseVal || 'N/A'}`,
-      type: 'success',
-      link: presaveVal || null
-    });
     setLocalInputs((prev) => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), upc: '', presave: '', release_date: '', isrc: '' } }));
     load();
   };
@@ -910,7 +900,6 @@ export const AdminMusics = () => {
     const reason = (localInputs[m.id]?.reject || '').trim();
     if (!reason) { addToast('Informe o motivo da reprovação', 'error'); return; }
     await apiClient.put(`/admin/musics/${m.id}`, { status: 'recusado', motivo_recusa: reason });
-    await addNotification({ recipientId: m.artista_id, title: 'Música reprovada', message: reason, type: 'error' });
     setLocalInputs((prev) => ({ ...prev, [m.id]: { ...(prev[m.id] || {}), reject: '' } }));
     load();
   };
