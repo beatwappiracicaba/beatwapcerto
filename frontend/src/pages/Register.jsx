@@ -65,8 +65,7 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    setLoading(true);
+    if (loading) return;
     
     try {
       if (step === 'register') {
@@ -117,7 +116,15 @@ const Register = () => {
           return;
         }
 
-        await authApi.requestRegisterCode(formData.email);
+        const normalizedEmail = String(formData.email || '').trim().toLowerCase();
+        if (!normalizedEmail) {
+          addToast('Digite um email válido.', 'error');
+          return;
+        }
+
+        setLoading(true);
+        await authApi.requestRegisterCode(normalizedEmail);
+        setFormData((prev) => ({ ...prev, email: normalizedEmail }));
         addToast('Enviamos um código de verificação para seu email.', 'success');
         setStep('verify');
         return;
@@ -141,6 +148,8 @@ const Register = () => {
       }
 
       const capitalizedName = String(formData.name || '').trim();
+      const normalizedEmail = String(formData.email || '').trim().toLowerCase();
+      const normalizedCode = String(formData.code || '').trim().replace(/\s+/g, '');
       const role = roleParam ? (roleParam.charAt(0).toUpperCase() + roleParam.slice(1).toLowerCase()) : (formData.role || 'Artista');
       const params = new URLSearchParams(location.search);
       const getFlag = (k) => params.get(k) === '1';
@@ -174,13 +183,14 @@ const Register = () => {
         if (getFlag('p_marketing')) access_control.marketing = true;
         if (getFlag('p_finance')) access_control.finance = true;
       }
+      setLoading(true);
       const res = await authApi.register({
         name: capitalizedName,
         nome_completo: formData.nome_completo,
         razao_social: formData.razao_social,
-        email: formData.email,
+        email: normalizedEmail,
         password: formData.password,
-        code: formData.code,
+        code: normalizedCode,
         role,
         plano: planParam,
         access_control,
@@ -254,7 +264,12 @@ const Register = () => {
       navigate(res?.redirect || '/dashboard/painel', { replace: true });
     } catch (error) {
       console.error('Registration error:', error);
-      addToast(error.message || 'Erro ao criar conta.', 'error');
+      const msg = String(error?.message || '').toLowerCase();
+      if (msg.includes('tempo esgotado') || msg.includes('failed to fetch') || msg.includes('network')) {
+        addToast('Falha de conexão. Verifique a internet e tente novamente.', 'error');
+      } else {
+        addToast(error.message || 'Erro ao criar conta.', 'error');
+      }
     } finally {
       setLoading(false);
     }

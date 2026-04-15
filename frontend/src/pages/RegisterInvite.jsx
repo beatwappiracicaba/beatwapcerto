@@ -65,8 +65,8 @@ export default function RegisterInvite() {
   }, [token]);
 
   const submit = async () => {
+    if (submitting) return;
     try {
-      setSubmitting(true);
       if (step === 'register') {
         const requiredMissingByFormStep = () => {
           if (formStep === 0) {
@@ -106,7 +106,15 @@ export default function RegisterInvite() {
           return;
         }
 
-        await authApi.requestRegisterCode(email);
+        const normalizedEmail = String(email || '').trim().toLowerCase();
+        if (!normalizedEmail) {
+          addToast('Digite um email válido', 'error');
+          return;
+        }
+
+        setSubmitting(true);
+        await authApi.requestRegisterCode(normalizedEmail);
+        setEmail(normalizedEmail);
         addToast('Enviamos um código de verificação para seu email.', 'success');
         setStep('verify');
         return;
@@ -125,12 +133,16 @@ export default function RegisterInvite() {
         return;
       }
 
+      const normalizedEmail = String(email || '').trim().toLowerCase();
+      const normalizedCode = String(code || '').trim().replace(/\s+/g, '');
+
+      setSubmitting(true);
       const res = await apiClient.post('/auth/register-with-invite', {
         token,
         tipo: cargo,
-        email,
+        email: normalizedEmail,
         password,
-        code,
+        code: normalizedCode,
         nome,
         nome_completo: nomeCompleto,
         razao_social: razaoSocial,
@@ -155,7 +167,12 @@ export default function RegisterInvite() {
       await refreshProfile();
       nav(res?.redirect || '/dashboard/painel', { replace: true });
     } catch (e) {
-      addToast(e?.message || 'Falha ao criar conta', 'error');
+      const msg = String(e?.message || '').toLowerCase();
+      if (msg.includes('tempo esgotado') || msg.includes('failed to fetch') || msg.includes('network')) {
+        addToast('Falha de conexão. Verifique a internet e tente novamente.', 'error');
+      } else {
+        addToast(e?.message || 'Falha ao criar conta', 'error');
+      }
     } finally {
       setSubmitting(false);
     }
