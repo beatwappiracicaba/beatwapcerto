@@ -47,6 +47,7 @@ export default function ProducerAuditions() {
   const [form, setForm] = useState({ ...emptyForm });
   const [updatingStatusId, setUpdatingStatusId] = useState('');
   const [updatingSubmissionId, setUpdatingSubmissionId] = useState('');
+  const [deletingAuditionId, setDeletingAuditionId] = useState('');
   const [imageSrc, setImageSrc] = useState('');
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -210,6 +211,24 @@ export default function ProducerAuditions() {
     }
   };
 
+  const deleteAudition = async (auditionId) => {
+    const id = String(auditionId || '').trim();
+    if (!id) return;
+    const ok = window.confirm('Tem certeza que deseja apagar esta audição? Isso apaga também as composições recebidas.');
+    if (!ok) return;
+    setDeletingAuditionId(id);
+    try {
+      await apiClient.del(`/auditions/${encodeURIComponent(id)}`);
+      addToast('Audição apagada.', 'success');
+      if (String(selectedAuditionId) === id) setSelectedAuditionId('');
+      await fetchAuditions();
+    } catch (e) {
+      addToast(e?.message || 'Erro ao apagar audição', 'error');
+    } finally {
+      setDeletingAuditionId('');
+    }
+  };
+
   const content = (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -272,6 +291,14 @@ export default function ProducerAuditions() {
                 isLoading={updatingStatusId === selectedAuditionId}
               >
                 Encerrar
+              </AnimatedButton>
+              <AnimatedButton
+                onClick={() => selectedAuditionId && deleteAudition(selectedAuditionId)}
+                className="px-4"
+                variant="secondary"
+                isLoading={deletingAuditionId === selectedAuditionId}
+              >
+                Apagar
               </AnimatedButton>
             </div>
           </div>

@@ -241,6 +241,42 @@ router.patch('/auditions/:id', auth, async (req, res) => {
   }
 });
 
+router.delete('/auditions/:id', auth, async (req, res) => {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ ok: false, error: 'Sem permissão' });
+    const id = String(req.params.id || '').trim();
+    const audition = await Audition.findByPk(id);
+    if (!audition) return res.status(404).json({ ok: false, error: 'Audição não encontrada' });
+    if (String(audition.created_by) !== String(req.user.id)) return res.status(403).json({ ok: false, error: 'Sem permissão' });
+
+    await AuditionSubmission.destroy({ where: { audition_id: id } });
+    await Audition.destroy({ where: { id } });
+
+    await logAudit({
+      action: 'auditions.delete',
+      email: req.user.email,
+      user_id: req.user.id,
+      status: 'success',
+      ip: String(req.headers['x-real-ip'] || req.ip || ''),
+      user_agent: String(req.headers['user-agent'] || ''),
+      details: { audition_id: id }
+    });
+
+    return res.json({ ok: true });
+  } catch (e) {
+    await logAudit({
+      action: 'auditions.delete',
+      email: req.user?.email || null,
+      user_id: req.user?.id || null,
+      status: 'exception',
+      ip: String(req.headers['x-real-ip'] || req.ip || ''),
+      user_agent: String(req.headers['user-agent'] || ''),
+      details: { message: e?.message || 'error' }
+    });
+    return res.status(500).json({ ok: false, error: 'Erro interno' });
+  }
+});
+
 router.get('/auditions/open', auth, async (req, res) => {
   try {
     if (req.user.cargo !== 'Compositor') return res.status(403).json({ ok: false, error: 'Sem permissão' });
