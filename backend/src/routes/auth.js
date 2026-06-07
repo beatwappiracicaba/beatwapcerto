@@ -355,13 +355,17 @@ router.post('/admin/create-invite', auth, async (req, res) => {
     const email = String(req.body.email || '').trim().toLowerCase();
     if (!email) return res.status(400).json({ ok: false, error: 'Email obrigatório' });
     const plano = normalizePlanoInput(req.body.plano) || undefined;
-    const role = normalizeCargoInput(req.body.role) || undefined;
+    const role = normalizeCargoInput(req.body.role);
+    if (!role) return res.status(400).json({ ok: false, error: 'Cargo obrigatório' });
+    const allowedRoles = ['Artista', 'Compositor', 'Vendedor', 'Produtor'];
+    if (!allowedRoles.includes(role)) return res.status(400).json({ ok: false, error: 'Cargo inválido' });
     const name = req.body.name ? String(req.body.name).trim() : undefined;
     const p_chat = req.body.p_chat != null ? !!req.body.p_chat : undefined;
     const p_musics = req.body.p_musics != null ? !!req.body.p_musics : undefined;
     const p_work = req.body.p_work != null ? !!req.body.p_work : undefined;
     const p_marketing = req.body.p_marketing != null ? !!req.body.p_marketing : undefined;
     const p_finance = req.body.p_finance != null ? !!req.body.p_finance : undefined;
+    const send_email = req.body.send_email === true || req.body.send_email === '1' || req.body.send_email === 1;
     const acIn = req.body.access_control;
     let access_control = null;
     if (acIn && typeof acIn === 'object') {
@@ -426,9 +430,11 @@ router.post('/admin/create-invite', auth, async (req, res) => {
       expires_at,
       created_by: req.user.id
     });
-    await sendInviteEmail(email, token, { plano, role, name, p_chat, p_musics, p_work, p_marketing, p_finance })
-      .catch(err => console.error('Erro ao enviar convite:', err));
-    return res.json({ ok: true, invite: { id: invite.id, email, token, expires_at } });
+    if (send_email) {
+      await sendInviteEmail(email, token, { forceToken: true, plano, role, name, p_chat, p_musics, p_work, p_marketing, p_finance })
+        .catch(err => console.error('Erro ao enviar convite:', err));
+    }
+    return res.json({ ok: true, invite: { id: invite.id, email, token, expires_at, role, plano, name } });
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'Erro interno' });
   }
@@ -621,6 +627,9 @@ router.get('/admin/invites', auth, async (req, res) => {
         email: i.email,
         token: i.token,
         expires_at: i.expires_at,
+        role: i.role || null,
+        plano: i.plano || null,
+        name: i.name || null,
         used: i.used,
         created_by: i.created_by,
         status
@@ -642,7 +651,8 @@ router.post('/admin/invites/:id/resend', auth, async (req, res) => {
     if (invite.used) return res.status(400).json({ ok: false, error: 'Convite já utilizado' });
     const now = new Date();
     if (new Date(invite.expires_at) <= now) return res.status(400).json({ ok: false, error: 'Convite expirado' });
-    await sendInviteEmail(invite.email, invite.token).catch(err => console.error('Erro ao reenviar convite:', err));
+    await sendInviteEmail(invite.email, invite.token, { forceToken: true, role: invite.role, plano: invite.plano, name: invite.name })
+      .catch(err => console.error('Erro ao reenviar convite:', err));
     return res.json({ ok: true });
   } catch {
     return res.status(500).json({ ok: false, error: 'Erro interno' });
@@ -660,7 +670,8 @@ router.post('/admin/invites/:id/regenerate', auth, async (req, res) => {
     const ttl = Number(process.env.INVITE_TTL_HOURS || 24);
     invite.expires_at = new Date(Date.now() + ttl * 60 * 60 * 1000);
     await invite.save();
-    await sendInviteEmail(invite.email, invite.token).catch(err => console.error('Erro ao enviar convite regenerado:', err));
+    await sendInviteEmail(invite.email, invite.token, { forceToken: true, role: invite.role, plano: invite.plano, name: invite.name })
+      .catch(err => console.error('Erro ao enviar convite regenerado:', err));
     return res.json({ ok: true, invite: { id: invite.id, token: invite.token, expires_at: invite.expires_at } });
   } catch {
     return res.status(500).json({ ok: false, error: 'Erro interno' });

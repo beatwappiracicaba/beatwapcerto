@@ -88,7 +88,14 @@ function resetPasswordTemplate(link, code) {
 
 async function sendInviteEmail(email, token, opts = {}) {
   const base = process.env.APP_PUBLIC_URL || 'https://www.beatwap.com.br';
-  const useQuery = String(process.env.INVITE_LINK_STYLE || '').toLowerCase() === 'query';
+  const envUseQuery = String(process.env.INVITE_LINK_STYLE || '').toLowerCase() === 'query';
+  const roleRaw = opts.role ? String(opts.role).trim() : '';
+  const roleLower = roleRaw.toLowerCase();
+  const forceToken =
+    opts.forceToken === true ||
+    roleLower === 'produtor' ||
+    roleLower === 'vendedor';
+  const useQuery = !forceToken && envUseQuery;
   let link;
   if (useQuery) {
     const role = opts.role || process.env.REG_ROLE || 'Artista';
@@ -121,7 +128,7 @@ async function sendInviteEmail(email, token, opts = {}) {
     });
     link = `${base}/register?${params.toString()}`;
   } else {
-    link = `${base}/register/invite?token=${token}`;
+    link = `${base}/register/invite?token=${encodeURIComponent(String(token || '').trim())}`;
   }
   const info = await transporter.sendMail({
     from: process.env.SMTP_FROM || process.env.SMTP_USER,

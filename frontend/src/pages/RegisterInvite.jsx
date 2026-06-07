@@ -16,7 +16,6 @@ export default function RegisterInvite() {
   const { refreshProfile } = useAuth();
   const params = new URLSearchParams(search);
   const token = String(params.get('token') || '').trim();
-  const tipoParam = String(params.get('tipo') || '').trim();
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
   const [expiresAt, setExpiresAt] = useState(null);
@@ -50,9 +49,11 @@ export default function RegisterInvite() {
         setEmail(String(data?.email || ''));
         setExpiresAt(data?.expires_at || null);
         const fromInvite = String(data?.role || '').trim();
-        const tipo = String(tipoParam || '').trim();
-        const finalRole = (tipo || fromInvite || '').trim();
-        setCargo(finalRole);
+        if (!fromInvite) {
+          nav('/register/invite-invalid', { replace: true });
+          return;
+        }
+        setCargo(fromInvite);
         const name = String(data?.name || '').trim();
         if (name) setNome(name);
       } catch {
@@ -194,6 +195,14 @@ export default function RegisterInvite() {
             icon={Mail}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            disabled
+          />
+          <AnimatedInput
+            label="Cargo"
+            type="text"
+            icon={Lock}
+            value={cargo}
+            onChange={() => {}}
             disabled
           />
           {step === 'verify' ? (

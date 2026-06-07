@@ -41,6 +41,8 @@ export const AdminSettings = () => {
     p_seller_communications: true
   });
   const [inviteLink, setInviteLink] = useState('');
+  const [generatedInviteToken, setGeneratedInviteToken] = useState('');
+  const [generatedInviteKey, setGeneratedInviteKey] = useState('');
   const [invites, setInvites] = useState([]);
   const [invLoading, setInvLoading] = useState(false);
   const [invFilter, setInvFilter] = useState('pending');
@@ -328,89 +330,111 @@ export const AdminSettings = () => {
       return () => { mq.onchange = null; };
     }
   }, []);
+  const buildInvitePayload = () => {
+    const payload = {
+      name: String(form.name || '').trim(),
+      email: String(form.email || '').trim().toLowerCase(),
+      role: String(form.role || '').trim(),
+      plano: String(form.plano || '').trim(),
+      p_chat: !!form.p_chat,
+      p_musics: !!form.p_musics,
+      p_compositions: !!form.p_compositions,
+      p_work: !!form.p_work,
+      p_marketing: !!form.p_marketing,
+      p_finance: !!form.p_finance,
+      p_admin_artists: !!form.p_admin_artists,
+      p_admin_musics: !!form.p_admin_musics,
+      p_admin_composers: !!form.p_admin_composers,
+      p_admin_sellers: !!form.p_admin_sellers,
+      p_admin_compositions: !!form.p_admin_compositions,
+      p_admin_sponsors: !!form.p_admin_sponsors,
+      p_admin_settings: !!form.p_admin_settings,
+      p_admin_finance: !!form.p_admin_finance,
+      p_seller_artists: !!form.p_seller_artists,
+      p_seller_calendar: !!form.p_seller_calendar,
+      p_seller_leads: !!form.p_seller_leads,
+      p_seller_finance: !!form.p_seller_finance,
+      p_seller_proposals: !!form.p_seller_proposals,
+      p_seller_communications: !!form.p_seller_communications,
+    };
+    if (payload.role !== 'Artista' && payload.role !== 'Compositor') delete payload.plano;
+    return payload;
+  };
 
+  const buildInviteKey = (payload) => JSON.stringify(payload || {});
 
-
-  // Auto-update link when form changes
   useEffect(() => {
-    if (form.name.trim() && validEmail) {
-      const params = new URLSearchParams();
-      params.set('name', form.name.trim());
-      params.set('email', form.email.trim());
-      params.set('role', form.role);
-      if (form.role === 'Artista' || form.role === 'Compositor') {
-        const plano = String(form.plano || '').trim();
-        if (plano) params.set('plano', plano);
-      }
-      params.set('p_chat', form.p_chat ? '1' : '0');
-      
-      if (form.role === 'Produtor') {
-        params.set('p_admin_artists', form.p_admin_artists ? '1' : '0');
-        params.set('p_admin_composers', form.p_admin_composers ? '1' : '0');
-        params.set('p_admin_sellers', form.p_admin_sellers ? '1' : '0');
-        params.set('p_admin_musics', form.p_admin_musics ? '1' : '0');
-        params.set('p_admin_compositions', form.p_admin_compositions ? '1' : '0');
-        params.set('p_admin_sponsors', form.p_admin_sponsors ? '1' : '0');
-        params.set('p_admin_settings', form.p_admin_settings ? '1' : '0');
-        params.set('p_admin_finance', form.p_admin_finance ? '1' : '0');
-      } else if (form.role === 'Vendedor') {
-        params.set('p_seller_artists', form.p_seller_artists ? '1' : '0');
-        params.set('p_seller_calendar', form.p_seller_calendar ? '1' : '0');
-        params.set('p_seller_leads', form.p_seller_leads ? '1' : '0');
-        params.set('p_seller_finance', form.p_seller_finance ? '1' : '0');
-        params.set('p_seller_proposals', form.p_seller_proposals ? '1' : '0');
-        params.set('p_seller_communications', form.p_seller_communications ? '1' : '0');
-      } else if (form.role === 'Compositor') {
-        params.set('p_compositions', form.p_compositions ? '1' : '0');
-        params.set('p_marketing', form.p_marketing ? '1' : '0');
-        params.set('p_finance', form.p_finance ? '1' : '0');
-      } else {
-        params.set('p_musics', form.p_musics ? '1' : '0');
-        params.set('p_work', form.p_work ? '1' : '0');
-        params.set('p_marketing', form.p_marketing ? '1' : '0');
-        params.set('p_finance', form.p_finance ? '1' : '0');
-      }
-      
-      const url = `${window.location.origin}/register?${params.toString()}`;
+    if (generatedInviteToken) {
+      const url = `${window.location.origin}/register/invite?token=${encodeURIComponent(generatedInviteToken)}`;
       setInviteLink(url);
     } else {
       setInviteLink('');
     }
-  }, [form, validEmail]);
+  }, [generatedInviteToken]);
 
-  const copyLink = () => {
-    if (!inviteLink) {
-      addToast('Preencha nome e email para gerar o link.', 'error');
+  useEffect(() => {
+    if (!generatedInviteToken || !generatedInviteKey) return;
+    if (!validEmail) {
+      setGeneratedInviteToken('');
+      setGeneratedInviteKey('');
       return;
     }
-    navigator.clipboard.writeText(inviteLink).then(() => {
+    const key = buildInviteKey(buildInvitePayload());
+    if (key !== generatedInviteKey) {
+      setGeneratedInviteToken('');
+      setGeneratedInviteKey('');
+    }
+  }, [form, validEmail, generatedInviteToken, generatedInviteKey]);
+
+  const ensureGeneratedInviteToken = async ({ sendEmail }) => {
+    if (!validEmail) {
+      addToast('Informe um email válido.', 'error');
+      return '';
+    }
+    const payload = buildInvitePayload();
+    const key = buildInviteKey(payload);
+    if (generatedInviteToken && generatedInviteKey === key) return generatedInviteToken;
+    const resp = await apiClient.post('/auth/admin/create-invite', { ...payload, send_email: !!sendEmail });
+    const token = String(resp?.invite?.token || '').trim();
+    if (!token) throw new Error('Falha ao gerar convite');
+    setGeneratedInviteToken(token);
+    setGeneratedInviteKey(key);
+    return token;
+  };
+
+  const copyLink = async () => {
+    try {
+      const token = await ensureGeneratedInviteToken({ sendEmail: false });
+      if (!token) return;
+      const url = `${window.location.origin}/register/invite?token=${encodeURIComponent(token)}`;
+      await navigator.clipboard.writeText(url);
       addToast('Link de convite copiado.', 'success');
-    }).catch(() => {
-      addToast('Não foi possível copiar o link.', 'error');
-    });
+    } catch (e) {
+      addToast(e?.message || 'Não foi possível copiar o link.', 'error');
+    }
+  };
+
+  const sendEmail = async () => {
+    try {
+      const token = await ensureGeneratedInviteToken({ sendEmail: false });
+      if (!token) return;
+      const url = `${window.location.origin}/register/invite?token=${encodeURIComponent(token)}`;
+      const subject = encodeURIComponent('Convite BeatWap');
+      const body = encodeURIComponent(`Olá,\n\nUse este link para criar sua conta:\n${url}\n\nO cargo já está definido no convite. Basta concluir o cadastro.`);
+      window.location.href = `mailto:${String(form.email || '').trim()}?subject=${subject}&body=${body}`;
+    } catch (e) {
+      addToast(e?.message || 'Falha ao preparar email', 'error');
+    }
   };
 
   const createInvite = async () => {
     try {
-      if (!validEmail) {
-        addToast('Informe um email válido para enviar convite.', 'error');
-        return;
-      }
-      await apiClient.post('/auth/admin/create-invite', { email: form.email });
+      await ensureGeneratedInviteToken({ sendEmail: true });
       addToast('Convite enviado por email.', 'success');
+      fetchInvites();
     } catch (e) {
       addToast(e?.message || 'Falha ao enviar convite', 'error');
     }
-  };
-
-  const sendEmail = () => {
-    if (!inviteLink) {
-      addToast('Gere o link primeiro.', 'error');
-      return;
-    }
-    const subject = encodeURIComponent('Convite BeatWap');
-    const body = encodeURIComponent(`Olá,\n\nUse este link para criar sua conta:\n${inviteLink}\n\nSelecione seu cargo e conclua o cadastro.`);
-    window.location.href = `mailto:${form.email}?subject=${subject}&body=${body}`;
   };
 
   const handlePermissionChange = (artistId, key, value) => {
@@ -844,7 +868,7 @@ export const AdminSettings = () => {
                   onClick={copyLink}
                   className="w-full sm:flex-1 bg-beatwap-gold text-beatwap-black hover:shadow-[0_0_20px_rgba(245,197,66,0.4)]"
                 >
-                  {inviteLink ? 'Copiar Link' : 'Preencha os dados'}
+                  {validEmail ? 'Copiar Link' : 'Preencha os dados'}
                 </AnimatedButton>
                 
                 <AnimatedButton 
