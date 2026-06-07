@@ -528,12 +528,15 @@ export const AdminSettings = () => {
 
   const migrateTarget = migrateUserId ? artists.find((a) => String(a.id) === String(migrateUserId)) : null;
   const migrateExpected = migrateTarget?.email ? `MIGRAR ${migrateTarget.email} PARA ${migrateToRole}` : '';
+  const migrateRoles = ['Artista', 'Compositor', 'Produtor', 'Vendedor'];
 
   useEffect(() => {
     if (!migrateTarget) return;
     const fromRole = String(migrateTarget.cargo || '').trim();
-    const next = fromRole === 'Artista' ? 'Compositor' : fromRole === 'Compositor' ? 'Artista' : migrateToRole;
-    if (next !== migrateToRole) setMigrateToRole(next);
+    const defaultNext = migrateRoles.find((r) => r !== fromRole) || migrateToRole;
+    if (!migrateRoles.includes(String(migrateToRole || '').trim()) || String(migrateToRole || '').trim() === fromRole) {
+      if (defaultNext && defaultNext !== migrateToRole) setMigrateToRole(defaultNext);
+    }
     setMigrateConfirm('');
     setMigrateAcknowledge(false);
     setMigratePin('');
@@ -544,12 +547,16 @@ export const AdminSettings = () => {
       addToast('Selecione um usuário para migrar.', 'error');
       return;
     }
-    if (!['Artista', 'Compositor'].includes(String(migrateTarget.cargo || '').trim())) {
-      addToast('A migração está disponível apenas para Artista e Compositor.', 'error');
+    if (!migrateRoles.includes(String(migrateTarget.cargo || '').trim())) {
+      addToast('Selecione um usuário com cargo válido.', 'error');
       return;
     }
-    if (!['Artista', 'Compositor'].includes(String(migrateToRole || '').trim())) {
+    if (!migrateRoles.includes(String(migrateToRole || '').trim())) {
       addToast('Selecione o cargo de destino.', 'error');
+      return;
+    }
+    if (String(migrateToRole || '').trim() === String(migrateTarget.cargo || '').trim()) {
+      addToast('Cargo de destino deve ser diferente do atual.', 'error');
       return;
     }
     if (String(migrateConfirm || '').trim() !== migrateExpected) {
@@ -891,7 +898,7 @@ export const AdminSettings = () => {
               </div>
               <div className="space-y-4">
                 <div className="text-sm text-gray-300">
-                  Troca o cargo de um perfil existente entre <span className="text-white font-bold">Artista</span> e <span className="text-white font-bold">Compositor</span>.
+                  Troca o cargo de um perfil existente para qualquer cargo do sistema.
                   Esta ação preserva os dados do perfil (foto, nome, WhatsApp, endereço e demais informações).
                 </div>
 
@@ -902,9 +909,9 @@ export const AdminSettings = () => {
                     value={migrateUserId}
                     onChange={(e) => setMigrateUserId(e.target.value)}
                   >
-                    <option value="" className="bg-[#121212]">Selecionar Artista/Compositor</option>
+                    <option value="" className="bg-[#121212]">Selecionar usuário</option>
                     {artists
-                      .filter((a) => a && ['Artista', 'Compositor'].includes(a.cargo))
+                      .filter((a) => a && migrateRoles.includes(a.cargo))
                       .slice()
                       .sort((a, b) => (a.nome || a.nome_completo_razao_social || a.email || '').localeCompare(b.nome || b.nome_completo_razao_social || b.email || ''))
                       .map((a) => (
@@ -926,6 +933,8 @@ export const AdminSettings = () => {
                     >
                       <option value="Artista" className="bg-[#121212]">Artista</option>
                       <option value="Compositor" className="bg-[#121212]">Compositor</option>
+                      <option value="Produtor" className="bg-[#121212]">Produtor</option>
+                      <option value="Vendedor" className="bg-[#121212]">Vendedor</option>
                     </select>
                   </div>
                   <div className="space-y-2">

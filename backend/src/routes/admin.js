@@ -842,12 +842,22 @@ router.post('/admin/users/:id/migrate-role', auth, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
 
     const toRoleRaw = String(req.body?.to_role || req.body?.toRole || req.body?.cargo || '').trim();
-    const toRole = toRoleRaw === 'Compositor' ? 'Compositor' : (toRoleRaw === 'Artista' ? 'Artista' : '');
+    const toRoleNormalized = toRoleRaw.toLowerCase();
+    const toRole =
+      toRoleNormalized === 'produtor' || toRoleNormalized === 'admin' || toRoleNormalized === 'producer'
+        ? 'Produtor'
+        : toRoleNormalized === 'vendedor' || toRoleNormalized === 'seller' || toRoleNormalized === 'sales'
+          ? 'Vendedor'
+          : toRoleNormalized === 'compositor' || toRoleNormalized === 'composer'
+            ? 'Compositor'
+            : toRoleNormalized === 'artista' || toRoleNormalized === 'artist'
+              ? 'Artista'
+              : '';
     if (!toRole) return res.status(400).json({ error: 'Cargo de destino inválido' });
+    const allowedRoles = ['Artista', 'Compositor', 'Produtor', 'Vendedor'];
+    if (!allowedRoles.includes(toRole)) return res.status(400).json({ error: 'Cargo de destino inválido' });
     const fromRole = String(user.cargo || '').trim();
-    if (fromRole !== 'Artista' && fromRole !== 'Compositor') {
-      return res.status(400).json({ error: 'A migração está disponível apenas para Artista e Compositor' });
-    }
+    if (!allowedRoles.includes(fromRole)) return res.status(400).json({ error: 'Cargo atual inválido' });
     if (toRole === fromRole) return res.status(400).json({ error: 'Cargo de destino deve ser diferente do atual' });
 
     const confirm = String(req.body?.confirm || '');
