@@ -22,6 +22,7 @@ export const AuthProvider = ({ children }) => {
     const token = authApi.getToken();
     if (stored && token) {
       setUser(stored);
+      setProfile((prev) => prev || (stored ? { cargo: normalizeCargo(stored?.cargo || stored?.role || stored?.cargo_name || null) } : null));
       fetchProfile();
     } else {
       if (stored && !token) {
@@ -40,9 +41,18 @@ export const AuthProvider = ({ children }) => {
       const data = await apiClient.get('/dashboard/profile');
       setProfile(data ? { ...data, cargo: normalizeCargo(data.cargo) } : data);
     } catch (error) {
-      await authApi.logout();
-      setUser(null);
-      setProfile(null);
+      const status = Number(error?.status || 0);
+      if (status === 401) {
+        await authApi.logout();
+        setUser(null);
+        setProfile(null);
+      } else {
+        const stored = authApi.getUser();
+        if (stored) {
+          setUser((prev) => prev || stored);
+          setProfile((prev) => prev || { cargo: normalizeCargo(stored?.cargo || stored?.role || null) });
+        }
+      }
     } finally {
       setLoading(false);
     }

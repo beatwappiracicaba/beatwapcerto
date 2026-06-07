@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, LogOut, Camera } from 'lucide-react';
+import { Home, User, LogOut, Camera } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { apiClient } from '../services/apiClient';
@@ -40,6 +40,11 @@ export const ProfileButton = ({ profile }) => {
   const handleSignOut = () => {
     setIsOpen(false);
     signOut();
+  };
+
+  const handleGoHome = () => {
+    setIsOpen(false);
+    navigate('/');
   };
 
   const handleSaveProfile = async ({ name, bio, genre, socials, blob }) => {
@@ -124,6 +129,13 @@ export const ProfileButton = ({ profile }) => {
             >
                 <Camera size={16} />
                 Modificar foto
+            </button>
+            <button
+                onClick={handleGoHome}
+                className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors"
+            >
+                <Home size={16} />
+                Página inicial
             </button>
             <div className="h-px bg-white/10 my-1 mx-2"></div>
             <button 

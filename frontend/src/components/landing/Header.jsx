@@ -4,12 +4,14 @@ import { motion } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import logo from '../../assets/images/beatwap-logo.png';
+import { useAuth } from '../../context/AuthContext';
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { profile, loading } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -76,6 +78,24 @@ const Header = () => {
     { label: 'Contato', id: 'contact' },
   ];
 
+  const routeForRole = (role) => {
+    if (!role) return '/dashboard/painel';
+    const s = String(role).toLowerCase();
+    if (s === 'produtor' || s === 'admin') return '/admin';
+    if (s === 'vendedor' || s === 'seller') return '/dashboard/painel';
+    if (s === 'artista' || s === 'artist') return '/dashboard/painel';
+    if (s === 'compositor' || s === 'composer') return '/dashboard/painel';
+    return '/dashboard/painel';
+  };
+
+  const goToArtistArea = () => {
+    if (!loading && profile) {
+      navigate(routeForRole(profile?.cargo));
+      return;
+    }
+    navigate('/login');
+  };
+
   return (
     <motion.header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
@@ -105,7 +125,7 @@ const Header = () => {
               {item.label}
             </button>
           ))}
-          <AnimatedButton onClick={() => navigate('/login')} className="px-6">
+          <AnimatedButton onClick={goToArtistArea} className="px-6">
             Área do Artista
           </AnimatedButton>
         </nav>
@@ -151,7 +171,7 @@ const Header = () => {
                   {item.label}
                 </button>
               ))}
-              <AnimatedButton onClick={() => navigate('/login')} className="w-full justify-center">
+              <AnimatedButton onClick={goToArtistArea} className="w-full justify-center">
                 Área do Artista
               </AnimatedButton>
             </div>

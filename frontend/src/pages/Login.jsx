@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 const Login = () => {
   const navigate = useNavigate();
   const { addToast } = useToast(); // Assuming ToastContext provides addToast
-  const { refreshProfile } = useAuth();
+  const { profile, refreshProfile, signOut } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [rememberMe, setRememberMe] = useState(true);
@@ -47,6 +47,37 @@ const Login = () => {
       setLoading(false);
     }
   };
+
+  if (profile) {
+    const target = routeForRole(profile?.cargo);
+    return (
+      <div className="space-y-6">
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-bold text-white">Você já está conectado</h1>
+          <p className="text-gray-400">Escolha para onde deseja ir.</p>
+        </div>
+
+        <Card className="space-y-4">
+          <AnimatedButton fullWidth onClick={() => navigate('/')}>
+            Voltar para a página Home
+          </AnimatedButton>
+          <AnimatedButton fullWidth onClick={() => navigate(target)}>
+            Ir para o painel
+          </AnimatedButton>
+          <AnimatedButton
+            fullWidth
+            variant="secondary"
+            onClick={async () => {
+              await signOut();
+              navigate('/login', { replace: true });
+            }}
+          >
+            Sair
+          </AnimatedButton>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
