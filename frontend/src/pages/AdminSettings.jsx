@@ -402,28 +402,27 @@ export const AdminSettings = () => {
     return token;
   };
 
-  const copyLink = async () => {
+  const createInviteLink = async () => {
     try {
       const token = await ensureGeneratedInviteToken({ sendEmail: false });
       if (!token) return;
-      const url = `${window.location.origin}/register/invite?token=${encodeURIComponent(token)}`;
+      addToast('Link de convite criado.', 'success');
+    } catch (e) {
+      addToast(e?.message || 'Falha ao criar link', 'error');
+    }
+  };
+
+  const copyLink = async () => {
+    try {
+      if (!generatedInviteToken) {
+        addToast('Crie o link de convite primeiro.', 'error');
+        return;
+      }
+      const url = `${window.location.origin}/register/invite?token=${encodeURIComponent(generatedInviteToken)}`;
       await navigator.clipboard.writeText(url);
       addToast('Link de convite copiado.', 'success');
     } catch (e) {
       addToast(e?.message || 'Não foi possível copiar o link.', 'error');
-    }
-  };
-
-  const sendEmail = async () => {
-    try {
-      const token = await ensureGeneratedInviteToken({ sendEmail: false });
-      if (!token) return;
-      const url = `${window.location.origin}/register/invite?token=${encodeURIComponent(token)}`;
-      const subject = encodeURIComponent('Convite BeatWap');
-      const body = encodeURIComponent(`Olá,\n\nUse este link para criar sua conta:\n${url}\n\nO cargo já está definido no convite. Basta concluir o cadastro.`);
-      window.location.href = `mailto:${String(form.email || '').trim()}?subject=${subject}&body=${body}`;
-    } catch (e) {
-      addToast(e?.message || 'Falha ao preparar email', 'error');
     }
   };
 
@@ -865,17 +864,17 @@ export const AdminSettings = () => {
 
               <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
                 <AnimatedButton 
-                  onClick={copyLink}
+                  onClick={createInviteLink}
                   className="w-full sm:flex-1 bg-beatwap-gold text-beatwap-black hover:shadow-[0_0_20px_rgba(245,197,66,0.4)]"
                 >
-                  {validEmail ? 'Copiar Link' : 'Preencha os dados'}
+                  Criar link de convite
                 </AnimatedButton>
                 
                 <AnimatedButton 
-                  onClick={sendEmail}
+                  onClick={copyLink}
                   className="w-full sm:flex-1"
                 >
-                  Enviar Email
+                  Copiar Link
                 </AnimatedButton>
                 <AnimatedButton 
                   onClick={createInvite}
