@@ -170,6 +170,7 @@ app.use('/', (req, res, next) => {
 });
 app.use('/api', require('./routes/dashboard'));
 app.use('/api', require('./routes/chat'));
+app.use('/api', require('./routes/auditions'));
 app.use('/api', require('./routes/admin'));
 app.use('/api', require('./routes/upload'));
 

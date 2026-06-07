@@ -49,6 +49,8 @@ import SellerCommunications from '../pages/SellerCommunications';
 import NotificationDetails from '../pages/NotificationDetails';
 import Feed from '../pages/Feed';
 import ComoFunciona from '../pages/ComoFunciona';
+import Auditions from '../pages/Auditions';
+import ProducerAuditions from '../pages/ProducerAuditions';
 
 // Admin temporariamente desativado
 
@@ -215,6 +217,7 @@ export const AppRoutes = () => {
       <Routes location={location}>
         {/* Public Route - Landing Page */}
         <Route path="/" element={<Home />} />
+        <Route path="/audicoes" element={<Auditions />} />
         <Route path="/pagamento/retorno" element={<ProtectedRoute element={<PaymentReturn />} />} />
         <Route path="/como-funciona" element={<ComoFunciona />} />
         <Route path="/composicoes" element={<AllCompositions />} />
@@ -270,6 +273,7 @@ export const AppRoutes = () => {
         />
         <Route path="/admin/profile" element={isProdutor ? <AdminProfile /> : <Navigate to="/" replace />} />
         <Route path="/admin/public-profile" element={isProdutor ? <AdminPublicProfile /> : <Navigate to="/" replace />} />
+        <Route path="/admin/auditions" element={isProdutor ? <ProducerAuditions /> : <Navigate to="/" replace />} />
         <Route path="/admin/artists" element={isProdutor ? <AdminArtists /> : <Navigate to="/" replace />} />
         <Route path="/admin/composers" element={isProdutor ? <AdminComposers /> : <Navigate to="/" replace />} />
         <Route path="/admin/sellers" element={isProdutor ? <AdminSellers /> : <Navigate to="/" replace />} />

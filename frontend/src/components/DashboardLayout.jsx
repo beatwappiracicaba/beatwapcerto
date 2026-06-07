@@ -147,6 +147,19 @@ export const DashboardLayout = ({ children }) => {
             <TrendingUp size={18} /> <span>🔥 Feed</span>
           </NavLink>
 
+          {isCompositor && (
+            <NavLink
+              to="/audicoes"
+              className={({ isActive }) =>
+                `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
+                  isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'
+                }`
+              }
+            >
+              <Target size={18} /> <span>Audições</span>
+            </NavLink>
+          )}
+
           {isVendedor && (
             <>
               {permissions.seller_artists !== false && (

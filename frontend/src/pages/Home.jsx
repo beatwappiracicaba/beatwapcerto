@@ -719,6 +719,12 @@ const Home = () => {
                 <AnimatedButton onClick={() => navigate(user ? '/dashboard/feed' : '/login')}>
                   {user ? 'Abrir Feed' : 'Entrar e ver Feed'}
                 </AnimatedButton>
+                <AnimatedButton
+                  variant="secondary"
+                  onClick={() => navigate(user ? '/audicoes' : '/login')}
+                >
+                  Audições
+                </AnimatedButton>
               </div>
             </div>
           </div>
