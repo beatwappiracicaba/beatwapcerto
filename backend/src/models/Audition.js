@@ -20,6 +20,10 @@ const Audition = sequelize.define('Audition', {
     type: DataTypes.STRING,
     allowNull: false
   },
+  foto_artista_url: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
   estilo_musical_principal: {
     type: DataTypes.STRING,
     allowNull: false

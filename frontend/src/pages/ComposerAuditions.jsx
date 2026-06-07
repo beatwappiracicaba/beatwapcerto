@@ -109,11 +109,18 @@ export default function ComposerAuditions() {
             {auditions.map((a) => (
               <Card key={a.id} className="space-y-3">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="w-14 h-14 rounded-xl overflow-hidden border border-white/10 bg-black/30 shrink-0">
+                      {a.foto_artista_url ? (
+                        <img src={a.foto_artista_url} alt={a.nome_artista} className="w-full h-full object-cover" />
+                      ) : null}
+                    </div>
+                    <div className="min-w-0">
                     <div className="text-lg font-extrabold text-white truncate">{a.nome_artista}</div>
                     <div className="text-sm text-gray-400 truncate">{a.estilo_musical_principal}</div>
                     <div className="text-xs text-gray-500">
                       Prazo: <span className="text-gray-300">{fmtDateTime(a.prazo_envio)}</span>
+                    </div>
                     </div>
                   </div>
                   <div className="shrink-0 text-xs px-3 py-1 rounded-full border border-white/10 bg-white/5">
@@ -221,4 +228,3 @@ export default function ComposerAuditions() {
     </DashboardLayout>
   );
 }
-

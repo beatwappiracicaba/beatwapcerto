@@ -32,6 +32,7 @@ const Home = () => {
   const [artists, setArtists] = useState([]);
   const [producers, setProducers] = useState([]);
   const [sellers, setSellers] = useState([]);
+  const [homeAuditions, setHomeAuditions] = useState([]);
   const [featuredPlans, setFeaturedPlans] = useState(null);
   const [hitOfWeek, setHitOfWeek] = useState(null);
   const [hitWinner, setHitWinner] = useState(null);
@@ -167,6 +168,14 @@ const Home = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
     fetchHomeData();
+    (async () => {
+      try {
+        const data = await apiClient.get('/auditions/public/open', { cache: true, cacheTtlMs: 15000 });
+        setHomeAuditions(Array.isArray(data?.auditions) ? data.auditions : []);
+      } catch {
+        setHomeAuditions([]);
+      }
+    })();
     (async () => {
       try {
         const res = await fetch('https://api.ipify.org?format=json');
@@ -695,6 +704,51 @@ const Home = () => {
             </div>
           </div>
         </section>
+        {Array.isArray(homeAuditions) && homeAuditions.length > 0 && (
+          <section className="py-10 px-6 bg-black/10 border-b border-white/10">
+            <div className="max-w-7xl mx-auto space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+                <div>
+                  <div className="text-xl md:text-2xl font-bold text-white">Audições Abertas</div>
+                  <div className="text-sm text-gray-300 mt-1">
+                    Oportunidades para compositores enviarem músicas.
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <AnimatedButton variant="secondary" onClick={() => navigate(user ? '/audicoes' : '/login')}>
+                    Ver todas
+                  </AnimatedButton>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {homeAuditions.slice(0, 6).map((a) => (
+                  <div key={a.id} className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
+                    <div className="aspect-[16/9] bg-black/30">
+                      {a.foto_artista_url ? (
+                        <img src={a.foto_artista_url} alt={a.nome_artista} className="w-full h-full object-cover" />
+                      ) : null}
+                    </div>
+                    <div className="p-4 space-y-2">
+                      <div className="font-extrabold text-white text-lg leading-tight">{a.nome_artista}</div>
+                      <div className="text-sm text-gray-300">{a.estilo_musical_principal}</div>
+                      <div className="text-xs text-gray-400">
+                        Prazo: {(() => { try { return new Date(a.prazo_envio).toLocaleString('pt-BR'); } catch { return String(a.prazo_envio || ''); } })()}
+                      </div>
+                      <div className="text-sm text-gray-200 line-clamp-3 whitespace-pre-wrap">
+                        {String(a.descricao_detalhada || '')}
+                      </div>
+                      <div className="pt-2">
+                        <AnimatedButton onClick={() => navigate(user ? '/audicoes' : '/login')} className="w-full justify-center">
+                          {user ? 'Abrir Audições' : 'Entrar para participar'}
+                        </AnimatedButton>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
         {null}
         <section className="relative py-16 px-4 sm:px-6 bg-gradient-to-r from-beatwap-gold/10 via-black to-beatwap-gold/5 border-y border-white/5 overflow-hidden">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_55%)]" />

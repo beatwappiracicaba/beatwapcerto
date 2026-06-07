@@ -58,12 +58,32 @@ function isAuditionOpenForSubmissions(audition) {
   return deadline.getTime() > Date.now();
 }
 
+router.get('/auditions/public/open', async (req, res) => {
+  try {
+    const list = await Audition.findAll({
+      where: { status: 'Aberta', prazo_envio: { [Op.gt]: now() } },
+      order: [['createdAt', 'DESC']],
+      limit: 8
+    });
+    const auditions = list.map((a) => {
+      const json = a.toJSON();
+      delete json.whatsapp_recebimento;
+      delete json.created_by;
+      return json;
+    });
+    return res.json({ ok: true, auditions });
+  } catch {
+    return res.status(500).json({ ok: false, error: 'Erro interno' });
+  }
+});
+
 router.post('/auditions', auth, async (req, res) => {
   try {
     if (req.user.cargo !== 'Produtor') return res.status(403).json({ ok: false, error: 'Sem permissão' });
 
     const nome_artista = normalizeText(req.body?.nome_artista);
     const nome_produtor = normalizeText(req.body?.nome_produtor);
+    const foto_artista_url = normalizeText(req.body?.foto_artista_url);
     const estilo_musical_principal = normalizeText(req.body?.estilo_musical_principal);
     const estilos_semelhantes = normalizeText(req.body?.estilos_semelhantes);
     const referencias_musicais = normalizeText(req.body?.referencias_musicais);
@@ -85,6 +105,7 @@ router.post('/auditions', auth, async (req, res) => {
     const required = [
       nome_artista,
       nome_produtor,
+      foto_artista_url,
       estilo_musical_principal,
       estilos_semelhantes,
       referencias_musicais,
@@ -95,12 +116,14 @@ router.post('/auditions', auth, async (req, res) => {
       whatsapp_recebimento
     ];
     if (required.some((v) => !v)) return res.status(400).json({ ok: false, error: 'Campos obrigatórios' });
+    if (!isValidHttpUrl(foto_artista_url)) return res.status(400).json({ ok: false, error: 'Foto do artista inválida' });
     if (status !== 'Aberta' && status !== 'Encerrada') return res.status(400).json({ ok: false, error: 'Status inválido' });
 
     const created = await Audition.create({
       created_by: req.user.id,
       nome_artista,
       nome_produtor,
+      foto_artista_url,
       estilo_musical_principal,
       estilos_semelhantes,
       referencias_musicais,

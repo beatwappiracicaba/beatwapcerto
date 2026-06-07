@@ -4,12 +4,15 @@ import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { useToast } from '../context/ToastContext';
-import { apiClient } from '../services/apiClient';
-import { Calendar, ClipboardList, Lock, RefreshCw, Save, X } from 'lucide-react';
+import { apiClient, uploadApi } from '../services/apiClient';
+import Cropper from 'react-easy-crop';
+import { getCroppedImg } from '../utils/cropImage';
+import { Calendar, ClipboardList, Image as ImageIcon, Lock, RefreshCw, Save, X } from 'lucide-react';
 
 const emptyForm = {
   nome_artista: '',
   nome_produtor: '',
+  foto_artista_url: '',
   estilo_musical_principal: '',
   estilos_semelhantes: '',
   referencias_musicais: '',
@@ -44,6 +47,14 @@ export default function ProducerAuditions() {
   const [form, setForm] = useState({ ...emptyForm });
   const [updatingStatusId, setUpdatingStatusId] = useState('');
   const [updatingSubmissionId, setUpdatingSubmissionId] = useState('');
+  const [imageSrc, setImageSrc] = useState('');
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [logoBlob, setLogoBlob] = useState(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState('');
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoUploadProgress, setLogoUploadProgress] = useState(0);
 
   const selectedAudition = useMemo(
     () => auditions.find((a) => String(a.id) === String(selectedAuditionId)) || null,
@@ -90,22 +101,58 @@ export default function ProducerAuditions() {
 
   const openCreate = () => {
     setForm({ ...emptyForm });
+    setImageSrc('');
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+    setLogoBlob(null);
+    try {
+      if (logoPreviewUrl) URL.revokeObjectURL(logoPreviewUrl);
+    } catch { /* ignore */ }
+    setLogoPreviewUrl('');
+    setLogoUploading(false);
+    setLogoUploadProgress(0);
     setCreateOpen(true);
   };
 
   const closeCreate = () => {
-    if (saving) return;
+    if (saving || logoUploading) return;
     setCreateOpen(false);
   };
 
   const createAudition = async () => {
+    let foto_artista_url = String(form.foto_artista_url || '').trim();
+    if (!foto_artista_url && logoBlob) {
+      setLogoUploading(true);
+      setLogoUploadProgress(0);
+      try {
+        const fileName = `${Date.now()}_${Math.random().toString(16).slice(2)}.jpg`;
+        const file = new File([logoBlob], fileName, { type: 'image/jpeg' });
+        const res = await uploadApi.uploadWithMeta(file, {
+          fileName,
+          bucket: 'auditions',
+          onProgress: (pct) => setLogoUploadProgress(Number(pct || 0))
+        });
+        foto_artista_url = String(res?.url || '').trim();
+        setForm((prev) => ({ ...prev, foto_artista_url }));
+      } catch (e) {
+        addToast(e?.message || 'Falha ao enviar a foto/logo.', 'error');
+        setLogoUploading(false);
+        return;
+      } finally {
+        setLogoUploading(false);
+      }
+    }
+
     const payload = {
       ...form,
+      foto_artista_url,
       prazo_envio: form.prazo_envio ? new Date(form.prazo_envio) : null
     };
     const required = [
       payload.nome_artista,
       payload.nome_produtor,
+      payload.foto_artista_url,
       payload.estilo_musical_principal,
       payload.estilos_semelhantes,
       payload.referencias_musicais,
@@ -363,6 +410,126 @@ export default function ProducerAuditions() {
               <AnimatedInput label="Cidade/Estado" value={form.cidade_estado} onChange={(e) => setForm({ ...form, cidade_estado: e.target.value })} />
               <AnimatedInput label="Valor disponível (opcional)" value={form.valor_negociacao} onChange={(e) => setForm({ ...form, valor_negociacao: e.target.value })} />
               <AnimatedInput label="WhatsApp para recebimento" value={form.whatsapp_recebimento} onChange={(e) => setForm({ ...form, whatsapp_recebimento: e.target.value })} />
+            </div>
+
+            <div className="space-y-3">
+              <div className="text-sm text-gray-300">Foto do artista / Logo</div>
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="w-full md:w-[260px]">
+                  <div className="w-full aspect-square rounded-2xl overflow-hidden border border-white/10 bg-black/20 flex items-center justify-center">
+                    {logoPreviewUrl ? (
+                      <img src={logoPreviewUrl} alt="Foto do artista" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="text-gray-400 flex flex-col items-center gap-2 text-sm">
+                        <ImageIcon size={22} />
+                        <span>Sem foto</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 pt-3">
+                    <label className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-xs sm:text-sm font-semibold text-gray-100 hover:border-beatwap-gold hover:text-beatwap-gold transition-colors cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files && e.target.files[0];
+                          if (!file) return;
+                          try { if (imageSrc) URL.revokeObjectURL(imageSrc); } catch { /* ignore */ }
+                          const url = URL.createObjectURL(file);
+                          setImageSrc(url);
+                          setCrop({ x: 0, y: 0 });
+                          setZoom(1);
+                          setCroppedAreaPixels(null);
+                          setLogoBlob(null);
+                          try { if (logoPreviewUrl) URL.revokeObjectURL(logoPreviewUrl); } catch { /* ignore */ }
+                          setLogoPreviewUrl('');
+                          setForm((prev) => ({ ...prev, foto_artista_url: '' }));
+                          e.target.value = '';
+                        }}
+                      />
+                      Selecionar foto
+                    </label>
+                    {logoPreviewUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLogoBlob(null);
+                          try { if (logoPreviewUrl) URL.revokeObjectURL(logoPreviewUrl); } catch { /* ignore */ }
+                          setLogoPreviewUrl('');
+                          setForm((prev) => ({ ...prev, foto_artista_url: '' }));
+                        }}
+                        className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-xs sm:text-sm font-semibold text-gray-300 hover:bg-white/5 transition-colors"
+                      >
+                        Remover
+                      </button>
+                    )}
+                  </div>
+                  {logoUploading && (
+                    <div className="text-xs text-gray-400 pt-2">
+                      Enviando foto... {Math.max(0, Math.min(100, Math.round(logoUploadProgress)))}%
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1">
+                  {imageSrc ? (
+                    <div className="space-y-3">
+                      <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-white/10 bg-black/30">
+                        <Cropper
+                          image={imageSrc}
+                          crop={crop}
+                          zoom={zoom}
+                          aspect={1}
+                          onCropChange={setCrop}
+                          onZoomChange={setZoom}
+                          onCropComplete={(_, croppedPixels) => setCroppedAreaPixels(croppedPixels)}
+                        />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="range"
+                          min={1}
+                          max={3}
+                          step={0.05}
+                          value={zoom}
+                          onChange={(e) => setZoom(Number(e.target.value))}
+                          className="w-full"
+                        />
+                        <AnimatedButton
+                          onClick={async () => {
+                            try {
+                              if (!croppedAreaPixels) {
+                                addToast('Ajuste o recorte antes de aplicar.', 'warning');
+                                return;
+                              }
+                              const blob = await getCroppedImg(imageSrc, croppedAreaPixels, 800, 800);
+                              setLogoBlob(blob);
+                              try { if (logoPreviewUrl) URL.revokeObjectURL(logoPreviewUrl); } catch { /* ignore */ }
+                              const preview = URL.createObjectURL(blob);
+                              setLogoPreviewUrl(preview);
+                              try { URL.revokeObjectURL(imageSrc); } catch { /* ignore */ }
+                              setImageSrc('');
+                            } catch (e) {
+                              addToast(e?.message || 'Falha ao recortar imagem.', 'error');
+                            }
+                          }}
+                          className="px-4"
+                        >
+                          Aplicar
+                        </AnimatedButton>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        A foto será recortada em formato quadrado.
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-400">
+                      Selecione uma imagem para recortar e usar como foto/logo da audição.
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2">
