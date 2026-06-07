@@ -286,13 +286,16 @@ router.post('/login', async (req, res) => {
   try {
     const email = String(req.body.email || '').trim().toLowerCase();
     const password = String(req.body.password || '');
+    const device_id = String(req.body.device_id || req.body.deviceId || req.headers['x-device-id'] || '').trim();
+    const remember_device = req.body?.remember_device === true || req.body?.remember_device === 1 || req.body?.remember_device === '1';
     if (!email || !password) {
       await logAudit({
         action: 'auth.login',
         email,
         status: 'missing_fields',
         ip: String(req.headers['x-real-ip'] || req.ip || ''),
-        user_agent: String(req.headers['user-agent'] || '')
+        user_agent: String(req.headers['user-agent'] || ''),
+        details: { device_id: device_id || null, remember_device }
       });
       return res.status(400).json({ ok: false, error: 'Campos obrigatórios' });
     }
@@ -303,7 +306,8 @@ router.post('/login', async (req, res) => {
         email,
         status: 'user_not_found',
         ip: String(req.headers['x-real-ip'] || req.ip || ''),
-        user_agent: String(req.headers['user-agent'] || '')
+        user_agent: String(req.headers['user-agent'] || ''),
+        details: { device_id: device_id || null, remember_device }
       });
       return res.status(401).json({ ok: false, error: 'Credenciais inválidas' });
     }
@@ -318,7 +322,8 @@ router.post('/login', async (req, res) => {
         user_id: user.id,
         status: 'invalid_password',
         ip: String(req.headers['x-real-ip'] || req.ip || ''),
-        user_agent: String(req.headers['user-agent'] || '')
+        user_agent: String(req.headers['user-agent'] || ''),
+        details: { device_id: device_id || null, remember_device }
       });
       return res.status(401).json({ ok: false, error: 'Credenciais inválidas' });
     }
@@ -331,7 +336,8 @@ router.post('/login', async (req, res) => {
       user_id: user.id,
       status: 'success',
       ip: String(req.headers['x-real-ip'] || req.ip || ''),
-      user_agent: String(req.headers['user-agent'] || '')
+      user_agent: String(req.headers['user-agent'] || ''),
+      details: { device_id: device_id || null, remember_device }
     });
     return res.json({ ok: true, token, user: { id: user.id, email: user.email, cargo: user.cargo, nome: user.nome }, redirect });
   } catch (e) {
@@ -342,7 +348,7 @@ router.post('/login', async (req, res) => {
         status: 'exception',
         ip: String(req.headers['x-real-ip'] || req.ip || ''),
         user_agent: String(req.headers['user-agent'] || ''),
-        details: { message: e?.message || 'error' }
+        details: { message: e?.message || 'error', device_id: String(req.body?.device_id || req.body?.deviceId || req.headers['x-device-id'] || '').trim() || null }
       });
     } catch {}
     return res.status(401).json({ ok: false, error: 'Credenciais inválidas' });

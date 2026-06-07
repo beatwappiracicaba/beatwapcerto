@@ -14,6 +14,7 @@ const Login = () => {
   const { refreshProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ email: '', password: '' });
+  const [rememberMe, setRememberMe] = useState(true);
 
   const routeForRole = (role) => {
     if (!role) return '/';
@@ -33,7 +34,7 @@ const Login = () => {
     }
     setLoading(true);
     try {
-      const result = await authApi.login(formData.email, formData.password);
+      const result = await authApi.login(formData.email, formData.password, { remember: rememberMe, rememberDevice: rememberMe });
       await refreshProfile();
       const user = authApi.getUser();
       const cargo = user?.role ?? user?.cargo ?? null;
@@ -78,6 +79,16 @@ const Login = () => {
             value={formData.password}
             onChange={(e) => setFormData({...formData, password: e.target.value})}
           />
+
+          <label className="flex items-center gap-2 text-sm text-gray-300 select-none">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="rounded border-white/20 bg-black/20 text-beatwap-gold focus:ring-beatwap-gold"
+            />
+            Manter conectado
+          </label>
           
           <div className="flex justify-end">
             <Link to="/forgot" className="text-xs text-beatwap-gold hover:underline">

@@ -17,15 +17,66 @@ const DEBUG_API = (() => {
 })();
 const SLOW_API_MS = 2500;
 
+const AUTH_TOKEN_KEY = 'token';
+const AUTH_USER_KEY = 'user';
+const AUTH_REMEMBER_KEY = 'bw_remember';
+const DEVICE_ID_KEY = 'bw_device_id';
+
+function getStoredItem(key) {
+  try {
+    const a = localStorage.getItem(key);
+    if (a != null && a !== '') return a;
+  } catch {}
+  try {
+    const b = sessionStorage.getItem(key);
+    if (b != null && b !== '') return b;
+  } catch {}
+  return null;
+}
+
+function setStoredItem(key, value, remember) {
+  const v = value == null ? null : String(value);
+  try {
+    if (remember) {
+      if (v == null) localStorage.removeItem(key);
+      else localStorage.setItem(key, v);
+    } else {
+      if (v == null) sessionStorage.removeItem(key);
+      else sessionStorage.setItem(key, v);
+    }
+  } catch {}
+}
+
+function removeStoredItemEverywhere(key) {
+  try { localStorage.removeItem(key); } catch {}
+  try { sessionStorage.removeItem(key); } catch {}
+}
+
+function getOrCreateDeviceId({ persist } = {}) {
+  const existing = getStoredItem(DEVICE_ID_KEY);
+  if (existing) return existing;
+  let id = '';
+  try {
+    id = globalThis?.crypto?.randomUUID ? globalThis.crypto.randomUUID() : '';
+  } catch {}
+  if (!id) id = `dev_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  if (persist) {
+    setStoredItem(DEVICE_ID_KEY, id, true);
+  }
+  return id;
+}
+
 async function request(path, options = {}) {
-  const token = localStorage.getItem('token');
+  const token = getStoredItem(AUTH_TOKEN_KEY);
+  const deviceId = getStoredItem(DEVICE_ID_KEY);
   const method = String(options.method || 'GET').toUpperCase();
   const shouldSendJsonContentType = !!options.body && typeof options.body === 'string' && method !== 'GET' && method !== 'HEAD';
   const headers = {
     ...(options.headers || {}),
     ...(!((options.headers || {}).Accept || (options.headers || {}).accept) ? { Accept: 'application/json' } : {}),
     ...(shouldSendJsonContentType ? { 'Content-Type': 'application/json' } : {}),
-    ...(token ? { Authorization: `Bearer ${token}` } : {})
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(deviceId ? { 'X-Device-Id': String(deviceId) } : {})
   };
   const hasAuthHeader = !!headers.Authorization;
   const cacheMode = options.cache ?? (!hasAuthHeader && (method === 'GET' || method === 'HEAD'));
@@ -260,9 +311,20 @@ export const apiClient = {
 };
 
 export const authApi = {
-  async login(email, password) {
-    const data = await apiClient.post('/auth/login', { email, password });
-    localStorage.setItem('token', data.token);
+  async login(email, password, opts = {}) {
+    const remember = opts?.remember !== false;
+    const rememberDevice = opts?.rememberDevice === true || remember;
+    const device_id = rememberDevice ? getOrCreateDeviceId({ persist: true }) : '';
+    const data = await apiClient.post('/auth/login', { email, password, device_id, remember_device: rememberDevice ? 1 : 0 });
+    if (data?.token) {
+      setStoredItem(AUTH_TOKEN_KEY, data.token, remember);
+      if (remember) {
+        try { sessionStorage.removeItem(AUTH_TOKEN_KEY); } catch {}
+      } else {
+        try { localStorage.removeItem(AUTH_TOKEN_KEY); } catch {}
+      }
+      setStoredItem(AUTH_REMEMBER_KEY, remember ? '1' : '0', true);
+    }
     let user = data.user;
     if (!user && data?.token) {
       try {
@@ -274,7 +336,14 @@ export const authApi = {
         user = null;
       }
     }
-    if (user) localStorage.setItem('user', JSON.stringify(user));
+    if (user) {
+      setStoredItem(AUTH_USER_KEY, JSON.stringify(user), remember);
+      if (remember) {
+        try { sessionStorage.removeItem(AUTH_USER_KEY); } catch {}
+      } else {
+        try { localStorage.removeItem(AUTH_USER_KEY); } catch {}
+      }
+    }
     return data;
   },
   async requestRegisterCode(email) {
@@ -287,14 +356,15 @@ export const authApi = {
     return apiClient.post('/auth/register', body);
   },
   async logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    removeStoredItemEverywhere(AUTH_TOKEN_KEY);
+    removeStoredItemEverywhere(AUTH_USER_KEY);
+    removeStoredItemEverywhere(AUTH_REMEMBER_KEY);
   },
   getToken() {
-    return localStorage.getItem('token');
+    return getStoredItem(AUTH_TOKEN_KEY);
   },
   getUser() {
-    try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
+    try { return JSON.parse(getStoredItem(AUTH_USER_KEY) || ''); } catch { return null; }
   }
 };
 
