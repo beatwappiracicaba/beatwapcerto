@@ -210,14 +210,6 @@ export const AppRoutes = () => {
   const isProdutor = profile?.cargo === 'Produtor';
   const isCompositor = profile?.cargo === 'Compositor';
   const isVendedor = profile?.cargo === 'Vendedor';
-  const allowPublicExplore = (() => {
-    try {
-      const q = new URLSearchParams(String(location?.search || ''));
-      return q.get('explore') === '1';
-    } catch {
-      return false;
-    }
-  })();
 
   const DashboardPanel = () => {
     const r = normalizeRole(profile?.cargo);
@@ -231,7 +223,7 @@ export const AppRoutes = () => {
   return (
       <Routes location={location}>
         {/* Public Route - Landing Page */}
-        <Route path="/" element={(profile && !allowPublicExplore) ? <Navigate to={routeForRole(profile?.cargo)} replace /> : <Home />} />
+        <Route path="/" element={<Home />} />
         <Route path="/pagamento/retorno" element={<ProtectedRoute element={<PaymentReturn />} />} />
         <Route path="/como-funciona" element={<ComoFunciona />} />
         <Route path="/composicoes" element={<AllCompositions />} />
