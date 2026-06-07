@@ -689,142 +689,7 @@ const Home = () => {
             </div>
           </div>
         </section>
-        {(() => {
-          const all = []
-            .concat(Array.isArray(artists) ? artists : [])
-            .concat(Array.isArray(composers) ? composers : [])
-            .concat(Array.isArray(producers) ? producers : [])
-            .concat(Array.isArray(sellers) ? sellers : []);
-
-          const byId = new Map();
-          for (const p of all) {
-            if (p?.id) byId.set(String(p.id), p);
-          }
-
-          const list = Array.from(byId.values())
-            .filter(isFeaturedActive)
-            .sort((a, b) => {
-              const wa = featuredWeight(a?.access_control?.featured?.level);
-              const wb = featuredWeight(b?.access_control?.featured?.level);
-              if (wa !== wb) return wb - wa;
-              const pa = a?.access_control?.featured?.pinned === true;
-              const pb = b?.access_control?.featured?.pinned === true;
-              if (pa !== pb) return pb ? 1 : -1;
-              const ea = new Date(a?.access_control?.featured?.ends_at || a?.access_control?.featured?.until || 0).getTime();
-              const eb = new Date(b?.access_control?.featured?.ends_at || b?.access_control?.featured?.until || 0).getTime();
-              if (Number.isFinite(ea) && Number.isFinite(eb) && ea !== eb) return eb - ea;
-              const ca = new Date(a?.created_at || a?.createdAt || 0).getTime();
-              const cb = new Date(b?.created_at || b?.createdAt || 0).getTime();
-              return cb - ca;
-            })
-            .slice(0, 12);
-
-          if (list.length === 0) return null;
-
-          const roleLabel = (p) => String(p?.cargo || p?.role || '').trim() || 'Perfil';
-          const levelLabel = (p) => {
-            const lvl = String(p?.access_control?.featured?.level || '').toLowerCase();
-            if (lvl === 'top') return 'Destaque Top';
-            if (lvl === 'pro') return 'Destaque Pro';
-            return 'Destaque';
-          };
-          const tint = (p) => {
-            const lvl = String(p?.access_control?.featured?.level || '').toLowerCase();
-            if (lvl === 'top') return 'from-beatwap-gold/35 via-yellow-400/20 to-transparent';
-            if (lvl === 'pro') return 'from-purple-500/35 via-pink-500/20 to-transparent';
-            return 'from-beatwap-gold/25 via-beatwap-gold/10 to-transparent';
-          };
-          const border = (p) => {
-            const lvl = String(p?.access_control?.featured?.level || '').toLowerCase();
-            if (lvl === 'top') return 'border-beatwap-gold shadow-[0_0_0_1px_rgba(255,200,0,0.25),0_0_30px_rgba(255,200,0,0.18)]';
-            if (lvl === 'pro') return 'border-purple-400/60 shadow-[0_0_0_1px_rgba(168,85,247,0.22),0_0_30px_rgba(168,85,247,0.14)]';
-            return 'border-beatwap-gold/70 shadow-[0_0_0_1px_rgba(255,200,0,0.18),0_0_24px_rgba(255,200,0,0.10)]';
-          };
-
-          return (
-            <section className="py-14 px-6 bg-black/10 border-b border-white/5 overflow-hidden">
-              <div className="max-w-7xl mx-auto">
-                <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3 mb-8">
-                  <div>
-                    <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Perfis Impulsionados</h2>
-                    <p className="text-sm text-gray-400">Apareça no topo e seja descoberto mais rápido</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const target = document.getElementById('destaque-pago');
-                      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-extrabold text-white hover:border-beatwap-gold hover:text-beatwap-gold transition-colors"
-                  >
-                    Ver planos de destaque
-                    <Info size={14} />
-                  </button>
-                </div>
-
-                <div className="relative -mx-6">
-                  <div className="overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 pb-2 no-scrollbar">
-                    <div className="flex gap-6 justify-start">
-                      {list.map((p, idx) => (
-                        <div key={p.id} className="flex-none w-[280px]">
-                          <motion.button
-                            type="button"
-                            initial={{ opacity: 0, y: 10 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ delay: idx * 0.06 }}
-                            className={`group relative w-full text-left rounded-2xl border bg-white/5 overflow-hidden cursor-pointer ${border(p)}`}
-                            onClick={() => navigate(`/profile/${p.id}`)}
-                          >
-                            <motion.div
-                              aria-hidden="true"
-                              className="absolute -inset-2 rounded-[22px] pointer-events-none"
-                              animate={{ opacity: [0.35, 0.75, 0.35], scale: [1, 1.03, 1] }}
-                              transition={{ duration: 2.1, repeat: Infinity, ease: 'easeInOut' }}
-                            >
-                              <div className={`absolute inset-0 rounded-[22px] bg-gradient-to-r ${tint(p)}`} />
-                            </motion.div>
-                            <div className="absolute top-3 left-3 z-10 px-2 py-1 rounded-full text-[10px] font-extrabold bg-black/70 border border-white/10 text-white">
-                              {levelLabel(p)}
-                            </div>
-
-                            <div className="aspect-square bg-gray-800 relative overflow-hidden">
-                              {p.avatar_url ? (
-                                <img
-                                  src={p.avatar_url}
-                                  alt={p.nome || p.nome_completo_razao_social || 'Perfil'}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
-                                  <User size={64} className="text-white/20" />
-                                </div>
-                              )}
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-100 transition-opacity flex items-end p-4">
-                                <div className="w-full">
-                                  <div className="text-white text-base font-extrabold leading-snug truncate">
-                                    {decryptData(p.nome) || decryptData(p.nome_completo_razao_social) || p.nome || p.nome_completo_razao_social || 'Perfil'}
-                                  </div>
-                                  <div className="text-xs text-gray-300 flex items-center gap-2">
-                                    <span>{roleLabel(p)}</span>
-                                    <span className="flex items-center gap-1 text-beatwap-gold">
-                                      <Info size={14} />
-                                      <span>Ver Perfil</span>
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </motion.button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-          );
-        })()}
+        {null}
         <section className="relative py-16 px-4 sm:px-6 bg-gradient-to-r from-beatwap-gold/10 via-black to-beatwap-gold/5 border-y border-white/5 overflow-hidden">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_55%)]" />
           <div className="relative max-w-6xl mx-auto grid md:grid-cols-[3fr,2fr] gap-10 items-center">
@@ -1685,8 +1550,8 @@ const Home = () => {
                 Arraste para o lado e veja todos
               </div>
               <div className="relative -mx-6">
-                <div ref={composersRef} className="overflow-x-auto scroll-smooth whitespace-nowrap px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 scroll-pl-4 scroll-pr-4 sm:scroll-pl-14 sm:scroll-pr-14 md:scroll-pl-16 md:scroll-pr-16 pb-2 no-scrollbar snap-x snap-mandatory">
-                  <div className="flex gap-6 justify-center md:justify-start">
+                <div ref={composersRef} className="overflow-x-auto scroll-smooth whitespace-nowrap px-0 sm:px-4 sm:-mx-6 sm:pl-14 sm:pr-14 md:pl-16 md:pr-16 scroll-pl-4 scroll-pr-4 sm:scroll-pl-14 sm:scroll-pr-14 md:scroll-pl-16 md:scroll-pr-16 pb-2 no-scrollbar snap-x snap-mandatory">
+                  <div className="flex gap-0 md:gap-6 justify-start">
                   {composers.map((composer, index) => {
                     const isVerified = composer?.verified === true || composer?.access_control?.verified === true;
                     const featured = composer?.access_control?.featured && typeof composer.access_control.featured === 'object' ? composer.access_control.featured : null;
@@ -1707,12 +1572,12 @@ const Home = () => {
                           : 'border-beatwap-gold/70 shadow-[0_0_0_1px_rgba(255,200,0,0.18),0_0_24px_rgba(255,200,0,0.10)]';
 
                     return (
-                      <div key={composer.id} className="flex-none w-[280px] snap-center">
+                      <div key={composer.id} className="flex-none w-screen md:w-[280px] snap-center">
                         <motion.div
                           initial={{ opacity: 0, y: 20 }}
                           whileInView={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.1 }}
-                          className={`group bg-white/5 border rounded-xl overflow-hidden cursor-pointer transition-colors relative ${
+                          className={`mx-auto w-[280px] md:w-full group bg-white/5 border rounded-xl overflow-hidden cursor-pointer transition-colors relative ${
                             isFeatured ? featuredBorder : (isVerified ? 'border-beatwap-gold' : 'border-white/10 hover:border-beatwap-gold')
                           }`}
                           onClick={() => navigate(`/profile/${composer.id}`)}
