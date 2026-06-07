@@ -877,8 +877,8 @@ const Home = () => {
                                   if (item.type === 'album') {
                                     navigate(`/album/${item.id}`);
                                   } else {
-                                    const url = item.preview_url || item.audio_url;
-                                    togglePlay(item.id, url);
+                                    const url = item.audio_url || item.preview_url;
+                                    togglePlay(item.id, url, { full: true });
                                   }
                                 }}
                               >
@@ -916,8 +916,8 @@ const Home = () => {
                                       className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        const url = item.preview_url || item.audio_url;
-                                        togglePlay(item.id, url);
+                                        const url = item.audio_url || item.preview_url;
+                                        togglePlay(item.id, url, { full: true });
                                       }}
                                     >
                                       {playingTrack === item.id && !isPaused
@@ -1069,8 +1069,8 @@ const Home = () => {
                                   if (item.type === 'album') {
                                     navigate(`/album/${item.id}`);
                                   } else {
-                                    const url = item.preview_url || item.audio_url;
-                                    togglePlay(item.id, url);
+                                    const url = item.audio_url || item.preview_url;
+                                    togglePlay(item.id, url, { full: true });
                                   }
                                 }}
                               >
@@ -1108,8 +1108,8 @@ const Home = () => {
                                       className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        const url = item.preview_url || item.audio_url;
-                                        togglePlay(item.id, url);
+                                        const url = item.audio_url || item.preview_url;
+                                        togglePlay(item.id, url, { full: true });
                                       }}
                                     >
                                       {playingTrack === item.id && !isPaused
@@ -1186,8 +1186,8 @@ const Home = () => {
                                         recordEvent({ type: 'music_click_smartlink', music_id: item.id, artist_id: item.artista_id });
                                         window.open(item.presave_link, '_blank');
                                       } else {
-                                        const url = item.preview_url || item.audio_url;
-                                        togglePlay(item.id, url);
+                                        const url = item.audio_url || item.preview_url;
+                                        togglePlay(item.id, url, { full: true });
                                       }
                                     }}>
                                       <span>{item.presave_link ? 'Smartlink' : (playingTrack === item.id && !isPaused ? 'Pausar' : 'Reproduzir')}</span>
