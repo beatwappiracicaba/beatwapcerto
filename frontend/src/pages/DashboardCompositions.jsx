@@ -1,6 +1,9 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
+import { EmptyState } from '../components/ui/EmptyState';
+import { PanelHero } from '../components/ui/PanelHero';
+import { PersistentPanelTabs } from '../components/ui/PersistentPanelTabs';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
 import { DashboardLayout } from '../components/DashboardLayout';
@@ -9,6 +12,7 @@ import { Plus, Music, Bell, Clock, MessageCircle, LayoutGrid, User, Sparkles, Ta
 import { useNotification } from '../context/NotificationContext';
 import { useChat } from '../context/ChatContext';
 import { useNavigate } from 'react-router-dom';
+import { usePersistentState } from '../hooks/usePersistentState';
 
 export const DashboardCompositions = () => {
   const { user } = useAuth();
@@ -19,7 +23,8 @@ export const DashboardCompositions = () => {
   const [loading, setLoading] = useState(true);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [compMetrics, setCompMetrics] = useState({});
-  const [activePanelTab, setActivePanelTab] = useState('resumo');
+  const [activePanelTab, setActivePanelTab] = usePersistentState('dashboard-compositions-active-tab', 'resumo');
+  const [searchTerm, setSearchTerm] = usePersistentState('dashboard-compositions-search', '');
 
   const fetchCompositions = useCallback(async () => {
     setLoading(true);
@@ -184,40 +189,79 @@ export const DashboardCompositions = () => {
     hottestValue: pitchRadarItems.reduce((acc, item) => acc + item.price, 0)
   }), [pitchRadarItems]);
 
+  const panelTabs = useMemo(
+    () => [
+      { id: 'resumo', label: 'Resumo', helper: 'Catalogo, radar e atalhos do dia', count: compositions.length },
+      { id: 'atividade', label: 'Atividade', helper: 'Linha do tempo com notificacoes e chats', count: activityItems.length }
+    ],
+    [activityItems.length, compositions.length]
+  );
+
+  const normalizedSearch = String(searchTerm || '').trim().toLowerCase();
+
+  const filteredRecentNotifications = useMemo(
+    () => recentNotifications.filter((item) => {
+      if (!normalizedSearch) return true;
+      return `${item?.title || ''} ${item?.message || ''}`.toLowerCase().includes(normalizedSearch);
+    }),
+    [normalizedSearch, recentNotifications]
+  );
+
+  const filteredActivityItems = useMemo(
+    () => activityItems.filter((item) => {
+      if (!normalizedSearch) return true;
+      return `${item?.title || ''} ${item?.description || ''} ${item?.kind || ''}`.toLowerCase().includes(normalizedSearch);
+    }),
+    [activityItems, normalizedSearch]
+  );
+
+  const filteredCompositions = useMemo(
+    () => compositions.filter((comp) => {
+      if (!normalizedSearch) return true;
+      return `${comp?.title || ''} ${comp?.genre || ''} ${comp?.status || ''}`.toLowerCase().includes(normalizedSearch);
+    }),
+    [compositions, normalizedSearch]
+  );
+
+  const filteredPitchRadarItems = useMemo(
+    () => pitchRadarItems.filter((item) => {
+      if (!normalizedSearch) return true;
+      return `${item?.title || ''} ${item?.genre || ''} ${item?.statusLabel || ''} ${item?.nextAction || ''}`.toLowerCase().includes(normalizedSearch);
+    }),
+    [normalizedSearch, pitchRadarItems]
+  );
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <Card className="p-3 sm:p-4">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div>
-              <div className="text-xs uppercase tracking-[0.25em] text-beatwap-gold/80 font-bold">Painel do Compositor</div>
-              <div className="text-2xl font-extrabold text-white mt-2">Resumo e atividade do catalogo</div>
-              <div className="text-sm text-gray-400 mt-1">
-                Controle suas composicoes, acompanhe notificacoes e veja o que aconteceu por ultimo.
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { id: 'resumo', label: 'Resumo' },
-                { id: 'atividade', label: 'Atividade' }
-              ].map((tab) => {
-                const isActive = activePanelTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActivePanelTab(tab.id)}
-                    className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
-                      isActive ? 'bg-beatwap-gold text-black' : 'bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </Card>
+        <PanelHero
+          eyebrow="Painel do Compositor"
+          title="Catalogo, pitch e atividade em um so lugar"
+          description="Agora o painel mantem a leitura mais executiva, com busca rapida, recomendacao do dia e retorno exatamente na aba em que voce parou."
+          recommendation={pitchSummary.readyForPitch > 0
+            ? `Voce tem ${pitchSummary.readyForPitch} composicoes prontas para ataque comercial. Priorize as de maior score no radar.`
+            : 'Suba ou ajuste composicoes para destravar o radar de pitch e aumentar o potencial comercial.'}
+          badges={[
+            { label: 'Catalogo', value: compositions.length },
+            { label: 'Aprovadas', value: approvedCount },
+            { label: 'Chats', value: activeChatsCount }
+          ]}
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Buscar composicao, status, acao ou notificacao..."
+          actions={(
+            <>
+              <AnimatedButton onClick={() => setIsUploadModalOpen(true)} icon={Plus}>
+                Nova composicao
+              </AnimatedButton>
+              <AnimatedButton onClick={() => navigate('/dashboard/chat')} variant="secondary" icon={MessageCircle}>
+                Abrir conversas
+              </AnimatedButton>
+            </>
+          )}
+        />
+
+        <PersistentPanelTabs tabs={panelTabs} activeTab={activePanelTab} onChange={setActivePanelTab} />
 
         {activePanelTab === 'resumo' && (
           <>
@@ -326,11 +370,14 @@ export const DashboardCompositions = () => {
                     <div className="text-lg font-bold text-white">Top oportunidades do catalogo</div>
                     <div className="text-sm text-gray-400">Score por aprovacao, plays, preco e maturidade comercial</div>
                   </div>
-                  {pitchRadarItems.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-gray-400">
-                      Envie composicoes para liberar o radar de pitch.
-                    </div>
-                  ) : pitchRadarItems.map((item) => (
+                  {filteredPitchRadarItems.length === 0 ? (
+                    <EmptyState
+                      icon={Target}
+                      title="Nenhuma composicao combina com a busca"
+                      description={normalizedSearch ? 'Tente outro termo para localizar itens do radar ou limpe a busca.' : 'Envie composicoes para liberar o radar de pitch.'}
+                      action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
+                    />
+                  ) : filteredPitchRadarItems.map((item) => (
                     <div key={item.id} className="rounded-2xl border border-white/10 bg-black/25 p-4">
                       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                         <div className="space-y-3 min-w-0">
@@ -430,13 +477,15 @@ export const DashboardCompositions = () => {
 
               <div className="space-y-3">
                 {loading && <div className="text-gray-400"><span>Carregando...</span></div>}
-                {!loading && compositions.length === 0 && (
-                  <div className="text-center py-10 text-gray-400 border border-dashed border-white/10 rounded-xl">
-                    <p><span>Nenhuma composição encontrada.</span></p>
-                    <p className="text-sm mt-2"><span>Clique em &quot;Nova Composição&quot; para enviar.</span></p>
-                  </div>
+                {!loading && filteredCompositions.length === 0 && (
+                  <EmptyState
+                    icon={Music}
+                    title={normalizedSearch ? 'Nenhuma composicao encontrada nessa busca' : 'Nenhuma composicao encontrada'}
+                    description={normalizedSearch ? 'Ajuste o termo buscado ou limpe o filtro para ver todo o catalogo.' : 'Clique em "Nova Composicao" para enviar seu primeiro material.'}
+                    action={<AnimatedButton onClick={() => normalizedSearch ? setSearchTerm('') : setIsUploadModalOpen(true)}>{normalizedSearch ? 'Limpar busca' : 'Nova composicao'}</AnimatedButton>}
+                  />
                 )}
-                {!loading && compositions.map((comp) => (
+                {!loading && filteredCompositions.map((comp) => (
                   <div key={comp.id} className="flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
                     <div className="w-12 h-12 rounded-lg bg-gray-800 overflow-hidden shrink-0">
                       {comp.cover_url ? (
@@ -496,11 +545,16 @@ export const DashboardCompositions = () => {
                 <div className="text-sm text-gray-400"><span>Atividade recente</span></div>
                 <div className="px-2 py-1 bg-white/10 rounded-lg text-white text-xs font-bold">{activityItems.length} itens</div>
               </div>
-              {activityItems.length === 0 ? (
-                <div className="text-sm text-gray-500">Nenhuma atividade recente para mostrar ainda.</div>
+                {filteredActivityItems.length === 0 ? (
+                  <EmptyState
+                    icon={Clock}
+                    title="Nenhuma atividade localizada"
+                    description={normalizedSearch ? 'A busca atual nao encontrou itens na linha do tempo.' : 'Conforme seu catalogo, chats e notificacoes se moverem, a atividade vai aparecer aqui.'}
+                    action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
+                  />
               ) : (
                 <div className="space-y-3">
-                  {activityItems.map((item) => (
+                    {filteredActivityItems.map((item) => (
                     <div key={item.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
                       <div className="flex items-center justify-between gap-3">
                         <div>

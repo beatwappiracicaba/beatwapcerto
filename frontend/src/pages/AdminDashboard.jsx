@@ -5,6 +5,9 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
+import { EmptyState } from '../components/ui/EmptyState';
+import { PanelHero } from '../components/ui/PanelHero';
+import { PersistentPanelTabs } from '../components/ui/PersistentPanelTabs';
 import { AdminLayout } from '../components/AdminLayout';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
@@ -24,6 +27,7 @@ import { useData } from '../context/DataContext';
 import { buildDistributionContractHTML } from '../utils/contractTemplate';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import { usePersistentState } from '../hooks/usePersistentState';
 
 import { encryptData, decryptData, downloadDecryptedFile } from '../utils/security';
 
@@ -39,7 +43,8 @@ export const AdminHome = () => {
   const [leads, setLeads] = useState([]);
   const [proposals, setProposals] = useState([]);
   const [dealRoomLoading, setDealRoomLoading] = useState(true);
-  const [activePanelTab, setActivePanelTab] = useState('resumo');
+  const [activePanelTab, setActivePanelTab] = usePersistentState('admin-dashboard-active-tab', 'resumo');
+  const [searchTerm, setSearchTerm] = usePersistentState('admin-dashboard-search', '');
   const [projectForm, setProjectForm] = useState({
     title: '',
     url: '',
@@ -271,38 +276,79 @@ export const AdminHome = () => {
     noProposal: leads.filter((lead) => !proposals.some((proposal) => String(proposal?.lead_id || '') === String(lead?.id || ''))).length,
     supportPressure: Array.isArray(supportQueue) ? supportQueue.length : 0
   }), [leads, proposals, supportQueue]);
+
+  const panelTabs = useMemo(
+    () => [
+      { id: 'resumo', label: 'Resumo', helper: 'KPIs, conversao e projetos', count: counts.pending + unreadNotifications },
+      { id: 'atividade', label: 'Atividade', helper: 'Timeline operacional e atalhos', count: activityItems.length }
+    ],
+    [activityItems.length, counts.pending, unreadNotifications]
+  );
+
+  const normalizedSearch = String(searchTerm || '').trim().toLowerCase();
+
+  const filteredRecentNotifications = useMemo(
+    () => recentNotifications.filter((item) => {
+      if (!normalizedSearch) return true;
+      return `${item?.title || ''} ${item?.message || ''}`.toLowerCase().includes(normalizedSearch);
+    }),
+    [normalizedSearch, recentNotifications]
+  );
+
+  const filteredActivityItems = useMemo(
+    () => activityItems.filter((item) => {
+      if (!normalizedSearch) return true;
+      return `${item?.title || ''} ${item?.description || ''} ${item?.kind || ''}`.toLowerCase().includes(normalizedSearch);
+    }),
+    [activityItems, normalizedSearch]
+  );
+
+  const filteredExecutivePipelineItems = useMemo(
+    () => executivePipelineItems.filter((item) => {
+      if (!normalizedSearch) return true;
+      return `${item?.title || ''} ${item?.artistName || ''} ${item?.clientName || ''} ${item?.leadStatus || ''} ${item?.proposalStatus || ''}`.toLowerCase().includes(normalizedSearch);
+    }),
+    [executivePipelineItems, normalizedSearch]
+  );
+
+  const filteredProjects = useMemo(
+    () => projects.filter((project) => {
+      if (!normalizedSearch) return true;
+      return `${project?.title || ''} ${project?.platform || ''} ${project?.url || ''}`.toLowerCase().includes(normalizedSearch);
+    }),
+    [normalizedSearch, projects]
+  );
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-4">
-          <div>
-            <div className="text-xs uppercase tracking-[0.28em] text-beatwap-gold/80 font-bold">Painel Central</div>
-            <h2 className="text-2xl font-extrabold text-white mt-2">Plataforma organizada por foco</h2>
-            <p className="text-sm text-gray-400 mt-2 max-w-2xl">
-              Mantive o painel administrativo intacto e separei a leitura entre resumo operacional e atividade recente.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {[
-              { id: 'resumo', label: 'Resumo' },
-              { id: 'atividade', label: 'Atividade' }
-            ].map((tab) => {
-              const isActive = activePanelTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActivePanelTab(tab.id)}
-                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
-                    isActive ? 'bg-beatwap-gold text-black' : 'bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <PanelHero
+          eyebrow="Painel Central"
+          title="Operacao, conversao e decisao em tempo real"
+          description="A leitura do produtor/admin agora fica mais executiva: busca rapida, persistencia de aba, acao recomendada no topo e visual consistente com os demais paineis."
+          recommendation={executiveConversion.activeLeads > 0
+            ? `Existem ${executiveAlerts.stalledLeads} leads travados. Priorize deals sem data ou sem proposta para acelerar a conversao.`
+            : 'Alimente a operacao com projetos, leads e propostas para transformar o painel em centro real de decisao.'}
+          badges={[
+            { label: 'Pendentes', value: counts.pending },
+            { label: 'Taxa de aceite', value: `${executiveConversion.acceptanceRate}%` },
+            { label: 'Fila', value: executiveAlerts.supportPressure }
+          ]}
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Buscar projeto, lead, cliente, alerta ou atividade..."
+          actions={(
+            <>
+              <AnimatedButton onClick={() => window.location.assign('/admin/chat')} icon={MessageSquare}>
+                Abrir chat admin
+              </AnimatedButton>
+              <AnimatedButton onClick={() => window.location.assign('/admin/artists')} variant="secondary" icon={User}>
+                Revisar artistas
+              </AnimatedButton>
+            </>
+          )}
+        />
+
+        <PersistentPanelTabs tabs={panelTabs} activeTab={activePanelTab} onChange={setActivePanelTab} />
 
         {activePanelTab === 'resumo' && (
           <>
@@ -425,7 +471,7 @@ export const AdminHome = () => {
                     <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-gray-400">
                       Carregando leitura executiva do pipeline...
                     </div>
-                  ) : executivePipelineItems.length > 0 ? executivePipelineItems.map((item) => (
+                  ) : filteredExecutivePipelineItems.length > 0 ? filteredExecutivePipelineItems.map((item) => (
                     <div key={item.id} className="rounded-2xl border border-white/10 bg-black/25 p-4">
                       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                         <div className="space-y-3 min-w-0">
@@ -470,9 +516,12 @@ export const AdminHome = () => {
                       </div>
                     </div>
                   )) : (
-                    <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-gray-400">
-                      Ainda nao ha leads suficientes para montar a leitura executiva.
-                    </div>
+                    <EmptyState
+                      icon={TrendingUp}
+                      title="Nenhum deal localizado"
+                      description={normalizedSearch ? 'A busca atual nao encontrou deals na leitura executiva.' : 'Ainda nao ha leads suficientes para montar a leitura executiva.'}
+                      action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
+                    />
                   )}
                 </div>
 
@@ -571,7 +620,7 @@ export const AdminHome = () => {
               <div className="pt-4">
                 <div className="text-sm text-gray-400 mb-2">Últimos projetos adicionados</div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {(loadingProjects ? [] : projects).map((p) => (
+                  {(loadingProjects ? [] : filteredProjects).map((p) => (
                     <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center text-xs text-gray-300 shrink-0">
@@ -613,8 +662,13 @@ export const AdminHome = () => {
                       </div>
                     </div>
                   ))}
-                  {(!loadingProjects && projects.length === 0) && (
-                    <div className="text-sm text-gray-400">Nenhum projeto ainda.</div>
+                  {(!loadingProjects && filteredProjects.length === 0) && (
+                    <EmptyState
+                      icon={FolderDown}
+                      title="Nenhum projeto encontrado"
+                      description={normalizedSearch ? 'A busca atual nao encontrou projetos da produtora.' : 'Adicione um projeto para alimentar a vitrine da produtora.'}
+                      action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
+                    />
                   )}
                 </div>
               </div>
@@ -629,7 +683,7 @@ export const AdminHome = () => {
                 <Bell className="text-beatwap-gold" size={18} />
               </div>
               <div className="space-y-3">
-                {recentNotifications.length > 0 ? recentNotifications.map((item) => (
+                {filteredRecentNotifications.length > 0 ? filteredRecentNotifications.map((item) => (
                   <div key={item.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -644,7 +698,12 @@ export const AdminHome = () => {
                     </div>
                   </div>
                 )) : (
-                  <div className="text-sm text-gray-400">Nenhuma notificacao recente.</div>
+                  <EmptyState
+                    icon={Bell}
+                    title="Nenhuma notificacao localizada"
+                    description={normalizedSearch ? 'A busca atual nao encontrou notificacoes.' : 'Quando houver movimentacao administrativa, os alertas aparecerao aqui.'}
+                    action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
+                  />
                 )}
               </div>
             </Card>
@@ -662,7 +721,7 @@ export const AdminHome = () => {
                 <Clock className="text-beatwap-gold" size={18} />
               </div>
               <div className="space-y-3">
-                {activityItems.length > 0 ? activityItems.map((item) => (
+                {filteredActivityItems.length > 0 ? filteredActivityItems.map((item) => (
                   <div key={item.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -678,7 +737,12 @@ export const AdminHome = () => {
                     </div>
                   </div>
                 )) : (
-                  <div className="text-sm text-gray-400">Ainda nao ha eventos recentes suficientes para montar a atividade.</div>
+                  <EmptyState
+                    icon={Clock}
+                    title="Nenhuma atividade localizada"
+                    description={normalizedSearch ? 'A busca atual nao encontrou eventos na linha do tempo.' : 'Ainda nao ha eventos recentes suficientes para montar a atividade.'}
+                    action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
+                  />
                 )}
               </div>
             </Card>

@@ -2,6 +2,9 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
+import { EmptyState } from '../components/ui/EmptyState';
+import { PanelHero } from '../components/ui/PanelHero';
+import { PersistentPanelTabs } from '../components/ui/PersistentPanelTabs';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
 import { DashboardLayout } from '../components/DashboardLayout';
@@ -11,6 +14,7 @@ import { decryptData } from '../utils/security';
 import { useNotification } from '../context/NotificationContext';
 import { useChat } from '../context/ChatContext';
 import { useNavigate } from 'react-router-dom';
+import { usePersistentState } from '../hooks/usePersistentState';
 
 export const DashboardArtistHome = () => {
   const { user, profile } = useAuth();
@@ -24,7 +28,8 @@ export const DashboardArtistHome = () => {
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
-  const [activePanelTab, setActivePanelTab] = useState('resumo');
+  const [activePanelTab, setActivePanelTab] = usePersistentState('dashboard-artist-active-tab', 'resumo');
+  const [searchTerm, setSearchTerm] = usePersistentState('dashboard-artist-search', '');
 
   const isCompositor = profile?.cargo && profile.cargo.toLowerCase().trim() === 'compositor';
   const planNorm = String(profile?.plano || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
@@ -484,40 +489,79 @@ export const DashboardArtistHome = () => {
     attentionPoints: unreadNotifications + activeChatsCount
   }), [opportunityRadarItems, unreadNotifications, activeChatsCount]);
 
+  const panelTabs = useMemo(
+    () => [
+      { id: 'resumo', label: 'Resumo', helper: 'Metricas, repertorio e radar do dia', count: (latestCompositions?.length || 0) + unreadNotifications },
+      { id: 'atividade', label: 'Atividade', helper: 'Chats, fila e movimento recente', count: activityItems.length }
+    ],
+    [activityItems.length, latestCompositions?.length, unreadNotifications]
+  );
+
+  const normalizedSearch = String(searchTerm || '').trim().toLowerCase();
+
+  const filteredRecentNotifications = useMemo(
+    () => recentNotifications.filter((item) => {
+      if (!normalizedSearch) return true;
+      return `${item?.title || ''} ${item?.message || ''}`.toLowerCase().includes(normalizedSearch);
+    }),
+    [normalizedSearch, recentNotifications]
+  );
+
+  const filteredActivityItems = useMemo(
+    () => activityItems.filter((item) => {
+      if (!normalizedSearch) return true;
+      return `${item?.title || ''} ${item?.description || ''} ${item?.kind || ''}`.toLowerCase().includes(normalizedSearch);
+    }),
+    [activityItems, normalizedSearch]
+  );
+
+  const filteredLatestCompositions = useMemo(
+    () => latestCompositions.filter((item) => {
+      if (!normalizedSearch) return true;
+      return `${item?.titulo || item?.title || ''} ${item?.composer_name || ''} ${(item?.hashtags || []).join(' ')}`.toLowerCase().includes(normalizedSearch);
+    }),
+    [latestCompositions, normalizedSearch]
+  );
+
+  const filteredOpportunityRadarItems = useMemo(
+    () => opportunityRadarItems.filter((item) => {
+      if (!normalizedSearch) return true;
+      return `${item?.title || ''} ${item?.composerName || ''} ${(item?.hashtags || []).join(' ')} ${item?.nextAction || ''}`.toLowerCase().includes(normalizedSearch);
+    }),
+    [normalizedSearch, opportunityRadarItems]
+  );
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <Card className="p-3 sm:p-4">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div>
-              <div className="text-xs uppercase tracking-[0.25em] text-beatwap-gold/80 font-bold">Painel</div>
-              <div className="text-2xl font-extrabold text-white mt-2">Resumo e atividade em um so lugar</div>
-              <div className="text-sm text-gray-400 mt-1">
-                Acompanhe desempenho, notificacoes e conversas sem sair do painel principal.
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { id: 'resumo', label: 'Resumo' },
-                { id: 'atividade', label: 'Atividade' }
-              ].map((tab) => {
-                const isActive = activePanelTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActivePanelTab(tab.id)}
-                    className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
-                      isActive ? 'bg-beatwap-gold text-black' : 'bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </Card>
+        <PanelHero
+          eyebrow="Painel do Artista"
+          title="Desempenho, oportunidades e atividade sincronizados"
+          description="O painel agora guarda sua aba favorita, destaca o proximo melhor movimento e permite localizar repertorio, alertas e oportunidades pela busca rapida."
+          recommendation={opportunitySummary.directContacts > 0
+            ? `Voce tem ${opportunitySummary.directContacts} contatos diretos prontos para abordagem. Ataque primeiro as oportunidades com score mais alto.`
+            : 'Complete contatos e repertorio para transformar mais composicoes em oportunidades acionaveis.'}
+          badges={[
+            { label: 'Chats', value: activeChatsCount },
+            { label: 'Alertas', value: unreadNotifications },
+            { label: 'Receita', value: revenueFormatter.format(metrics?.faturamento_shows || 0) }
+          ]}
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Buscar faixa, compositor, hashtag, alerta ou atividade..."
+          actions={(
+            <>
+              <AnimatedButton onClick={() => navigate('/dashboard/chat')} icon={MessageCircle}>
+                Conversas
+              </AnimatedButton>
+              <AnimatedButton onClick={() => navigate('/dashboard/profile')} variant="secondary" icon={User}>
+                Meu perfil
+              </AnimatedButton>
+            </>
+          )}
+        />
+
+        <PersistentPanelTabs tabs={panelTabs} activeTab={activePanelTab} onChange={setActivePanelTab} />
 
         {activePanelTab === 'resumo' && (
           <>
@@ -639,11 +683,14 @@ export const DashboardArtistHome = () => {
                       <div className="text-lg font-bold text-white">Faixas com maior potencial de conexao</div>
                       <div className="text-sm text-gray-400">Score por contato, preview, capa e contexto do material</div>
                     </div>
-                    {opportunityRadarItems.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-gray-400">
-                        Ainda nao ha composicoes suficientes para ranquear oportunidades.
-                      </div>
-                    ) : opportunityRadarItems.map((item) => (
+                    {filteredOpportunityRadarItems.length === 0 ? (
+                      <EmptyState
+                        icon={Target}
+                        title="Nenhuma oportunidade encontrada"
+                        description={normalizedSearch ? 'Sua busca nao encontrou oportunidades no radar atual.' : 'Assim que houver repertorio suficiente, o radar vai destacar as melhores chances.'}
+                        action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
+                      />
+                    ) : filteredOpportunityRadarItems.map((item) => (
                       <div key={item.id} className="rounded-2xl border border-white/10 bg-black/25 p-4">
                         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                           <div className="space-y-3 min-w-0">
@@ -781,11 +828,16 @@ export const DashboardArtistHome = () => {
                   <div className="text-sm text-gray-400"><span>Ultimas notificacoes</span></div>
                   <div className="px-2 py-1 bg-white/10 rounded-lg text-white text-xs font-bold">Ao vivo</div>
                 </div>
-                {recentNotifications.length === 0 ? (
-                  <div className="text-sm text-gray-500">Nenhuma notificacao recente.</div>
+                {filteredRecentNotifications.length === 0 ? (
+                  <EmptyState
+                    icon={Bell}
+                    title="Nenhuma notificacao localizada"
+                    description={normalizedSearch ? 'A busca atual nao encontrou notificacoes.' : 'Quando houver novidades para voce, elas aparecerao aqui.'}
+                    action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
+                  />
                 ) : (
                   <div className="space-y-3">
-                    {recentNotifications.map((item) => (
+                    {filteredRecentNotifications.map((item) => (
                       <div key={item.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
                         <div className="flex items-center justify-between gap-3">
                           <div className="font-bold text-white text-sm">{item.title || 'Notificacao'}</div>
@@ -803,11 +855,16 @@ export const DashboardArtistHome = () => {
               <div className="text-sm text-gray-400"><span>Últimas Composições</span></div>
               <div className="px-2 py-1 bg-beatwap-gold/10 rounded-lg text-beatwap-gold text-xs font-bold">Novas</div>
             </div>
-            {latestCompositions.length === 0 ? (
-              <div className="text-sm text-gray-500">Nenhuma composição recente.</div>
+            {filteredLatestCompositions.length === 0 ? (
+              <EmptyState
+                icon={Folder}
+                title="Nenhuma composicao encontrada"
+                description={normalizedSearch ? 'Nenhuma faixa recente combinou com a busca.' : 'Quando o catalogo parceiro ganhar novidades, elas aparecerao aqui.'}
+                action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
+              />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {latestCompositions.map((item) => {
+                {filteredLatestCompositions.map((item) => {
                   const safeCover = String(item.cover_url || '').replace(/^[`'"]+|[`'"]+$/g, '').trim();
                   return (
                   <div key={item.id} className="rounded-xl bg-white/5 border border-white/10 p-4 hover:bg-white/10 transition-colors">
@@ -890,11 +947,16 @@ export const DashboardArtistHome = () => {
                 <div className="text-sm text-gray-400"><span>Atividade recente</span></div>
                 <div className="px-2 py-1 bg-white/10 rounded-lg text-white text-xs font-bold">{activityItems.length} itens</div>
               </div>
-              {activityItems.length === 0 ? (
-                <div className="text-sm text-gray-500">Nenhuma atividade recente para mostrar ainda.</div>
+              {filteredActivityItems.length === 0 ? (
+                <EmptyState
+                  icon={Clock}
+                  title="Nenhuma atividade localizada"
+                  description={normalizedSearch ? 'A busca atual nao encontrou itens recentes.' : 'Quando chats, filas e notificacoes se moverem, a linha do tempo sera alimentada aqui.'}
+                  action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
+                />
               ) : (
                 <div className="space-y-3">
-                  {activityItems.map((item) => (
+                  {filteredActivityItems.map((item) => (
                     <div key={item.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
                       <div className="flex items-center justify-between gap-3">
                         <div>

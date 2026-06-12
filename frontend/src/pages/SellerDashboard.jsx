@@ -2,12 +2,16 @@ import { useState, useEffect, useMemo } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
+import { EmptyState } from '../components/ui/EmptyState';
+import { PanelHero } from '../components/ui/PanelHero';
+import { PersistentPanelTabs } from '../components/ui/PersistentPanelTabs';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { useChat } from '../context/ChatContext';
 import { apiClient } from '../services/apiClient';
 import { TrendingUp, Calendar, Users, DollarSign, Target, Award, Bell, Clock, LayoutGrid, MessageSquare, FileText, Sparkles, BadgeCheck, ArrowUpRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { usePersistentState } from '../hooks/usePersistentState';
 
 const SellerDashboard = () => {
   const { profile } = useAuth();
@@ -18,7 +22,8 @@ const SellerDashboard = () => {
   const [leads, setLeads] = useState([]);
   const [proposals, setProposals] = useState([]);
   const [dealRoomLoading, setDealRoomLoading] = useState(true);
-  const [activePanelTab, setActivePanelTab] = useState('resumo');
+  const [activePanelTab, setActivePanelTab] = usePersistentState('seller-dashboard-active-tab', 'resumo');
+  const [searchTerm, setSearchTerm] = usePersistentState('seller-dashboard-search', '');
 
   useEffect(() => {
     fetchGoals();
@@ -310,50 +315,63 @@ const SellerDashboard = () => {
       .slice(0, 8);
   }, [notifications, chats, sellerQueue]);
 
+  const panelTabs = useMemo(
+    () => [
+      { id: 'resumo', label: 'Resumo', helper: 'Metas, pipeline e deal room', count: dealRoomItems.length + unreadNotifications },
+      { id: 'atividade', label: 'Atividade', helper: 'Timeline comercial e atalhos do dia', count: activityItems.length }
+    ],
+    [activityItems.length, dealRoomItems.length, unreadNotifications]
+  );
+
+  const normalizedSearch = String(searchTerm || '').trim().toLowerCase();
+
+  const filteredDealRoomItems = useMemo(
+    () => dealRoomItems.filter((item) => {
+      if (!normalizedSearch) return true;
+      return `${item?.title || ''} ${item?.artistName || ''} ${item?.clientName || ''} ${item?.nextAction || ''}`.toLowerCase().includes(normalizedSearch);
+    }),
+    [dealRoomItems, normalizedSearch]
+  );
+
+  const filteredActivityItems = useMemo(
+    () => activityItems.filter((item) => {
+      if (!normalizedSearch) return true;
+      return `${item?.title || ''} ${item?.description || ''} ${item?.kind || ''}`.toLowerCase().includes(normalizedSearch);
+    }),
+    [activityItems, normalizedSearch]
+  );
+
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Painel do Vendedor</h1>
-            <p className="text-gray-400">Bem-vindo, {profile?.nome || 'Vendedor'}. Vamos bater as metas!</p>
-          </div>
-          <div className="flex gap-3">
-            <AnimatedButton onClick={() => navigate('/seller/leads')} variant="primary" icon={Target}>
-              Novas Oportunidades
-            </AnimatedButton>
-          </div>
-        </div>
+        <PanelHero
+          eyebrow="Painel do Vendedor"
+          title={`Bem-vindo, ${profile?.nome || 'Vendedor'}. Vamos bater as metas!`}
+          description="Agora voce volta sempre para a ultima aba aberta, filtra oportunidades e atividade pela busca rapida e enxerga o proximo melhor movimento no topo."
+          recommendation={filteredDealRoomItems.length > 0
+            ? `Voce tem ${dealRoomSummary.negotiationLeadsCount} leads em negociacao. Priorize os deals com proposta enviada e maior score.`
+            : 'Alimente o pipeline com novos leads e propostas para destravar o deal room inteligente.'}
+          badges={[
+            { label: 'Meta restante', value: Math.max(remainingShows, 0) },
+            { label: 'Propostas', value: dealRoomSummary.sentProposalsCount },
+            { label: 'Conversas', value: activeChatsCount }
+          ]}
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Buscar lead, cliente, artista, acao ou atividade..."
+          actions={(
+            <>
+              <AnimatedButton onClick={() => navigate('/seller/leads')} variant="primary" icon={Target}>
+                Novas oportunidades
+              </AnimatedButton>
+              <AnimatedButton onClick={() => navigate('/seller/proposals')} variant="secondary" icon={FileText}>
+                Abrir propostas
+              </AnimatedButton>
+            </>
+          )}
+        />
 
-        <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-4">
-          <div>
-            <div className="text-xs uppercase tracking-[0.28em] text-beatwap-gold/80 font-bold">Painel Organizado</div>
-            <h2 className="text-2xl font-extrabold text-white mt-2">Resumo rapido e atividade recente</h2>
-            <p className="text-sm text-gray-400 mt-2 max-w-2xl">
-              Separei o painel por foco para voce acompanhar metas, contatos e oportunidades sem mudar o fluxo atual.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {[
-              { id: 'resumo', label: 'Resumo' },
-              { id: 'atividade', label: 'Atividade' }
-            ].map((tab) => {
-              const isActive = activePanelTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActivePanelTab(tab.id)}
-                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
-                    isActive ? 'bg-beatwap-gold text-black' : 'bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <PersistentPanelTabs tabs={panelTabs} activeTab={activePanelTab} onChange={setActivePanelTab} />
 
         {activePanelTab === 'resumo' && (
           <>
@@ -467,7 +485,7 @@ const SellerDashboard = () => {
                     <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-gray-400">
                       Carregando oportunidades do Deal Room...
                     </div>
-                  ) : dealRoomItems.length > 0 ? dealRoomItems.map((item) => (
+                  ) : filteredDealRoomItems.length > 0 ? filteredDealRoomItems.map((item) => (
                     <div key={item.id} className="rounded-2xl border border-white/10 bg-black/25 p-4">
                       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                         <div className="space-y-3 min-w-0">
@@ -535,9 +553,12 @@ const SellerDashboard = () => {
                       </div>
                     </div>
                   )) : (
-                    <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-gray-400">
-                      Ainda nao ha leads ou propostas suficientes para o Deal Room ranquear seu pipeline.
-                    </div>
+                    <EmptyState
+                      icon={Target}
+                      title="Nenhum deal encontrado"
+                      description={normalizedSearch ? 'A busca atual nao encontrou oportunidades no pipeline.' : 'Ainda nao ha leads ou propostas suficientes para o Deal Room ranquear seu pipeline.'}
+                      action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
+                    />
                   )}
                 </div>
 
@@ -721,7 +742,7 @@ const SellerDashboard = () => {
                 <Clock className="text-beatwap-gold" size={20} />
               </div>
               <div className="space-y-3">
-                {activityItems.length > 0 ? activityItems.map((item) => (
+                {filteredActivityItems.length > 0 ? filteredActivityItems.map((item) => (
                   <div key={item.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -737,9 +758,12 @@ const SellerDashboard = () => {
                     </div>
                   </div>
                 )) : (
-                  <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-gray-400">
-                    Ainda nao ha atividade recente suficiente para montar a linha do tempo.
-                  </div>
+                  <EmptyState
+                    icon={Clock}
+                    title="Nenhuma atividade localizada"
+                    description={normalizedSearch ? 'A busca atual nao encontrou eventos no timeline.' : 'Ainda nao ha atividade recente suficiente para montar a linha do tempo.'}
+                    action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
+                  />
                 )}
               </div>
             </Card>
@@ -795,8 +819,8 @@ const SellerDashboard = () => {
                 <div className="space-y-3">
                   {dealRoomLoading ? (
                     <div className="text-sm text-gray-400">Carregando prioridades comerciais...</div>
-                  ) : dealRoomItems.length > 0 ? (
-                    dealRoomItems.slice(0, 3).map((item) => (
+                  ) : filteredDealRoomItems.length > 0 ? (
+                    filteredDealRoomItems.slice(0, 3).map((item) => (
                       <div key={`activity-${item.id}`} className="rounded-2xl border border-white/10 bg-black/20 p-4">
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
@@ -810,7 +834,9 @@ const SellerDashboard = () => {
                       </div>
                     ))
                   ) : (
-                    <div className="text-sm text-gray-400">Sem oportunidades ranqueadas ainda.</div>
+                    <div className="text-sm text-gray-400">
+                      {normalizedSearch ? 'Nenhuma oportunidade corresponde a essa busca.' : 'Sem oportunidades ranqueadas ainda.'}
+                    </div>
                   )}
                 </div>
               </Card>
