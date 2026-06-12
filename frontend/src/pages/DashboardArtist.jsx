@@ -492,9 +492,10 @@ export const DashboardArtistHome = () => {
   const panelTabs = useMemo(
     () => [
       { id: 'resumo', label: 'Resumo', helper: 'Metricas, repertorio e radar do dia', count: (latestCompositions?.length || 0) + unreadNotifications },
+      { id: 'oportunidades', label: 'Oportunidades', helper: 'Onde agir primeiro para converter mais rapido', count: opportunityRadarItems.length },
       { id: 'atividade', label: 'Atividade', helper: 'Chats, fila e movimento recente', count: activityItems.length }
     ],
-    [activityItems.length, latestCompositions?.length, unreadNotifications]
+    [activityItems.length, latestCompositions?.length, opportunityRadarItems.length, unreadNotifications]
   );
 
   const normalizedSearch = String(searchTerm || '').trim().toLowerCase();
@@ -530,6 +531,14 @@ export const DashboardArtistHome = () => {
     }),
     [normalizedSearch, opportunityRadarItems]
   );
+
+  const artistOpportunitySummary = useMemo(() => ({
+    missingContact: filteredOpportunityRadarItems.filter((item) => !item.whatsappHref).length,
+    readyNow: filteredOpportunityRadarItems.filter((item) => item.whatsappHref && item.hasPreview).length,
+    averageScore: filteredOpportunityRadarItems.length
+      ? Math.round(filteredOpportunityRadarItems.reduce((acc, item) => acc + item.score, 0) / filteredOpportunityRadarItems.length)
+      : 0
+  }), [filteredOpportunityRadarItems]);
 
   return (
     <DashboardLayout>
@@ -938,6 +947,119 @@ export const DashboardArtistHome = () => {
               )}
             </div>
           </>
+        )}
+
+        {activePanelTab === 'oportunidades' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="p-5">
+                <div className="text-sm text-gray-400">Prontas para contato</div>
+                <div className="text-3xl font-bold text-white mt-2">{artistOpportunitySummary.readyNow}</div>
+                <div className="text-xs text-gray-500 mt-2">Com preview e WhatsApp pronto</div>
+              </Card>
+              <Card className="p-5">
+                <div className="text-sm text-gray-400">Sem contato direto</div>
+                <div className="text-3xl font-bold text-white mt-2">{artistOpportunitySummary.missingContact}</div>
+                <div className="text-xs text-gray-500 mt-2">Oportunidades que precisam de enriquecimento</div>
+              </Card>
+              <Card className="p-5">
+                <div className="text-sm text-gray-400">Score medio</div>
+                <div className="text-3xl font-bold text-white mt-2">{artistOpportunitySummary.averageScore}</div>
+                <div className="text-xs text-gray-500 mt-2">Pulso geral do repertorio acionavel</div>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-[1.45fr_0.85fr] gap-6">
+              <Card className="p-6">
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div>
+                    <div className="text-lg font-bold text-white">Fila de oportunidades</div>
+                    <div className="text-sm text-gray-400">Prioridade por score, contato e contexto do material</div>
+                  </div>
+                  <div className="text-xs text-gray-500">{filteredOpportunityRadarItems.length} itens</div>
+                </div>
+
+                <div className="space-y-4">
+                  {filteredOpportunityRadarItems.length === 0 ? (
+                    <EmptyState
+                      icon={Target}
+                      title="Nenhuma oportunidade pronta"
+                      description={normalizedSearch ? 'A busca atual nao encontrou itens nesta aba.' : 'Assim que houver repertorio com mais contexto, a fila vai aparecer aqui.'}
+                      action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
+                    />
+                  ) : filteredOpportunityRadarItems.map((item) => (
+                    <div key={`artist-opportunity-${item.id}`} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${getOpportunityTone(item.score)}`}>
+                              Score {item.score}
+                            </span>
+                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-300">
+                              {item.composerName}
+                            </span>
+                          </div>
+                          <div className="text-xl font-extrabold text-white">{item.title}</div>
+                          <div className="text-sm text-gray-300">{item.nextAction}</div>
+                          <div className="flex flex-wrap gap-2">
+                            {item.blockers.map((blocker) => (
+                              <span key={`${item.id}-${blocker}-opps`} className="rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-300">
+                                {blocker}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="w-full lg:w-64 shrink-0 space-y-3">
+                          <AnimatedButton
+                            onClick={() => {
+                              if (!item.whatsappHref) return;
+                              window.open(item.whatsappHref, '_blank', 'noopener,noreferrer');
+                            }}
+                            disabled={!item.whatsappHref}
+                            className="w-full justify-center"
+                            icon={ArrowUpRight}
+                          >
+                            {item.whatsappHref ? 'Abrir contato' : 'Contato indisponivel'}
+                          </AnimatedButton>
+                          <AnimatedButton onClick={() => navigate('/dashboard/chat')} variant="secondary" className="w-full justify-center" icon={MessageCircle}>
+                            Ir para conversas
+                          </AnimatedButton>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              <div className="space-y-6">
+                <Card className="p-5">
+                  <div className="font-bold text-white">Playbook do artista</div>
+                  <div className="text-sm text-gray-400 mt-2">Fluxo recomendado para transformar repertorio em contato quente.</div>
+                  <div className="space-y-3 mt-4">
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">1. Filtre as faixas com score mais alto</div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">2. Priorize as que ja tem preview e WhatsApp</div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">3. Abra conversa e registre o retorno no mesmo dia</div>
+                  </div>
+                </Card>
+
+                <Card className="p-5">
+                  <div className="font-bold text-white">Faixas recentes para explorar</div>
+                  <div className="space-y-3 mt-4">
+                    {filteredLatestCompositions.slice(0, 3).map((item) => (
+                      <div key={`artist-latest-${item.id}`} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                        <div className="font-bold text-white text-sm">{item.titulo || item.title}</div>
+                        <div className="text-xs text-gray-400 mt-1">{item.composer_name || 'Autor'}</div>
+                      </div>
+                    ))}
+                    {filteredLatestCompositions.length === 0 ? (
+                      <div className="text-sm text-gray-500">Sem faixas recentes para destacar.</div>
+                    ) : null}
+                  </div>
+                </Card>
+              </div>
+            </div>
+          </div>
         )}
 
         {activePanelTab === 'atividade' && (

@@ -280,9 +280,10 @@ export const AdminHome = () => {
   const panelTabs = useMemo(
     () => [
       { id: 'resumo', label: 'Resumo', helper: 'KPIs, conversao e projetos', count: counts.pending + unreadNotifications },
+      { id: 'inteligencia', label: 'Inteligencia', helper: 'Risco, conversao e leitura executiva do negocio', count: executivePipelineItems.length + executiveAlerts.stalledLeads },
       { id: 'atividade', label: 'Atividade', helper: 'Timeline operacional e atalhos', count: activityItems.length }
     ],
-    [activityItems.length, counts.pending, unreadNotifications]
+    [activityItems.length, counts.pending, executiveAlerts.stalledLeads, executivePipelineItems.length, unreadNotifications]
   );
 
   const normalizedSearch = String(searchTerm || '').trim().toLowerCase();
@@ -318,6 +319,12 @@ export const AdminHome = () => {
     }),
     [normalizedSearch, projects]
   );
+
+  const intelligenceSummary = useMemo(() => ({
+    conversionPressure: executiveAlerts.stalledLeads + executiveAlerts.noProposal,
+    monetizableBase: counts.artists + counts.musics,
+    responseLoad: unreadNotifications + activeChatsCount
+  }), [activeChatsCount, counts.artists, counts.musics, executiveAlerts.noProposal, executiveAlerts.stalledLeads, unreadNotifications]);
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -708,6 +715,108 @@ export const AdminHome = () => {
               </div>
             </Card>
           </>
+        )}
+
+        {activePanelTab === 'inteligencia' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="p-5">
+                <div className="text-sm text-gray-400">Pressao de conversao</div>
+                <div className="text-3xl font-bold text-white mt-2">{intelligenceSummary.conversionPressure}</div>
+                <div className="text-xs text-gray-500 mt-2">Leads travados ou sem proposta vinculada</div>
+              </Card>
+              <Card className="p-5">
+                <div className="text-sm text-gray-400">Base monetizavel</div>
+                <div className="text-3xl font-bold text-white mt-2">{intelligenceSummary.monetizableBase}</div>
+                <div className="text-xs text-gray-500 mt-2">Artistas e musicas que sustentam crescimento</div>
+              </Card>
+              <Card className="p-5">
+                <div className="text-sm text-gray-400">Carga de resposta</div>
+                <div className="text-3xl font-bold text-white mt-2">{intelligenceSummary.responseLoad}</div>
+                <div className="text-xs text-gray-500 mt-2">Soma de notificacoes e chats ativos</div>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-[1.45fr_0.85fr] gap-6">
+              <Card className="p-6">
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div>
+                    <div className="text-lg font-bold text-white">Mesa de inteligencia</div>
+                    <div className="text-sm text-gray-400">Os deals que mais afetam faturamento, gargalo e urgencia</div>
+                  </div>
+                  <div className="text-xs text-gray-500">{filteredExecutivePipelineItems.length} deals</div>
+                </div>
+
+                <div className="space-y-4">
+                  {filteredExecutivePipelineItems.length === 0 ? (
+                    <EmptyState
+                      icon={TrendingUp}
+                      title="Nenhum insight executivo encontrado"
+                      description={normalizedSearch ? 'A busca atual nao encontrou itens nesta aba.' : 'Assim que o pipeline crescer, a mesa de inteligencia vai destacar os deals mais sensiveis.'}
+                      action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
+                    />
+                  ) : filteredExecutivePipelineItems.map((item) => (
+                    <div key={`intelligence-${item.id}`} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap gap-2">
+                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-300">
+                              Score {item.score}
+                            </span>
+                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-300">
+                              {item.leadStatus}
+                            </span>
+                          </div>
+                          <div className="text-xl font-extrabold text-white">{item.title}</div>
+                          <div className="text-sm text-gray-300">{item.artistName} • {item.clientName}</div>
+                          <div className="flex flex-wrap gap-2">
+                            {item.blockers.map((blocker) => (
+                              <span key={`${item.id}-${blocker}-intel`} className="rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-300">
+                                {blocker}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="w-full lg:w-64 shrink-0 space-y-3">
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                            <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Impacto estimado</div>
+                            <div className="text-sm text-white mt-2">{currencyFormatter.format(item.budget || 0)}</div>
+                          </div>
+                          <AnimatedButton onClick={() => window.location.assign('/admin/chat')} className="w-full justify-center" icon={ArrowUpRight}>
+                            Acionar operacao
+                          </AnimatedButton>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              <div className="space-y-6">
+                <Card className="p-5">
+                  <div className="font-bold text-white">Semaforo do negocio</div>
+                  <div className="space-y-3 mt-4">
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">Leads travados: {executiveAlerts.stalledLeads}</div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">Sem proposta: {executiveAlerts.noProposal}</div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">Aceites confirmados: {executiveConversion.acceptedProposals}</div>
+                  </div>
+                </Card>
+
+                <Card className="p-5">
+                  <div className="font-bold text-white">Acoes executivas</div>
+                  <div className="space-y-3 mt-4">
+                    <AnimatedButton onClick={() => window.location.assign('/admin/artists')} className="w-full justify-center" icon={User}>
+                      Revisar artistas
+                    </AnimatedButton>
+                    <AnimatedButton onClick={() => window.location.assign('/admin/settings')} variant="secondary" className="w-full justify-center" icon={LayoutGrid}>
+                      Ajustar sistema
+                    </AnimatedButton>
+                  </div>
+                </Card>
+              </div>
+            </div>
+          </div>
         )}
 
         {activePanelTab === 'atividade' && (

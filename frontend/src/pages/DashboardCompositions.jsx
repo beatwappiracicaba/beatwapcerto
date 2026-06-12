@@ -192,9 +192,10 @@ export const DashboardCompositions = () => {
   const panelTabs = useMemo(
     () => [
       { id: 'resumo', label: 'Resumo', helper: 'Catalogo, radar e atalhos do dia', count: compositions.length },
+      { id: 'pitch', label: 'Pitch', helper: 'O que vender primeiro e o que corrigir antes', count: pitchRadarItems.length },
       { id: 'atividade', label: 'Atividade', helper: 'Linha do tempo com notificacoes e chats', count: activityItems.length }
     ],
-    [activityItems.length, compositions.length]
+    [activityItems.length, compositions.length, pitchRadarItems.length]
   );
 
   const normalizedSearch = String(searchTerm || '').trim().toLowerCase();
@@ -230,6 +231,12 @@ export const DashboardCompositions = () => {
     }),
     [normalizedSearch, pitchRadarItems]
   );
+
+  const pitchBoardSummary = useMemo(() => ({
+    hot: filteredPitchRadarItems.filter((item) => item.score >= 80).length,
+    revision: filteredPitchRadarItems.filter((item) => item.feedback || item.status !== 'approved').length,
+    monetized: filteredPitchRadarItems.filter((item) => item.price > 0).length
+  }), [filteredPitchRadarItems]);
 
   return (
     <DashboardLayout>
@@ -536,6 +543,114 @@ export const DashboardCompositions = () => {
               </div>
             </Card>
           </>
+        )}
+
+        {activePanelTab === 'pitch' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="p-5">
+                <div className="text-sm text-gray-400">Muito quentes</div>
+                <div className="text-3xl font-bold text-white mt-2">{pitchBoardSummary.hot}</div>
+                <div className="text-xs text-gray-500 mt-2">Itens com maior chance de conversao</div>
+              </Card>
+              <Card className="p-5">
+                <div className="text-sm text-gray-400">Precisam de revisao</div>
+                <div className="text-3xl font-bold text-white mt-2">{pitchBoardSummary.revision}</div>
+                <div className="text-xs text-gray-500 mt-2">Com feedback ou fora da aprovacao final</div>
+              </Card>
+              <Card className="p-5">
+                <div className="text-sm text-gray-400">Monetizadas</div>
+                <div className="text-3xl font-bold text-white mt-2">{pitchBoardSummary.monetized}</div>
+                <div className="text-xs text-gray-500 mt-2">Ja com preco definido para pitch</div>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-[1.45fr_0.85fr] gap-6">
+              <Card className="p-6">
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div>
+                    <div className="text-lg font-bold text-white">Mesa de pitch</div>
+                    <div className="text-sm text-gray-400">Ordenacao executiva do catalogo por prontidao comercial</div>
+                  </div>
+                  <div className="text-xs text-gray-500">{filteredPitchRadarItems.length} composicoes</div>
+                </div>
+
+                <div className="space-y-4">
+                  {filteredPitchRadarItems.length === 0 ? (
+                    <EmptyState
+                      icon={Target}
+                      title="Nenhuma composicao no pitch"
+                      description={normalizedSearch ? 'A busca atual nao encontrou itens na mesa de pitch.' : 'Suba ou ajuste composicoes para alimentar esta aba.'}
+                      action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
+                    />
+                  ) : filteredPitchRadarItems.map((item) => (
+                    <div key={`pitch-board-${item.id}`} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap gap-2">
+                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${getPitchTone(item.score)}`}>
+                              Score {item.score}
+                            </span>
+                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-300">
+                              {item.statusLabel}
+                            </span>
+                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-300">
+                              {item.genre}
+                            </span>
+                          </div>
+                          <div className="text-xl font-extrabold text-white">{item.title}</div>
+                          <div className="text-sm text-gray-300">{item.nextAction}</div>
+                          <div className="flex flex-wrap gap-2">
+                            {item.blockers.map((blocker) => (
+                              <span key={`${item.id}-${blocker}-pitch`} className="rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-300">
+                                {blocker}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="w-full lg:w-64 shrink-0 space-y-3">
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                            <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Valor e validacao</div>
+                            <div className="text-sm text-white mt-2">{revenueFormatter.format(item.price || 0)} • {item.plays} plays</div>
+                          </div>
+                          <AnimatedButton onClick={() => setIsUploadModalOpen(true)} className="w-full justify-center" icon={ArrowUpRight}>
+                            Melhorar material
+                          </AnimatedButton>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              <div className="space-y-6">
+                <Card className="p-5">
+                  <div className="font-bold text-white">Regra de ouro do pitch</div>
+                  <div className="space-y-3 mt-4">
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">1. Aprovada + preco definido + plays acima de zero = prioridade maxima</div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">2. Se houver feedback, revise antes de insistir no mercado</div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">3. Se faltou preco, voce esta travando sua conversao</div>
+                  </div>
+                </Card>
+
+                <Card className="p-5">
+                  <div className="font-bold text-white">Atalhos do compositor</div>
+                  <div className="space-y-3 mt-4">
+                    <AnimatedButton onClick={() => setIsUploadModalOpen(true)} className="w-full justify-center" icon={Plus}>
+                      Nova composicao
+                    </AnimatedButton>
+                    <AnimatedButton onClick={() => navigate('/dashboard/chat')} variant="secondary" className="w-full justify-center" icon={MessageCircle}>
+                      Abrir conversas
+                    </AnimatedButton>
+                    <AnimatedButton onClick={() => navigate('/dashboard/profile')} variant="secondary" className="w-full justify-center" icon={User}>
+                      Ver perfil
+                    </AnimatedButton>
+                  </div>
+                </Card>
+              </div>
+            </div>
+          </div>
         )}
 
         {activePanelTab === 'atividade' && (

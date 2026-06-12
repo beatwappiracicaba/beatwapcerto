@@ -318,6 +318,7 @@ const SellerDashboard = () => {
   const panelTabs = useMemo(
     () => [
       { id: 'resumo', label: 'Resumo', helper: 'Metas, pipeline e deal room', count: dealRoomItems.length + unreadNotifications },
+      { id: 'pipeline', label: 'Pipeline', helper: 'Leitura por fase, gargalo e fechamento', count: dealRoomItems.length },
       { id: 'atividade', label: 'Atividade', helper: 'Timeline comercial e atalhos do dia', count: activityItems.length }
     ],
     [activityItems.length, dealRoomItems.length, unreadNotifications]
@@ -340,6 +341,13 @@ const SellerDashboard = () => {
     }),
     [activityItems, normalizedSearch]
   );
+
+  const pipelineSummary = useMemo(() => ({
+    hotDeals: filteredDealRoomItems.filter((item) => item.score >= 80).length,
+    blockedDeals: filteredDealRoomItems.filter((item) => item.blockers.length > 0).length,
+    proposalMissing: filteredDealRoomItems.filter((item) => !item.matchedProposalId).length,
+    negotiation: filteredDealRoomItems.filter((item) => item.leadStatus === 'negociacao').length
+  }), [filteredDealRoomItems]);
 
   return (
     <DashboardLayout>
@@ -729,6 +737,117 @@ const SellerDashboard = () => {
               </div>
             </Card>
           </>
+        )}
+
+        {activePanelTab === 'pipeline' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <Card className="p-5">
+                <div className="text-sm text-gray-400">Deals quentes</div>
+                <div className="text-3xl font-bold text-white mt-2">{pipelineSummary.hotDeals}</div>
+                <div className="text-xs text-gray-500 mt-2">Score 80+ e maior chance de fechar</div>
+              </Card>
+              <Card className="p-5">
+                <div className="text-sm text-gray-400">Em negociacao</div>
+                <div className="text-3xl font-bold text-white mt-2">{pipelineSummary.negotiation}</div>
+                <div className="text-xs text-gray-500 mt-2">Deals exigindo follow-up comercial</div>
+              </Card>
+              <Card className="p-5">
+                <div className="text-sm text-gray-400">Sem proposta</div>
+                <div className="text-3xl font-bold text-white mt-2">{pipelineSummary.proposalMissing}</div>
+                <div className="text-xs text-gray-500 mt-2">Oportunidades travadas por material</div>
+              </Card>
+              <Card className="p-5">
+                <div className="text-sm text-gray-400">Com gargalos</div>
+                <div className="text-3xl font-bold text-white mt-2">{pipelineSummary.blockedDeals}</div>
+                <div className="text-xs text-gray-500 mt-2">Precisam de acao antes do fechamento</div>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-[1.5fr_0.82fr] gap-6">
+              <Card className="p-6">
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div>
+                    <div className="text-lg font-bold text-white">Pipeline operacional</div>
+                    <div className="text-sm text-gray-400">Visual premium das oportunidades que exigem acao hoje</div>
+                  </div>
+                  <div className="text-xs text-gray-500">{filteredDealRoomItems.length} deals</div>
+                </div>
+
+                <div className="space-y-4">
+                  {filteredDealRoomItems.length === 0 ? (
+                    <EmptyState
+                      icon={Target}
+                      title="Nenhum deal encontrado no pipeline"
+                      description={normalizedSearch ? 'A busca atual nao encontrou oportunidades nesta aba.' : 'Alimente leads e propostas para montar o pipeline operacional.'}
+                      action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
+                    />
+                  ) : filteredDealRoomItems.map((item) => (
+                    <div key={`pipeline-${item.id}`} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap gap-2">
+                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${getStageTone(item.score)}`}>
+                              Score {item.score}
+                            </span>
+                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-300">
+                              {item.leadStatusLabel}
+                            </span>
+                          </div>
+                          <div className="text-xl font-extrabold text-white">{item.title}</div>
+                          <div className="text-sm text-gray-300">{item.artistName} • {item.clientName}</div>
+                          <div className="flex flex-wrap gap-2">
+                            {item.blockers.length > 0 ? item.blockers.map((blocker) => (
+                              <span key={`${item.id}-${blocker}-pipeline`} className="rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-300">
+                                {blocker}
+                              </span>
+                            )) : (
+                              <span className="rounded-full border border-green-500/20 bg-green-500/10 px-2.5 py-1 text-xs font-semibold text-green-300">
+                                Sem travas criticas
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="w-full lg:w-64 shrink-0 space-y-3">
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                            <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Valor estimado</div>
+                            <div className="text-sm text-white mt-2">{revenueFormatter.format(item.budget || 0)}</div>
+                          </div>
+                          <AnimatedButton onClick={() => navigate('/seller/leads')} className="w-full justify-center" icon={ArrowUpRight}>
+                            Abrir pipeline
+                          </AnimatedButton>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              <div className="space-y-6">
+                <Card className="p-5">
+                  <div className="font-bold text-white">Playbook de fechamento</div>
+                  <div className="space-y-3 mt-4">
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">1. Resolva os deals sem proposta</div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">2. Faça follow-up dos que estao em negociacao</div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">3. Leve aceites para agenda e financeiro</div>
+                  </div>
+                </Card>
+
+                <Card className="p-5">
+                  <div className="font-bold text-white">Acoes rapidas</div>
+                  <div className="space-y-3 mt-4">
+                    <AnimatedButton onClick={() => navigate('/seller/proposals')} className="w-full justify-center" icon={FileText}>
+                      Resolver propostas
+                    </AnimatedButton>
+                    <AnimatedButton onClick={() => navigate('/seller/communications')} variant="secondary" className="w-full justify-center" icon={MessageSquare}>
+                      Fazer follow-up
+                    </AnimatedButton>
+                  </div>
+                </Card>
+              </div>
+            </div>
+          </div>
         )}
 
         {activePanelTab === 'atividade' && (
