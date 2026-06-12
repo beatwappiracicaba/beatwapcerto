@@ -13,7 +13,7 @@ import SpecialOffer from '../components/landing/SpecialOffer';
 import Contact from '../components/landing/Contact';
 import Footer from '../components/landing/Footer';
 import { apiClient } from '../services/apiClient';
-import { Play, Pause, BadgeCheck, Music, MessageCircle, ChevronLeft, ChevronRight, User, Info, X, Heart, Share2 } from 'lucide-react';
+import { Play, Pause, BadgeCheck, Music, MessageCircle, ChevronLeft, ChevronRight, User, Info, X, Heart, Share2, Ticket, QrCode, ShieldCheck, Smartphone } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Instagram, Globe, Youtube, Video } from 'lucide-react';
@@ -696,7 +696,8 @@ const Home = () => {
     { id: 'destaques', label: 'Destaques', helper: 'O melhor da BeatWap agora', count: Number(hitEntries?.length || 0) + Number(latestReleases?.length || 0) },
     { id: 'novidades', label: 'Novidades', helper: 'Lançamentos, composições e projetos recentes', count: Number(latestReleases?.length || 0) + Number(latestCompositions?.length || 0) + Number(latestProjects?.length || 0) },
     { id: 'oportunidades', label: 'Oportunidades', helper: 'Audições abertas e próximos passos', count: Number(homeAuditions?.length || 0) + Number(latestProjects?.length || 0) },
-    { id: 'perfis', label: 'Perfis', helper: 'Compositores, artistas, produtores e marcas', count: Number(composers?.length || 0) + Number(artists?.length || 0) + Number(producers?.length || 0) + Number(sellers?.length || 0) + Number(sponsors?.length || 0) }
+    { id: 'perfis', label: 'Perfis', helper: 'Compositores, artistas, produtores e marcas', count: Number(composers?.length || 0) + Number(artists?.length || 0) + Number(producers?.length || 0) + Number(sellers?.length || 0) + Number(sponsors?.length || 0) },
+    { id: 'ingressos', label: 'Ingressos', helper: 'Compra publica, convite digital e check-in mobile', count: 6 }
   ];
   const studioGallery = [
     { id: 'studio-1', image: studioPhoto1, title: 'Sessao principal', helper: 'Ambiente pronto para captar e criar com qualidade.' },
@@ -704,11 +705,38 @@ const Home = () => {
     { id: 'studio-3', image: studioPhoto3, title: 'Clima de producao', helper: 'Um visual que reforca o nivel profissional da BeatWap.' },
     { id: 'studio-4', image: studioPhoto4, title: 'Experiencia completa', helper: 'Lugar para tirar ideia do papel e transformar em lancamento.' }
   ];
+  const ticketHighlights = [
+    {
+      id: 'public-sale',
+      title: 'Compra publica sem login',
+      helper: 'A pessoa acessa a pagina do evento, escolhe o lote e compra sem precisar criar conta antes.',
+      icon: Ticket
+    },
+    {
+      id: 'digital-pass',
+      title: 'Convite digital automatico',
+      helper: 'Depois da aprovacao, o sistema envia um ingresso com QR Code, numero unico e dados do show.',
+      icon: QrCode
+    },
+    {
+      id: 'mobile-checkin',
+      title: 'Leitor na portaria pelo celular',
+      helper: 'A equipe escaneia o QR na entrada e valida no ato se o convite esta valido ou ja foi usado.',
+      icon: Smartphone
+    }
+  ];
+  const ticketSteps = [
+    'Produtor cria evento, lotes, setores e quantidade disponivel.',
+    'Comprador escolhe o ingresso em pagina publica e paga sem autenticacao.',
+    'Pagamento aprovado gera convite digital com token unico e QR Code.',
+    'Portaria valida o ingresso no celular e marca check-in em tempo real.'
+  ];
 
   const showHighlightsTab = activeHomeTab === 'destaques';
   const showNewsTab = activeHomeTab === 'novidades';
   const showOpportunitiesTab = activeHomeTab === 'oportunidades';
   const showProfilesTab = activeHomeTab === 'perfis';
+  const showTicketsTab = activeHomeTab === 'ingressos';
 
   return (
     <div className="bg-beatwap-dark min-h-screen text-white font-sans selection:bg-beatwap-gold selection:text-black">
@@ -729,7 +757,7 @@ const Home = () => {
                 Aba ativa: <span className="text-white font-bold">{homeTabs.find((tab) => tab.id === activeHomeTab)?.label || 'Destaques'}</span>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
               {homeTabs.map((tab) => {
                 const isActive = activeHomeTab === tab.id;
                 return (
@@ -768,6 +796,83 @@ const Home = () => {
             />
           </div>
         </section>
+        {showTicketsTab && (
+          <section className="py-12 px-4 sm:px-6 bg-gradient-to-b from-[#140b03] via-black to-black border-b border-white/10">
+            <div className="max-w-7xl mx-auto space-y-6">
+              <div className="rounded-[32px] border border-beatwap-gold/20 bg-[linear-gradient(135deg,rgba(245,197,66,0.12),rgba(255,255,255,0.03),rgba(0,0,0,0.5))] p-6 md:p-8">
+                <div className="grid lg:grid-cols-[1.15fr_0.85fr] gap-6 items-start">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full border border-beatwap-gold/30 bg-beatwap-gold/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.26em] text-beatwap-gold">
+                      <Ticket size={12} />
+                      BeatWap Tickets
+                    </div>
+                    <h2 className="mt-4 text-3xl md:text-4xl font-extrabold text-white max-w-3xl">
+                      Venda ingressos sem login e entregue convites digitais prontos para leitura na entrada.
+                    </h2>
+                    <p className="mt-3 max-w-3xl text-sm md:text-base text-gray-200">
+                      O melhor formato para a BeatWap e uma compra publica: o publico compra direto na pagina do evento,
+                      recebe o convite com QR Code e a portaria valida tudo pelo celular, com menos fila e mais controle.
+                    </p>
+                    <div className="mt-5 flex flex-wrap gap-3">
+                      <AnimatedButton
+                        onClick={() =>
+                          window.open(
+                            'https://wa.me/5519981083497?text=' +
+                              encodeURIComponent('Ola! Quero estruturar um sistema de ingressos com QR Code e check-in mobile na BeatWap.'),
+                            '_blank'
+                          )
+                        }
+                      >
+                        Quero vender ingressos
+                      </AnimatedButton>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const target = document.getElementById('contato') || document.getElementById('contact');
+                          if (target) target.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/30 px-4 py-2 text-sm font-semibold text-white transition-colors hover:border-beatwap-gold hover:text-beatwap-gold"
+                      >
+                        Falar sobre meu evento
+                      </button>
+                    </div>
+                  </div>
+                  <div className="rounded-[28px] border border-white/10 bg-black/35 p-5 md:p-6">
+                    <div className="flex items-center gap-2 text-white">
+                      <ShieldCheck size={18} className="text-beatwap-gold" />
+                      <div className="font-extrabold text-lg">Como esse fluxo funciona</div>
+                    </div>
+                    <div className="mt-4 space-y-3">
+                      {ticketSteps.map((step, index) => (
+                        <div key={step} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-beatwap-gold text-sm font-extrabold text-black">
+                            {index + 1}
+                          </div>
+                          <div className="text-sm text-gray-200">{step}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {ticketHighlights.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div key={item.id} className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-[0_0_30px_rgba(0,0,0,0.18)]">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-beatwap-gold/10 text-beatwap-gold">
+                        <Icon size={22} />
+                      </div>
+                      <div className="mt-4 text-xl font-extrabold text-white">{item.title}</div>
+                      <div className="mt-2 text-sm text-gray-300">{item.helper}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        )}
         {showHighlightsTab && (
         <section className="py-10 px-6 bg-black/20 border-b border-white/10">
           <div className="max-w-7xl mx-auto">
