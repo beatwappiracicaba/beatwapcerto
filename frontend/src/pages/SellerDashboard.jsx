@@ -795,19 +795,21 @@ const SellerDashboard = () => {
                 <div className="space-y-3">
                   {dealRoomLoading ? (
                     <div className="text-sm text-gray-400">Carregando prioridades comerciais...</div>
-                  ) : dealRoomItems.slice(0, 3).map((item) => (
-                    <div key={`activity-${item.id}`} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="font-bold text-white truncate">{item.title}</div>
-                          <div className="text-xs text-gray-400 mt-1 truncate">{item.clientName}</div>
+                  ) : dealRoomItems.length > 0 ? (
+                    dealRoomItems.slice(0, 3).map((item) => (
+                      <div key={`activity-${item.id}`} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="font-bold text-white truncate">{item.title}</div>
+                            <div className="text-xs text-gray-400 mt-1 truncate">{item.clientName}</div>
+                          </div>
+                          <span className={`shrink-0 rounded-full border px-2 py-1 text-[11px] font-bold ${getStageTone(item.score)}`}>
+                            {item.score}
+                          </span>
                         </div>
-                        <span className={`shrink-0 rounded-full border px-2 py-1 text-[11px] font-bold ${getStageTone(item.score)}`}>
-                          {item.score}
-                        </span>
                       </div>
-                    </div>
-                  )) : (
+                    ))
+                  ) : (
                     <div className="text-sm text-gray-400">Sem oportunidades ranqueadas ainda.</div>
                   )}
                 </div>
