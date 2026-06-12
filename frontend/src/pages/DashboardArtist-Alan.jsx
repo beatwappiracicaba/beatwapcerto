@@ -6,11 +6,17 @@ import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { MusicUploadModal } from '../components/artist/MusicUploadModal';
-import { Plus, DollarSign, Folder, ChevronDown, ChevronRight, MessageCircle, Play, Pause } from 'lucide-react';
+import { Plus, DollarSign, Folder, ChevronDown, ChevronRight, MessageCircle, Play, Pause, Bell, Clock, LayoutGrid, User } from 'lucide-react';
 import { decryptData } from '../utils/security';
+import { useNotification } from '../context/NotificationContext';
+import { useChat } from '../context/ChatContext';
+import { useNavigate } from 'react-router-dom';
 
 export const DashboardArtistHome = () => {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
+  const { notifications = [] } = useNotification();
+  const { chats = [], supportQueue = [] } = useChat();
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [latestCompositions, setLatestCompositions] = useState([]);
@@ -18,6 +24,7 @@ export const DashboardArtistHome = () => {
   const [playingTrack, setPlayingTrack] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [activePanelTab, setActivePanelTab] = useState('resumo');
 
   const isCompositor = profile?.cargo && profile.cargo.toLowerCase().trim() === 'compositor';
   const planNorm = String(profile?.plano || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
@@ -325,9 +332,141 @@ export const DashboardArtistHome = () => {
     }, durationLimit * 1000);
     setPreviewTimer(t);
   };
+  const recentNotifications = useMemo(
+    () => (Array.isArray(notifications) ? notifications.slice().sort((a, b) => new Date(b?.created_at || b?.date || 0) - new Date(a?.created_at || a?.date || 0)).slice(0, 4) : []),
+    [notifications]
+  );
+
+  const unreadNotifications = useMemo(
+    () => (Array.isArray(notifications) ? notifications.filter((item) => !item?.read).length : 0),
+    [notifications]
+  );
+
+  const activeChatsCount = useMemo(
+    () => (Array.isArray(chats) ? chats.filter((chat) => String(chat?.status || '').toLowerCase() !== 'closed').length : 0),
+    [chats]
+  );
+
+  const activityItems = useMemo(() => {
+    const makeTs = (value) => {
+      const ts = new Date(value || 0).getTime();
+      return Number.isFinite(ts) ? ts : 0;
+    };
+
+    const notifItems = (Array.isArray(notifications) ? notifications : []).map((notif) => ({
+      id: `notif-${notif.id}`,
+      title: notif.title || 'Notificacao',
+      description: notif.message || 'Nova notificacao recebida.',
+      kind: 'Notificacao',
+      timestamp: notif.created_at || notif.date || null,
+      timestampMs: makeTs(notif.created_at || notif.date || null)
+    }));
+
+    const chatItems = (Array.isArray(chats) ? chats : []).map((chat) => ({
+      id: `chat-${chat.id}`,
+      title: chat.subject || chat.artistName || chat.composerName || 'Conversa atualizada',
+      description: chat.lastMessage || 'Nova movimentacao no chat.',
+      kind: 'Chat',
+      timestamp: chat.lastMessageTime || chat.updated_at || chat.created_at || null,
+      timestampMs: makeTs(chat.lastMessageTime || chat.updated_at || chat.created_at || null)
+    }));
+
+    const queueItems = (Array.isArray(supportQueue) ? supportQueue : []).map((item) => ({
+      id: `queue-${item.id}`,
+      title: item.subject || 'Solicitacao de suporte',
+      description: item.message || item.status || 'Sua fila de atendimento foi atualizada.',
+      kind: 'Fila',
+      timestamp: item.created_at || item.updated_at || null,
+      timestampMs: makeTs(item.created_at || item.updated_at || null)
+    }));
+
+    return [...notifItems, ...chatItems, ...queueItems]
+      .filter((item) => item.timestampMs > 0)
+      .sort((a, b) => b.timestampMs - a.timestampMs)
+      .slice(0, 8);
+  }, [notifications, chats, supportQueue]);
+
+  const formatActivityTime = useCallback((value) => {
+    const ts = new Date(value || 0).getTime();
+    if (!Number.isFinite(ts)) return 'Agora';
+    return new Date(ts).toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }, []);
   return (
     <DashboardLayout>
-      {!isCompositor && (
+      <div className="space-y-6">
+        <Card className="p-3 sm:p-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <div className="text-xs uppercase tracking-[0.25em] text-beatwap-gold/80 font-bold">Painel</div>
+              <div className="text-2xl font-extrabold text-white mt-2">Resumo e atividade em um so lugar</div>
+              <div className="text-sm text-gray-400 mt-1">
+                Acompanhe desempenho, notificacoes e conversas sem sair do painel principal.
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: 'resumo', label: 'Resumo' },
+                { id: 'atividade', label: 'Atividade' }
+              ].map((tab) => {
+                const isActive = activePanelTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActivePanelTab(tab.id)}
+                    className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
+                      isActive ? 'bg-beatwap-gold text-black' : 'bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </Card>
+
+        {activePanelTab === 'resumo' && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card>
+                <div className="flex items-center gap-2 mb-2 text-gray-400 text-sm">
+                  <Bell size={16} />
+                  <span>Notificacoes</span>
+                </div>
+                <div className="text-3xl font-bold text-white">{unreadNotifications}</div>
+                <div className="text-xs text-gray-500 mt-1">Nao lidas no momento</div>
+              </Card>
+              <Card>
+                <div className="flex items-center gap-2 mb-2 text-gray-400 text-sm">
+                  <MessageCircle size={16} />
+                  <span>Chats ativos</span>
+                </div>
+                <div className="text-3xl font-bold text-white">{activeChatsCount}</div>
+                <div className="text-xs text-gray-500 mt-1">Conversas abertas no sistema</div>
+              </Card>
+              <Card>
+                <div className="flex items-center gap-2 mb-2 text-gray-400 text-sm">
+                  <LayoutGrid size={16} />
+                  <span>Atalhos</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <AnimatedButton onClick={() => navigate('/dashboard/chat')} className="w-full sm:w-auto justify-center">
+                    Conversas
+                  </AnimatedButton>
+                  <AnimatedButton onClick={() => navigate('/dashboard/profile')} variant="secondary" className="w-full sm:w-auto justify-center">
+                    Perfil
+                  </AnimatedButton>
+                </div>
+              </Card>
+            </div>
+
+            {!isCompositor && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
           <Card>
             <div className="text-sm text-gray-400"><span>Total de Plays</span></div>
@@ -358,10 +497,10 @@ export const DashboardArtistHome = () => {
             </div>
           </Card>
         </div>
-      )}
+            )}
       
-      <div className="grid grid-cols-1 gap-6">
-        <Card className="col-span-1">
+            <div className="grid grid-cols-1 gap-6">
+              <Card className="col-span-1">
            <div className="flex items-center justify-between mb-4">
              <div className="text-sm text-gray-400"><span>Música com mais visualizações</span></div>
              <div className="px-2 py-1 bg-green-500/10 rounded-lg text-green-500 text-xs font-bold">TOP 1</div>
@@ -393,9 +532,30 @@ export const DashboardArtistHome = () => {
                </div>
              );
            })()}
-        </Card>
-        {canViewCompositions && (
-          <Card className="col-span-1">
+              </Card>
+              <Card className="col-span-1">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-sm text-gray-400"><span>Ultimas notificacoes</span></div>
+                  <div className="px-2 py-1 bg-white/10 rounded-lg text-white text-xs font-bold">Ao vivo</div>
+                </div>
+                {recentNotifications.length === 0 ? (
+                  <div className="text-sm text-gray-500">Nenhuma notificacao recente.</div>
+                ) : (
+                  <div className="space-y-3">
+                    {recentNotifications.map((item) => (
+                      <div key={item.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="font-bold text-white text-sm">{item.title || 'Notificacao'}</div>
+                          <div className="text-[11px] text-gray-500">{formatActivityTime(item.created_at || item.date)}</div>
+                        </div>
+                        <div className="text-xs text-gray-400 mt-2">{item.message || 'Sem detalhes adicionais.'}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+              {canViewCompositions && (
+                <Card className="col-span-1">
             <div className="flex items-center justify-between mb-4">
               <div className="text-sm text-gray-400"><span>Últimas Composições</span></div>
               <div className="px-2 py-1 bg-beatwap-gold/10 rounded-lg text-beatwap-gold text-xs font-bold">Novas</div>
@@ -474,7 +634,83 @@ export const DashboardArtistHome = () => {
                 })}
               </div>
             )}
-          </Card>
+                </Card>
+              )}
+            </div>
+          </>
+        )}
+
+        {activePanelTab === 'atividade' && (
+          <div className="grid grid-cols-1 xl:grid-cols-[2fr,1fr] gap-6">
+            <Card>
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-sm text-gray-400"><span>Atividade recente</span></div>
+                <div className="px-2 py-1 bg-white/10 rounded-lg text-white text-xs font-bold">{activityItems.length} itens</div>
+              </div>
+              {activityItems.length === 0 ? (
+                <div className="text-sm text-gray-500">Nenhuma atividade recente para mostrar ainda.</div>
+              ) : (
+                <div className="space-y-3">
+                  {activityItems.map((item) => (
+                    <div key={item.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-white font-bold text-sm">{item.title}</div>
+                          <div className="text-xs text-beatwap-gold mt-1">{item.kind}</div>
+                        </div>
+                        <div className="flex items-center gap-1 text-[11px] text-gray-500 shrink-0">
+                          <Clock size={12} />
+                          {formatActivityTime(item.timestamp)}
+                        </div>
+                      </div>
+                      <div className="text-sm text-gray-400 mt-2">{item.description}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <Card>
+              <div className="text-sm text-gray-400 mb-4"><span>Atalhos uteis</span></div>
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => navigate('/dashboard/chat')}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10 transition-colors"
+                >
+                  <div className="flex items-center gap-2 text-white font-bold">
+                    <MessageCircle size={16} />
+                    Conversas
+                  </div>
+                  <div className="text-xs text-gray-400 mt-2">Abra o chat para responder mensagens e acompanhar atendimentos.</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/dashboard/profile')}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10 transition-colors"
+                >
+                  <div className="flex items-center gap-2 text-white font-bold">
+                    <User size={16} />
+                    Meu perfil
+                  </div>
+                  <div className="text-xs text-gray-400 mt-2">Atualize seu perfil e mantenha as informacoes publicas em dia.</div>
+                </button>
+                {!isCompositor && (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/dashboard/musics')}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 text-white font-bold">
+                      <Play size={16} />
+                      Minhas musicas
+                    </div>
+                    <div className="text-xs text-gray-400 mt-2">Gerencie uploads, resultados e desempenho dos lancamentos.</div>
+                  </button>
+                )}
+              </div>
+            </Card>
+          </div>
         )}
       </div>
       

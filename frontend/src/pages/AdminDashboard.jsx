@@ -1,12 +1,14 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause, Check, FolderDown, CheckCircle2, ChevronDown, ChevronRight, Plus, Music, X, Trash2 } from 'lucide-react';
+import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause, Check, FolderDown, CheckCircle2, ChevronDown, ChevronRight, Plus, Music, X, Trash2, Bell, Clock, LayoutGrid, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AdminLayout } from '../components/AdminLayout';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
+import { useChat } from '../context/ChatContext';
 import { useToast } from '../context/ToastContext';
 import { apiClient } from '../services/apiClient';
 import Cropper from 'react-easy-crop';
@@ -28,10 +30,13 @@ import { encryptData, decryptData, downloadDecryptedFile } from '../utils/securi
 export const AdminHome = () => {
   const [counts, setCounts] = useState({ artists: 0, musics: 0, pending: 0 });
   const { user } = useAuth();
+  const { notifications = [] } = useNotification();
+  const { chats = [], supportQueue = [] } = useChat();
   const { addToast } = useToast();
   const [dashboardMetrics, setDashboardMetrics] = useState(null);
   const [projects, setProjects] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
+  const [activePanelTab, setActivePanelTab] = useState('resumo');
   const [projectForm, setProjectForm] = useState({
     title: '',
     url: '',
@@ -99,137 +104,386 @@ export const AdminHome = () => {
       addToast('Falha ao remover projeto', 'error');
     }
   };
+  const unreadNotifications = useMemo(
+    () => (Array.isArray(notifications) ? notifications.filter((item) => !item?.read).length : 0),
+    [notifications]
+  );
+
+  const activeChatsCount = useMemo(
+    () => (Array.isArray(chats) ? chats.filter((chat) => String(chat?.status || '').toLowerCase() !== 'closed').length : 0),
+    [chats]
+  );
+
+  const recentNotifications = useMemo(
+    () => (
+      Array.isArray(notifications)
+        ? notifications
+            .slice()
+            .sort((a, b) => new Date(b?.created_at || b?.date || 0) - new Date(a?.created_at || a?.date || 0))
+            .slice(0, 4)
+        : []
+    ),
+    [notifications]
+  );
+
+  const activityItems = useMemo(() => {
+    const makeTs = (value) => {
+      const ts = new Date(value || 0).getTime();
+      return Number.isFinite(ts) ? ts : 0;
+    };
+
+    const notifItems = (Array.isArray(notifications) ? notifications : []).map((notif) => ({
+      id: `notif-${notif.id}`,
+      title: notif.title || 'Notificacao',
+      description: notif.message || 'Nova notificacao recebida.',
+      kind: 'Notificacao',
+      timestamp: notif.created_at || notif.date || null,
+      timestampMs: makeTs(notif.created_at || notif.date || null)
+    }));
+
+    const chatItems = (Array.isArray(chats) ? chats : []).map((chat) => ({
+      id: `chat-${chat.id}`,
+      title: chat.subject || chat.artistName || chat.composerName || 'Conversa atualizada',
+      description: chat.lastMessage || 'Nova movimentacao no chat.',
+      kind: 'Chat',
+      timestamp: chat.lastMessageTime || chat.updated_at || chat.created_at || null,
+      timestampMs: makeTs(chat.lastMessageTime || chat.updated_at || chat.created_at || null)
+    }));
+
+    const queueItems = (Array.isArray(supportQueue) ? supportQueue : []).map((item) => ({
+      id: `queue-${item.id}`,
+      title: item.subject || 'Solicitacao em fila',
+      description: item.message || item.status || 'Existe uma solicitacao aguardando atendimento.',
+      kind: 'Fila',
+      timestamp: item.created_at || item.updated_at || null,
+      timestampMs: makeTs(item.created_at || item.updated_at || null)
+    }));
+
+    const projectItems = (Array.isArray(projects) ? projects : []).map((project) => ({
+      id: `project-${project.id}`,
+      title: project.title || 'Projeto',
+      description: `${project.platform || 'Canal'} publicado na vitrine da produtora.`,
+      kind: 'Projeto',
+      timestamp: project.created_at || project.updated_at || null,
+      timestampMs: makeTs(project.created_at || project.updated_at || null)
+    }));
+
+    return [...notifItems, ...chatItems, ...queueItems, ...projectItems]
+      .filter((item) => item.timestampMs > 0)
+      .sort((a, b) => b.timestampMs - a.timestampMs)
+      .slice(0, 10);
+  }, [notifications, chats, supportQueue, projects]);
   return (
     <AdminLayout>
-      <h2 className="text-xl font-bold mb-4">Plataforma</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <Card><div className="text-sm text-gray-400">Artistas</div><div className="text-3xl font-bold">{counts.artists}</div></Card>
-        <Card><div className="text-sm text-gray-400">Músicas</div><div className="text-3xl font-bold">{counts.musics}</div></Card>
-        <Card><div className="text-sm text-gray-400">Pendentes</div><div className="text-3xl font-bold">{counts.pending}</div></Card>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <Card>
-          <div className="text-sm text-gray-400">Visitas Diárias (IP único / 24h)</div>
-          <div className="text-3xl font-bold">{dashboardMetrics?.totals?.home_page_views_24h ?? 0}</div>
-          <div className="text-xs text-gray-500 mt-1">Acumulado de janelas 24h: {dashboardMetrics?.totals?.home_page_views_total ?? 0}</div>
-        </Card>
-        <Card>
-          <div className="text-sm text-gray-400">Total de IPs únicos</div>
-          <div className="text-3xl font-bold">{dashboardMetrics?.totals?.home_unique_visitors_total ?? 0}</div>
-          <div className="text-xs text-gray-500 mt-1">IPs únicos em 24h: {dashboardMetrics?.totals?.home_unique_visitors_24h ?? 0}</div>
-        </Card>
-      </div>
-
-      <Card className="space-y-4 mb-6">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="font-bold">Músicas mais ouvidas</div>
-            <div className="text-sm text-gray-400">
-              Reproduções (analytics) + curtidas
-            </div>
+      <div className="space-y-6">
+        <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-[0.28em] text-beatwap-gold/80 font-bold">Painel Central</div>
+            <h2 className="text-2xl font-extrabold text-white mt-2">Plataforma organizada por foco</h2>
+            <p className="text-sm text-gray-400 mt-2 max-w-2xl">
+              Mantive o painel administrativo intacto e separei a leitura entre resumo operacional e atividade recente.
+            </p>
           </div>
-          <div className="text-right text-xs text-gray-400">
-            <div>Total plays: {dashboardMetrics?.totals?.plays_total ?? 0}</div>
-            <div>Total curtidas: {dashboardMetrics?.totals?.music_likes_total ?? 0}</div>
-          </div>
-        </div>
-
-        {Array.isArray(dashboardMetrics?.topMusics) && dashboardMetrics.topMusics.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {dashboardMetrics.topMusics.slice(0, 3).map((m, idx) => {
-              const plays = Number(m?.plays ?? m?.plays_total ?? m?.total_plays ?? 0);
-              const likes = Number(m?.likes ?? 0);
+          <div className="flex flex-wrap gap-3">
+            {[
+              { id: 'resumo', label: 'Resumo' },
+              { id: 'atividade', label: 'Atividade' }
+            ].map((tab) => {
+              const isActive = activePanelTab === tab.id;
               return (
-              <div key={m.id || idx} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
-                <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center text-xs text-gray-300">
-                  {m.cover_url ? (
-                    <img src={String(m.cover_url).trim().replace(/^[`'"]+|[`'"]+$/g, '')} alt={m.titulo || 'Capa'} className="w-full h-full object-cover" />
-                  ) : (
-                    <Music size={18} />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-white text-sm truncate">{m.titulo || 'Sem título'}</div>
-                  <div className="text-xs text-gray-400 truncate">{m.nome_artista || 'Artista'}</div>
-                  <div className="text-xs text-gray-400 mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                    <span className="inline-flex items-center gap-1"><Play size={14} /> {Number.isFinite(plays) && plays > 0 ? plays : 0}</span>
-                    <span className="inline-flex items-center gap-1"><CheckCircle2 size={14} /> {Number.isFinite(likes) && likes > 0 ? likes : 0}</span>
-                  </div>
-                </div>
-              </div>
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActivePanelTab(tab.id)}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
+                    isActive ? 'bg-beatwap-gold text-black' : 'bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  {tab.label}
+                </button>
               );
             })}
           </div>
-        ) : (
-          <div className="text-sm text-gray-400">Ainda não há dados de plays para ranquear.</div>
-        )}
-      </Card>
-
-      <Card className="space-y-4">
-        <div className="font-bold">Projetos da Produtora</div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <AnimatedInput placeholder="Título" value={projectForm.title} onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })} />
-          <AnimatedInput placeholder="Link do Projeto (YouTube/Spotify)" value={projectForm.url} onChange={(e) => setProjectForm({ ...projectForm, url: e.target.value })} />
-          <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={projectForm.platform} onChange={(e) => setProjectForm({ ...projectForm, platform: e.target.value })}>
-            <option value="YouTube">YouTube</option>
-            <option value="Spotify">Spotify</option>
-            <option value="Outro">Outro</option>
-          </select>
-          <div className="text-xs text-gray-400 flex items-center">A capa será carregada do link (YouTube). Sem thumbnail válida, usamos a logo da BeatWap.</div>
         </div>
-        <AnimatedButton onClick={createProject}>Adicionar Projeto</AnimatedButton>
-        <div className="pt-4">
-          <div className="text-sm text-gray-400 mb-2">Últimos projetos adicionados</div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {(loadingProjects ? [] : projects).map((p) => (
-              <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center text-xs text-gray-300 shrink-0">
-                    {(() => {
-                      const cover = String(p.cover_url || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
-                      const url = String(p.url || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
-                      const isYT = (p.platform || '').toLowerCase() === 'youtube';
-                      const m = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
-                      const vid = m ? m[1] : null;
-                      if (cover) {
-                        return <img src={cover} alt={p.title} className="w-full h-full object-cover" />;
-                      }
-                      if (isYT && vid) {
-                        return <img src={`https://img.youtube.com/vi/${vid}/mqdefault.jpg`} alt={p.title} className="w-full h-full object-cover" />;
-                      }
-                      return <img src={logo} alt="BeatWap" className="w-full h-full object-cover p-2" />;
-                    })()}
+
+        {activePanelTab === 'resumo' && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+              <Card className="p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm text-gray-400">Artistas</div>
+                    <div className="text-3xl font-bold text-white mt-1">{counts.artists}</div>
+                    <div className="text-xs text-gray-500 mt-2">Perfis ativos cadastrados</div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-bold text-white text-sm truncate">{p.title}</div>
-                    <div className="text-xs text-gray-400 truncate">{p.platform}</div>
+                  <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400">
+                    <User size={22} />
                   </div>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:shrink-0">
-                  <AnimatedButton
-                    fullWidth
-                    className="sm:w-auto px-4 py-2 sm:px-6 sm:py-3 text-xs sm:text-sm"
-                    onClick={() => window.open(String(p.url || '').trim().replace(/^[`'"]+|[`'"]+$/g, ''), '_blank')}
-                  >
-                    Abrir
-                  </AnimatedButton>
-                  <AnimatedButton
-                    fullWidth
-                    className="sm:w-auto px-4 py-2 sm:px-6 sm:py-3 text-xs sm:text-sm"
-                    onClick={() => deleteProject(p.id)}
-                  >
-                    Excluir
-                  </AnimatedButton>
+              </Card>
+              <Card className="p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm text-gray-400">Musicas</div>
+                    <div className="text-3xl font-bold text-white mt-1">{counts.musics}</div>
+                    <div className="text-xs text-gray-500 mt-2">Catalogo monitorado</div>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-400">
+                    <Music size={22} />
+                  </div>
+                </div>
+              </Card>
+              <Card className="p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm text-gray-400">Pendentes</div>
+                    <div className="text-3xl font-bold text-white mt-1">{counts.pending}</div>
+                    <div className="text-xs text-gray-500 mt-2">Itens aguardando acao</div>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-red-500/10 text-red-400">
+                    <LayoutGrid size={22} />
+                  </div>
+                </div>
+              </Card>
+              <Card className="p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm text-gray-400">Notificacoes</div>
+                    <div className="text-3xl font-bold text-white mt-1">{unreadNotifications}</div>
+                    <div className="text-xs text-gray-500 mt-2">Atualizacoes nao lidas</div>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-beatwap-gold/10 text-beatwap-gold">
+                    <Bell size={22} />
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <div className="text-sm text-gray-400">Visitas Diárias (IP único / 24h)</div>
+                <div className="text-3xl font-bold">{dashboardMetrics?.totals?.home_page_views_24h ?? 0}</div>
+                <div className="text-xs text-gray-500 mt-1">Acumulado de janelas 24h: {dashboardMetrics?.totals?.home_page_views_total ?? 0}</div>
+              </Card>
+              <Card>
+                <div className="text-sm text-gray-400">Total de IPs únicos</div>
+                <div className="text-3xl font-bold">{dashboardMetrics?.totals?.home_unique_visitors_total ?? 0}</div>
+                <div className="text-xs text-gray-500 mt-1">IPs únicos em 24h: {dashboardMetrics?.totals?.home_unique_visitors_24h ?? 0}</div>
+              </Card>
+            </div>
+
+            <Card className="space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-bold">Músicas mais ouvidas</div>
+                  <div className="text-sm text-gray-400">
+                    Reproduções (analytics) + curtidas
+                  </div>
+                </div>
+                <div className="text-right text-xs text-gray-400">
+                  <div>Total plays: {dashboardMetrics?.totals?.plays_total ?? 0}</div>
+                  <div>Total curtidas: {dashboardMetrics?.totals?.music_likes_total ?? 0}</div>
                 </div>
               </div>
-            ))}
-            {(!loadingProjects && projects.length === 0) && (
-              <div className="text-sm text-gray-400">Nenhum projeto ainda.</div>
-            )}
+
+              {Array.isArray(dashboardMetrics?.topMusics) && dashboardMetrics.topMusics.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {dashboardMetrics.topMusics.slice(0, 3).map((m, idx) => {
+                    const plays = Number(m?.plays ?? m?.plays_total ?? m?.total_plays ?? 0);
+                    const likes = Number(m?.likes ?? 0);
+                    return (
+                    <div key={m.id || idx} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                      <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center text-xs text-gray-300">
+                        {m.cover_url ? (
+                          <img src={String(m.cover_url).trim().replace(/^[`'"]+|[`'"]+$/g, '')} alt={m.titulo || 'Capa'} className="w-full h-full object-cover" />
+                        ) : (
+                          <Music size={18} />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-white text-sm truncate">{m.titulo || 'Sem título'}</div>
+                        <div className="text-xs text-gray-400 truncate">{m.nome_artista || 'Artista'}</div>
+                        <div className="text-xs text-gray-400 mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                          <span className="inline-flex items-center gap-1"><Play size={14} /> {Number.isFinite(plays) && plays > 0 ? plays : 0}</span>
+                          <span className="inline-flex items-center gap-1"><CheckCircle2 size={14} /> {Number.isFinite(likes) && likes > 0 ? likes : 0}</span>
+                        </div>
+                      </div>
+                    </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-400">Ainda não há dados de plays para ranquear.</div>
+              )}
+            </Card>
+
+            <Card className="space-y-4">
+              <div className="font-bold">Projetos da Produtora</div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <AnimatedInput placeholder="Título" value={projectForm.title} onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })} />
+                <AnimatedInput placeholder="Link do Projeto (YouTube/Spotify)" value={projectForm.url} onChange={(e) => setProjectForm({ ...projectForm, url: e.target.value })} />
+                <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={projectForm.platform} onChange={(e) => setProjectForm({ ...projectForm, platform: e.target.value })}>
+                  <option value="YouTube">YouTube</option>
+                  <option value="Spotify">Spotify</option>
+                  <option value="Outro">Outro</option>
+                </select>
+                <div className="text-xs text-gray-400 flex items-center">A capa será carregada do link (YouTube). Sem thumbnail válida, usamos a logo da BeatWap.</div>
+              </div>
+              <AnimatedButton onClick={createProject}>Adicionar Projeto</AnimatedButton>
+              <div className="pt-4">
+                <div className="text-sm text-gray-400 mb-2">Últimos projetos adicionados</div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {(loadingProjects ? [] : projects).map((p) => (
+                    <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center text-xs text-gray-300 shrink-0">
+                          {(() => {
+                            const cover = String(p.cover_url || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
+                            const url = String(p.url || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
+                            const isYT = (p.platform || '').toLowerCase() === 'youtube';
+                            const m = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
+                            const vid = m ? m[1] : null;
+                            if (cover) {
+                              return <img src={cover} alt={p.title} className="w-full h-full object-cover" />;
+                            }
+                            if (isYT && vid) {
+                              return <img src={`https://img.youtube.com/vi/${vid}/mqdefault.jpg`} alt={p.title} className="w-full h-full object-cover" />;
+                            }
+                            return <img src={logo} alt="BeatWap" className="w-full h-full object-cover p-2" />;
+                          })()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold text-white text-sm truncate">{p.title}</div>
+                          <div className="text-xs text-gray-400 truncate">{p.platform}</div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:shrink-0">
+                        <AnimatedButton
+                          fullWidth
+                          className="sm:w-auto px-4 py-2 sm:px-6 sm:py-3 text-xs sm:text-sm"
+                          onClick={() => window.open(String(p.url || '').trim().replace(/^[`'"]+|[`'"]+$/g, ''), '_blank')}
+                        >
+                          Abrir
+                        </AnimatedButton>
+                        <AnimatedButton
+                          fullWidth
+                          className="sm:w-auto px-4 py-2 sm:px-6 sm:py-3 text-xs sm:text-sm"
+                          onClick={() => deleteProject(p.id)}
+                        >
+                          Excluir
+                        </AnimatedButton>
+                      </div>
+                    </div>
+                  ))}
+                  {(!loadingProjects && projects.length === 0) && (
+                    <div className="text-sm text-gray-400">Nenhum projeto ainda.</div>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            <Card className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="font-bold">Ultimas notificacoes</div>
+                  <div className="text-sm text-gray-400">Atualizacoes recentes do painel administrativo</div>
+                </div>
+                <Bell className="text-beatwap-gold" size={18} />
+              </div>
+              <div className="space-y-3">
+                {recentNotifications.length > 0 ? recentNotifications.map((item) => (
+                  <div key={item.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-bold text-white">{item.title || 'Notificacao'}</div>
+                        <div className="text-sm text-gray-300 mt-1">{item.message || 'Atualizacao recebida.'}</div>
+                      </div>
+                      {!item.read && (
+                        <span className="shrink-0 rounded-full bg-beatwap-gold/15 px-2 py-1 text-[11px] font-bold text-beatwap-gold">
+                          Nova
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )) : (
+                  <div className="text-sm text-gray-400">Nenhuma notificacao recente.</div>
+                )}
+              </div>
+            </Card>
+          </>
+        )}
+
+        {activePanelTab === 'atividade' && (
+          <div className="grid grid-cols-1 xl:grid-cols-[1.45fr_0.8fr] gap-6">
+            <Card className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="font-bold">Linha do tempo operacional</div>
+                  <div className="text-sm text-gray-400">Notificacoes, chats, fila e projetos recentes</div>
+                </div>
+                <Clock className="text-beatwap-gold" size={18} />
+              </div>
+              <div className="space-y-3">
+                {activityItems.length > 0 ? activityItems.map((item) => (
+                  <div key={item.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[11px] uppercase tracking-[0.2em] text-beatwap-gold/80 font-bold">{item.kind}</span>
+                          <span className="text-xs text-gray-500">
+                            {item.timestamp ? new Date(item.timestamp).toLocaleString('pt-BR') : 'Sem horario'}
+                          </span>
+                        </div>
+                        <div className="font-bold text-white mt-2">{item.title}</div>
+                        <div className="text-sm text-gray-300 mt-1">{item.description}</div>
+                      </div>
+                    </div>
+                  </div>
+                )) : (
+                  <div className="text-sm text-gray-400">Ainda nao ha eventos recentes suficientes para montar a atividade.</div>
+                )}
+              </div>
+            </Card>
+
+            <div className="space-y-6">
+              <Card className="space-y-4">
+                <div className="font-bold">Indicadores rapidos</div>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm text-gray-400">Chats ativos</span>
+                    <span className="font-bold text-white">{activeChatsCount}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm text-gray-400">Fila de suporte</span>
+                    <span className="font-bold text-white">{Array.isArray(supportQueue) ? supportQueue.length : 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm text-gray-400">Projetos ativos</span>
+                    <span className="font-bold text-white">{Array.isArray(projects) ? projects.length : 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm text-gray-400">IPs unicos totais</span>
+                    <span className="font-bold text-white">{dashboardMetrics?.totals?.home_unique_visitors_total ?? 0}</span>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="space-y-4">
+                <div className="font-bold">Acoes rapidas</div>
+                <AnimatedButton onClick={() => window.location.assign('/admin/chat')} icon={MessageSquare}>
+                  Abrir chat administrativo
+                </AnimatedButton>
+                <AnimatedButton onClick={() => window.location.assign('/admin/artists')} icon={User}>
+                  Revisar artistas
+                </AnimatedButton>
+                <AnimatedButton onClick={() => window.location.assign('/admin/settings')} icon={LayoutGrid}>
+                  Ajustar configuracoes
+                </AnimatedButton>
+              </Card>
+            </div>
           </div>
-        </div>
-      </Card>
-      
+        )}
+      </div>
     </AdminLayout>
   );
 };

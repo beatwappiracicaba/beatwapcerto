@@ -47,6 +47,7 @@ const Home = () => {
   const [activeProjectVideo, setActiveProjectVideo] = useState(null);
   const [openDescriptionId, setOpenDescriptionId] = useState(null);
   const [highlightedHitEntryId, setHighlightedHitEntryId] = useState(null);
+  const [activeHomeTab, setActiveHomeTab] = useState('destaques');
   const upcomingRef = useRef(null);
   const releasedRef = useRef(null);
   const compositionsRef = useRef(null);
@@ -720,11 +721,67 @@ const Home = () => {
     window.open(wa, '_blank');
   };
 
+  const homeTabs = [
+    { id: 'destaques', label: 'Destaques', helper: 'O melhor da BeatWap agora', count: Number(hitEntries?.length || 0) + Number(latestReleases?.length || 0) },
+    { id: 'novidades', label: 'Novidades', helper: 'Lançamentos, composições e projetos recentes', count: Number(latestReleases?.length || 0) + Number(latestCompositions?.length || 0) + Number(latestProjects?.length || 0) },
+    { id: 'oportunidades', label: 'Oportunidades', helper: 'Audições abertas e próximos passos', count: Number(homeAuditions?.length || 0) + Number(latestProjects?.length || 0) },
+    { id: 'perfis', label: 'Perfis', helper: 'Compositores, artistas, produtores e marcas', count: Number(composers?.length || 0) + Number(artists?.length || 0) + Number(producers?.length || 0) + Number(sellers?.length || 0) + Number(sponsors?.length || 0) }
+  ];
+
+  const showHighlightsTab = activeHomeTab === 'destaques';
+  const showNewsTab = activeHomeTab === 'novidades';
+  const showOpportunitiesTab = activeHomeTab === 'oportunidades';
+  const showProfilesTab = activeHomeTab === 'perfis';
+
   return (
     <div className="bg-beatwap-dark min-h-screen text-white font-sans selection:bg-beatwap-gold selection:text-black">
       <Header />
       <main>
         <Hero />
+        <section className="py-8 px-4 sm:px-6 bg-black/25 border-b border-white/10">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-6">
+              <div>
+                <div className="text-xs uppercase tracking-[0.28em] text-beatwap-gold/80 font-bold">Explore a Home</div>
+                <h2 className="text-2xl md:text-3xl font-extrabold text-white mt-2">Navegue por abas sem sair do que ja funciona</h2>
+                <p className="text-sm text-gray-300 mt-2 max-w-2xl">
+                  Organizei a Home por foco para ficar mais facil encontrar novidades, oportunidades e perfis em destaque.
+                </p>
+              </div>
+              <div className="text-sm text-gray-400">
+                Aba ativa: <span className="text-white font-bold">{homeTabs.find((tab) => tab.id === activeHomeTab)?.label || 'Destaques'}</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+              {homeTabs.map((tab) => {
+                const isActive = activeHomeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveHomeTab(tab.id)}
+                    className={`text-left rounded-2xl border p-4 transition-all ${
+                      isActive
+                        ? 'bg-beatwap-gold text-black border-beatwap-gold shadow-[0_0_30px_rgba(245,197,66,0.18)]'
+                        : 'bg-white/5 text-white border-white/10 hover:border-beatwap-gold/50 hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="font-extrabold">{tab.label}</div>
+                      <div className={`text-xs font-bold px-2 py-1 rounded-full ${isActive ? 'bg-black/10 text-black' : 'bg-white/10 text-beatwap-gold'}`}>
+                        {tab.count}
+                      </div>
+                    </div>
+                    <div className={`text-xs mt-2 ${isActive ? 'text-black/80' : 'text-gray-300'}`}>
+                      {tab.helper}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+        {showHighlightsTab && (
         <section className="py-10 px-6 bg-black/20 border-b border-white/10">
           <div className="max-w-7xl mx-auto">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -748,7 +805,8 @@ const Home = () => {
             </div>
           </div>
         </section>
-        {Array.isArray(homeAuditions) && homeAuditions.length > 0 && (
+        )}
+        {showOpportunitiesTab && Array.isArray(homeAuditions) && homeAuditions.length > 0 && (
           <section className="py-10 px-6 bg-black/10 border-b border-white/10">
             <div className="max-w-7xl mx-auto space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
@@ -794,6 +852,7 @@ const Home = () => {
           </section>
         )}
         {null}
+        {showOpportunitiesTab && (
         <section className="relative py-16 px-4 sm:px-6 bg-gradient-to-r from-beatwap-gold/10 via-black to-beatwap-gold/5 border-y border-white/5 overflow-hidden">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_55%)]" />
           <div className="relative max-w-6xl mx-auto grid md:grid-cols-[3fr,2fr] gap-10 items-center">
@@ -890,9 +949,10 @@ const Home = () => {
             </motion.div>
           </div>
         </section>
+        )}
         
         {/* Latest Releases Section */}
-        {latestReleases.length > 0 && (() => {
+        {showNewsTab && latestReleases.length > 0 && (() => {
           const today = new Date(); today.setHours(0, 0, 0, 0);
           const parseReleaseDate = (raw) => {
             const s = String(raw || '').trim();
@@ -1339,7 +1399,7 @@ const Home = () => {
         })()}
 
         {/* Latest Compositions Section */}
-        {latestCompositions.length > 0 && (
+        {showNewsTab && latestCompositions.length > 0 && (
           <section className="py-20 px-6 bg-black/20">
             <div className="max-w-7xl mx-auto relative">
               <div className="text-center mb-12">
@@ -1517,7 +1577,7 @@ const Home = () => {
           </div>
         )}
         {/* Latest Producer Video Projects */}
-        {latestProjects.length > 0 && (
+        {showNewsTab && latestProjects.length > 0 && (
           <section className="py-16 px-4 sm:px-6 bg-black/25">
             <div className="max-w-7xl mx-auto">
               <div className="text-center mb-12">
@@ -1643,7 +1703,7 @@ const Home = () => {
         
 
         {/* Composers Section */}
-        {composers.length > 0 && (
+        {showProfilesTab && composers.length > 0 && (
           <section className="py-20 px-6 bg-black/20">
             <div className="max-w-7xl mx-auto">
               <div className="text-center mb-12">
@@ -1761,6 +1821,7 @@ const Home = () => {
         {/* Sellers Section moved to FeaturedUsers */}
 
         {/* Sponsors CTA */}
+        {showProfilesTab && (
         <section className="py-12 px-6 bg-black/20">
           <div className="max-w-7xl mx-auto flex items-center justify-center">
             <AnimatedButton onClick={() => window.open('https://wa.me/?text=Quero%20ser%20patrocinador%20BeatWap', '_blank')}>
@@ -1768,9 +1829,10 @@ const Home = () => {
             </AnimatedButton>
           </div>
         </section>
+        )}
 
         {/* Sponsors Section */}
-        {sponsors.length > 0 && (
+        {showProfilesTab && sponsors.length > 0 && (
           <section className="py-20 px-6 bg-black/25">
             <div className="max-w-7xl mx-auto">
               <div className="text-center mb-12">
@@ -1846,9 +1908,11 @@ const Home = () => {
           </section>
         )}
 
-        <FeaturedUsers artists={artists} producers={producers} sellers={sellers} />
+        {showProfilesTab && (
+          <FeaturedUsers artists={artists} producers={producers} sellers={sellers} />
+        )}
 
-        {(() => {
+        {showHighlightsTab && (() => {
           const fp = featuredPlans && typeof featuredPlans === 'object' ? featuredPlans : null;
           const plans = fp?.plans && typeof fp.plans === 'object' ? fp.plans : {
             basic: { level: 'basic', label: 'Destaque Básico', price: 10, duration_hours: 24 },
@@ -1923,7 +1987,7 @@ const Home = () => {
           );
         })()}
 
-        {hitWinner ? (
+        {showHighlightsTab && hitWinner ? (
           <section id="hit-ganhador-da-semana" className="py-16 px-6 bg-black/30 border-b border-white/5">
             <div className="max-w-7xl mx-auto">
               <div className="text-center mb-10">
@@ -1986,6 +2050,7 @@ const Home = () => {
           </section>
         ) : null}
 
+        {showHighlightsTab && (
         <section id="hit-da-semana" className="py-16 px-6 bg-gradient-to-b from-black/10 to-black/40 border-b border-white/5">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-10">
@@ -2168,6 +2233,7 @@ const Home = () => {
             </div>
           </div>
         </section>
+        )}
         <HowItWorks />
         <Benefits />
         <ShowProduction />
