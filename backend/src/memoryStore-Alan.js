@@ -1,7 +1,9 @@
 const fs = require('fs');
 const path = require('path');
+const { AppState } = require('./models/AppState');
 
 const storagePath = path.resolve(__dirname, '..', 'memory-store.json');
+const DB_STATE_KEY = 'memory_store';
 
 function ensureDefaults(m) {
   if (!m || typeof m !== 'object') return {};
@@ -100,12 +102,32 @@ function readFromDisk(filePath) {
   }
 }
 
-async function writeFileAtomic(filePath, data) {
-  const dir = path.dirname(filePath);
-  await fs.promises.mkdir(dir, { recursive: true });
-  const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
-  await fs.promises.writeFile(tmpPath, data, 'utf8');
-  await fs.promises.rename(tmpPath, filePath);
+function replaceMemoryContents(target, source) {
+  for (const key of Object.keys(target)) delete target[key];
+  Object.assign(target, source);
+}
+
+async function readFromDatabase() {
+  try {
+    const row = await AppState.findByPk(DB_STATE_KEY);
+    if (!row?.payload_text) return null;
+    const parsed = JSON.parse(String(row.payload_text));
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function saveToDatabase(data) {
+  try {
+    await AppState.upsert({
+      key: DB_STATE_KEY,
+      payload_text: JSON.stringify(data)
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 const memory = (() => {
@@ -122,6 +144,30 @@ const memory = (() => {
 let saveTimer = null;
 let saving = false;
 let saveQueued = false;
+let hydratePromise = null;
+let hydratedFromDatabase = false;
+
+async function initializeMemoryStore() {
+  if (hydratedFromDatabase) return memory;
+  if (hydratePromise) return hydratePromise;
+  hydratePromise = (async () => {
+    const fromDb = await readFromDatabase();
+    if (fromDb && typeof fromDb === 'object') {
+      replaceMemoryContents(memory, fromDb);
+    }
+    ensureDefaults(memory);
+    if (!fromDb) {
+      await saveToDatabase(memory);
+    }
+    hydratedFromDatabase = true;
+    return memory;
+  })();
+  try {
+    return await hydratePromise;
+  } finally {
+    hydratePromise = null;
+  }
+}
 
 async function doSave() {
   if (saving) {
@@ -131,8 +177,7 @@ async function doSave() {
   saving = true;
   saveQueued = false;
   try {
-    const json = JSON.stringify(memory);
-    await writeFileAtomic(storagePath, json);
+    await saveToDatabase(memory);
   } catch {
     void 0;
   } finally {
@@ -152,5 +197,6 @@ function scheduleSave() {
 module.exports = {
   memory,
   scheduleSave,
-  storagePath
+  storagePath,
+  initializeMemoryStore
 };

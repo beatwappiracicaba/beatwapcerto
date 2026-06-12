@@ -8,6 +8,7 @@
     "dev": "nodemon src/server.js",
     "db:migrate": "node scripts/migrate.js",
     "db:seed": "node scripts/seed.js",
+    "create:initial-producer": "node scripts/create-initial-producer.js",
     "clear-invites": "node scripts/clear-invites.js",
     "test-invite": "node scripts/test-invite.js",
     "smtp:verify": "node scripts/smtp-verify.js"

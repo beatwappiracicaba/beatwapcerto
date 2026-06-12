@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const bcrypt = require('bcryptjs');
 const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
@@ -10,8 +9,12 @@ const { Op } = require('sequelize');
 const { sequelize, Profile } = require('./models');
 const { setIO } = require('./realtime');
 const { setupSentry, useSentryErrorHandler } = require('./monitoring/sentry');
+const { validateRequiredSecrets } = require('./config/secrets');
+const { initializeMemoryStore } = require('./memoryStore');
+const { verifyDatabaseReady } = require('./databaseMigrations');
 
 dotenv.config();
+validateRequiredSecrets();
 
 const app = express();
 const server = http.createServer(app);
@@ -203,30 +206,15 @@ useSentryErrorHandler(app);
 const port = Number(process.env.PORT || 3001);
 server.listen(port, async () => {
   try {
-    await sequelize.sync({ alter: true });
-    try {
-      const [cols] = await sequelize.query("PRAGMA table_info('profiles')");
-      const names = Array.isArray(cols) ? cols.map(c => String(c.name)) : [];
-      if (!names.includes('reset_code')) {
-        await sequelize.query("ALTER TABLE profiles ADD COLUMN reset_code TEXT");
-      }
-      if (!names.includes('reset_expires')) {
-        await sequelize.query("ALTER TABLE profiles ADD COLUMN reset_expires DATETIME");
-      }
-    } catch {}
-    // Seed default users if missing
-    async function seedUser(email, password, cargo, nome) {
-      const existing = await Profile.findOne({ where: { email } });
-      if (existing) return existing;
-      const hash = await bcrypt.hash(password, 10);
-      return await Profile.create({ email, password_hash: hash, cargo, nome });
-    }
+    await verifyDatabaseReady();
+    await initializeMemoryStore();
     const count = await Profile.count();
     if (count === 0) {
-      await seedUser('alangodoygtr@gmail.com', '@Aggtr4907', 'Produtor', 'Alan Godoy');
+      console.warn('Nenhum usuario encontrado. Crie o primeiro produtor manualmente com o script "npm run create:initial-producer".');
     }
     console.log(`API listening on ${port}`);
   } catch (e) {
     console.error('DB init failed', e);
+    process.exit(1);
   }
 });

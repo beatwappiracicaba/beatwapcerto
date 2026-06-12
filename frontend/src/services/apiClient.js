@@ -108,8 +108,13 @@ async function request(path, options = {}) {
 
   const baseUrls = [];
   if (isLocalHost) {
-    baseUrls.push('');
+    if (!baseUrls.includes('')) baseUrls.push('');
+    if (!baseUrls.includes('http://localhost:3011')) baseUrls.push('http://localhost:3011');
+    if (!baseUrls.includes('http://localhost:3000')) baseUrls.push('http://localhost:3000');
+    if (!baseUrls.includes('http://localhost:3001')) baseUrls.push('http://localhost:3001');
+    if (normalizedBaseUrl && !baseUrls.includes(normalizedBaseUrl)) baseUrls.push(normalizedBaseUrl);
   } else {
+    if (normalizedBaseUrl && !baseUrls.includes(normalizedBaseUrl)) baseUrls.push(normalizedBaseUrl);
     if (!baseUrls.includes(PROD_FALLBACK_BASE_URL)) baseUrls.push(PROD_FALLBACK_BASE_URL);
     const allowSameOriginApi = hostname === 'api.beatwap.com.br';
     if (allowSameOriginApi && !baseUrls.includes('')) baseUrls.push('');

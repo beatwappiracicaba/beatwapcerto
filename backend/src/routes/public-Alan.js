@@ -8,15 +8,10 @@ const crypto = require('crypto');
 const https = require('https');
 const { URL } = require('url');
 const { transporter } = require('../services/mailer');
+const { getAnalyticsSalt, getJwtSecret } = require('../config/secrets');
+const { getClientHash, getClientIp } = require('../utils/clientIdentity');
 
 const router = express.Router();
-
-function getClientIp(req) {
-  const xf = req?.headers?.['x-forwarded-for'];
-  const first = typeof xf === 'string' ? xf.split(',')[0] : (Array.isArray(xf) ? xf[0] : null);
-  const raw = first || req?.ip || req?.connection?.remoteAddress || req?.socket?.remoteAddress || '';
-  return String(raw || '').trim().replace(/^::ffff:/, '') || 'unknown';
-}
 
 function countVotesByIp(votesByIp) {
   const src = votesByIp && typeof votesByIp === 'object' ? votesByIp : {};
@@ -1004,7 +999,7 @@ router.get('/composer/compositions', async (req, res) => {
       const h = String(req.headers.authorization || '');
       const token = h.startsWith('Bearer ') ? h.slice(7) : null;
       if (token) {
-        const payload = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
+        const payload = jwt.verify(token, getJwtSecret());
         composerId = payload?.sub || null;
       }
     } catch {
@@ -1203,21 +1198,15 @@ router.post('/analytics', async (req, res) => {
           return p;
         })();
 
-    const getClientIp = () => {
-      const xff = String(req.headers['x-forwarded-for'] || '').trim();
-      if (xff) return xff.split(',')[0].trim();
-      return String(req.ip || '').trim();
-    };
-
-    const salt = String(process.env.ANALYTICS_SALT || process.env.JWT_SECRET || 'devsecret');
+    const salt = getAnalyticsSalt();
     const ua = String(req.headers['user-agent'] || '');
     const derivedIpHash = crypto
       .createHash('sha256')
-      .update(`${getClientIp()}|${ua}|${salt}`)
+      .update(`${getClientIp(req)}|${ua}|${salt}`)
       .digest('hex')
       .slice(0, 32);
 
-    const ip_hash = String(body?.ip_hash || payload?.ip_hash || derivedIpHash || 'unknown');
+    const ip_hash = derivedIpHash || getClientHash(req);
     const artist_id = payload?.artist_id || payload?.profile_id || payload?.artista_id || null;
     const music_id = payload?.music_id || payload?.id || payload?.track_id || null;
     const duration_seconds = Number(payload?.duration_seconds || 0) || 0;
@@ -1316,7 +1305,7 @@ router.get('/my/events', async (req, res) => {
       const h = String(req.headers.authorization || '');
       const token = h.startsWith('Bearer ') ? h.slice(7) : null;
       if (token) {
-        const payload = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
+        const payload = jwt.verify(token, getJwtSecret());
         userId = payload?.sub || null;
       }
     } catch { userId = null; }
@@ -1617,7 +1606,7 @@ router.get('/songs/mine', async (req, res) => {
       const h = String(req.headers.authorization || '');
       const token = h.startsWith('Bearer ') ? h.slice(7) : null;
       if (token) {
-        const payload = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
+        const payload = jwt.verify(token, getJwtSecret());
         userId = payload?.sub || null;
       }
     } catch { userId = null; }
@@ -1631,7 +1620,7 @@ router.get('/songs/mine', async (req, res) => {
 
 router.post('/compositions/:id/like', async (req, res) => {
   const id = req.params.id;
-  const ip = String(req.body?.ip_hash || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').trim();
+  const ip = getClientHash(req);
   const idx = memory.compositions.findIndex(c => c.id === id);
   if (idx < 0) return res.status(404).json({ error: 'Composição não encontrada' });
   const arr = Array.isArray(memory.likes[id]) ? memory.likes[id] : [];
@@ -1644,7 +1633,7 @@ router.post('/compositions/:id/like', async (req, res) => {
 
 router.get('/compositions/:id/likes', async (req, res) => {
   const id = req.params.id;
-  const ip = String(req.query?.ip_hash || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').trim();
+  const ip = getClientHash(req);
   const arr = Array.isArray(memory.likes[id]) ? memory.likes[id] : [];
   const liked = arr.includes(ip);
   res.json({ likes: arr.length, liked });
@@ -1667,7 +1656,7 @@ router.get('/artist/events', async (req, res) => {
       const h = String(req.headers.authorization || '');
       const token = h.startsWith('Bearer ') ? h.slice(7) : null;
       if (token) {
-        const payload = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
+        const payload = jwt.verify(token, getJwtSecret());
         userId = payload?.sub || null;
       }
     } catch (err) { console.error(err); userId = null; }
@@ -1706,7 +1695,7 @@ router.get('/artist/todos', async (req, res) => {
       const h = String(req.headers.authorization || '');
       const token = h.startsWith('Bearer ') ? h.slice(7) : null;
       if (token) {
-        const payload = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
+        const payload = jwt.verify(token, getJwtSecret());
         userId = payload?.sub || null;
       }
     } catch { userId = null; }
@@ -1827,7 +1816,7 @@ router.delete('/posts/:id', async (req, res) => {
 // Like/unlike a gallery post
 router.post('/posts/:id/like', async (req, res) => {
   const id = req.params.id;
-  const ip = String(req.body?.ip_hash || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').trim();
+  const ip = getClientHash(req);
   const existsIdx = memory.posts.findIndex(p => p.id === id);
   if (existsIdx < 0) return res.status(404).json({ error: 'Post não encontrado' });
   const arr = Array.isArray(memory.likes[id]) ? memory.likes[id] : [];
@@ -1841,7 +1830,7 @@ router.post('/posts/:id/like', async (req, res) => {
 // Retrieve likes info for a gallery post
 router.get('/posts/:id/likes', async (req, res) => {
   const id = req.params.id;
-  const ip = String(req.query?.ip_hash || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').trim();
+  const ip = getClientHash(req);
   const arr = Array.isArray(memory.likes[id]) ? memory.likes[id] : [];
   const liked = arr.includes(ip);
   res.json({ likes: arr.length, liked });
@@ -2015,7 +2004,7 @@ router.get('/artist/compositions', async (req, res) => {
       const h = String(req.headers.authorization || '');
       const token = h.startsWith('Bearer ') ? h.slice(7) : null;
       if (token) {
-        const payload = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
+        const payload = jwt.verify(token, getJwtSecret());
         userId = payload?.sub || null;
       }
     } catch { userId = null; }

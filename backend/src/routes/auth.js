@@ -8,6 +8,7 @@ const { sendInviteEmail, sendCodeEmail, sendPasswordResetEmail } = require('../s
 const { logAudit } = require('../services/auditLogger');
 const { v4: uuidv4 } = require('uuid');
 const { memory, scheduleSave } = require('../memoryStore');
+const { getEmailCodeSecret, getJwtSecret } = require('../config/secrets');
 
 const router = express.Router();
 
@@ -50,10 +51,6 @@ function computeCpfCnpj(cpf, cnpj) {
   const b = String(cnpj || '').trim();
   if (a && b) return `${a} / ${b}`;
   return a || b || null;
-}
-
-function getEmailCodeSecret() {
-  return String(process.env.EMAIL_CODE_SECRET || process.env.JWT_SECRET || 'devsecret');
 }
 
 function hashEmailCode(email, code) {
@@ -273,7 +270,7 @@ router.post('/register', async (req, res) => {
       email_verified: true,
       access_control
     });
-    const jwtToken = jwt.sign({ sub: user.id, email: user.email, cargo: user.cargo }, process.env.JWT_SECRET || 'devsecret', { expiresIn: '7d' });
+    const jwtToken = jwt.sign({ sub: user.id, email: user.email, cargo: user.cargo }, getJwtSecret(), { expiresIn: '7d' });
     const map = { Artista: '/dashboard-artista', Compositor: '/dashboard-compositor', Vendedor: '/dashboard-vendedor', Produtor: '/dashboard-produtor' };
     const redirect = map[user.cargo] || '/';
     return res.json({ ok: true, token: jwtToken, user: { id: user.id, email: user.email, cargo: user.cargo, nome: user.nome }, redirect });
@@ -327,7 +324,7 @@ router.post('/login', async (req, res) => {
       });
       return res.status(401).json({ ok: false, error: 'Credenciais inválidas' });
     }
-    const token = jwt.sign({ sub: user.id, email: user.email, cargo: user.cargo }, process.env.JWT_SECRET || 'devsecret', { expiresIn: '7d' });
+    const token = jwt.sign({ sub: user.id, email: user.email, cargo: user.cargo }, getJwtSecret(), { expiresIn: '7d' });
     const map = { Artista: '/dashboard-artista', Compositor: '/dashboard-compositor', Vendedor: '/dashboard-vendedor', Produtor: '/dashboard-produtor' };
     const redirect = map[user.cargo] || '/';
     await logAudit({
@@ -550,7 +547,7 @@ router.post('/register-with-invite', async (req, res) => {
     });
     invite.used = true;
     await invite.save();
-    const jwtToken = jwt.sign({ sub: user.id, email: user.email, cargo: user.cargo }, process.env.JWT_SECRET || 'devsecret', { expiresIn: '7d' });
+    const jwtToken = jwt.sign({ sub: user.id, email: user.email, cargo: user.cargo }, getJwtSecret(), { expiresIn: '7d' });
     const map = { Artista: '/dashboard-artista', Compositor: '/dashboard-compositor', Vendedor: '/dashboard-vendedor', Produtor: '/dashboard-produtor' };
     const redirect = map[user.cargo] || '/';
     return res.json({ ok: true, token: jwtToken, user: { id: user.id, email: user.email, cargo: user.cargo, nome: user.nome }, redirect });

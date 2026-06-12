@@ -3,6 +3,7 @@ const { Profile } = require('../models');
 const { auth } = require('../middleware/auth');
 const { memory, scheduleSave } = require('../memoryStore');
 const { createNotification } = require('../services/notifications');
+const { getClientHash } = require('../utils/clientIdentity');
 
 const router = express.Router();
 
@@ -192,16 +193,122 @@ router.get('/admin/musics', async (req, res) => {
   res.json(list);
 });
 
+async function buildArtistMetricsRows(targetArtistIds = []) {
+  await ensureArtistIds();
+
+  const wantedIds = Array.isArray(targetArtistIds)
+    ? targetArtistIds.map((id) => String(id || '').trim()).filter(Boolean)
+    : [];
+  const wantedSet = wantedIds.length ? new Set(wantedIds) : null;
+
+  const musics = Array.isArray(memory.musics) ? memory.musics : [];
+  const analytics = Array.isArray(memory.analytics) ? memory.analytics : [];
+  const externalMetrics = memory.externalMetrics && typeof memory.externalMetrics === 'object'
+    ? Object.values(memory.externalMetrics)
+    : [];
+
+  const musicIdsByArtist = new Map();
+  const artistByMusicId = new Map();
+  for (const music of musics) {
+    const artistId = String(music?.artista_id || '').trim();
+    const musicId = String(music?.id || '').trim();
+    if (!artistId || !musicId) continue;
+    if (wantedSet && !wantedSet.has(artistId)) continue;
+    if (!musicIdsByArtist.has(artistId)) musicIdsByArtist.set(artistId, []);
+    musicIdsByArtist.get(artistId).push(musicId);
+    artistByMusicId.set(musicId, artistId);
+  }
+
+  const totalPlaysByArtist = new Map();
+  const monthlyListenersByArtist = new Map();
+  const revenueByArtist = new Map();
+  const nowMs = Date.now();
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+
+  for (const event of analytics) {
+    if (String(event?.type || '').trim() !== 'music_play') continue;
+    const payload = event?.payload && typeof event.payload === 'object' ? event.payload : {};
+    const musicId = String(
+      payload?.music_id ||
+      payload?.musicId ||
+      payload?.id ||
+      event?.music_id ||
+      event?.musicId ||
+      ''
+    ).trim();
+    let artistId = String(event?.artist_id || payload?.artist_id || payload?.artistId || '').trim();
+    if (!artistId && musicId) artistId = artistByMusicId.get(musicId) || '';
+    if (!artistId) continue;
+    if (wantedSet && !wantedSet.has(artistId)) continue;
+
+    totalPlaysByArtist.set(artistId, (totalPlaysByArtist.get(artistId) || 0) + 1);
+
+    const createdAtMs = new Date(String(event?.created_at || '')).getTime();
+    const ipHash = String(event?.ip_hash || '').trim();
+    if (ipHash && Number.isFinite(createdAtMs) && (nowMs - createdAtMs) <= thirtyDaysMs) {
+      if (!monthlyListenersByArtist.has(artistId)) monthlyListenersByArtist.set(artistId, new Set());
+      monthlyListenersByArtist.get(artistId).add(ipHash);
+    }
+  }
+
+  const externalListenersByArtist = new Map();
+  for (const row of externalMetrics) {
+    const musicId = String(row?.music_id || '').trim();
+    const artistId = artistByMusicId.get(musicId) || '';
+    if (!artistId) continue;
+    if (wantedSet && !wantedSet.has(artistId)) continue;
+
+    const plays = Number(row?.plays || 0);
+    const listeners = Number(row?.listeners || 0);
+    const revenue = Number(row?.revenue || 0);
+
+    if (Number.isFinite(plays) && plays > 0) {
+      totalPlaysByArtist.set(artistId, (totalPlaysByArtist.get(artistId) || 0) + plays);
+    }
+    if (Number.isFinite(listeners) && listeners > 0) {
+      externalListenersByArtist.set(artistId, (externalListenersByArtist.get(artistId) || 0) + listeners);
+    }
+    if (Number.isFinite(revenue) && revenue > 0) {
+      revenueByArtist.set(artistId, (revenueByArtist.get(artistId) || 0) + revenue);
+    }
+  }
+
+  const artistIds = wantedIds.length
+    ? wantedIds
+    : Array.from(new Set([
+        ...Array.from(musicIdsByArtist.keys()),
+        ...Array.from(totalPlaysByArtist.keys()),
+        ...Array.from(revenueByArtist.keys())
+      ]));
+
+  return artistIds.map((artistId) => {
+    const monthlyUnique = monthlyListenersByArtist.has(artistId)
+      ? monthlyListenersByArtist.get(artistId).size
+      : 0;
+    return {
+      artist_id: artistId,
+      total_plays: Number(totalPlaysByArtist.get(artistId) || 0),
+      ouvintes_mensais: Number(monthlyUnique || externalListenersByArtist.get(artistId) || 0),
+      receita_estimada: Number((revenueByArtist.get(artistId) || 0).toFixed(2))
+    };
+  });
+}
+
 // Artist metrics
 router.get('/admin/artist/:id/metrics', async (req, res) => {
-  const id = req.params.id;
-  // Simple mock metrics
-  res.json({
-    artist_id: id,
-    total_plays: 1234,
-    ouvintes_mensais: 567,
-    receita_estimada: 890.12
-  });
+  try {
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ error: 'ID do artista obrigatório' });
+    const rows = await buildArtistMetricsRows([id]);
+    return res.json(rows[0] || {
+      artist_id: id,
+      total_plays: 0,
+      ouvintes_mensais: 0,
+      receita_estimada: 0
+    });
+  } catch {
+    return res.status(500).json({ error: 'Erro interno' });
+  }
 });
 
 // Batch metrics for multiple artists: /admin/artists/metrics?ids=id1,id2
@@ -210,12 +317,7 @@ router.get('/admin/artists/metrics', async (req, res) => {
     const idsParam = String(req.query.ids || '').trim();
     if (!idsParam) return res.status(400).json({ error: 'Parâmetro ids obrigatório' });
     const ids = idsParam.split(',').map(s => s.trim()).filter(Boolean);
-    const rows = ids.map((id, idx) => ({
-      artist_id: id,
-      total_plays: 1000 + idx * 37,
-      ouvintes_mensais: 500 + idx * 11,
-      receita_estimada: 750.25 + idx * 5.1
-    }));
+    const rows = await buildArtistMetricsRows(ids);
     res.json(rows);
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -468,7 +570,7 @@ router.delete('/admin/musics/:id', auth, async (req, res) => {
 router.post('/musics/:id/like', async (req, res) => {
   try {
     const id = req.params.id;
-    const ipHash = String(req.body?.ip_hash || '').trim() || 'unknown';
+    const ipHash = getClientHash(req);
     if (!memory.likes) memory.likes = {};
     const arr = Array.isArray(memory.likes[id]) ? memory.likes[id] : [];
     const idx = arr.indexOf(ipHash);

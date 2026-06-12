@@ -5,6 +5,7 @@ const { AuditLog } = require('./AuditLog');
 const { PaymentOrder } = require('./PaymentOrder');
 const { Audition } = require('./Audition');
 const { AuditionSubmission } = require('./AuditionSubmission');
+const { AppState } = require('./AppState');
 
 module.exports = {
   sequelize,
@@ -13,5 +14,6 @@ module.exports = {
   AuditLog,
   PaymentOrder,
   Audition,
-  AuditionSubmission
+  AuditionSubmission,
+  AppState
 };

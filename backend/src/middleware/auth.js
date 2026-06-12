@@ -1,11 +1,12 @@
 const jwt = require('jsonwebtoken');
+const { getJwtSecret } = require('../config/secrets');
 
 function auth(req, res, next) {
   try {
     const h = String(req.headers.authorization || '');
     const token = h.startsWith('Bearer ') ? h.slice(7) : null;
     if (!token) return res.status(401).json({ ok: false, error: 'Sem token' });
-    const payload = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
+    const payload = jwt.verify(token, getJwtSecret());
     req.user = { id: payload.sub, email: payload.email, cargo: payload.cargo };
     next();
   } catch {
