@@ -18,6 +18,10 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Instagram, Globe, Youtube, Video } from 'lucide-react';
 import { decryptData } from '../utils/security';
 import { useAuth } from '../context/AuthContext';
+import studioPhoto1 from '../assets/images/estudio 1.jpeg';
+import studioPhoto2 from '../assets/images/estudio 2.jpeg';
+import studioPhoto3 from '../assets/images/estudio 3.jpeg';
+import studioPhoto4 from '../assets/images/estudio 4.jpeg';
  
 
 const Home = () => {
@@ -693,6 +697,12 @@ const Home = () => {
     { id: 'oportunidades', label: 'Oportunidades', helper: 'Audições abertas e próximos passos', count: Number(homeAuditions?.length || 0) + Number(latestProjects?.length || 0) },
     { id: 'perfis', label: 'Perfis', helper: 'Compositores, artistas, produtores e marcas', count: Number(composers?.length || 0) + Number(artists?.length || 0) + Number(producers?.length || 0) + Number(sellers?.length || 0) + Number(sponsors?.length || 0) }
   ];
+  const studioGallery = [
+    { id: 'studio-1', image: studioPhoto1, title: 'Sessao principal', helper: 'Ambiente pronto para captar e criar com qualidade.' },
+    { id: 'studio-2', image: studioPhoto2, title: 'Detalhes do espaco', helper: 'Estrutura pensada para processo criativo e producao.' },
+    { id: 'studio-3', image: studioPhoto3, title: 'Clima de producao', helper: 'Um visual que reforca o nivel profissional da BeatWap.' },
+    { id: 'studio-4', image: studioPhoto4, title: 'Experiencia completa', helper: 'Lugar para tirar ideia do papel e transformar em lancamento.' }
+  ];
 
   const showHighlightsTab = activeHomeTab === 'destaques';
   const showNewsTab = activeHomeTab === 'novidades';
@@ -818,6 +828,77 @@ const Home = () => {
           </section>
         )}
         {null}
+        {showHighlightsTab && (
+          <section className="py-12 px-4 sm:px-6 bg-gradient-to-b from-[#120d03] via-black to-black border-b border-white/10 overflow-hidden">
+            <div className="max-w-7xl mx-auto">
+              <div className="rounded-[32px] border border-white/10 bg-white/[0.04] p-4 md:p-6 shadow-[0_0_60px_rgba(0,0,0,0.35)]">
+                <div className="grid xl:grid-cols-[1.15fr_0.85fr] gap-4">
+                  <div className="relative min-h-[420px] rounded-[28px] overflow-hidden">
+                    <img
+                      src={studioGallery[0].image}
+                      alt={studioGallery[0].title}
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-transparent" />
+                    <div className="absolute inset-x-0 bottom-0 p-6 md:p-8">
+                      <div className="inline-flex items-center rounded-full border border-beatwap-gold/40 bg-black/40 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em] text-beatwap-gold">
+                        Nosso Estudio
+                      </div>
+                      <h2 className="mt-4 text-3xl md:text-4xl font-extrabold text-white max-w-2xl">
+                        O som da BeatWap tambem nasce dentro de um espaco com identidade forte.
+                      </h2>
+                      <p className="mt-3 max-w-2xl text-sm md:text-base text-gray-200">
+                        Trouxe o estudio para a Home para mostrar mais presenca, mais estrutura e uma atmosfera
+                        profissional que combina com artistas, compositores e projetos em destaque.
+                      </p>
+                      <div className="mt-5 flex flex-wrap gap-3">
+                        <AnimatedButton onClick={() => navigate(user ? '/dashboard/painel' : '/login')}>
+                          {user ? 'Entrar na plataforma' : 'Conhecer a BeatWap'}
+                        </AnimatedButton>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const target = document.getElementById('contato') || document.getElementById('contact');
+                            if (target) {
+                              target.scrollIntoView({ behavior: 'smooth' });
+                            } else {
+                              window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                            }
+                          }}
+                          className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/30 px-4 py-2 text-sm font-semibold text-white transition-colors hover:border-beatwap-gold hover:text-beatwap-gold"
+                        >
+                          Agendar contato
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    {studioGallery.slice(1).map((item, index) => (
+                      <div
+                        key={item.id}
+                        className={`group relative overflow-hidden rounded-[24px] border border-white/10 bg-black/30 ${
+                          index === 0 ? 'col-span-2 min-h-[200px]' : 'min-h-[200px]'
+                        }`}
+                      >
+                        <img
+                          src={item.image}
+                          alt={item.title}
+                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+                        <div className="absolute inset-x-0 bottom-0 p-4">
+                          <div className="text-lg font-extrabold text-white">{item.title}</div>
+                          <div className="mt-1 text-sm text-gray-200">{item.helper}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
         {showOpportunitiesTab && (
         <section className="relative py-16 px-4 sm:px-6 bg-gradient-to-r from-beatwap-gold/10 via-black to-beatwap-gold/5 border-y border-white/5 overflow-hidden">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_55%)]" />
