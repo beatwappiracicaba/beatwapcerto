@@ -414,6 +414,8 @@ const Home = () => {
         cover_url: m.cover_url,
         audio_url: m.audio_url,
         preview_url: m.preview_url || m.audio_url,
+        chorus_start_seconds: m.chorus_start_seconds,
+        chorus_end_seconds: m.chorus_end_seconds,
         presave_link: m.presave_link || null,
         release_date: m.release_date || null,
         album_id: m.album_id || null,
@@ -632,7 +634,7 @@ const Home = () => {
         const diff = Number(endOpt) - start;
         if (diff > 0) segLen = diff;
       }
-      durationLimit = Math.min(30, Math.max(20, segLen));
+      durationLimit = segLen;
     }
     audio.addEventListener('loadedmetadata', () => {
       try { audio.currentTime = start; } catch (e) { void e; }
@@ -652,6 +654,14 @@ const Home = () => {
       }, durationLimit * 1000);
       setPreviewTimer(t);
     }
+  };
+
+  const getReleasePlaybackOptions = (item, full = false) => {
+    if (full) return { full: true };
+    return {
+      startSeconds: Number(item?.chorus_start_seconds ?? 0),
+      endSeconds: Number(item?.chorus_end_seconds ?? NaN)
+    };
   };
 
   const fetchComposers = async () => {
@@ -972,7 +982,7 @@ const Home = () => {
                                     navigate(`/album/${item.id}`);
                                   } else {
                                     const url = item.audio_url || item.preview_url;
-                                    togglePlay(item.id, url, { full: true });
+                                    togglePlay(item.id, url, getReleasePlaybackOptions(item));
                                   }
                                 }}
                               >
@@ -1011,7 +1021,7 @@ const Home = () => {
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         const url = item.audio_url || item.preview_url;
-                                        togglePlay(item.id, url, { full: true });
+                                        togglePlay(item.id, url, getReleasePlaybackOptions(item));
                                       }}
                                     >
                                       {playingTrack === item.id && !isPaused

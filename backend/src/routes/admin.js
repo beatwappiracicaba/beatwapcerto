@@ -291,6 +291,11 @@ async function requireUploadCredits(req, res, needed) {
   }
 }
 
+const normalizePreviewSeconds = (raw) => {
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+};
+
 router.post('/musics', auth, async (req, res) => {
   try {
     const credits = await requireUploadCredits(req, res, 1);
@@ -311,6 +316,8 @@ router.post('/musics', auth, async (req, res) => {
       : !!isBeatwapProducedRaw;
     const producerId = isBeatwapProduced && producerIdIn ? producerIdIn : null;
     const producedBy = isBeatwapProduced ? (req.body?.produced_by ?? producerId ?? null) : null;
+    const chorus_start_seconds = normalizePreviewSeconds(req.body?.chorus_start_seconds);
+    const chorus_end_seconds = normalizePreviewSeconds(req.body?.chorus_end_seconds);
 
     const id = `music_${Date.now()}`;
     const item = {
@@ -321,6 +328,9 @@ router.post('/musics', auth, async (req, res) => {
       estilo: req.body?.estilo || null,
       cover_url: req.body?.cover_url || null,
       audio_url: req.body?.audio_url || null,
+      preview_url: req.body?.preview_url || req.body?.audio_url || null,
+      chorus_start_seconds,
+      chorus_end_seconds,
       authorization_url: req.body?.authorization_url || null,
       plataformas: req.body?.plataformas || ['Todas'],
       status: req.body?.status || 'pendente',
@@ -359,6 +369,9 @@ router.post('/musics/batch', auth, async (req, res) => {
     const inserted = rows.map((r) => ({
       id: `music_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
       ...r,
+      preview_url: r?.preview_url || r?.audio_url || null,
+      chorus_start_seconds: normalizePreviewSeconds(r?.chorus_start_seconds),
+      chorus_end_seconds: normalizePreviewSeconds(r?.chorus_end_seconds),
       created_at: new Date().toISOString(),
     }));
     memory.musics.unshift(...inserted);
@@ -378,10 +391,15 @@ router.put('/admin/musics/:id', auth, async (req, res) => {
     const patch = {};
     const allowed = [
       'status','upc','presave_link','release_date','is_beatwap_produced','produced_by','producer_id','show_on_home','isrc','composer_partner_id',
-      'titulo','nome_artista','estilo','cover_url','audio_url','authorization_url','external_composers'
+      'titulo','nome_artista','estilo','cover_url','audio_url','preview_url','chorus_start_seconds','chorus_end_seconds','authorization_url','external_composers'
     ];
     for (const k of allowed) {
-      if (Object.prototype.hasOwnProperty.call(req.body, k)) patch[k] = req.body[k];
+      if (!Object.prototype.hasOwnProperty.call(req.body, k)) continue;
+      if (k === 'chorus_start_seconds' || k === 'chorus_end_seconds') {
+        patch[k] = normalizePreviewSeconds(req.body[k]);
+      } else {
+        patch[k] = req.body[k];
+      }
     }
     const previous = memory.musics[idx] || {};
     memory.musics[idx] = { ...previous, ...patch, updated_at: new Date().toISOString() };

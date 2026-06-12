@@ -34,6 +34,10 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     external_composers: [],
     external_composer_input: '',
     audio_file: null,
+    chorus_start_seconds: '',
+    chorus_end_seconds: '',
+    audio_duration: 0,
+    audio_preview_url: null,
     authorization_file: null,
     upload_status: 'idle',
     upload_progress: 0,
@@ -56,6 +60,8 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     audio_file: null,
     audio_files: [],
     is_album: false,
+    chorus_start_seconds: '',
+    chorus_end_seconds: '',
     composer: '',
     producer: '',
     is_beatwap_produced: false,
@@ -73,6 +79,7 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     audio: null,
     auth: null
   });
+  const [audioDuration, setAudioDuration] = useState(0);
 
   const [errors, setErrors] = useState({});
   const [artistOptions, setArtistOptions] = useState([]);
@@ -179,12 +186,22 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       }
       setPreviews(prev => ({ ...prev, audio: URL.createObjectURL(file) }));
       setFormData(prev => ({ ...prev, audio_files: [], is_album: false }));
+      setAudioDuration(0);
     } else if (type === 'authorization_file') {
       setPreviews(prev => ({ ...prev, auth: file.name }));
     }
 
     if (type !== 'cover_file') {
-      setFormData(prev => ({ ...prev, [type]: file }));
+      if (type === 'audio_file') {
+        setFormData(prev => ({
+          ...prev,
+          [type]: file,
+          chorus_start_seconds: '',
+          chorus_end_seconds: ''
+        }));
+      } else {
+        setFormData(prev => ({ ...prev, [type]: file }));
+      }
     }
   };
 
@@ -246,6 +263,10 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     }
     updateTrackField(index, field, file);
     if (field === 'audio_file') {
+      updateTrackField(index, 'chorus_start_seconds', '');
+      updateTrackField(index, 'chorus_end_seconds', '');
+      updateTrackField(index, 'audio_duration', 0);
+      updateTrackField(index, 'audio_preview_url', URL.createObjectURL(file));
       updateTrackField(index, 'upload_status', 'idle');
       updateTrackField(index, 'upload_progress', 0);
       updateTrackField(index, 'audio_url', null);
@@ -255,6 +276,27 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       updateTrackField(index, 'authorization_url', null);
       updateTrackField(index, 'upload_error', null);
     }
+  };
+
+  const validatePreviewRange = ({ startValue, endValue, duration, label }) => {
+    if (startValue === '' || startValue === null || startValue === undefined) {
+      return `Selecione o início do preview ${label}.`;
+    }
+    if (endValue === '' || endValue === null || endValue === undefined) {
+      return `Selecione o fim do preview ${label}.`;
+    }
+    const start = Number(startValue);
+    const end = Number(endValue);
+    if (!Number.isFinite(start) || start < 0) {
+      return `O início do preview ${label} é inválido.`;
+    }
+    if (!Number.isFinite(end) || end <= start) {
+      return `O fim do preview ${label} deve ser maior que o início.`;
+    }
+    if (Number.isFinite(Number(duration)) && Number(duration) > 0 && end > Number(duration)) {
+      return `O fim do preview ${label} não pode ultrapassar a duração do áudio.`;
+    }
+    return null;
   };
 
   const toggleSingleFeatArtist = (id) => {
@@ -308,6 +350,16 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
     }
     if (t.has_external_composers && (!Array.isArray(t.external_composers) || t.external_composers.length === 0)) {
       setErrors(prev => ({ ...prev, submit: 'Adicione pelo menos um compositor fora da BeatWap na faixa (ou desmarque a opção).' }));
+      return;
+    }
+    const previewError = validatePreviewRange({
+      startValue: t.chorus_start_seconds,
+      endValue: t.chorus_end_seconds,
+      duration: t.audio_duration,
+      label: `da faixa ${index + 1}`
+    });
+    if (previewError) {
+      setErrors(prev => ({ ...prev, submit: previewError }));
       return;
     }
 
@@ -392,6 +444,8 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
           estilo: t.estilo,
           cover_url: coverUrl,
           audio_url: t.audio_url,
+          chorus_start_seconds: Number(t.chorus_start_seconds),
+          chorus_end_seconds: Number(t.chorus_end_seconds),
           authorization_url: t.authorization_url || null,
           plataformas: formData.plataformas.includes('Todas') ? ['Todas'] : formData.plataformas_selecionadas,
           status: 'pendente',
@@ -450,6 +504,16 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
       setErrors(prev => ({ ...prev, submit: 'Adicione pelo menos um compositor fora da BeatWap (ou desmarque a opção).' }));
       return;
     }
+    const previewError = validatePreviewRange({
+      startValue: formData.chorus_start_seconds,
+      endValue: formData.chorus_end_seconds,
+      duration: audioDuration,
+      label: 'da música'
+    });
+    if (previewError) {
+      setErrors(prev => ({ ...prev, submit: previewError }));
+      return;
+    }
 
     setLoading(true);
     setErrors({});
@@ -493,6 +557,8 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
         estilo: formData.estilo,
         cover_url: coverUrl,
         audio_url: audioUrl,
+        chorus_start_seconds: Number(formData.chorus_start_seconds),
+        chorus_end_seconds: Number(formData.chorus_end_seconds),
         authorization_url: authUrl,
         plataformas: formData.plataformas.includes('Todas') ? ['Todas'] : formData.plataformas_selecionadas,
         status: 'pendente',
@@ -897,7 +963,58 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                     </label>
                   </div>
                   {previews.audio && (
-                    <audio controls src={previews.audio} className="w-full h-8 mt-2" />
+                    <audio
+                      controls
+                      src={previews.audio}
+                      className="w-full h-8 mt-2"
+                      onLoadedMetadata={(e) => setAudioDuration(Number(e?.currentTarget?.duration || 0))}
+                    />
+                  )}
+                  {formData.audio_file && (
+                    <div className="mt-3 space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="text-sm font-bold text-gray-300">Preview obrigatório</label>
+                        <span className="text-xs text-gray-400">
+                          {Number.isFinite(audioDuration) && audioDuration > 0 ? `${Math.floor(audioDuration)}s de áudio` : 'Carregando duração...'}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <label className="text-xs font-medium text-gray-400">Início do preview</label>
+                          <span className="text-xs text-gray-400">
+                            {formData.chorus_start_seconds === '' ? 'Defina' : `${Number(formData.chorus_start_seconds)}s`}
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={Math.max(0, Math.floor(Number(audioDuration || 0)))}
+                          step={1}
+                          value={Number(formData.chorus_start_seconds || 0)}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, chorus_start_seconds: String(e.target.value) }))}
+                          className="w-full accent-beatwap-gold h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <AnimatedInput
+                          label="Início (s)"
+                          value={formData.chorus_start_seconds}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, chorus_start_seconds: e.target.value }))}
+                          placeholder="Ex: 12"
+                          type="number"
+                        />
+                        <AnimatedInput
+                          label="Fim (s)"
+                          value={formData.chorus_end_seconds}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, chorus_end_seconds: e.target.value }))}
+                          placeholder="Ex: 42"
+                          type="number"
+                        />
+                      </div>
+                      <div className="text-[11px] text-gray-400">
+                        Escolha o trecho que vai tocar antes do lançamento. Esse preview tambem sera usado na Home.
+                      </div>
+                    </div>
                   )}
                 </div>
 
@@ -1257,6 +1374,63 @@ export const MusicUploadModal = ({ isOpen, onClose, onSuccess, targetArtist = nu
                                 </label>
                               </div>
                             </div>
+
+                            {t.audio_file && (
+                              <div className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-3">
+                                <div className="flex items-center justify-between gap-3">
+                                  <label className="text-xs font-bold text-gray-300">Preview obrigatório da faixa</label>
+                                  <span className="text-[11px] text-gray-400">
+                                    {Number.isFinite(Number(t.audio_duration || 0)) && Number(t.audio_duration || 0) > 0
+                                      ? `${Math.floor(Number(t.audio_duration || 0))}s de áudio`
+                                      : 'Carregando duração...'}
+                                  </span>
+                                </div>
+                                {t.audio_preview_url && (
+                                  <audio
+                                    controls
+                                    src={t.audio_preview_url}
+                                    className="w-full h-8"
+                                    onLoadedMetadata={(e) => updateTrackField(idx, 'audio_duration', Number(e?.currentTarget?.duration || 0))}
+                                  />
+                                )}
+                                <div className="space-y-1">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <label className="text-xs font-medium text-gray-400">Início do preview</label>
+                                    <span className="text-[11px] text-gray-400">
+                                      {t.chorus_start_seconds === '' ? 'Defina' : `${Number(t.chorus_start_seconds)}s`}
+                                    </span>
+                                  </div>
+                                  <input
+                                    type="range"
+                                    min={0}
+                                    max={Math.max(0, Math.floor(Number(t.audio_duration || 0)))}
+                                    step={1}
+                                    value={Number(t.chorus_start_seconds || 0)}
+                                    onChange={(e) => updateTrackField(idx, 'chorus_start_seconds', String(e.target.value))}
+                                    className="w-full accent-beatwap-gold h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                  <AnimatedInput
+                                    label="Início (s)"
+                                    value={t.chorus_start_seconds}
+                                    onChange={(e) => updateTrackField(idx, 'chorus_start_seconds', e.target.value)}
+                                    placeholder="Ex: 10"
+                                    type="number"
+                                  />
+                                  <AnimatedInput
+                                    label="Fim (s)"
+                                    value={t.chorus_end_seconds}
+                                    onChange={(e) => updateTrackField(idx, 'chorus_end_seconds', e.target.value)}
+                                    placeholder="Ex: 35"
+                                    type="number"
+                                  />
+                                </div>
+                                <div className="text-[11px] text-gray-400">
+                                  Defina o trecho que podera ser ouvido antes do lancamento dessa faixa.
+                                </div>
+                              </div>
+                            )}
 
                             <div className="pt-2 space-y-2">
                               <div className="flex items-center justify-between gap-3">
