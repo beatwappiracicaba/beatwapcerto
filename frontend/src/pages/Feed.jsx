@@ -776,7 +776,7 @@ const Feed = () => {
           access_control: p?.access_control || null,
           created_at: p?.created_at || null
         }))
-        .filter((p) => p.id && isFeaturedActive(p) && isVisibleOnHome(p));
+        .filter((p) => p.id && isFeaturedActive(p));
 
       cleaned.sort((a, b) => {
         const wa = featuredWeight(a?.access_control?.featured?.level);
@@ -799,7 +799,7 @@ const Feed = () => {
       setBoostedProfilesLoading(false);
       boostedProfilesLoadingRef.current = false;
     }
-  }, [featuredWeight, isFeaturedActive, isVisibleOnHome, meId]);
+  }, [featuredWeight, isFeaturedActive, meId]);
 
   const formatSeconds = useCallback((totalSeconds) => {
     const s = Math.max(0, Number(totalSeconds || 0));

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause, Check, FolderDown, CheckCircle2, ChevronDown, ChevronRight, Plus, Music, X, Trash2, Bell, Clock, LayoutGrid, MessageSquare, TrendingUp, DollarSign, BadgeCheck, Target, ArrowUpRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { BoostedProfilesStories } from '../components/BoostedProfilesStories';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -356,6 +357,12 @@ export const AdminHome = () => {
               </AnimatedButton>
             </>
           )}
+        />
+
+        <BoostedProfilesStories
+          limit={16}
+          title="Impulsionados em toda a plataforma"
+          description="A produtora enxerga aqui todos os perfis com destaque ativo, o que ajuda a monitorar entrega comercial e visibilidade real."
         />
 
         <PersistentPanelTabs tabs={panelTabs} activeTab={activePanelTab} onChange={setActivePanelTab} />

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
+import { BoostedProfilesStories } from '../components/BoostedProfilesStories';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -380,6 +381,12 @@ const SellerDashboard = () => {
               </AnimatedButton>
             </>
           )}
+        />
+
+        <BoostedProfilesStories
+          limit={14}
+          title="Impulsionados em toda a plataforma"
+          description="O vendedor passa a enxergar os perfis mais expostos do momento, o que ajuda a priorizar abordagem, proposta e fechamento."
         />
 
         <PersistentPanelTabs tabs={panelTabs} activeTab={activePanelTab} onChange={setActivePanelTab} />

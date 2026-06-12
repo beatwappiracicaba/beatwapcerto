@@ -860,6 +860,8 @@ async function applyFeaturedToProfile(req, res) {
         ends_at: endsAt,
         pinned: plan.pinned === true
       };
+      // Perfil impulsionado precisa ficar publico nas vitrines globais.
+      ac.show_on_home = true;
     }
 
     await Profile.update({ access_control: ac }, { where: { id } });

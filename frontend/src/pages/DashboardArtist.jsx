@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Card } from '../components/ui/Card';
+import { BoostedProfilesStories } from '../components/BoostedProfilesStories';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -571,6 +572,12 @@ export const DashboardArtistHome = () => {
               </AnimatedButton>
             </>
           )}
+        />
+
+        <BoostedProfilesStories
+          limit={14}
+          title="Impulsionados em toda a plataforma"
+          description="Essa vitrine mostra todos os perfis com destaque ativo, ajudando o artista a encontrar parceiros e oportunidades com mais rapidez."
         />
 
         <PersistentPanelTabs tabs={panelTabs} activeTab={activePanelTab} onChange={setActivePanelTab} />

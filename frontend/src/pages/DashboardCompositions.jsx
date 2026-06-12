@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Card } from '../components/ui/Card';
+import { BoostedProfilesStories } from '../components/BoostedProfilesStories';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { HighlightRailCard } from '../components/ui/HighlightRailCard';
@@ -269,6 +270,12 @@ export const DashboardCompositions = () => {
               </AnimatedButton>
             </>
           )}
+        />
+
+        <BoostedProfilesStories
+          limit={14}
+          title="Impulsionados em toda a plataforma"
+          description="Assim o compositor enxerga quem esta em vitrine agora e consegue atacar networking, pitch e parceria com mais contexto."
         />
 
         <PersistentPanelTabs tabs={panelTabs} activeTab={activePanelTab} onChange={setActivePanelTab} />

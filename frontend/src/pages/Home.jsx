@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '../components/landing/Header';
 import Hero from '../components/landing/Hero';
+import { BoostedProfilesStories } from '../components/BoostedProfilesStories';
 import FeaturedUsers from '../components/landing/FeaturedUsers';
 import HowItWorks from '../components/landing/HowItWorks';
 import Benefits from '../components/landing/Benefits';
@@ -791,7 +792,18 @@ const Home = () => {
             </div>
           </div>
         </section>
+
+        <section className="py-8 px-4 sm:px-6">
+          <div className="max-w-7xl mx-auto">
+            <BoostedProfilesStories
+              limit={18}
+              title="Perfis impulsionados da BeatWap"
+              description="Quem investe em destaque agora aparece primeiro para toda a plataforma, com visibilidade global na Home."
+            />
+          </div>
+        </section>
         {showHighlightsTab && (
+        <section className="py-10 px-6 bg-black/20 border-b border-white/10">
         <section className="py-10 px-6 bg-black/20 border-b border-white/10">
           <div className="max-w-7xl mx-auto">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">

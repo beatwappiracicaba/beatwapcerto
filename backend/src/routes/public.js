@@ -562,8 +562,7 @@ router.get('/boosted-profiles', async (req, res) => {
     const isVisibleToViewer = (row) => {
       const id = String(row?.id || '').trim();
       if (viewerId && id && id === viewerId) return true;
-      const ac = row?.access_control || {};
-      return ac?.show_on_home !== false;
+      return isFeaturedActive(row);
     };
 
     const expireFeaturedIfNeeded = async (rows) => {
