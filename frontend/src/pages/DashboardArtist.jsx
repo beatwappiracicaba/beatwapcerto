@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { MusicUploadModal } from '../components/artist/MusicUploadModal';
-import { Plus, DollarSign, Folder, ChevronDown, ChevronRight, MessageCircle, Play, Pause, Bell, Clock, LayoutGrid, User } from 'lucide-react';
+import { Plus, DollarSign, Folder, ChevronDown, ChevronRight, MessageCircle, Play, Pause, Bell, Clock, LayoutGrid, User, Sparkles, Target, ArrowUpRight, BadgeCheck } from 'lucide-react';
 import { decryptData } from '../utils/security';
 import { useNotification } from '../context/NotificationContext';
 import { useChat } from '../context/ChatContext';
@@ -424,6 +424,66 @@ export const DashboardArtistHome = () => {
     });
   }, []);
 
+  const revenueFormatter = useMemo(
+    () => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }),
+    []
+  );
+
+  const getOpportunityTone = useCallback((score) => {
+    if (score >= 82) return 'bg-green-500/10 text-green-300 border-green-500/30';
+    if (score >= 62) return 'bg-blue-500/10 text-blue-300 border-blue-500/30';
+    if (score >= 45) return 'bg-yellow-500/10 text-yellow-300 border-yellow-500/30';
+    return 'bg-white/10 text-gray-300 border-white/10';
+  }, []);
+
+  const opportunityRadarItems = useMemo(() => {
+    return latestCompositions
+      .map((item) => {
+        const title = item?.titulo || item?.title || 'Composicao';
+        const whatsappHref = item?.composer_phone ? buildWhatsAppHref(item.composer_phone, title) : null;
+        const hashtagCount = Array.isArray(item?.hashtags) ? item.hashtags.length : 0;
+        const hasPreview = Boolean(item?.audio_url);
+        const hasCover = Boolean(String(item?.cover_url || '').trim());
+
+        let score = 28;
+        if (whatsappHref) score += 24;
+        if (hasPreview) score += 12;
+        if (hasCover) score += 7;
+        if (hashtagCount >= 3) score += 10;
+        if (Number(item?.chorus_start_seconds) >= 0) score += 6;
+        score = Math.max(10, Math.min(96, score));
+
+        const blockers = [];
+        if (!whatsappHref) blockers.push('Contato sem WhatsApp');
+        if (!hasPreview) blockers.push('Sem audio de apoio');
+        if (!hasCover) blockers.push('Sem capa para chamar atencao');
+        if (hashtagCount === 0) blockers.push('Sem contexto por hashtags');
+
+        return {
+          id: item.id,
+          title,
+          composerName: item?.composer_name || 'Autor',
+          whatsappHref,
+          score,
+          blockers: blockers.slice(0, 3),
+          hashtags: Array.isArray(item?.hashtags) ? item.hashtags.slice(0, 4) : [],
+          hasPreview,
+          nextAction: whatsappHref
+            ? 'Chamar o compositor agora e validar fit para gravacao.'
+            : 'Revisar o contato e salvar esta oportunidade para abordar depois.'
+        };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4);
+  }, [latestCompositions, buildWhatsAppHref]);
+
+  const opportunitySummary = useMemo(() => ({
+    actionable: opportunityRadarItems.length,
+    directContacts: opportunityRadarItems.filter((item) => Boolean(item.whatsappHref)).length,
+    withPreview: opportunityRadarItems.filter((item) => item.hasPreview).length,
+    attentionPoints: unreadNotifications + activeChatsCount
+  }), [opportunityRadarItems, unreadNotifications, activeChatsCount]);
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -525,6 +585,161 @@ export const DashboardArtistHome = () => {
             </div>
           </Card>
         </div>
+            )}
+
+            {canViewCompositions && (
+              <Card className="p-6 border border-beatwap-gold/20 bg-[linear-gradient(135deg,rgba(245,197,66,0.10),rgba(255,255,255,0.02),rgba(0,0,0,0.28))] shadow-[0_0_35px_rgba(245,197,66,0.08)]">
+                <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5 mb-6">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full border border-beatwap-gold/30 bg-beatwap-gold/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em] text-beatwap-gold">
+                      <Sparkles size={14} />
+                      Radar de Oportunidades
+                    </div>
+                    <div className="text-2xl font-extrabold text-white mt-3">Descubra repertorio e contatos que merecem ataque agora</div>
+                    <div className="text-sm text-gray-300 mt-2 max-w-3xl">
+                      O painel separa as composicoes com maior chance de virar conversa quente, gravacao ou nova ponte comercial.
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <AnimatedButton onClick={() => navigate('/dashboard/chat')} icon={MessageCircle}>
+                      Abrir conversas
+                    </AnimatedButton>
+                    <AnimatedButton onClick={() => navigate('/dashboard/profile')} variant="secondary" icon={Target}>
+                      Melhorar perfil
+                    </AnimatedButton>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+                  <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                    <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Oportunidades ativas</div>
+                    <div className="text-3xl font-extrabold text-white mt-2">{opportunitySummary.actionable}</div>
+                    <div className="text-xs text-gray-500 mt-2">Composicoes priorizadas no radar</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                    <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Contatos diretos</div>
+                    <div className="text-3xl font-extrabold text-white mt-2">{opportunitySummary.directContacts}</div>
+                    <div className="text-xs text-gray-500 mt-2">WhatsApps prontos para acao</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                    <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Com preview</div>
+                    <div className="text-3xl font-extrabold text-white mt-2">{opportunitySummary.withPreview}</div>
+                    <div className="text-xs text-gray-500 mt-2">Faixas que ja ajudam na decisao</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                    <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Pulso do painel</div>
+                    <div className="text-3xl font-extrabold text-white mt-2">{opportunitySummary.attentionPoints}</div>
+                    <div className="text-xs text-gray-500 mt-2">Mensagens e alertas pedindo resposta</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_0.8fr] gap-6">
+                  <div className="space-y-3">
+                    <div>
+                      <div className="text-lg font-bold text-white">Faixas com maior potencial de conexao</div>
+                      <div className="text-sm text-gray-400">Score por contato, preview, capa e contexto do material</div>
+                    </div>
+                    {opportunityRadarItems.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-gray-400">
+                        Ainda nao ha composicoes suficientes para ranquear oportunidades.
+                      </div>
+                    ) : opportunityRadarItems.map((item) => (
+                      <div key={item.id} className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                          <div className="space-y-3 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${getOpportunityTone(item.score)}`}>
+                                Score {item.score}
+                              </span>
+                              <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-300">
+                                {item.composerName}
+                              </span>
+                            </div>
+                            <div>
+                              <div className="text-xl font-extrabold text-white">{item.title}</div>
+                              <div className="text-sm text-gray-300 mt-1">
+                                {item.whatsappHref ? 'Contato pronto para abordagem' : 'Precisa completar o contato antes do pitch'}
+                              </div>
+                            </div>
+                            {item.hashtags.length > 0 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {item.hashtags.map((tag) => (
+                                  <span key={`${item.id}-${tag}`} className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-gray-300">
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
+                            <div>
+                              <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Travas atuais</div>
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {item.blockers.length > 0 ? item.blockers.map((blocker) => (
+                                  <span key={`${item.id}-${blocker}`} className="rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-300">
+                                    {blocker}
+                                  </span>
+                                )) : (
+                                  <span className="rounded-full border border-green-500/20 bg-green-500/10 px-2.5 py-1 text-xs font-semibold text-green-300">
+                                    Sem travas criticas
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="w-full lg:w-72 shrink-0 space-y-3">
+                            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                              <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Acao recomendada</div>
+                              <div className="text-sm text-white mt-2">{item.nextAction}</div>
+                            </div>
+                            <AnimatedButton
+                              onClick={() => {
+                                if (!item.whatsappHref) return;
+                                window.open(item.whatsappHref, '_blank', 'noopener,noreferrer');
+                              }}
+                              disabled={!item.whatsappHref}
+                              className="w-full justify-center"
+                              icon={ArrowUpRight}
+                            >
+                              {item.whatsappHref ? 'Chamar no WhatsApp' : 'Contato indisponivel'}
+                            </AnimatedButton>
+                            <AnimatedButton onClick={() => navigate('/dashboard/chat')} variant="secondary" className="w-full justify-center" icon={MessageCircle}>
+                              Ir para o chat
+                            </AnimatedButton>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-white/10 bg-black/25 p-5">
+                      <div className="flex items-center gap-2 text-white font-bold">
+                        <BadgeCheck size={18} className="text-beatwap-gold" />
+                        BeatWap Intelligence
+                      </div>
+                      <div className="text-sm text-gray-300 mt-3">
+                        Esse radar ajuda o artista a agir rapido em cima das melhores composicoes e mostra valor claro para assinatura recorrente.
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-black/25 p-5 space-y-4">
+                      <div className="text-white font-bold">Indicadores de resposta</div>
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="text-gray-400">Receita de shows</span>
+                        <span className="text-white font-bold">{revenueFormatter.format(metrics?.faturamento_shows || 0)}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="text-gray-400">Chats ativos</span>
+                        <span className="text-white font-bold">{activeChatsCount}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="text-gray-400">Notificacoes nao lidas</span>
+                        <span className="text-white font-bold">{unreadNotifications}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
             )}
       
             <div className="grid grid-cols-1 gap-6">

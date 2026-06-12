@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause, Check, FolderDown, CheckCircle2, ChevronDown, ChevronRight, Plus, Music, X, Trash2, Bell, Clock, LayoutGrid, MessageSquare } from 'lucide-react';
+import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause, Check, FolderDown, CheckCircle2, ChevronDown, ChevronRight, Plus, Music, X, Trash2, Bell, Clock, LayoutGrid, MessageSquare, TrendingUp, DollarSign, BadgeCheck, Target, ArrowUpRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
@@ -36,6 +36,9 @@ export const AdminHome = () => {
   const [dashboardMetrics, setDashboardMetrics] = useState(null);
   const [projects, setProjects] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
+  const [leads, setLeads] = useState([]);
+  const [proposals, setProposals] = useState([]);
+  const [dealRoomLoading, setDealRoomLoading] = useState(true);
   const [activePanelTab, setActivePanelTab] = useState('resumo');
   const [projectForm, setProjectForm] = useState({
     title: '',
@@ -61,6 +64,27 @@ export const AdminHome = () => {
       }
     };
     loadMetrics();
+  }, []);
+
+  useEffect(() => {
+    const loadDealRoom = async () => {
+      try {
+        setDealRoomLoading(true);
+        const [leadData, proposalData] = await Promise.all([
+          apiClient.get('/seller/leads').catch(() => []),
+          apiClient.get('/seller/proposals').catch(() => [])
+        ]);
+        setLeads(Array.isArray(leadData) ? leadData : []);
+        setProposals(Array.isArray(proposalData) ? proposalData : []);
+      } catch (error) {
+        console.error('Error loading executive conversion view:', error);
+        setLeads([]);
+        setProposals([]);
+      } finally {
+        setDealRoomLoading(false);
+      }
+    };
+    loadDealRoom();
   }, []);
 
   const loadProjects = useCallback(async () => {
@@ -173,6 +197,80 @@ export const AdminHome = () => {
       .sort((a, b) => b.timestampMs - a.timestampMs)
       .slice(0, 10);
   }, [notifications, chats, supportQueue, projects]);
+
+  const currencyFormatter = useMemo(
+    () => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }),
+    []
+  );
+
+  const executiveConversion = useMemo(() => {
+    const sentProposals = proposals.filter((proposal) => String(proposal?.status || '').toLowerCase() === 'enviado');
+    const acceptedProposals = proposals.filter((proposal) => String(proposal?.status || '').toLowerCase() === 'aceito');
+    const activeLeads = leads.filter((lead) => !['perdido', 'cancelado'].includes(String(lead?.status || '').toLowerCase()));
+    const negotiationLeads = leads.filter((lead) => String(lead?.status || '').toLowerCase() === 'negociacao');
+    const pipelineValue = activeLeads.reduce((acc, lead) => acc + (Number(lead?.budget) || 0), 0);
+    const proposalsValue = proposals.reduce((acc, proposal) => acc + (Number(proposal?.value) || 0), 0);
+    const acceptanceRate = sentProposals.length > 0 ? Math.round((acceptedProposals.length / sentProposals.length) * 100) : 0;
+
+    return {
+      activeLeads: activeLeads.length,
+      negotiationLeads: negotiationLeads.length,
+      sentProposals: sentProposals.length,
+      acceptedProposals: acceptedProposals.length,
+      acceptanceRate,
+      pipelineValue,
+      proposalsValue
+    };
+  }, [leads, proposals]);
+
+  const executivePipelineItems = useMemo(() => {
+    const proposalByLeadId = new Map(
+      proposals
+        .filter((proposal) => proposal?.lead_id)
+        .map((proposal) => [String(proposal.lead_id), proposal])
+    );
+
+    return leads
+      .map((lead) => {
+        const proposal = proposalByLeadId.get(String(lead?.id));
+        const leadStatus = String(lead?.status || '').toLowerCase();
+        const proposalStatus = String(proposal?.status || '').toLowerCase();
+        const budget = Number(lead?.budget) || Number(proposal?.value) || 0;
+
+        let score = 24;
+        if (leadStatus === 'negociacao') score += 26;
+        if (leadStatus === 'fechado') score += 34;
+        if (proposalStatus === 'enviado') score += 14;
+        if (proposalStatus === 'aceito') score += 24;
+        if (budget > 0) score += Math.min(18, Math.round(budget / 2000));
+        score = Math.max(10, Math.min(96, score));
+
+        const blockers = [];
+        if (!lead?.budget) blockers.push('Sem orcamento');
+        if (!lead?.event_date) blockers.push('Sem data');
+        if (!proposal) blockers.push('Sem proposta');
+
+        return {
+          id: lead?.id,
+          title: lead?.event_name || 'Negocio em acompanhamento',
+          artistName: lead?.artist?.nome || lead?.artist_name || 'Artista',
+          clientName: lead?.contractor_name || lead?.client_name || 'Cliente',
+          score,
+          budget,
+          leadStatus: leadStatus || 'novo',
+          proposalStatus: proposalStatus || 'sem proposta',
+          blockers: blockers.slice(0, 3)
+        };
+      })
+      .sort((a, b) => b.score - a.score || b.budget - a.budget)
+      .slice(0, 4);
+  }, [leads, proposals]);
+
+  const executiveAlerts = useMemo(() => ({
+    stalledLeads: leads.filter((lead) => !lead?.event_date || !lead?.budget).length,
+    noProposal: leads.filter((lead) => !proposals.some((proposal) => String(proposal?.lead_id || '') === String(lead?.id || ''))).length,
+    supportPressure: Array.isArray(supportQueue) ? supportQueue.length : 0
+  }), [leads, proposals, supportQueue]);
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -271,6 +369,146 @@ export const AdminHome = () => {
                 <div className="text-xs text-gray-500 mt-1">IPs únicos em 24h: {dashboardMetrics?.totals?.home_unique_visitors_24h ?? 0}</div>
               </Card>
             </div>
+
+            <Card className="p-6 border border-beatwap-gold/20 bg-[linear-gradient(135deg,rgba(245,197,66,0.10),rgba(255,255,255,0.02),rgba(0,0,0,0.28))] shadow-[0_0_35px_rgba(245,197,66,0.08)]">
+              <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5 mb-6">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-beatwap-gold/30 bg-beatwap-gold/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em] text-beatwap-gold">
+                    <TrendingUp size={14} />
+                    Visao Executiva de Conversao
+                  </div>
+                  <div className="text-2xl font-extrabold text-white mt-3">Leia a saude comercial da plataforma em segundos</div>
+                  <div className="text-sm text-gray-300 mt-2 max-w-3xl">
+                    Reuni leads, propostas e gargalos num quadro unico para mostrar potencial de receita, travas operacionais e urgencias do negocio.
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <AnimatedButton onClick={() => window.location.assign('/admin/chat')} icon={MessageSquare}>
+                    Abrir chat admin
+                  </AnimatedButton>
+                  <AnimatedButton onClick={() => window.location.assign('/admin/artists')} variant="secondary" icon={Target}>
+                    Revisar artistas
+                  </AnimatedButton>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                  <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Leads ativos</div>
+                  <div className="text-3xl font-extrabold text-white mt-2">{executiveConversion.activeLeads}</div>
+                  <div className="text-xs text-gray-500 mt-2">Oportunidades comerciais vivas</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                  <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Propostas enviadas</div>
+                  <div className="text-3xl font-extrabold text-white mt-2">{executiveConversion.sentProposals}</div>
+                  <div className="text-xs text-gray-500 mt-2">Materiais em fase de decisao</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                  <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Taxa de aceite</div>
+                  <div className="text-3xl font-extrabold text-white mt-2">{executiveConversion.acceptanceRate}%</div>
+                  <div className="text-xs text-gray-500 mt-2">Aceites sobre propostas enviadas</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                  <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Valor no pipeline</div>
+                  <div className="text-3xl font-extrabold text-white mt-2">{currencyFormatter.format(executiveConversion.pipelineValue || executiveConversion.proposalsValue || 0)}</div>
+                  <div className="text-xs text-gray-500 mt-2">Potencial financeiro em jogo</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_0.8fr] gap-6">
+                <div className="space-y-3">
+                  <div>
+                    <div className="text-lg font-bold text-white">Deals que mais merecem atencao</div>
+                    <div className="text-sm text-gray-400">Prioridade por fase, proposta e valor</div>
+                  </div>
+                  {dealRoomLoading ? (
+                    <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-gray-400">
+                      Carregando leitura executiva do pipeline...
+                    </div>
+                  ) : executivePipelineItems.length > 0 ? executivePipelineItems.map((item) => (
+                    <div key={item.id} className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                        <div className="space-y-3 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-300">
+                              Score {item.score}
+                            </span>
+                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-300">
+                              {item.leadStatus}
+                            </span>
+                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-300">
+                              {item.proposalStatus}
+                            </span>
+                          </div>
+                          <div>
+                            <div className="text-xl font-extrabold text-white">{item.title}</div>
+                            <div className="text-sm text-gray-300 mt-1">{item.artistName} • {item.clientName}</div>
+                          </div>
+                          <div className="text-sm text-white font-bold">{currencyFormatter.format(item.budget || 0)}</div>
+                          <div className="flex flex-wrap gap-2">
+                            {item.blockers.length > 0 ? item.blockers.map((blocker) => (
+                              <span key={`${item.id}-${blocker}`} className="rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-300">
+                                {blocker}
+                              </span>
+                            )) : (
+                              <span className="rounded-full border border-green-500/20 bg-green-500/10 px-2.5 py-1 text-xs font-semibold text-green-300">
+                                Operacao saudavel
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="w-full lg:w-72 shrink-0 space-y-3">
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                            <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Leitura executiva</div>
+                            <div className="text-sm text-white mt-2">Acompanhar este deal ajuda a destravar faturamento e reduzir gargalos da operacao comercial.</div>
+                          </div>
+                          <AnimatedButton onClick={() => window.location.assign('/admin/chat')} className="w-full justify-center" icon={ArrowUpRight}>
+                            Acionar operacao
+                          </AnimatedButton>
+                        </div>
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-gray-400">
+                      Ainda nao ha leads suficientes para montar a leitura executiva.
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-white/10 bg-black/25 p-5">
+                    <div className="flex items-center gap-2 text-white font-bold">
+                      <BadgeCheck size={18} className="text-beatwap-gold" />
+                      Porque vende plano
+                    </div>
+                    <div className="text-sm text-gray-300 mt-3">
+                      Quando o produtor enxerga dinheiro em jogo, gargalos e conversao no mesmo lugar, o painel deixa de ser operacional e passa a ser ferramenta de decisao.
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-black/25 p-5 space-y-4">
+                    <div className="text-white font-bold">Alertas do negocio</div>
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-gray-400">Leads travados</span>
+                      <span className="text-white font-bold">{executiveAlerts.stalledLeads}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-gray-400">Sem proposta vinculada</span>
+                      <span className="text-white font-bold">{executiveAlerts.noProposal}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-gray-400">Pressao na fila</span>
+                      <span className="text-white font-bold">{executiveAlerts.supportPressure}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-gray-400">Aceites confirmados</span>
+                      <span className="text-white font-bold">{executiveConversion.acceptedProposals}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
 
             <Card className="space-y-4">
               <div className="flex items-start justify-between gap-3">
