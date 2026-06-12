@@ -6,8 +6,11 @@ import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { EmptyState } from '../components/ui/EmptyState';
+import { HighlightRailCard } from '../components/ui/HighlightRailCard';
+import { PanelSection } from '../components/ui/PanelSection';
 import { PanelHero } from '../components/ui/PanelHero';
 import { PersistentPanelTabs } from '../components/ui/PersistentPanelTabs';
+import { PremiumMetricCard } from '../components/ui/PremiumMetricCard';
 import { AdminLayout } from '../components/AdminLayout';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
@@ -359,71 +362,23 @@ export const AdminHome = () => {
 
         {activePanelTab === 'resumo' && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-              <Card className="p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm text-gray-400">Artistas</div>
-                    <div className="text-3xl font-bold text-white mt-1">{counts.artists}</div>
-                    <div className="text-xs text-gray-500 mt-2">Perfis ativos cadastrados</div>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400">
-                    <User size={22} />
-                  </div>
-                </div>
-              </Card>
-              <Card className="p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm text-gray-400">Musicas</div>
-                    <div className="text-3xl font-bold text-white mt-1">{counts.musics}</div>
-                    <div className="text-xs text-gray-500 mt-2">Catalogo monitorado</div>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-400">
-                    <Music size={22} />
-                  </div>
-                </div>
-              </Card>
-              <Card className="p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm text-gray-400">Pendentes</div>
-                    <div className="text-3xl font-bold text-white mt-1">{counts.pending}</div>
-                    <div className="text-xs text-gray-500 mt-2">Itens aguardando acao</div>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-red-500/10 text-red-400">
-                    <LayoutGrid size={22} />
-                  </div>
-                </div>
-              </Card>
-              <Card className="p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm text-gray-400">Notificacoes</div>
-                    <div className="text-3xl font-bold text-white mt-1">{unreadNotifications}</div>
-                    <div className="text-xs text-gray-500 mt-2">Atualizacoes nao lidas</div>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-beatwap-gold/10 text-beatwap-gold">
-                    <Bell size={22} />
-                  </div>
-                </div>
-              </Card>
-            </div>
+            <PanelSection eyebrow="Panorama Central" title="Leitura rapida da operacao" description="Os principais numeros da produtora agora aparecem em cards com cara de cockpit executivo, reforcando prioridade e contexto.">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+                <PremiumMetricCard icon={User} tone="blue" title="Artistas" value={counts.artists} description="Perfis ativos cadastrados" />
+                <PremiumMetricCard icon={Music} tone="purple" title="Musicas" value={counts.musics} description="Catalogo monitorado" />
+                <PremiumMetricCard icon={LayoutGrid} tone="red" title="Pendentes" value={counts.pending} description="Itens aguardando acao" />
+                <PremiumMetricCard icon={Bell} tone="gold" title="Notificacoes" value={unreadNotifications} description="Atualizacoes nao lidas" />
+              </div>
+            </PanelSection>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <div className="text-sm text-gray-400">Visitas Diárias (IP único / 24h)</div>
-                <div className="text-3xl font-bold">{dashboardMetrics?.totals?.home_page_views_24h ?? 0}</div>
-                <div className="text-xs text-gray-500 mt-1">Acumulado de janelas 24h: {dashboardMetrics?.totals?.home_page_views_total ?? 0}</div>
-              </Card>
-              <Card>
-                <div className="text-sm text-gray-400">Total de IPs únicos</div>
-                <div className="text-3xl font-bold">{dashboardMetrics?.totals?.home_unique_visitors_total ?? 0}</div>
-                <div className="text-xs text-gray-500 mt-1">IPs únicos em 24h: {dashboardMetrics?.totals?.home_unique_visitors_24h ?? 0}</div>
-              </Card>
-            </div>
+            <PanelSection eyebrow="Pulso De Audiencia" title="Visitas e alcance com leitura mais nobre" description="A camada de analytics ficou com aspecto mais profissional e menos cru.">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <PremiumMetricCard icon={TrendingUp} tone="green" title="Visitas diarias" value={dashboardMetrics?.totals?.home_page_views_24h ?? 0} description={`Acumulado 24h: ${dashboardMetrics?.totals?.home_page_views_total ?? 0}`} />
+                <PremiumMetricCard icon={Target} tone="blue" title="IPs unicos" value={dashboardMetrics?.totals?.home_unique_visitors_total ?? 0} description={`IPs unicos em 24h: ${dashboardMetrics?.totals?.home_unique_visitors_24h ?? 0}`} />
+              </div>
+            </PanelSection>
 
-            <Card className="p-6 border border-beatwap-gold/20 bg-[linear-gradient(135deg,rgba(245,197,66,0.10),rgba(255,255,255,0.02),rgba(0,0,0,0.28))] shadow-[0_0_35px_rgba(245,197,66,0.08)]">
+            <PanelSection className="border border-beatwap-gold/20 bg-[linear-gradient(135deg,rgba(245,197,66,0.10),rgba(255,255,255,0.02),rgba(0,0,0,0.28))] shadow-[0_0_35px_rgba(245,197,66,0.08)]">
               <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5 mb-6">
                 <div>
                   <div className="inline-flex items-center gap-2 rounded-full border border-beatwap-gold/30 bg-beatwap-gold/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em] text-beatwap-gold">
@@ -564,7 +519,7 @@ export const AdminHome = () => {
                   </div>
                 </div>
               </div>
-            </Card>
+            </PanelSection>
 
             <Card className="space-y-4">
               <div className="flex items-start justify-between gap-3">
@@ -719,31 +674,17 @@ export const AdminHome = () => {
 
         {activePanelTab === 'inteligencia' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="p-5">
-                <div className="text-sm text-gray-400">Pressao de conversao</div>
-                <div className="text-3xl font-bold text-white mt-2">{intelligenceSummary.conversionPressure}</div>
-                <div className="text-xs text-gray-500 mt-2">Leads travados ou sem proposta vinculada</div>
-              </Card>
-              <Card className="p-5">
-                <div className="text-sm text-gray-400">Base monetizavel</div>
-                <div className="text-3xl font-bold text-white mt-2">{intelligenceSummary.monetizableBase}</div>
-                <div className="text-xs text-gray-500 mt-2">Artistas e musicas que sustentam crescimento</div>
-              </Card>
-              <Card className="p-5">
-                <div className="text-sm text-gray-400">Carga de resposta</div>
-                <div className="text-3xl font-bold text-white mt-2">{intelligenceSummary.responseLoad}</div>
-                <div className="text-xs text-gray-500 mt-2">Soma de notificacoes e chats ativos</div>
-              </Card>
-            </div>
+            <PanelSection eyebrow="Mesa De Inteligencia" title="KPIs de risco e monetizacao" description="A aba ganhou um topo mais executivo para reforcar pressao comercial, base monetizavel e carga operacional.">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <PremiumMetricCard icon={AlertTriangle} tone="red" title="Pressao de conversao" value={intelligenceSummary.conversionPressure} description="Leads travados ou sem proposta vinculada" />
+                <PremiumMetricCard icon={BadgeCheck} tone="green" title="Base monetizavel" value={intelligenceSummary.monetizableBase} description="Artistas e musicas que sustentam crescimento" />
+                <PremiumMetricCard icon={MessageSquare} tone="gold" title="Carga de resposta" value={intelligenceSummary.responseLoad} description="Soma de notificacoes e chats ativos" />
+              </div>
+            </PanelSection>
 
             <div className="grid grid-cols-1 xl:grid-cols-[1.45fr_0.85fr] gap-6">
-              <Card className="p-6">
+              <PanelSection title="Mesa de inteligencia" description="Os deals que mais afetam faturamento, gargalo e urgencia">
                 <div className="flex items-center justify-between gap-3 mb-4">
-                  <div>
-                    <div className="text-lg font-bold text-white">Mesa de inteligencia</div>
-                    <div className="text-sm text-gray-400">Os deals que mais afetam faturamento, gargalo e urgencia</div>
-                  </div>
                   <div className="text-xs text-gray-500">{filteredExecutivePipelineItems.length} deals</div>
                 </div>
 
@@ -791,20 +732,18 @@ export const AdminHome = () => {
                     </div>
                   ))}
                 </div>
-              </Card>
+              </PanelSection>
 
               <div className="space-y-6">
-                <Card className="p-5">
-                  <div className="font-bold text-white">Semaforo do negocio</div>
+                <HighlightRailCard title="Semaforo do negocio" description="Caixa lateral com cara de central de decisao." badge="alerta">
                   <div className="space-y-3 mt-4">
                     <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">Leads travados: {executiveAlerts.stalledLeads}</div>
                     <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">Sem proposta: {executiveAlerts.noProposal}</div>
                     <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">Aceites confirmados: {executiveConversion.acceptedProposals}</div>
                   </div>
-                </Card>
+                </HighlightRailCard>
 
-                <Card className="p-5">
-                  <div className="font-bold text-white">Acoes executivas</div>
+                <HighlightRailCard title="Acoes executivas" description="Atalhos de gestao com mais peso visual." badge="acao">
                   <div className="space-y-3 mt-4">
                     <AnimatedButton onClick={() => window.location.assign('/admin/artists')} className="w-full justify-center" icon={User}>
                       Revisar artistas
@@ -813,7 +752,7 @@ export const AdminHome = () => {
                       Ajustar sistema
                     </AnimatedButton>
                   </div>
-                </Card>
+                </HighlightRailCard>
               </div>
             </div>
           </div>
@@ -821,12 +760,8 @@ export const AdminHome = () => {
 
         {activePanelTab === 'atividade' && (
           <div className="grid grid-cols-1 xl:grid-cols-[1.45fr_0.8fr] gap-6">
-            <Card className="space-y-4">
+            <PanelSection title="Linha do tempo operacional" description="Notificacoes, chats, fila e projetos recentes em uma timeline mais elegante.">
               <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="font-bold">Linha do tempo operacional</div>
-                  <div className="text-sm text-gray-400">Notificacoes, chats, fila e projetos recentes</div>
-                </div>
                 <Clock className="text-beatwap-gold" size={18} />
               </div>
               <div className="space-y-3">
@@ -854,11 +789,10 @@ export const AdminHome = () => {
                   />
                 )}
               </div>
-            </Card>
+            </PanelSection>
 
             <div className="space-y-6">
-              <Card className="space-y-4">
-                <div className="font-bold">Indicadores rapidos</div>
+              <HighlightRailCard title="Indicadores rapidos" description="Resumo lateral da operacao com visual premium." badge="kpi">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-sm text-gray-400">Chats ativos</span>
@@ -877,10 +811,9 @@ export const AdminHome = () => {
                     <span className="font-bold text-white">{dashboardMetrics?.totals?.home_unique_visitors_total ?? 0}</span>
                   </div>
                 </div>
-              </Card>
+              </HighlightRailCard>
 
-              <Card className="space-y-4">
-                <div className="font-bold">Acoes rapidas</div>
+              <HighlightRailCard title="Acoes rapidas" description="Apoio lateral para agir sem sair da timeline." badge="apoio">
                 <AnimatedButton onClick={() => window.location.assign('/admin/chat')} icon={MessageSquare}>
                   Abrir chat administrativo
                 </AnimatedButton>
@@ -890,7 +823,7 @@ export const AdminHome = () => {
                 <AnimatedButton onClick={() => window.location.assign('/admin/settings')} icon={LayoutGrid}>
                   Ajustar configuracoes
                 </AnimatedButton>
-              </Card>
+              </HighlightRailCard>
             </div>
           </div>
         )}

@@ -3,8 +3,11 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { EmptyState } from '../components/ui/EmptyState';
+import { HighlightRailCard } from '../components/ui/HighlightRailCard';
+import { PanelSection } from '../components/ui/PanelSection';
 import { PanelHero } from '../components/ui/PanelHero';
 import { PersistentPanelTabs } from '../components/ui/PersistentPanelTabs';
+import { PremiumMetricCard } from '../components/ui/PremiumMetricCard';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { useChat } from '../context/ChatContext';
@@ -741,36 +744,18 @@ const SellerDashboard = () => {
 
         {activePanelTab === 'pipeline' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card className="p-5">
-                <div className="text-sm text-gray-400">Deals quentes</div>
-                <div className="text-3xl font-bold text-white mt-2">{pipelineSummary.hotDeals}</div>
-                <div className="text-xs text-gray-500 mt-2">Score 80+ e maior chance de fechar</div>
-              </Card>
-              <Card className="p-5">
-                <div className="text-sm text-gray-400">Em negociacao</div>
-                <div className="text-3xl font-bold text-white mt-2">{pipelineSummary.negotiation}</div>
-                <div className="text-xs text-gray-500 mt-2">Deals exigindo follow-up comercial</div>
-              </Card>
-              <Card className="p-5">
-                <div className="text-sm text-gray-400">Sem proposta</div>
-                <div className="text-3xl font-bold text-white mt-2">{pipelineSummary.proposalMissing}</div>
-                <div className="text-xs text-gray-500 mt-2">Oportunidades travadas por material</div>
-              </Card>
-              <Card className="p-5">
-                <div className="text-sm text-gray-400">Com gargalos</div>
-                <div className="text-3xl font-bold text-white mt-2">{pipelineSummary.blockedDeals}</div>
-                <div className="text-xs text-gray-500 mt-2">Precisam de acao antes do fechamento</div>
-              </Card>
-            </div>
+            <PanelSection eyebrow="Pipeline Visual" title="Leitura premium do fechamento comercial" description="Os cards agora deixam mais claro onde ha dinheiro em jogo, quais deals aqueceram e o que ainda trava o fechamento.">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+                <PremiumMetricCard icon={Sparkles} tone="green" title="Deals quentes" value={pipelineSummary.hotDeals} description="Score 80+ e maior chance de fechar" />
+                <PremiumMetricCard icon={TrendingUp} tone="blue" title="Em negociacao" value={pipelineSummary.negotiation} description="Deals exigindo follow-up comercial" />
+                <PremiumMetricCard icon={FileText} tone="gold" title="Sem proposta" value={pipelineSummary.proposalMissing} description="Oportunidades travadas por material" />
+                <PremiumMetricCard icon={Clock} tone="red" title="Com gargalos" value={pipelineSummary.blockedDeals} description="Precisam de acao antes do fechamento" />
+              </div>
+            </PanelSection>
 
             <div className="grid grid-cols-1 xl:grid-cols-[1.5fr_0.82fr] gap-6">
-              <Card className="p-6">
+              <PanelSection title="Pipeline operacional" description="Visual premium das oportunidades que exigem acao hoje">
                 <div className="flex items-center justify-between gap-3 mb-4">
-                  <div>
-                    <div className="text-lg font-bold text-white">Pipeline operacional</div>
-                    <div className="text-sm text-gray-400">Visual premium das oportunidades que exigem acao hoje</div>
-                  </div>
                   <div className="text-xs text-gray-500">{filteredDealRoomItems.length} deals</div>
                 </div>
 
@@ -822,20 +807,18 @@ const SellerDashboard = () => {
                     </div>
                   ))}
                 </div>
-              </Card>
+              </PanelSection>
 
               <div className="space-y-6">
-                <Card className="p-5">
-                  <div className="font-bold text-white">Playbook de fechamento</div>
+                <HighlightRailCard title="Playbook de fechamento" description="Passos rapidos para dar cara de sistema consultivo ao pipeline." badge="guia">
                   <div className="space-y-3 mt-4">
                     <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">1. Resolva os deals sem proposta</div>
                     <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">2. Faça follow-up dos que estao em negociacao</div>
                     <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">3. Leve aceites para agenda e financeiro</div>
                   </div>
-                </Card>
+                </HighlightRailCard>
 
-                <Card className="p-5">
-                  <div className="font-bold text-white">Acoes rapidas</div>
+                <HighlightRailCard title="Acoes rapidas" description="Atalhos com mais peso visual para facilitar decisao." badge="atalhos">
                   <div className="space-y-3 mt-4">
                     <AnimatedButton onClick={() => navigate('/seller/proposals')} className="w-full justify-center" icon={FileText}>
                       Resolver propostas
@@ -844,7 +827,7 @@ const SellerDashboard = () => {
                       Fazer follow-up
                     </AnimatedButton>
                   </div>
-                </Card>
+                </HighlightRailCard>
               </div>
             </div>
           </div>
@@ -852,12 +835,8 @@ const SellerDashboard = () => {
 
         {activePanelTab === 'atividade' && (
           <div className="grid grid-cols-1 xl:grid-cols-[1.4fr_0.8fr] gap-6">
-            <Card className="p-6 bg-white/5 border border-white/10">
+            <PanelSection title="Movimentacoes recentes" description="Notificacoes, conversas e fila comercial em um so lugar com visual mais executivo.">
               <div className="flex items-center justify-between gap-3 mb-4">
-                <div>
-                  <div className="text-lg font-bold text-white">Movimentacoes recentes</div>
-                  <div className="text-sm text-gray-400">Notificacoes, conversas e fila comercial em um so lugar</div>
-                </div>
                 <Clock className="text-beatwap-gold" size={20} />
               </div>
               <div className="space-y-3">
@@ -885,11 +864,10 @@ const SellerDashboard = () => {
                   />
                 )}
               </div>
-            </Card>
+            </PanelSection>
 
             <div className="space-y-6">
-              <Card className="p-6 bg-white/5 border border-white/10">
-                <div className="text-lg font-bold text-white mb-4">Atalhos do dia</div>
+              <HighlightRailCard title="Atalhos do dia" description="Caixa lateral com acoes prioritarias do vendedor." badge="hoje">
                 <div className="space-y-3">
                   <AnimatedButton onClick={() => navigate('/seller/leads')} variant="primary" icon={Target}>
                     Abrir leads
@@ -901,10 +879,9 @@ const SellerDashboard = () => {
                     Revisar agenda
                   </AnimatedButton>
                 </div>
-              </Card>
+              </HighlightRailCard>
 
-              <Card className="p-6 bg-white/5 border border-white/10">
-                <div className="text-lg font-bold text-white mb-4">Indicadores rapidos</div>
+              <HighlightRailCard title="Indicadores rapidos" description="Resumo comercial lateral com leitura mais premium." badge="kpi">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-sm text-gray-400">Shows confirmados</span>
@@ -931,10 +908,9 @@ const SellerDashboard = () => {
                     <span className="text-white font-bold">{dealRoomSummary.sentProposalsCount}</span>
                   </div>
                 </div>
-              </Card>
+              </HighlightRailCard>
 
-              <Card className="p-6 bg-white/5 border border-white/10">
-                <div className="text-lg font-bold text-white mb-4">Radar de fechamento</div>
+              <HighlightRailCard title="Radar de fechamento" description="Mini vitrine das prioridades comerciais mais quentes." badge="radar">
                 <div className="space-y-3">
                   {dealRoomLoading ? (
                     <div className="text-sm text-gray-400">Carregando prioridades comerciais...</div>
@@ -958,7 +934,7 @@ const SellerDashboard = () => {
                     </div>
                   )}
                 </div>
-              </Card>
+              </HighlightRailCard>
             </div>
           </div>
         )}

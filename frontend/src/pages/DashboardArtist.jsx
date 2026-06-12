@@ -3,8 +3,11 @@ import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { EmptyState } from '../components/ui/EmptyState';
+import { HighlightRailCard } from '../components/ui/HighlightRailCard';
+import { PanelSection } from '../components/ui/PanelSection';
 import { PanelHero } from '../components/ui/PanelHero';
 import { PersistentPanelTabs } from '../components/ui/PersistentPanelTabs';
+import { PremiumMetricCard } from '../components/ui/PremiumMetricCard';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
 import { DashboardLayout } from '../components/DashboardLayout';
@@ -574,74 +577,37 @@ export const DashboardArtistHome = () => {
 
         {activePanelTab === 'resumo' && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <div className="flex items-center gap-2 mb-2 text-gray-400 text-sm">
-                  <Bell size={16} />
-                  <span>Notificacoes</span>
-                </div>
-                <div className="text-3xl font-bold text-white">{unreadNotifications}</div>
-                <div className="text-xs text-gray-500 mt-1">Nao lidas no momento</div>
-              </Card>
-              <Card>
-                <div className="flex items-center gap-2 mb-2 text-gray-400 text-sm">
-                  <MessageCircle size={16} />
-                  <span>Chats ativos</span>
-                </div>
-                <div className="text-3xl font-bold text-white">{activeChatsCount}</div>
-                <div className="text-xs text-gray-500 mt-1">Conversas abertas no sistema</div>
-              </Card>
-              <Card>
-                <div className="flex items-center gap-2 mb-2 text-gray-400 text-sm">
-                  <LayoutGrid size={16} />
-                  <span>Atalhos</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <AnimatedButton onClick={() => navigate('/dashboard/chat')} className="w-full sm:w-auto justify-center">
-                    Conversas
-                  </AnimatedButton>
-                  <AnimatedButton onClick={() => navigate('/dashboard/profile')} variant="secondary" className="w-full sm:w-auto justify-center">
-                    Perfil
-                  </AnimatedButton>
-                </div>
-              </Card>
-            </div>
+            <PanelSection eyebrow="Pulso Do Artista" title="Alertas, conversa e foco do dia" description="Essa abertura deixa a aba mais forte visualmente e ajuda a entender, em segundos, onde vale investir energia.">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <PremiumMetricCard icon={Bell} tone="gold" title="Notificacoes" value={unreadNotifications} description="Nao lidas no momento" />
+                <PremiumMetricCard icon={MessageCircle} tone="purple" title="Chats ativos" value={activeChatsCount} description="Conversas abertas no sistema" />
+                <HighlightRailCard title="Atalhos do artista" description="Acoes principais com cara mais premium e hierarquia melhor." badge="acao">
+                  <div className="flex flex-wrap gap-2">
+                    <AnimatedButton onClick={() => navigate('/dashboard/chat')} className="w-full sm:w-auto justify-center">
+                      Conversas
+                    </AnimatedButton>
+                    <AnimatedButton onClick={() => navigate('/dashboard/profile')} variant="secondary" className="w-full sm:w-auto justify-center">
+                      Perfil
+                    </AnimatedButton>
+                  </div>
+                </HighlightRailCard>
+              </div>
+            </PanelSection>
 
             {!isCompositor && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <Card>
-            <div className="text-sm text-gray-400"><span>Total de Plays</span></div>
-            <div className="text-3xl font-bold"><span>{loading ? '...' : metrics?.total_plays ?? 0}</span></div>
-          </Card>
-          <Card>
-            <div className="text-sm text-gray-400"><span>Ouvintes</span></div>
-            <div className="text-3xl font-bold"><span>{loading ? '...' : metrics?.ouvintes_mensais ?? 0}</span></div>
-          </Card>
-          <Card>
-            <div className="text-sm text-gray-400"><span>Receita Estimada (Streaming)</span></div>
-            <div className="text-3xl font-bold"><span>{loading ? '...' : metrics?.receita_estimada ?? 0}</span></div>
-          </Card>
-          <Card>
-            <div className="text-sm text-gray-400"><span>Curtidas Perfil Público</span></div>
-            <div className="text-3xl font-bold"><span>{loading ? '...' : metrics?.curtidas_perfil_publico ?? 0}</span></div>
-          </Card>
-          <Card className="relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <DollarSign size={80} className="text-green-500" />
-            </div>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="p-1.5 bg-green-500/10 rounded-lg text-green-500"><DollarSign size={16} /></div>
-              <span className="text-sm text-gray-400">Faturamento Shows</span>
-            </div>
-            <div className="text-3xl font-bold text-white relative z-10">
-              <span>{loading ? '...' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metrics?.faturamento_shows || 0)}</span>
-            </div>
-          </Card>
-        </div>
+              <PanelSection eyebrow="Performance" title="Numeros da carreira em destaque" description="Os indicadores ganharam mais presença visual para passar sensação de plataforma madura e orientada a resultado." className="mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5">
+                  <PremiumMetricCard icon={Play} tone="blue" title="Total de plays" value={loading ? '...' : metrics?.total_plays ?? 0} description="Consumo total do repertorio" />
+                  <PremiumMetricCard icon={User} tone="purple" title="Ouvintes" value={loading ? '...' : metrics?.ouvintes_mensais ?? 0} description="Alcance mensal estimado" />
+                  <PremiumMetricCard icon={Sparkles} tone="gold" title="Receita streaming" value={loading ? '...' : metrics?.receita_estimada ?? 0} description="Estimativa atual das plataformas" />
+                  <PremiumMetricCard icon={Bell} tone="red" title="Curtidas publicas" value={loading ? '...' : metrics?.curtidas_perfil_publico ?? 0} description="Sinais de interesse no perfil" />
+                  <PremiumMetricCard icon={DollarSign} tone="green" title="Faturamento shows" value={loading ? '...' : revenueFormatter.format(metrics?.faturamento_shows || 0)} description="Receita ao vivo ja capturada" />
+                </div>
+              </PanelSection>
             )}
 
             {canViewCompositions && (
-              <Card className="p-6 border border-beatwap-gold/20 bg-[linear-gradient(135deg,rgba(245,197,66,0.10),rgba(255,255,255,0.02),rgba(0,0,0,0.28))] shadow-[0_0_35px_rgba(245,197,66,0.08)]">
+              <PanelSection className="border border-beatwap-gold/20 bg-[linear-gradient(135deg,rgba(245,197,66,0.10),rgba(255,255,255,0.02),rgba(0,0,0,0.28))] shadow-[0_0_35px_rgba(245,197,66,0.08)]">
                 <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5 mb-6">
                   <div>
                     <div className="inline-flex items-center gap-2 rounded-full border border-beatwap-gold/30 bg-beatwap-gold/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em] text-beatwap-gold">
@@ -795,13 +761,12 @@ export const DashboardArtistHome = () => {
                     </div>
                   </div>
                 </div>
-              </Card>
+              </PanelSection>
             )}
       
             <div className="grid grid-cols-1 gap-6">
-              <Card className="col-span-1">
+              <PanelSection title="Musica com mais visualizacoes" description="Destaque visual mais nobre para o item mais forte do momento.">
            <div className="flex items-center justify-between mb-4">
-             <div className="text-sm text-gray-400"><span>Música com mais visualizações</span></div>
              <div className="px-2 py-1 bg-green-500/10 rounded-lg text-green-500 text-xs font-bold">TOP 1</div>
            </div>
            
@@ -831,10 +796,9 @@ export const DashboardArtistHome = () => {
                </div>
              );
            })()}
-              </Card>
-              <Card className="col-span-1">
+              </PanelSection>
+              <PanelSection title="Ultimas notificacoes" description="Lista com mais respiro e acabamento visual de dashboard premium.">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="text-sm text-gray-400"><span>Ultimas notificacoes</span></div>
                   <div className="px-2 py-1 bg-white/10 rounded-lg text-white text-xs font-bold">Ao vivo</div>
                 </div>
                 {filteredRecentNotifications.length === 0 ? (
@@ -857,11 +821,10 @@ export const DashboardArtistHome = () => {
                     ))}
                   </div>
                 )}
-              </Card>
+              </PanelSection>
               {canViewCompositions && (
-                <Card className="col-span-1">
+                <PanelSection title="Ultimas composicoes" description="Galeria com leitura mais elegante para explorar repertorio recente.">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-sm text-gray-400"><span>Últimas Composições</span></div>
               <div className="px-2 py-1 bg-beatwap-gold/10 rounded-lg text-beatwap-gold text-xs font-bold">Novas</div>
             </div>
             {filteredLatestCompositions.length === 0 ? (
@@ -943,7 +906,7 @@ export const DashboardArtistHome = () => {
                 })}
               </div>
             )}
-                </Card>
+                </PanelSection>
               )}
             </div>
           </>
@@ -951,31 +914,17 @@ export const DashboardArtistHome = () => {
 
         {activePanelTab === 'oportunidades' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="p-5">
-                <div className="text-sm text-gray-400">Prontas para contato</div>
-                <div className="text-3xl font-bold text-white mt-2">{artistOpportunitySummary.readyNow}</div>
-                <div className="text-xs text-gray-500 mt-2">Com preview e WhatsApp pronto</div>
-              </Card>
-              <Card className="p-5">
-                <div className="text-sm text-gray-400">Sem contato direto</div>
-                <div className="text-3xl font-bold text-white mt-2">{artistOpportunitySummary.missingContact}</div>
-                <div className="text-xs text-gray-500 mt-2">Oportunidades que precisam de enriquecimento</div>
-              </Card>
-              <Card className="p-5">
-                <div className="text-sm text-gray-400">Score medio</div>
-                <div className="text-3xl font-bold text-white mt-2">{artistOpportunitySummary.averageScore}</div>
-                <div className="text-xs text-gray-500 mt-2">Pulso geral do repertorio acionavel</div>
-              </Card>
-            </div>
+            <PanelSection eyebrow="Mesa De Oportunidades" title="Onde agir primeiro para converter mais rapido" description="Esses indicadores deixam a aba mais executiva, com foco em contato, qualidade do material e calor do repertorio.">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <PremiumMetricCard icon={ArrowUpRight} tone="green" title="Prontas para contato" value={artistOpportunitySummary.readyNow} description="Com preview e WhatsApp pronto" />
+                <PremiumMetricCard icon={Clock} tone="red" title="Sem contato direto" value={artistOpportunitySummary.missingContact} description="Oportunidades que precisam de enriquecimento" />
+                <PremiumMetricCard icon={Sparkles} tone="gold" title="Score medio" value={artistOpportunitySummary.averageScore} description="Pulso geral do repertorio acionavel" />
+              </div>
+            </PanelSection>
 
             <div className="grid grid-cols-1 xl:grid-cols-[1.45fr_0.85fr] gap-6">
-              <Card className="p-6">
+              <PanelSection title="Fila de oportunidades" description="Prioridade por score, contato e contexto do material">
                 <div className="flex items-center justify-between gap-3 mb-4">
-                  <div>
-                    <div className="text-lg font-bold text-white">Fila de oportunidades</div>
-                    <div className="text-sm text-gray-400">Prioridade por score, contato e contexto do material</div>
-                  </div>
                   <div className="text-xs text-gray-500">{filteredOpportunityRadarItems.length} itens</div>
                 </div>
 
@@ -1030,21 +979,18 @@ export const DashboardArtistHome = () => {
                     </div>
                   ))}
                 </div>
-              </Card>
+              </PanelSection>
 
               <div className="space-y-6">
-                <Card className="p-5">
-                  <div className="font-bold text-white">Playbook do artista</div>
-                  <div className="text-sm text-gray-400 mt-2">Fluxo recomendado para transformar repertorio em contato quente.</div>
+                <HighlightRailCard title="Playbook do artista" description="Fluxo recomendado para transformar repertorio em contato quente." badge="guia">
                   <div className="space-y-3 mt-4">
                     <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">1. Filtre as faixas com score mais alto</div>
                     <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">2. Priorize as que ja tem preview e WhatsApp</div>
                     <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">3. Abra conversa e registre o retorno no mesmo dia</div>
                   </div>
-                </Card>
+                </HighlightRailCard>
 
-                <Card className="p-5">
-                  <div className="font-bold text-white">Faixas recentes para explorar</div>
+                <HighlightRailCard title="Faixas recentes para explorar" description="Pequena vitrine lateral para manter a aba visualmente viva." badge="novas">
                   <div className="space-y-3 mt-4">
                     {filteredLatestCompositions.slice(0, 3).map((item) => (
                       <div key={`artist-latest-${item.id}`} className="rounded-xl border border-white/10 bg-white/5 p-3">
@@ -1056,7 +1002,7 @@ export const DashboardArtistHome = () => {
                       <div className="text-sm text-gray-500">Sem faixas recentes para destacar.</div>
                     ) : null}
                   </div>
-                </Card>
+                </HighlightRailCard>
               </div>
             </div>
           </div>
@@ -1064,9 +1010,8 @@ export const DashboardArtistHome = () => {
 
         {activePanelTab === 'atividade' && (
           <div className="grid grid-cols-1 xl:grid-cols-[2fr,1fr] gap-6">
-            <Card>
+            <PanelSection title="Atividade recente" description="Timeline com mais presença visual e moldura de dashboard premium.">
               <div className="flex items-center justify-between mb-4">
-                <div className="text-sm text-gray-400"><span>Atividade recente</span></div>
                 <div className="px-2 py-1 bg-white/10 rounded-lg text-white text-xs font-bold">{activityItems.length} itens</div>
               </div>
               {filteredActivityItems.length === 0 ? (
@@ -1095,10 +1040,9 @@ export const DashboardArtistHome = () => {
                   ))}
                 </div>
               )}
-            </Card>
+            </PanelSection>
 
-            <Card>
-              <div className="text-sm text-gray-400 mb-4"><span>Atalhos uteis</span></div>
+            <HighlightRailCard title="Atalhos uteis" description="Coluna de apoio com visual mais profissional para navegar entre as funcoes." badge="apoio">
               <div className="space-y-3">
                 <button
                   type="button"
@@ -1136,7 +1080,7 @@ export const DashboardArtistHome = () => {
                   </button>
                 )}
               </div>
-            </Card>
+            </HighlightRailCard>
           </div>
         )}
       </div>

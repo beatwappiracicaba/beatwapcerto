@@ -2,8 +2,11 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { EmptyState } from '../components/ui/EmptyState';
+import { HighlightRailCard } from '../components/ui/HighlightRailCard';
+import { PanelSection } from '../components/ui/PanelSection';
 import { PanelHero } from '../components/ui/PanelHero';
 import { PersistentPanelTabs } from '../components/ui/PersistentPanelTabs';
+import { PremiumMetricCard } from '../components/ui/PremiumMetricCard';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
 import { DashboardLayout } from '../components/DashboardLayout';
@@ -272,70 +275,51 @@ export const DashboardCompositions = () => {
 
         {activePanelTab === 'resumo' && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card>
-                <div className="text-sm text-gray-400">Total de composicoes</div>
-                <div className="text-3xl font-bold text-white">{compositions.length}</div>
-              </Card>
-              <Card>
-                <div className="text-sm text-gray-400">Aprovadas</div>
-                <div className="text-3xl font-bold text-white">{approvedCount}</div>
-              </Card>
-              <Card>
-                <div className="text-sm text-gray-400">Pendentes</div>
-                <div className="text-3xl font-bold text-white">{pendingCount}</div>
-              </Card>
-              <Card>
-                <div className="text-sm text-gray-400">Valor do catalogo</div>
-                <div className="text-3xl font-bold text-white">
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCatalogValue)}
-                </div>
-              </Card>
-            </div>
+            <PanelSection
+              eyebrow="Resumo Executivo"
+              title="Visao instantanea do seu catalogo"
+              description="Os principais numeros aparecem com mais contraste e leitura premium, deixando claro o tamanho do catalogo, o que ja foi aprovado e onde existe dinheiro parado."
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+                <PremiumMetricCard icon={Music} tone="purple" title="Total de composicoes" value={compositions.length} description="Faixas cadastradas no seu catalogo atual" />
+                <PremiumMetricCard icon={BadgeCheck} tone="green" title="Aprovadas" value={approvedCount} description="Itens prontos para atacar mercado" />
+                <PremiumMetricCard icon={Clock} tone="gold" title="Pendentes" value={pendingCount} description="Materiais aguardando proximo passo" />
+                <PremiumMetricCard icon={Sparkles} tone="blue" title="Valor do catalogo" value={revenueFormatter.format(totalCatalogValue)} description="Potencial financeiro do seu acervo" />
+              </div>
+            </PanelSection>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <div className="flex items-center gap-2 mb-2 text-gray-400 text-sm">
-                  <Bell size={16} />
-                  <span>Notificacoes</span>
-                </div>
-                <div className="text-3xl font-bold text-white">{unreadNotifications}</div>
-                <div className="text-xs text-gray-500 mt-1">Nao lidas no momento</div>
-              </Card>
-              <Card>
-                <div className="flex items-center gap-2 mb-2 text-gray-400 text-sm">
-                  <MessageCircle size={16} />
-                  <span>Chats ativos</span>
-                </div>
-                <div className="text-3xl font-bold text-white">{activeChatsCount}</div>
-                <div className="text-xs text-gray-500 mt-1">Conversas abertas no sistema</div>
-              </Card>
-              <Card>
-                <div className="flex items-center gap-2 mb-2 text-gray-400 text-sm">
-                  <LayoutGrid size={16} />
-                  <span>Atalhos</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <AnimatedButton onClick={() => setIsUploadModalOpen(true)} className="w-full sm:w-auto justify-center">
-                    Nova Composicao
-                  </AnimatedButton>
-                  <AnimatedButton onClick={() => navigate('/dashboard/profile')} variant="secondary" className="w-full sm:w-auto justify-center">
-                    Perfil
-                  </AnimatedButton>
-                </div>
-              </Card>
-            </div>
+            <PanelSection
+              eyebrow="Pulso Do Painel"
+              title="Alertas e atalhos em destaque"
+              description="Essa faixa deixa o topo mais bonito e mais funcional, agrupando notificacoes, conversas e proximos movimentos."
+            >
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <PremiumMetricCard icon={Bell} tone="gold" title="Notificacoes" value={unreadNotifications} description="Itens nao lidos no momento" />
+                <PremiumMetricCard icon={MessageCircle} tone="purple" title="Chats ativos" value={activeChatsCount} description="Conversas abertas dentro do sistema" />
+                <HighlightRailCard title="Atalhos do compositor" description="Acesso rapido para agir sem sair do contexto." badge="acao">
+                  <div className="flex flex-wrap gap-2">
+                    <AnimatedButton onClick={() => setIsUploadModalOpen(true)} className="w-full sm:w-auto justify-center">
+                      Nova composicao
+                    </AnimatedButton>
+                    <AnimatedButton onClick={() => navigate('/dashboard/profile')} variant="secondary" className="w-full sm:w-auto justify-center">
+                      Perfil
+                    </AnimatedButton>
+                  </div>
+                </HighlightRailCard>
+              </div>
+            </PanelSection>
 
-            <Card className="p-6 border border-beatwap-gold/20 bg-[linear-gradient(135deg,rgba(245,197,66,0.10),rgba(255,255,255,0.02),rgba(0,0,0,0.28))] shadow-[0_0_35px_rgba(245,197,66,0.08)]">
+            <PanelSection
+              eyebrow="Pitch Prioritario"
+              title="Veja o que tem mais chance de virar negocio"
+              description="Organizei o catalogo pelo que esta pronto para venda, pelo que ainda trava e pelo que precisa de ajuste para chamar mais atencao."
+              className="border-beatwap-gold/20 bg-[linear-gradient(135deg,rgba(245,197,66,0.10),rgba(255,255,255,0.02),rgba(0,0,0,0.28))] shadow-[0_0_35px_rgba(245,197,66,0.08)]"
+            >
               <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5 mb-6">
                 <div>
                   <div className="inline-flex items-center gap-2 rounded-full border border-beatwap-gold/30 bg-beatwap-gold/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em] text-beatwap-gold">
                     <Sparkles size={14} />
                     Radar de Pitch
-                  </div>
-                  <div className="text-2xl font-extrabold text-white mt-3">Veja o que tem mais chance de virar negocio</div>
-                  <div className="text-sm text-gray-300 mt-2 max-w-3xl">
-                    Organizei o catalogo pelo que esta pronto para venda, pelo que ainda trava e pelo que precisa de ajuste para chamar mais atencao.
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-3">
@@ -469,11 +453,15 @@ export const DashboardCompositions = () => {
                   </div>
                 </div>
               </div>
-            </Card>
+            </PanelSection>
 
-            <Card>
+            <PanelSection
+              eyebrow="Catalogo Visual"
+              title="Minhas composicoes"
+              description="A lista ganhou mais respiracao e se conecta melhor com o restante do dashboard, deixando a leitura mais premium."
+            >
               <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-3">
-                <div className="text-xl font-semibold text-white"><span>Minhas Composições</span></div>
+                <div className="text-xl font-semibold text-white"><span>Minhas Composicoes</span></div>
                 <AnimatedButton 
                   onClick={() => setIsUploadModalOpen(true)}
                   icon={Plus}
@@ -541,37 +529,23 @@ export const DashboardCompositions = () => {
                   </div>
                 ))}
               </div>
-            </Card>
+            </PanelSection>
           </>
         )}
 
         {activePanelTab === 'pitch' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="p-5">
-                <div className="text-sm text-gray-400">Muito quentes</div>
-                <div className="text-3xl font-bold text-white mt-2">{pitchBoardSummary.hot}</div>
-                <div className="text-xs text-gray-500 mt-2">Itens com maior chance de conversao</div>
-              </Card>
-              <Card className="p-5">
-                <div className="text-sm text-gray-400">Precisam de revisao</div>
-                <div className="text-3xl font-bold text-white mt-2">{pitchBoardSummary.revision}</div>
-                <div className="text-xs text-gray-500 mt-2">Com feedback ou fora da aprovacao final</div>
-              </Card>
-              <Card className="p-5">
-                <div className="text-sm text-gray-400">Monetizadas</div>
-                <div className="text-3xl font-bold text-white mt-2">{pitchBoardSummary.monetized}</div>
-                <div className="text-xs text-gray-500 mt-2">Ja com preco definido para pitch</div>
-              </Card>
-            </div>
+            <PanelSection eyebrow="Mesa Comercial" title="Leitura premium da prontidao do pitch" description="Esses indicadores ajudam a enxergar o que esta quente, o que ainda trava e o que ja esta pronto para dinheiro.">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <PremiumMetricCard icon={Sparkles} tone="green" title="Muito quentes" value={pitchBoardSummary.hot} description="Itens com maior chance de conversao" />
+                <PremiumMetricCard icon={Clock} tone="gold" title="Precisam de revisao" value={pitchBoardSummary.revision} description="Com feedback ou fora da aprovacao final" />
+                <PremiumMetricCard icon={BadgeCheck} tone="blue" title="Monetizadas" value={pitchBoardSummary.monetized} description="Ja com preco definido para pitch" />
+              </div>
+            </PanelSection>
 
             <div className="grid grid-cols-1 xl:grid-cols-[1.45fr_0.85fr] gap-6">
-              <Card className="p-6">
+              <PanelSection title="Mesa de pitch" description="Ordenacao executiva do catalogo por prontidao comercial">
                 <div className="flex items-center justify-between gap-3 mb-4">
-                  <div>
-                    <div className="text-lg font-bold text-white">Mesa de pitch</div>
-                    <div className="text-sm text-gray-400">Ordenacao executiva do catalogo por prontidao comercial</div>
-                  </div>
                   <div className="text-xs text-gray-500">{filteredPitchRadarItems.length} composicoes</div>
                 </div>
 
@@ -622,20 +596,18 @@ export const DashboardCompositions = () => {
                     </div>
                   ))}
                 </div>
-              </Card>
+              </PanelSection>
 
               <div className="space-y-6">
-                <Card className="p-5">
-                  <div className="font-bold text-white">Regra de ouro do pitch</div>
+                <HighlightRailCard title="Regra de ouro do pitch" description="Regras simples que deixam a interface mais consultiva e menos fria." badge="guia">
                   <div className="space-y-3 mt-4">
                     <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">1. Aprovada + preco definido + plays acima de zero = prioridade maxima</div>
                     <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">2. Se houver feedback, revise antes de insistir no mercado</div>
                     <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-300">3. Se faltou preco, voce esta travando sua conversao</div>
                   </div>
-                </Card>
+                </HighlightRailCard>
 
-                <Card className="p-5">
-                  <div className="font-bold text-white">Atalhos do compositor</div>
+                <HighlightRailCard title="Atalhos do compositor" description="Acoes visuais com mais peso para facilitar o proximo passo." badge="rapido">
                   <div className="space-y-3 mt-4">
                     <AnimatedButton onClick={() => setIsUploadModalOpen(true)} className="w-full justify-center" icon={Plus}>
                       Nova composicao
@@ -647,7 +619,7 @@ export const DashboardCompositions = () => {
                       Ver perfil
                     </AnimatedButton>
                   </div>
-                </Card>
+                </HighlightRailCard>
               </div>
             </div>
           </div>
@@ -655,9 +627,8 @@ export const DashboardCompositions = () => {
 
         {activePanelTab === 'atividade' && (
           <div className="grid grid-cols-1 xl:grid-cols-[2fr,1fr] gap-6">
-            <Card>
+            <PanelSection title="Atividade recente" description="A timeline ganhou moldura mais nobre para ficar com leitura de sistema profissional.">
               <div className="flex items-center justify-between mb-4">
-                <div className="text-sm text-gray-400"><span>Atividade recente</span></div>
                 <div className="px-2 py-1 bg-white/10 rounded-lg text-white text-xs font-bold">{activityItems.length} itens</div>
               </div>
                 {filteredActivityItems.length === 0 ? (
@@ -686,10 +657,9 @@ export const DashboardCompositions = () => {
                   ))}
                 </div>
               )}
-            </Card>
+            </PanelSection>
 
-            <Card>
-              <div className="text-sm text-gray-400 mb-4"><span>Atalhos uteis</span></div>
+            <HighlightRailCard title="Atalhos uteis" description="Apoio lateral mais bonito e mais claro para navegar pelo sistema." badge="atalhos">
               <div className="space-y-3">
                 <button
                   type="button"
@@ -725,7 +695,7 @@ export const DashboardCompositions = () => {
                   <div className="text-xs text-gray-400 mt-2">Ajuste seus dados publicos e mantenha seu perfil atualizado.</div>
                 </button>
               </div>
-            </Card>
+            </HighlightRailCard>
           </div>
         )}
       </div>
