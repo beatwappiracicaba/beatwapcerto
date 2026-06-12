@@ -770,7 +770,6 @@ const Home = () => {
         </section>
         {showHighlightsTab && (
         <section className="py-10 px-6 bg-black/20 border-b border-white/10">
-        <section className="py-10 px-6 bg-black/20 border-b border-white/10">
           <div className="max-w-7xl mx-auto">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="min-w-0">
