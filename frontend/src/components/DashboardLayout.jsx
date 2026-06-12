@@ -97,6 +97,7 @@ export const DashboardLayout = ({ children }) => {
     if (path.includes('/dashboard/compositions') && permissions.compositions === false) return false;
     if (path.includes('/dashboard/work') && permissions.work === false) return false;
     if (path.includes('/dashboard/marketing') && permissions.marketing === false) return false;
+    if (path.includes('/dashboard/chat') && permissions.chat === false) return false;
     if (path.includes('/dashboard/finance') && permissions.finance === false) return false;
     if (path.includes('/dashboard/gestao/perfil-publico') && (!planAllowsPublicProfile || permissions.public_profile === false)) return false;
     return true;

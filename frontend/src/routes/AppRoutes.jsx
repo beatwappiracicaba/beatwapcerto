@@ -208,10 +208,11 @@ export const AppRoutes = () => {
     );
   };
 
-  const isArtista = profile?.cargo === 'Artista';
-  const isProdutor = profile?.cargo === 'Produtor';
-  const isCompositor = profile?.cargo === 'Compositor';
-  const isVendedor = profile?.cargo === 'Vendedor';
+  const currentRole = normalizeRole(profile?.cargo);
+  const isArtista = currentRole === 'Artista';
+  const isProdutor = currentRole === 'Produtor';
+  const isCompositor = currentRole === 'Compositor';
+  const isVendedor = currentRole === 'Vendedor';
 
   const DashboardPanel = () => {
     const r = normalizeRole(profile?.cargo);
