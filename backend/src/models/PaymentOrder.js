@@ -97,6 +97,10 @@ const PaymentOrder = sequelize.define('PaymentOrder', {
     type: DataTypes.JSON,
     allowNull: true
   },
+  metadata_json: {
+    type: DataTypes.JSON,
+    allowNull: true
+  },
   access_granted_at: {
     type: DataTypes.DATE,
     allowNull: true

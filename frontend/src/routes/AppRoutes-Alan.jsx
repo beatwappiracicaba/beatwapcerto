@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 // Layouts
 import { AuthLayout } from '../components/AuthLayout';
@@ -7,7 +7,6 @@ import { useAuth } from '../context/AuthContext';
 
 // UI
 import { LoadingScreen } from '../components/LoadingScreen';
-import { apiClient } from '../services/apiClient';
 
 // DashboardLayout removido durante reconstrução
 
@@ -51,18 +50,22 @@ import Feed from '../pages/Feed';
 import ComoFunciona from '../pages/ComoFunciona';
 import Auditions from '../pages/Auditions';
 import ProducerAuditions from '../pages/ProducerAuditions';
+import PaymentReturnPage from '../pages/PaymentReturnPage';
+import TicketsHub from '../pages/TicketsHub';
+import EventTicketPage from '../pages/EventTicketPage';
+import TicketInvitePage from '../pages/TicketInvitePage';
+import TicketScannerPage from '../pages/TicketScannerPage';
+import AdminEvents from '../pages/AdminEvents';
 
 // Admin temporariamente desativado
 
 export const AppRoutes = () => {
   const location = useLocation();
-  const navigate = useNavigate();
   const [splashMounted, setSplashMounted] = useState(true);
   const [splashMinDone, setSplashMinDone] = useState(false);
   const auth = useAuth() || {};
   const profile = auth.profile || null;
   const loading = auth.loading || false;
-  const refreshProfile = auth.refreshProfile;
   
   useEffect(() => {
     const id = setTimeout(() => setSplashMinDone(true), 3500);
@@ -81,7 +84,7 @@ export const AppRoutes = () => {
 
   const routeForRole = (role) => {
     const r = normalizeRole(role);
-    if (r === 'Produtor') return '/dashboard/painel';
+    if (r === 'Produtor') return '/admin';
     if (r === 'Vendedor') return '/dashboard/painel';
     if (r === 'Artista') return '/dashboard/painel';
     if (r === 'Compositor') return '/dashboard/painel';
@@ -94,14 +97,6 @@ export const AppRoutes = () => {
     return element;
   };
 
-  const RoleBasedRoute = ({ roles, element }) => {
-    if (loading) return null;
-    const userRole = normalizeRole(profile?.cargo);
-    if (!profile) return <Navigate to="/login" replace />;
-    if (!roles.includes(userRole)) return <Navigate to={routeForRole(userRole)} replace />;
-    return element;
-  };
-  
   const splashActive = !splashMinDone || loading;
 
   useEffect(() => {
@@ -115,99 +110,6 @@ export const AppRoutes = () => {
     return <LoadingScreen active={splashActive} onComplete={() => setSplashMounted(false)} />;
   }
 
-  const PaymentReturn = () => {
-    const [extRef, setExtRef] = useState('');
-    const [order, setOrder] = useState(null);
-    const [statusText, setStatusText] = useState('Aguardando confirmação de pagamento...');
-    const [errorText, setErrorText] = useState('');
-
-    useEffect(() => {
-      let stopped = false;
-      let intervalId = null;
-
-      const run = async () => {
-        const params = new URLSearchParams(String(location?.search || ''));
-        const external_reference =
-          params.get('external_reference') ||
-          params.get('externalReference') ||
-          params.get('external-ref') ||
-          '';
-        const backStatus = String(params.get('status') || '').toLowerCase().trim();
-        setExtRef(external_reference);
-
-        if (backStatus === 'failure') setStatusText('Pagamento não aprovado. Verifique e tente novamente.');
-        if (backStatus === 'pending') setStatusText('Pagamento pendente. Aguardando confirmação...');
-        if (backStatus === 'success') setStatusText('Pagamento enviado. Aguardando confirmação...');
-
-        if (!external_reference) {
-          navigate('/dashboard/profile', { replace: true });
-          return;
-        }
-
-        const poll = async () => {
-          try {
-            const data = await apiClient.get(`/payment/orders/${encodeURIComponent(external_reference)}`, { cache: false });
-            const nextOrder = data?.order || null;
-            if (!stopped) setOrder(nextOrder);
-
-            const st = String(nextOrder?.status || '').toLowerCase().trim();
-            const granted = !!nextOrder?.access_granted_at;
-            if (st === 'approved' && granted) {
-              try {
-                if (refreshProfile) await refreshProfile();
-              } catch { void 0; }
-              if (!stopped) navigate('/dashboard/profile', { replace: true });
-              return;
-            }
-
-            if (st === 'rejected' || st === 'cancelled' || st === 'refunded' || st === 'charged_back' || st === 'fraud') {
-              if (!stopped) setStatusText('Pagamento não aprovado. Se você pagou, aguarde alguns minutos ou fale com o suporte.');
-              return;
-            }
-
-            if (!stopped) setStatusText('Aguardando confirmação de pagamento...');
-          } catch (e) {
-            if (!stopped) {
-              setErrorText('Não foi possível consultar o status do pagamento. Tentando novamente...');
-            }
-          }
-        };
-
-        await poll();
-        intervalId = window.setInterval(poll, 3500);
-      };
-      run();
-
-      return () => {
-        stopped = true;
-        if (intervalId) window.clearInterval(intervalId);
-      };
-    }, [location?.search]);
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center px-6 bg-black">
-        <div className="text-center space-y-2 max-w-xl">
-          <div className="text-white font-bold text-xl">{statusText}</div>
-          <div className="text-gray-400 text-sm">
-            Seu acesso só é liberado após confirmação <span className="text-white font-semibold">approved</span> via webhook.
-          </div>
-          {extRef ? (
-            <div className="text-gray-500 text-xs break-all">
-              Pedido: <span className="text-gray-300">{extRef}</span>
-            </div>
-          ) : null}
-          {order ? (
-            <div className="text-gray-500 text-xs">
-              Status atual: <span className="text-gray-300">{String(order?.status || '')}</span>
-            </div>
-          ) : null}
-          {errorText ? (
-            <div className="text-red-400 text-xs">{errorText}</div>
-          ) : null}
-        </div>
-      </div>
-    );
-  };
-
   const currentRole = normalizeRole(profile?.cargo);
   const isArtista = currentRole === 'Artista';
   const isProdutor = currentRole === 'Produtor';
@@ -218,8 +120,11 @@ export const AppRoutes = () => {
       <Routes location={location}>
         {/* Public Route - Landing Page */}
         <Route path="/" element={<Home />} />
+        <Route path="/ingressos" element={<TicketsHub />} />
+        <Route path="/ingressos/evento/:slug" element={<EventTicketPage />} />
+        <Route path="/ingressos/convite/:token" element={<TicketInvitePage />} />
         <Route path="/audicoes" element={<Auditions />} />
-        <Route path="/pagamento/retorno" element={<ProtectedRoute element={<PaymentReturn />} />} />
+        <Route path="/pagamento/retorno" element={<PaymentReturnPage />} />
         <Route path="/como-funciona" element={<ComoFunciona />} />
         <Route path="/composicoes" element={<AllCompositions />} />
         <Route path="/profile/:id" element={<PublicProfile />} />
@@ -275,6 +180,8 @@ export const AppRoutes = () => {
         <Route path="/admin/profile" element={isProdutor ? <AdminProfile /> : <Navigate to="/" replace />} />
         <Route path="/admin/public-profile" element={isProdutor ? <AdminPublicProfile /> : <Navigate to="/" replace />} />
         <Route path="/admin/auditions" element={isProdutor ? <ProducerAuditions /> : <Navigate to="/" replace />} />
+        <Route path="/admin/eventos" element={isProdutor ? <AdminEvents /> : <Navigate to="/" replace />} />
+        <Route path="/admin/eventos/portaria" element={isProdutor ? <TicketScannerPage /> : <Navigate to="/" replace />} />
         <Route path="/admin/artists" element={isProdutor ? <AdminArtists /> : <Navigate to="/" replace />} />
         <Route path="/admin/composers" element={isProdutor ? <AdminComposers /> : <Navigate to="/" replace />} />
         <Route path="/admin/sellers" element={isProdutor ? <AdminSellers /> : <Navigate to="/" replace />} />

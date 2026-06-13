@@ -171,6 +171,7 @@ app.use('/', (req, res, next) => {
   if (p === '/webhook' || p === '/exemplo-pagamento') return publicRoutes(req, res, next);
   return next();
 });
+app.use('/api', require('./routes/ticketing'));
 app.use('/api', require('./routes/dashboard'));
 app.use('/api', require('./routes/chat'));
 app.use('/api', require('./routes/auditions'));

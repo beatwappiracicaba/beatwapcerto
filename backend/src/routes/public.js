@@ -1,5 +1,5 @@
 const express = require('express');
-const { Profile, sequelize, PaymentOrder } = require('../models');
+const { Profile, sequelize, PaymentOrder, Event, EventTicket } = require('../models');
 const { emitEvent } = require('../realtime');
 const jwt = require('jsonwebtoken');
 const { auth } = require('../middleware/auth');
@@ -11,6 +11,7 @@ const { transporter } = require('../services/mailer');
 const { createNotification } = require('../services/notifications');
 const { getAnalyticsSalt, getJwtSecret } = require('../config/secrets');
 const { getClientHash, getClientIp } = require('../utils/clientIdentity');
+const { issueTicketsForApprovedOrder, serializeTicketInvite } = require('../services/ticketing');
 
 const router = express.Router();
 
@@ -2423,13 +2424,21 @@ router.get('/compositions/latest', async (req, res) => {
 });
 
 async function grantAccessForOrder(order, payment, transaction) {
+  const productType = String(order?.product_type || '').toLowerCase().trim();
+  if (productType === 'event_ticket') {
+    return issueTicketsForApprovedOrder(
+      order,
+      { Event, EventTicket, PaymentOrder },
+      { payment, transaction }
+    );
+  }
+
   const profileId = order?.profile_id ? String(order.profile_id) : '';
   if (!profileId) return { ok: false };
 
   const profile = await Profile.findByPk(profileId, { transaction });
   if (!profile) return { ok: false };
 
-  const productType = String(order?.product_type || '').toLowerCase().trim();
   const productKey = String(order?.product_key || '').toLowerCase().trim();
   const qty = Number(order?.quantity || 0);
   const quantity = Number.isFinite(qty) ? Math.max(0, Math.floor(qty)) : 0;
@@ -2841,11 +2850,40 @@ router.post('/webhook', async (req, res) => {
         if (shouldGrant && !alreadyGranted && transporter && order.customer_email) {
           const to = String(order.customer_email || '').trim();
           if (to) {
+            const ticketOrder = String(order.product_type || '').toLowerCase().trim() === 'event_ticket';
+            let subject = 'Pagamento aprovado';
+            let text = `Pagamento aprovado. Produto: ${order.description || order.product_type || 'pedido'}`;
+
+            if (ticketOrder) {
+              const event = await Event.findByPk(order.product_key || null, { transaction: t }).catch(() => null);
+              const ticketRows = await EventTicket.findAll({ where: { order_id: order.id }, transaction: t }).catch(() => []);
+              const frontendUrl = pickFrontendUrl();
+              const inviteLines = ticketRows.map((ticket, index) => {
+                const invite = serializeTicketInvite(ticket, event);
+                const inviteUrl = frontendUrl
+                  ? `${frontendUrl}/ingressos/convite/${encodeURIComponent(invite.qr_token)}`
+                  : invite.qr_token;
+                return `${index + 1}. ${invite.ticket_type_name} - ${invite.invite_code} - ${inviteUrl}`;
+              });
+
+              subject = `Seus ingressos - ${event?.title || 'BeatWap'}`;
+              text = [
+                `Pagamento aprovado para o evento: ${event?.title || 'Evento BeatWap'}`,
+                `Local: ${event?.venue_name || 'A confirmar'}`,
+                `Data: ${event?.starts_at ? new Date(event.starts_at).toLocaleString('pt-BR') : 'A confirmar'}`,
+                '',
+                'Seus ingressos:',
+                inviteLines.length ? inviteLines.join('\n') : 'Os ingressos foram emitidos e estarao disponiveis em instantes.',
+                '',
+                'Leve este link ou QR Code no celular para a entrada.'
+              ].join('\n');
+            }
+
             await transporter.sendMail({
               from: mpEnv('SMTP_FROM', mpEnv('SMTP_USER', 'no-reply@beatwap.com.br')),
               to,
-              subject: 'Pagamento aprovado',
-              text: `Pagamento aprovado. Produto: ${order.description || order.product_type || 'pedido'}`
+              subject,
+              text
             });
           }
         }

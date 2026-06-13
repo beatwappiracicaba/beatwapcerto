@@ -33,6 +33,88 @@ const MIGRATIONS = [
         });
       }
     }
+  },
+  {
+    name: '003-events-and-tickets',
+    up: async () => {
+      const queryInterface = sequelize.getQueryInterface();
+      let eventColumns = {};
+      let ticketColumns = {};
+      try {
+        eventColumns = await queryInterface.describeTable('events');
+      } catch {
+        eventColumns = {};
+      }
+      try {
+        ticketColumns = await queryInterface.describeTable('event_tickets');
+      } catch {
+        ticketColumns = {};
+      }
+
+      if (!Object.keys(eventColumns).length) {
+        await queryInterface.createTable('events', {
+          id: { type: DataTypes.UUID, primaryKey: true, allowNull: false },
+          created_by: { type: DataTypes.UUID, allowNull: true },
+          slug: { type: DataTypes.STRING, allowNull: false, unique: true },
+          title: { type: DataTypes.STRING, allowNull: false },
+          subtitle: { type: DataTypes.STRING, allowNull: true },
+          description: { type: DataTypes.TEXT, allowNull: true },
+          banner_url: { type: DataTypes.TEXT, allowNull: true },
+          venue_name: { type: DataTypes.STRING, allowNull: false },
+          venue_city: { type: DataTypes.STRING, allowNull: true },
+          venue_address: { type: DataTypes.STRING, allowNull: true },
+          starts_at: { type: DataTypes.DATE, allowNull: false },
+          sales_ends_at: { type: DataTypes.DATE, allowNull: true },
+          published: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+          contact_phone: { type: DataTypes.STRING, allowNull: true },
+          ticket_types: { type: DataTypes.JSON, allowNull: false, defaultValue: [] },
+          settings: { type: DataTypes.JSON, allowNull: true },
+          created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
+          updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') }
+        });
+      }
+
+      if (!Object.keys(ticketColumns).length) {
+        await queryInterface.createTable('event_tickets', {
+          id: { type: DataTypes.UUID, primaryKey: true, allowNull: false },
+          event_id: { type: DataTypes.UUID, allowNull: false },
+          order_id: { type: DataTypes.UUID, allowNull: false },
+          buyer_name: { type: DataTypes.STRING, allowNull: false },
+          buyer_email: { type: DataTypes.STRING, allowNull: false },
+          buyer_phone: { type: DataTypes.STRING, allowNull: true },
+          ticket_type_id: { type: DataTypes.STRING, allowNull: false },
+          ticket_type_name: { type: DataTypes.STRING, allowNull: false },
+          unit_price_cents: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+          invite_code: { type: DataTypes.STRING, allowNull: false, unique: true },
+          qr_token: { type: DataTypes.STRING, allowNull: false, unique: true },
+          status: { type: DataTypes.STRING, allowNull: false, defaultValue: 'issued' },
+          checked_in_at: { type: DataTypes.DATE, allowNull: true },
+          checked_in_by: { type: DataTypes.UUID, allowNull: true },
+          metadata_json: { type: DataTypes.JSON, allowNull: true },
+          created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
+          updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') }
+        });
+      }
+    }
+  },
+  {
+    name: '004-payment-orders-metadata-json',
+    up: async () => {
+      const queryInterface = sequelize.getQueryInterface();
+      let columns = {};
+      try {
+        columns = await queryInterface.describeTable('payment_orders');
+      } catch {
+        columns = {};
+      }
+
+      if (!columns.metadata_json) {
+        await queryInterface.addColumn('payment_orders', 'metadata_json', {
+          type: DataTypes.JSON,
+          allowNull: true
+        });
+      }
+    }
   }
 ];
 

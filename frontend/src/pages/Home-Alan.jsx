@@ -815,25 +815,16 @@ const Home = () => {
                     </p>
                     <div className="mt-5 flex flex-wrap gap-3">
                       <AnimatedButton
-                        onClick={() =>
-                          window.open(
-                            'https://wa.me/5519981083497?text=' +
-                              encodeURIComponent('Ola! Quero estruturar um sistema de ingressos com QR Code e check-in mobile na BeatWap.'),
-                            '_blank'
-                          )
-                        }
+                        onClick={() => navigate('/ingressos')}
                       >
-                        Quero vender ingressos
+                        Comprar ingressos agora
                       </AnimatedButton>
                       <button
                         type="button"
-                        onClick={() => {
-                          const target = document.getElementById('contato') || document.getElementById('contact');
-                          if (target) target.scrollIntoView({ behavior: 'smooth' });
-                        }}
+                        onClick={() => navigate(user?.cargo === 'Produtor' ? '/admin/eventos' : '/login')}
                         className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/30 px-4 py-2 text-sm font-semibold text-white transition-colors hover:border-beatwap-gold hover:text-beatwap-gold"
                       >
-                        Falar sobre meu evento
+                        {user?.cargo === 'Produtor' ? 'Gerenciar meus eventos' : 'Entrar para vender ingressos'}
                       </button>
                     </div>
                   </div>

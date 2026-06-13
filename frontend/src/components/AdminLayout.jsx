@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, User, Music, Menu, X, Settings, DollarSign, ChevronDown, ClipboardList } from 'lucide-react';
+import { LayoutGrid, Users, User, Music, Menu, X, Settings, DollarSign, ChevronDown, ClipboardList, Ticket } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { NotificationBell } from './notifications/NotificationBell';
 import { ProfileButton } from './ProfileButton';
@@ -46,6 +46,7 @@ export const AdminLayout = ({ children }) => {
   const sistemaActive = location.pathname.startsWith('/admin/settings');
   const publicProfileActive = location.pathname.startsWith('/admin/public-profile');
   const auditionsActive = location.pathname.startsWith('/admin/auditions');
+  const eventsActive = location.pathname.startsWith('/admin/eventos');
 
   // Expose a global helper to close the mobile sidebar from deep components
   // Avoids prop drilling for simple UX adjustments
@@ -115,6 +116,18 @@ export const AdminLayout = ({ children }) => {
           >
             <ClipboardList size={16} />
             <span>Audições</span>
+          </NavLink>
+
+          <NavLink
+            to="/admin/eventos"
+            className={({ isActive }) =>
+              `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors text-xs uppercase tracking-wide ${
+                isActive || eventsActive ? 'bg-white/10 text-beatwap-gold' : 'text-gray-400 hover:bg-white/5'
+              }`
+            }
+          >
+            <Ticket size={16} />
+            <span>Eventos</span>
           </NavLink>
 
           {(permissions.admin_artists !== false ||
