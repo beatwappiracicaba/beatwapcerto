@@ -738,51 +738,82 @@ const Home = () => {
     { id: 'studio-3', image: studioPhoto3, title: 'Clima de producao', helper: 'Um visual que reforca o nivel profissional da BeatWap.' },
     { id: 'studio-4', image: studioPhoto4, title: 'Experiencia completa', helper: 'Lugar para tirar ideia do papel e transformar em lancamento.' }
   ];
-  const ticketHighlights = [
+  const ticketHeroStats = [
+    { id: 'public', value: 'Checkout publico', label: 'compra sem login' },
+    { id: 'qr', value: 'QR unico', label: 'emitido apos aprovar' },
+    { id: 'entry', value: 'Portaria mobile', label: 'check-in em segundos' }
+  ];
+  const ticketSellingCards = [
+    {
+      id: 'experience',
+      eyebrow: 'Experiencia premium',
+      title: 'O ingresso ja nasce com cara de convite oficial.',
+      helper: 'A Home vende valor antes da compra: visual forte, QR pronto e status claro para o publico.',
+      icon: BadgeCheck
+    },
     {
       id: 'public-sale',
-      title: 'Compra publica sem login',
-      helper: 'A pessoa acessa a pagina do evento, escolhe o lote e compra sem precisar criar conta antes.',
+      eyebrow: 'Compra simples',
+      title: 'O publico escolhe o lote e paga sem criar conta.',
+      helper: 'Menos atrito para vender mais e menos abandono no checkout.',
       icon: Ticket
     },
     {
-      id: 'digital-pass',
-      title: 'Convite digital automatico',
-      helper: 'Depois da aprovacao, o sistema envia um ingresso com QR Code, numero unico e dados do show.',
-      icon: QrCode
+      id: 'trust',
+      eyebrow: 'Confianca',
+      title: 'Cada convite recebe um codigo unico e validacao real.',
+      helper: 'Produtor controla entrada, publico sente seguranca e a operacao fica mais profissional.',
+      icon: ShieldCheck
     },
     {
-      id: 'mobile-checkin',
-      title: 'Leitor na portaria pelo celular',
-      helper: 'A equipe escaneia o QR na entrada e valida no ato se o convite esta valido ou ja foi usado.',
+      id: 'operation',
+      eyebrow: 'Operacao leve',
+      title: 'A equipe escaneia pelo celular e libera a entrada rapido.',
+      helper: 'Menos fila, menos papel e menos confusao na portaria.',
       icon: Smartphone
     }
   ];
-  const ticketSteps = [
-    'Produtor cria evento, lotes, setores e quantidade disponivel.',
-    'Comprador escolhe o ingresso em pagina publica e paga sem autenticacao.',
-    'Pagamento aprovado gera convite digital com token unico e QR Code.',
-    'Portaria valida o ingresso no celular e marca check-in em tempo real.'
+  const ticketFlowSteps = [
+    {
+      id: 'setup',
+      title: 'Monte o evento',
+      helper: 'Crie lotes, setores, quantidade e abra as vendas em poucos passos.'
+    },
+    {
+      id: 'sell',
+      title: 'Venda no publico',
+      helper: 'A pessoa entra, escolhe o ingresso e paga direto, sem precisar autenticar.'
+    },
+    {
+      id: 'issue',
+      title: 'Entregue o convite',
+      helper: 'Pagamento aprovado gera QR, codigo do pedido e um convite pronto para abrir no celular.'
+    },
+    {
+      id: 'checkin',
+      title: 'Valide na entrada',
+      helper: 'A portaria confere no celular e registra o check-in ao vivo para a producao.'
+    }
   ];
-  const ticketBenefits = [
-    { id: 'instant-pass', title: 'Convite no celular em segundos', helper: 'Assim que o pagamento aprova, o ingresso ja nasce como convite digital pronto para uso.', icon: QrCode },
-    { id: 'secure-entry', title: 'Entrada com validacao real', helper: 'Cada QR e unico, com status visivel de valido, usado ou bloqueado.', icon: ShieldCheck },
-    { id: 'fast-lane', title: 'Menos fila na portaria', helper: 'A equipe escaneia e libera a entrada sem papel, sem confusao e sem retrabalho.', icon: Smartphone }
-  ];
-  const ticketInviteMoments = [
-    { id: 'payment-ok', title: 'Pagamento aprovado', helper: 'O publico recebe a confirmacao sem precisar criar conta.' },
-    { id: 'invite-issued', title: 'Convite emitido', helper: 'QR Code, codigo unico e dados do evento chegam prontos para abrir no celular.' },
-    { id: 'entry-live', title: 'Entrada liberada', helper: 'A portaria confere o QR e registra o check-in em tempo real.' }
-  ];
-  const ticketPasses = [
-    { id: 'general', label: 'Pista', accent: 'from-white/25 to-white/5', helper: 'Entrada padrao com leitura imediata do QR.' },
-    { id: 'vip', label: 'VIP', accent: 'from-beatwap-gold/45 to-beatwap-gold/10', helper: 'Convite premium com destaque visual e status confirmado.' },
-    { id: 'backstage', label: 'Backstage', accent: 'from-fuchsia-500/30 to-white/5', helper: 'Acesso especial com identificacao forte na tela.' }
-  ];
-  const ticketStats = [
-    { id: 'speed', value: '< 5s', label: 'entrada visualizada' },
-    { id: 'mobile', value: '100%', label: 'funciona no celular' },
-    { id: 'control', value: 'QR unico', label: 'controle por convite' }
+  const ticketPreviewCards = [
+    {
+      id: 'pista',
+      label: 'Pista',
+      badge: 'Fluxo rapido',
+      helper: 'Perfeito para lotes principais, com compra simples e leitura imediata.'
+    },
+    {
+      id: 'vip',
+      label: 'VIP Lounge',
+      badge: 'Visual premium',
+      helper: 'Destaque maior para quem compra experiencia especial e acesso diferenciado.'
+    },
+    {
+      id: 'backstage',
+      label: 'Backstage',
+      badge: 'Controle extra',
+      helper: 'Ideal para acessos especiais com identificacao forte e validacao segura.'
+    }
   ];
 
   const showHighlightsTab = activeHomeTab === 'destaques';
@@ -850,56 +881,65 @@ const Home = () => {
           </div>
         </section>
         {showTicketsTab && (
-          <section className="py-12 px-4 sm:px-6 bg-gradient-to-b from-[#140b03] via-black to-black border-b border-white/10">
-            <div className="max-w-7xl mx-auto space-y-6">
-              <div className="rounded-[34px] border border-beatwap-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(245,197,66,0.2),transparent_30%),linear-gradient(135deg,rgba(245,197,66,0.14),rgba(255,255,255,0.04),rgba(0,0,0,0.58))] p-5 md:p-8 shadow-[0_0_80px_rgba(245,197,66,0.08)]">
-                <div className="grid xl:grid-cols-[1.08fr_0.92fr] gap-6 items-start">
+          <section className="py-12 px-4 sm:px-6 bg-[linear-gradient(180deg,#130a03_0%,#090909_46%,#000_100%)] border-b border-white/10">
+            <div className="max-w-7xl mx-auto space-y-5">
+              <div className="relative overflow-hidden rounded-[38px] border border-beatwap-gold/20 bg-[radial-gradient(circle_at_top_left,rgba(245,197,66,0.2),transparent_24%),radial-gradient(circle_at_bottom_right,rgba(245,197,66,0.12),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.05),rgba(0,0,0,0.78))] p-5 md:p-8 shadow-[0_0_90px_rgba(245,197,66,0.08)]">
+                <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-beatwap-gold/10 blur-3xl" />
+                <div className="absolute left-10 bottom-6 h-28 w-28 rounded-full bg-white/5 blur-3xl" />
+
+                <div className="relative grid gap-6 xl:grid-cols-[1.02fr_0.98fr]">
                   <div className="space-y-6">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-beatwap-gold/30 bg-beatwap-gold/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.26em] text-beatwap-gold">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-beatwap-gold/30 bg-beatwap-gold/10 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.28em] text-beatwap-gold">
                       <Ticket size={12} />
-                      Convites BeatWap
+                      Ingressos BeatWap
                     </div>
-                    <div>
-                      <h2 className="max-w-4xl text-3xl font-extrabold text-white md:text-5xl leading-tight">
-                        O publico compra e ja recebe um convite digital com QR pronto para entrar no evento sem fila.
+
+                    <div className="space-y-4">
+                      <h2 className="max-w-4xl text-3xl font-extrabold leading-tight text-white md:text-5xl">
+                        Recriamos a area de ingressos para vender com mais impacto e passar cara de evento premium.
                       </h2>
-                      <p className="mt-4 max-w-3xl text-sm md:text-base text-gray-200">
-                        A BeatWap transforma a compra em uma experiencia mais premium: pagamento aprovado, convite oficial no celular e validacao instantanea na portaria com cara de tecnologia real.
+                      <p className="max-w-3xl text-sm text-gray-200 md:text-base">
+                        Agora a Home mostra o ingresso como produto visual: compra rapida, convite oficial no celular e uma entrada com QR que parece tecnologia de evento grande.
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {ticketStats.map((item) => (
-                        <div key={item.id} className="rounded-[24px] border border-white/10 bg-black/35 px-4 py-4">
-                          <div className="text-2xl font-extrabold text-beatwap-gold">{item.value}</div>
-                          <div className="mt-1 text-xs uppercase tracking-[0.16em] text-gray-400">{item.label}</div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      {ticketHeroStats.map((item) => (
+                        <div key={item.id} className="rounded-[24px] border border-white/10 bg-black/35 px-4 py-4 backdrop-blur-sm">
+                          <div className="text-lg font-extrabold text-beatwap-gold md:text-2xl">{item.value}</div>
+                          <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-gray-400">{item.label}</div>
                         </div>
                       ))}
                     </div>
 
                     <div className="flex flex-wrap gap-3">
                       <AnimatedButton onClick={() => navigate('/ingressos')}>
-                        Comprar ingressos agora
+                        Ver vitrine de ingressos
                       </AnimatedButton>
                       <button
                         type="button"
                         onClick={() => navigate(user?.cargo === 'Produtor' ? '/admin/eventos' : '/login')}
                         className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/30 px-4 py-2 text-sm font-semibold text-white transition-colors hover:border-beatwap-gold hover:text-beatwap-gold"
                       >
-                        {user?.cargo === 'Produtor' ? 'Gerenciar meus eventos' : 'Entrar para vender ingressos'}
+                        {user?.cargo === 'Produtor' ? 'Criar ou gerenciar eventos' : 'Quero vender meus ingressos'}
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {ticketBenefits.map((item) => {
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {ticketSellingCards.map((item) => {
                         const Icon = item.icon;
                         return (
-                          <div key={item.id} className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_0_30px_rgba(0,0,0,0.18)]">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-beatwap-gold/10 text-beatwap-gold">
-                              <Icon size={22} />
+                          <div key={item.id} className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-sm">
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-beatwap-gold/90">{item.eyebrow}</div>
+                                <div className="mt-3 text-lg font-extrabold text-white">{item.title}</div>
+                              </div>
+                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-beatwap-gold/10 text-beatwap-gold">
+                                <Icon size={20} />
+                              </div>
                             </div>
-                            <div className="mt-4 text-lg font-extrabold text-white">{item.title}</div>
-                            <div className="mt-2 text-sm text-gray-300">{item.helper}</div>
+                            <div className="mt-3 text-sm text-gray-300">{item.helper}</div>
                           </div>
                         );
                       })}
@@ -907,82 +947,81 @@ const Home = () => {
                   </div>
 
                   <div className="space-y-4">
-                    <div className="grid gap-4 lg:grid-cols-[0.92fr_1.08fr] xl:grid-cols-1">
-                      <div className="rounded-[30px] border border-white/10 bg-black/45 p-4 sm:p-5 shadow-[0_20px_70px_rgba(0,0,0,0.28)]">
-                        <div className="mx-auto max-w-[320px] rounded-[34px] border border-white/10 bg-[linear-gradient(180deg,rgba(28,28,28,0.96),rgba(0,0,0,0.92))] p-3 shadow-[0_30px_90px_rgba(0,0,0,0.4)]">
-                          <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(245,197,66,0.18),rgba(0,0,0,0.1))] p-4">
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <div className="text-[10px] uppercase tracking-[0.24em] text-beatwap-gold">Convite oficial</div>
-                                <div className="mt-1 text-lg font-extrabold text-white">BeatWap Sunset</div>
-                              </div>
-                              <div className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-200">
-                                Pago
-                              </div>
-                            </div>
-                            <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
-                              <div className="rounded-2xl border border-white/10 bg-black/30 px-3 py-3">
-                                <div className="text-gray-400">Setor</div>
-                                <div className="mt-1 font-bold text-white">VIP Lounge</div>
-                              </div>
-                              <div className="rounded-2xl border border-white/10 bg-black/30 px-3 py-3">
-                                <div className="text-gray-400">Check-in</div>
-                                <div className="mt-1 font-bold text-white">Liberado</div>
-                              </div>
-                            </div>
-                            <div className="mt-4 rounded-[26px] bg-white p-4">
-                              <div className="relative aspect-square overflow-hidden rounded-[22px] border border-black/10 bg-white">
-                                <div className="absolute inset-4 grid grid-cols-9 gap-1">
-                                  {Array.from({ length: 81 }).map((_, idx) => {
-                                    const row = Math.floor(idx / 9);
-                                    const col = idx % 9;
-                                    const inFinderTopLeft = row < 3 && col < 3;
-                                    const inFinderTopRight = row < 3 && col > 5;
-                                    const inFinderBottomLeft = row > 5 && col < 3;
-                                    const filled = inFinderTopLeft || inFinderTopRight || inFinderBottomLeft || ((row + col) % 2 === 0 && row > 1 && col > 1 && row < 8 && col < 8) || (row === 4 || col === 4);
-                                    return (
-                                      <span
-                                        key={`qr-${idx}`}
-                                        className={`rounded-[2px] ${filled ? 'bg-black' : 'bg-transparent'}`}
-                                      />
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                              <div className="mt-3 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.18em] text-black/60">
-                                <span>QR unico</span>
-                                <span>BW-2026-VIP</span>
-                              </div>
-                            </div>
-                            <div className="mt-4 flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-gray-200">
-                              <BadgeCheck size={16} className="text-beatwap-gold" />
-                              Seu convite ja esta pronto para abrir na entrada.
-                            </div>
+                    <div className="rounded-[32px] border border-white/10 bg-black/40 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.34)]">
+                      <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(145deg,rgba(245,197,66,0.16),rgba(255,255,255,0.04),rgba(0,0,0,0.78))] p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-beatwap-gold">Evento em destaque</div>
+                            <div className="mt-2 text-2xl font-extrabold text-white">BeatWap Sunset Session</div>
+                            <div className="mt-2 text-sm text-gray-300">Uma tela pensada para vender o ingresso antes mesmo da pessoa abrir o checkout.</div>
+                          </div>
+                          <div className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-200">
+                            Publicado
                           </div>
                         </div>
-                      </div>
 
-                      <div className="rounded-[30px] border border-white/10 bg-black/35 p-5 md:p-6">
-                        <div className="flex items-center gap-2 text-white">
-                          <ShieldCheck size={18} className="text-beatwap-gold" />
-                          <div className="font-extrabold text-lg">Da compra ate a entrada</div>
+                        <div className="mt-5 grid grid-cols-3 gap-3">
+                          <div className="rounded-2xl border border-white/10 bg-black/35 px-3 py-3">
+                            <div className="text-[10px] uppercase tracking-[0.18em] text-gray-400">Setor</div>
+                            <div className="mt-1 text-sm font-extrabold text-white">VIP</div>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-black/35 px-3 py-3">
+                            <div className="text-[10px] uppercase tracking-[0.18em] text-gray-400">Lote</div>
+                            <div className="mt-1 text-sm font-extrabold text-white">2o lote</div>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-black/35 px-3 py-3">
+                            <div className="text-[10px] uppercase tracking-[0.18em] text-gray-400">Status</div>
+                            <div className="mt-1 text-sm font-extrabold text-white">Ativo</div>
+                          </div>
                         </div>
-                        <div className="mt-4 space-y-3">
-                          {ticketInviteMoments.map((step, index) => (
-                            <div key={step.id} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-beatwap-gold text-sm font-extrabold text-black">
-                                {index + 1}
-                              </div>
-                              <div>
-                                <div className="text-sm font-bold text-white">{step.title}</div>
-                                <div className="mt-1 text-sm text-gray-300">{step.helper}</div>
+
+                        <div className="mt-5 grid gap-4 lg:grid-cols-[0.92fr_1.08fr]">
+                          <div className="rounded-[28px] bg-white p-4">
+                            <div className="relative aspect-square overflow-hidden rounded-[22px] border border-black/10 bg-white">
+                              <div className="absolute inset-4 grid grid-cols-9 gap-1">
+                                {Array.from({ length: 81 }).map((_, idx) => {
+                                  const row = Math.floor(idx / 9);
+                                  const col = idx % 9;
+                                  const inFinderTopLeft = row < 3 && col < 3;
+                                  const inFinderTopRight = row < 3 && col > 5;
+                                  const inFinderBottomLeft = row > 5 && col < 3;
+                                  const filled = inFinderTopLeft || inFinderTopRight || inFinderBottomLeft || ((row + col) % 2 === 0 && row > 1 && col > 1 && row < 8 && col < 8) || row === 4 || col === 4;
+                                  return <span key={`ticket-qr-${idx}`} className={`rounded-[2px] ${filled ? 'bg-black' : 'bg-transparent'}`} />;
+                                })}
                               </div>
                             </div>
-                          ))}
-                        </div>
-                        <div className="mt-4 rounded-[24px] border border-dashed border-beatwap-gold/30 bg-beatwap-gold/10 px-4 py-4">
-                          <div className="text-xs uppercase tracking-[0.2em] text-beatwap-gold">Sem imprimir nada</div>
-                          <div className="mt-2 text-lg font-extrabold text-white">Convite oficial no celular, leitura rapida e controle melhor para a producao.</div>
+                            <div className="mt-3 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.18em] text-black/60">
+                              <span>QR unico</span>
+                              <span>BW-VIP-2048</span>
+                            </div>
+                          </div>
+
+                          <div className="rounded-[28px] border border-white/10 bg-black/35 p-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <div className="text-[10px] uppercase tracking-[0.22em] text-gray-400">Convite digital</div>
+                                <div className="mt-1 text-lg font-extrabold text-white">Pronto para abrir na entrada</div>
+                              </div>
+                              <QrCode size={18} className="text-beatwap-gold" />
+                            </div>
+                            <div className="mt-4 space-y-3">
+                              {ticketPreviewCards.map((item) => (
+                                <div key={item.id} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="text-sm font-extrabold text-white">{item.label}</div>
+                                    <div className="rounded-full bg-beatwap-gold/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-beatwap-gold">
+                                      {item.badge}
+                                    </div>
+                                  </div>
+                                  <div className="mt-2 text-sm text-gray-300">{item.helper}</div>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="mt-4 flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-gray-200">
+                              <BadgeCheck size={16} className="text-beatwap-gold" />
+                              O convite confirma o pagamento e deixa a entrada pronta no celular.
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -990,59 +1029,60 @@ const Home = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-4">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-[0.95fr_1.05fr]">
                 <div className="rounded-[30px] border border-white/10 bg-white/[0.04] p-5 md:p-6">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck size={18} className="text-beatwap-gold" />
                     <div>
-                      <div className="text-xs uppercase tracking-[0.22em] text-beatwap-gold">Tipos de convite</div>
-                      <div className="mt-2 text-2xl font-extrabold text-white">Mostre valor antes mesmo do check-in</div>
-                    </div>
-                    <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-gray-300">
-                      Preview premium
+                      <div className="text-xs uppercase tracking-[0.22em] text-beatwap-gold">Do anuncio a portaria</div>
+                      <div className="mt-2 text-2xl font-extrabold text-white">Uma jornada mais clara para quem compra e melhor para quem produz</div>
                     </div>
                   </div>
-                  <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {ticketPasses.map((pass) => (
-                      <div key={pass.id} className={`rounded-[26px] border border-white/10 bg-gradient-to-br ${pass.accent} p-5`}>
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="text-lg font-extrabold text-white">{pass.label}</div>
-                          <QrCode size={18} className="text-white/80" />
+
+                  <div className="mt-5 space-y-3">
+                    {ticketFlowSteps.map((step, index) => (
+                      <div key={step.id} className="flex items-start gap-3 rounded-[24px] border border-white/10 bg-black/25 px-4 py-4">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-beatwap-gold text-sm font-extrabold text-black">
+                          {index + 1}
                         </div>
-                        <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 px-3 py-3 text-xs uppercase tracking-[0.18em] text-gray-200">
-                          Convite digital validado
+                        <div>
+                          <div className="text-sm font-extrabold text-white">{step.title}</div>
+                          <div className="mt-1 text-sm text-gray-300">{step.helper}</div>
                         </div>
-                        <div className="mt-3 text-sm text-gray-100/90">{pass.helper}</div>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 <div className="rounded-[30px] border border-white/10 bg-black/35 p-5 md:p-6">
-                  <div className="text-xs uppercase tracking-[0.22em] text-beatwap-gold">Como esse fluxo funciona</div>
-                  <div className="mt-2 text-2xl font-extrabold text-white">Jornada completa do ingresso ao convite</div>
-                  <div className="mt-4 space-y-3">
-                    {ticketSteps.map((step, index) => (
-                      <div key={step} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-beatwap-gold text-sm font-extrabold text-black">
-                          {index + 1}
-                        </div>
-                        <div className="text-sm text-gray-200">{step}</div>
+                  <div className="text-xs uppercase tracking-[0.22em] text-beatwap-gold">Por que essa nova area chama mais atencao</div>
+                  <div className="mt-2 text-2xl font-extrabold text-white">O ingresso agora parece um produto premium dentro da Home</div>
+
+                  <div className="mt-5 grid gap-4 md:grid-cols-2">
+                    <div className="rounded-[26px] border border-white/10 bg-white/[0.04] p-5">
+                      <div className="text-sm font-extrabold text-white">Visual de evento real</div>
+                      <div className="mt-2 text-sm text-gray-300">
+                        Em vez de um bloco explicativo comum, a Home mostra ingresso, status, QR e hierarquia visual de marketplace.
                       </div>
-                    ))}
-                  </div>
-                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {ticketHighlights.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <div key={item.id} className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-beatwap-gold/10 text-beatwap-gold">
-                            <Icon size={18} />
-                          </div>
-                          <div className="mt-3 text-sm font-extrabold text-white">{item.title}</div>
-                          <div className="mt-2 text-xs text-gray-300">{item.helper}</div>
-                        </div>
-                      );
-                    })}
+                    </div>
+                    <div className="rounded-[26px] border border-white/10 bg-white/[0.04] p-5">
+                      <div className="text-sm font-extrabold text-white">Mensagem mais comercial</div>
+                      <div className="mt-2 text-sm text-gray-300">
+                        O texto vende velocidade, confianca e experiencia, nao apenas funcionalidade tecnica.
+                      </div>
+                    </div>
+                    <div className="rounded-[26px] border border-white/10 bg-white/[0.04] p-5">
+                      <div className="text-sm font-extrabold text-white">Portaria mais valorizada</div>
+                      <div className="mt-2 text-sm text-gray-300">
+                        O fluxo de leitura pelo celular virou parte central da proposta, reforcando profissionalismo para o produtor.
+                      </div>
+                    </div>
+                    <div className="rounded-[26px] border border-beatwap-gold/20 bg-beatwap-gold/10 p-5">
+                      <div className="text-sm font-extrabold text-white">Mais desejo de uso</div>
+                      <div className="mt-2 text-sm text-gray-200">
+                        A nova composicao cria vontade de clicar, explorar o evento e imaginar a compra acontecendo ali mesmo.
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
