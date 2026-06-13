@@ -155,16 +155,17 @@ export const BoostedProfilesStories = ({
             const name = String(p?.nome || 'Usuário');
             const initial = name.trim() ? name.trim()[0].toUpperCase() : 'U';
             return (
-              <div key={p.id} className="shrink-0 w-[156px]">
+              <div key={p.id} className="shrink-0 w-[220px] sm:w-[236px]">
                 <button
                   type="button"
                   onClick={() => navigate(`/profile/${p.id}`)}
-                  className="w-full rounded-3xl border border-white/10 bg-black/25 p-3 text-left transition hover:border-beatwap-gold/40 hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                  className="h-full w-full rounded-3xl border border-white/10 bg-black/25 p-4 text-left transition hover:border-beatwap-gold/40 hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                   aria-label={`Ver perfil de ${name}`}
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="bw-story-ring shrink-0">
-                      <div className="bw-story-avatar">
+                  <div className="flex h-full flex-col gap-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="bw-story-ring shrink-0">
+                        <div className="bw-story-avatar bw-protect">
                         {p.avatar_url ? (
                           <img
                             src={sanitizeUrl(p.avatar_url)}
@@ -178,17 +179,19 @@ export const BoostedProfilesStories = ({
                             {initial}
                           </div>
                         )}
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-sm font-bold leading-tight text-white break-words">{name}</div>
+                            <div className="text-[11px] text-gray-400 mt-1">{roleLabel(p.cargo)}</div>
+                          </div>
+                          <ArrowUpRight size={14} className="text-gray-500 shrink-0 mt-0.5" />
+                        </div>
                       </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="text-sm font-bold text-white truncate">{name}</div>
-                          <div className="text-[11px] text-gray-400 mt-1">{roleLabel(p.cargo)}</div>
-                        </div>
-                        <ArrowUpRight size={14} className="text-gray-500 shrink-0" />
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 mt-3">
+                    <div className="flex flex-wrap items-center gap-2">
                         <span className={`rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${featuredTone(p)}`}>
                           {featuredLabel(p)}
                         </span>
