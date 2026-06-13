@@ -65,6 +65,10 @@ const Header = () => {
 
   const scrollToSection = (id) => {
     setMobileMenuOpen(false);
+    if (location.pathname !== '/') {
+      navigate('/');
+      return;
+    }
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
@@ -73,10 +77,22 @@ const Header = () => {
 
   const navItems = [
     { label: 'Início', id: 'home' },
+    { label: 'Ingressos', path: '/ingressos' },
     { label: 'Como funciona', id: 'how-it-works' },
     { label: 'Vantagens', id: 'benefits' },
     { label: 'Contato', id: 'contact' },
   ];
+
+  const handleNavItemClick = (item) => {
+    setMobileMenuOpen(false);
+    if (item.path) {
+      navigate(item.path);
+      return;
+    }
+    if (item.id) {
+      scrollToSection(item.id);
+    }
+  };
 
   const routeForRole = (role) => {
     if (!role) return '/dashboard/painel';
@@ -118,8 +134,8 @@ const Header = () => {
         <nav className="hidden md:flex items-center gap-8">
           {navItems.map((item) => (
             <button
-              key={item.id}
-              onClick={() => scrollToSection(item.id)}
+              key={item.id || item.path}
+              onClick={() => handleNavItemClick(item)}
               className="text-gray-300 hover:text-beatwap-gold transition-colors font-medium text-sm uppercase tracking-wide"
             >
               {item.label}
@@ -164,8 +180,8 @@ const Header = () => {
             <div className="flex flex-col p-6 gap-4">
               {navItems.map((item) => (
                 <button
-                  key={item.id}
-                  onClick={() => scrollToSection(item.id)}
+                  key={item.id || item.path}
+                  onClick={() => handleNavItemClick(item)}
                   className="text-left text-gray-300 hover:text-beatwap-gold py-2 font-medium"
                 >
                   {item.label}
