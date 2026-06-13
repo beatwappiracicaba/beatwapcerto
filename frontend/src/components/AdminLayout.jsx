@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
-import { LayoutGrid, Users, User, Music, Menu, X, Settings, DollarSign, ClipboardList, Ticket, Search, MessageCircle, Home } from 'lucide-react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { LayoutGrid, Users, User, Music, Menu, X, Settings, DollarSign, ClipboardList, Ticket, Search, MessageCircle, Home, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { NotificationBell } from './notifications/NotificationBell';
 import { ProfileButton } from './ProfileButton';
@@ -11,6 +11,8 @@ export const AdminLayout = ({ children }) => {
   const { user, profile } = useAuth();
   const currentUserId = user?.id;
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [openSections, setOpenSections] = useState({});
+  const location = useLocation();
  
   // Default permissions for admin (all enabled if not set)
   const permissions = profile?.access_control || {
@@ -35,6 +37,10 @@ export const AdminLayout = ({ children }) => {
       try { delete window.__closeAdminSidebar; } catch { /* ignore */ }
     };
   }, []);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [location.pathname]);
 
   const navLinkClass = ({ isActive }) =>
     `flex items-center gap-2 rounded-xl px-3 py-2 transition-colors ${
@@ -94,6 +100,37 @@ export const AdminLayout = ({ children }) => {
     }
   ]), [permissions.admin_artists, permissions.admin_composers, permissions.admin_finance, permissions.admin_musics, permissions.admin_compositions, permissions.admin_settings, permissions.admin_sellers, permissions.admin_sponsors, permissions.chat]);
 
+  const isSectionActive = (section) =>
+    section.items.some((item) => {
+      if (!item?.to) return false;
+      if (item.to === '/admin') return location.pathname === item.to;
+      return location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
+    });
+
+  useEffect(() => {
+    setOpenSections((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      sidebarSections.forEach((section, index) => {
+        const shouldOpenByDefault = index === 0 || isSectionActive(section);
+        if (typeof next[section.title] === 'undefined') {
+          next[section.title] = shouldOpenByDefault;
+          changed = true;
+        } else if (isSectionActive(section) && !next[section.title]) {
+          next[section.title] = true;
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [location.pathname, sidebarSections]);
+
+  const toggleSection = (title) => {
+    setOpenSections((prev) => ({ ...prev, [title]: !prev[title] }));
+  };
+
   const renderNavItem = (item) => {
     const Icon = item.icon;
     return (
@@ -102,7 +139,10 @@ export const AdminLayout = ({ children }) => {
         to={item.to}
         end={item.to === '/admin' || item.to === '/'}
         className={navLinkClass}
-        onClick={() => setSidebarOpen(false)}
+        onClick={() => {
+          setSidebarOpen(false);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
       >
         <Icon size={18} />
         <span>{item.label}</span>
@@ -122,9 +162,27 @@ export const AdminLayout = ({ children }) => {
         <nav className="space-y-4 text-sm">
           {sidebarSections.filter((section) => section.items.length > 0).map((section) => (
             <div key={section.title} className="space-y-2">
-              <div className={sectionTitleClass}>{section.title}</div>
-              <div className="space-y-1">
-                {section.items.map(renderNavItem)}
+              <button
+                type="button"
+                onClick={() => toggleSection(section.title)}
+                className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors ${
+                  isSectionActive(section) ? 'bg-white/10 text-beatwap-gold' : 'text-gray-300 hover:bg-white/5'
+                }`}
+              >
+                <span className={sectionTitleClass}>{section.title}</span>
+                <ChevronDown
+                  size={16}
+                  className={`shrink-0 transition-transform ${openSections[section.title] ? 'rotate-180' : ''}`}
+                />
+              </button>
+              <div
+                className={`overflow-hidden transition-all duration-200 ${
+                  openSections[section.title] ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                }`}
+              >
+                <div className="space-y-1 pt-1">
+                  {section.items.map(renderNavItem)}
+                </div>
               </div>
             </div>
           ))}

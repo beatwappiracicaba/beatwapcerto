@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutGrid, Music, Menu, X, TrendingUp, Lock, Users, User, Calendar, Target, FileText, MessageCircle, DollarSign, Search, Home } from 'lucide-react';
+import { LayoutGrid, Music, Menu, X, TrendingUp, Lock, Users, User, Calendar, Target, FileText, MessageCircle, DollarSign, Search, Home, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ChatButton } from './FloatingChat/ChatButton';
 import { ChatWindow } from './FloatingChat/ChatWindow';
@@ -16,6 +16,7 @@ export const DashboardLayout = ({ children }) => {
   const isCompositor = profile?.cargo?.toLowerCase() === 'compositor';
   const currentUserId = user?.id;
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [openSections, setOpenSections] = useState({});
 
   const plan = String(profile?.plano || '');
   const normalizedPlan = plan.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
@@ -195,6 +196,38 @@ export const DashboardLayout = ({ children }) => {
     ];
   }, [commonViewItems, isCompositor, isVendedor, permissions.chat, permissions.compositions, permissions.finance, permissions.musics, permissions.public_profile, permissions.seller_artists, permissions.seller_calendar, permissions.seller_communications, permissions.seller_finance, permissions.seller_leads, permissions.seller_proposals, permissions.work, permissions.marketing, planAllowsPublicProfile, planOverride, profilePublicItem]);
 
+  const isSectionActive = (section) =>
+    section.items.some((item) => {
+      if (item.type !== 'link' || !item.to) return false;
+      if (item.to === '/dashboard/painel') return location.pathname === item.to;
+      return location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
+    });
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setOpenSections((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      sidebarSections.forEach((section, index) => {
+        const shouldOpenByDefault = index === 0 || isSectionActive(section);
+        if (typeof next[section.title] === 'undefined') {
+          next[section.title] = shouldOpenByDefault;
+          changed = true;
+        } else if (isSectionActive(section) && !next[section.title]) {
+          next[section.title] = true;
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [location.pathname, sidebarSections]);
+
+  const toggleSection = (title) => {
+    setOpenSections((prev) => ({ ...prev, [title]: !prev[title] }));
+  };
+
   const renderNavItem = (item) => {
     const Icon = item.icon;
     if (item.type === 'button') {
@@ -220,7 +253,10 @@ export const DashboardLayout = ({ children }) => {
         to={item.to}
         end={item.to === '/dashboard/painel' || item.to === '/'}
         className={navLinkClass}
-        onClick={() => setSidebarOpen(false)}
+        onClick={() => {
+          setSidebarOpen(false);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
       >
         <Icon size={18} />
         <span>{item.label}</span>
@@ -240,9 +276,27 @@ export const DashboardLayout = ({ children }) => {
         <nav className="space-y-4 text-sm">
           {sidebarSections.filter((section) => section.items.length > 0).map((section) => (
             <div key={section.title} className="space-y-2">
-              <div className={sectionTitleClass}>{section.title}</div>
-              <div className="space-y-1">
-                {section.items.map(renderNavItem)}
+              <button
+                type="button"
+                onClick={() => toggleSection(section.title)}
+                className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors ${
+                  isSectionActive(section) ? 'bg-white/10 text-beatwap-gold' : 'text-gray-300 hover:bg-white/5'
+                }`}
+              >
+                <span className={sectionTitleClass}>{section.title}</span>
+                <ChevronDown
+                  size={16}
+                  className={`shrink-0 transition-transform ${openSections[section.title] ? 'rotate-180' : ''}`}
+                />
+              </button>
+              <div
+                className={`overflow-hidden transition-all duration-200 ${
+                  openSections[section.title] ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                }`}
+              >
+                <div className="space-y-1 pt-1">
+                  {section.items.map(renderNavItem)}
+                </div>
               </div>
             </div>
           ))}
