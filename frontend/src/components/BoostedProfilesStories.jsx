@@ -192,16 +192,15 @@ export const BoostedProfilesStories = ({
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className={`rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${featuredTone(p)}`}>
-                          {featuredLabel(p)}
+                      <span className={`rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${featuredTone(p)}`}>
+                        {featuredLabel(p)}
+                      </span>
+                      {p.verified ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white">
+                          <BadgeCheck size={10} className="text-beatwap-gold" />
+                          Verificado
                         </span>
-                        {p.verified ? (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white">
-                            <BadgeCheck size={10} className="text-beatwap-gold" />
-                            Verificado
-                          </span>
-                        ) : null}
-                      </div>
+                      ) : null}
                     </div>
                   </div>
                 </button>
