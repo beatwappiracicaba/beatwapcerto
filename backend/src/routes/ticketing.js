@@ -249,11 +249,45 @@ router.put('/ticketing/events/:id', auth, async (req, res) => {
   }
 });
 
+router.delete('/ticketing/events/:id', auth, async (req, res) => {
+  try {
+    if (!requireProducer(req, res)) return;
+    const id = String(req.params.id || '').trim();
+    const event = await Event.findByPk(id);
+    if (!event) return res.status(404).json({ error: 'Evento não encontrado' });
+    if (String(event.created_by || '') !== String(req.user.id || '')) {
+      return res.status(403).json({ error: 'Sem permissão' });
+    }
+
+    const inventory = await getInventoryForEvent(event, { PaymentOrder, EventTicket });
+    if (Number(inventory?.totals?.sold || 0) > 0 || Number(inventory?.totals?.reserved || 0) > 0) {
+      return res.status(409).json({ error: 'Este evento já possui ingressos emitidos ou reservas ativas e não pode ser apagado.' });
+    }
+
+    await PaymentOrder.destroy({
+      where: {
+        product_type: 'event_ticket',
+        product_key: event.id,
+        access_granted_at: null
+      }
+    });
+    await EventTicket.destroy({ where: { event_id: event.id } });
+    await event.destroy();
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 router.post('/ticketing/events/:slug/checkout', async (req, res) => {
   try {
     const slug = String(req.params.slug || '').trim();
     const event = await Event.findOne({ where: { slug, published: true } });
     if (!event) return res.status(404).json({ error: 'Evento não encontrado' });
+    const salesDeadlineMs = new Date(event.sales_ends_at || event.starts_at || 0).getTime();
+    if (Number.isFinite(salesDeadlineMs) && salesDeadlineMs <= Date.now()) {
+      return res.status(409).json({ error: 'As vendas deste evento já foram encerradas.' });
+    }
 
     const buyer_name = String(req.body?.buyer_name || req.body?.name || '').trim();
     const buyer_email = String(req.body?.buyer_email || req.body?.email || '').trim();
