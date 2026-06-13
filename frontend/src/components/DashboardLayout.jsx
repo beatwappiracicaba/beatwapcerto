@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutGrid, Music, Menu, X, TrendingUp, Lock, Users, User, Calendar, Target, FileText, MessageCircle, DollarSign, ChevronDown } from 'lucide-react';
+import { LayoutGrid, Music, Menu, X, TrendingUp, Lock, Users, User, Calendar, Target, FileText, MessageCircle, DollarSign, Search, Home } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ChatButton } from './FloatingChat/ChatButton';
 import { ChatWindow } from './FloatingChat/ChatWindow';
@@ -16,7 +16,6 @@ export const DashboardLayout = ({ children }) => {
   const isCompositor = profile?.cargo?.toLowerCase() === 'compositor';
   const currentUserId = user?.id;
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [openSections, setOpenSections] = useState({ trabalhos: false, trabalhoSeller: false, financeiroSeller: false, gestao: false });
 
   const plan = String(profile?.plano || '');
   const normalizedPlan = plan.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
@@ -73,19 +72,6 @@ export const DashboardLayout = ({ children }) => {
   }
 
   const location = useLocation();
-
-  const toggleSection = (key) => {
-    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-  const trabalhosActive = ['/dashboard/musics', '/dashboard/compositions', '/dashboard/work', '/dashboard/marketing'].some((p) =>
-    location.pathname.startsWith(p)
-  );
-  const trabalhoSellerActive = ['/seller/calendar', '/seller/leads', '/seller/proposals', '/seller/communications'].some((p) =>
-    location.pathname.startsWith(p)
-  );
-  const financeiroSellerActive = location.pathname.startsWith('/seller/finance');
-  const gestaoActive = location.pathname.startsWith('/dashboard/gestao');
-  const showGestao = !isVendedor;
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const openUpgradeModal = () => setShowUpgradeModal(true);
   const closeUpgradeModal = () => setShowUpgradeModal(false);
@@ -103,6 +89,145 @@ export const DashboardLayout = ({ children }) => {
     return true;
   };
 
+  const navLinkClass = ({ isActive }) =>
+    `flex items-center gap-2 rounded-xl px-3 py-2 transition-colors ${
+      isActive ? 'bg-white/10 text-beatwap-gold ring-1 ring-white/10' : 'text-gray-300 hover:bg-white/5'
+    }`;
+
+  const sectionTitleClass = 'px-3 text-[11px] font-bold uppercase tracking-[0.22em] text-gray-500';
+
+  const profilePublicItem = (permissions.public_profile !== false) && (planAllowsPublicProfile || planOverride)
+    ? { type: 'link', to: '/dashboard/gestao/perfil-publico', label: 'Perfil Publico', icon: Users }
+    : { type: 'button', label: 'Perfil Publico', icon: Users, onClick: openUpgradeModal };
+
+  const commonViewItems = [
+    { type: 'link', to: '/dashboard/painel', label: 'Painel', icon: LayoutGrid },
+    { type: 'link', to: '/dashboard/feed', label: 'Feed', icon: TrendingUp },
+    { type: 'link', to: '/dashboard/pesquisar', label: 'Pesquisar', icon: Search }
+  ];
+
+  const sidebarSections = useMemo(() => {
+    const accountItems = [
+      { type: 'link', to: '/dashboard/profile', label: 'Perfil', icon: User },
+      profilePublicItem,
+      { type: 'link', to: '/', label: 'Voltar ao site', icon: Home }
+    ];
+
+    if (isVendedor) {
+      return [
+        { title: 'Visao', items: commonViewItems },
+        {
+          title: 'Pipeline',
+          items: [
+            permissions.seller_leads !== false ? { type: 'link', to: '/seller/leads', label: 'Leads', icon: Target } : null,
+            permissions.seller_proposals !== false ? { type: 'link', to: '/seller/proposals', label: 'Propostas', icon: FileText } : null,
+            permissions.seller_communications !== false ? { type: 'link', to: '/seller/communications', label: 'Comunicacao', icon: MessageCircle } : null
+          ].filter(Boolean)
+        },
+        {
+          title: 'Operacao',
+          items: [
+            permissions.seller_artists !== false ? { type: 'link', to: '/seller/artists', label: 'Artistas', icon: Users } : null,
+            permissions.seller_calendar !== false ? { type: 'link', to: '/seller/calendar', label: 'Agenda', icon: Calendar } : null
+          ].filter(Boolean)
+        },
+        {
+          title: 'Financeiro',
+          items: [
+            permissions.seller_finance !== false ? { type: 'link', to: '/seller/finance', label: 'Comissoes', icon: DollarSign } : null
+          ].filter(Boolean)
+        },
+        { title: 'Conta', items: accountItems }
+      ];
+    }
+
+    if (isCompositor) {
+      return [
+        { title: 'Visao', items: commonViewItems },
+        {
+          title: 'Oportunidades',
+          items: [
+            { type: 'link', to: '/audicoes', label: 'Audicoes', icon: Target },
+            permissions.chat !== false ? { type: 'link', to: '/dashboard/chat', label: 'Chat', icon: MessageCircle } : null
+          ].filter(Boolean)
+        },
+        {
+          title: 'Catalogo',
+          items: [
+            permissions.compositions !== false ? { type: 'link', to: '/dashboard/compositions', label: 'Minhas composicoes', icon: Music } : null
+          ].filter(Boolean)
+        },
+        {
+          title: 'Carreira',
+          items: [
+            permissions.marketing !== false ? { type: 'link', to: '/dashboard/marketing', label: 'Carreira e negocios', icon: TrendingUp } : null,
+            permissions.finance !== false ? { type: 'link', to: '/dashboard/finance', label: 'Financeiro', icon: DollarSign } : null
+          ].filter(Boolean)
+        },
+        { title: 'Conta', items: accountItems }
+      ];
+    }
+
+    return [
+      { title: 'Visao', items: commonViewItems },
+      {
+        title: 'Criacao',
+        items: [
+          permissions.musics !== false ? { type: 'link', to: '/dashboard/musics', label: 'Minhas musicas', icon: Music } : null,
+          permissions.compositions !== false ? { type: 'link', to: '/dashboard/compositions', label: 'Composicoes', icon: FileText } : null
+        ].filter(Boolean)
+      },
+      {
+        title: 'Relacionamento',
+        items: [
+          permissions.chat !== false ? { type: 'link', to: '/dashboard/chat', label: 'Chat', icon: MessageCircle } : null
+        ].filter(Boolean)
+      },
+      {
+        title: 'Carreira',
+        items: [
+          permissions.work !== false ? { type: 'link', to: '/dashboard/work', label: 'Agenda e afazeres', icon: Calendar } : null,
+          permissions.marketing !== false ? { type: 'link', to: '/dashboard/marketing', label: 'Marketing e mentoria', icon: TrendingUp } : null,
+          permissions.finance !== false ? { type: 'link', to: '/dashboard/finance', label: 'Financeiro', icon: DollarSign } : null
+        ].filter(Boolean)
+      },
+      { title: 'Conta', items: accountItems }
+    ];
+  }, [commonViewItems, isCompositor, isVendedor, permissions.chat, permissions.compositions, permissions.finance, permissions.musics, permissions.public_profile, permissions.seller_artists, permissions.seller_calendar, permissions.seller_communications, permissions.seller_finance, permissions.seller_leads, permissions.seller_proposals, permissions.work, permissions.marketing, planAllowsPublicProfile, planOverride, profilePublicItem]);
+
+  const renderNavItem = (item) => {
+    const Icon = item.icon;
+    if (item.type === 'button') {
+      return (
+        <button
+          key={item.label}
+          type="button"
+          onClick={() => {
+            setSidebarOpen(false);
+            item.onClick?.();
+          }}
+          className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-gray-300 transition-colors hover:bg-white/5"
+        >
+          <Icon size={18} />
+          <span>{item.label}</span>
+        </button>
+      );
+    }
+
+    return (
+      <NavLink
+        key={item.to}
+        to={item.to}
+        end={item.to === '/dashboard/painel' || item.to === '/'}
+        className={navLinkClass}
+        onClick={() => setSidebarOpen(false)}
+      >
+        <Icon size={18} />
+        <span>{item.label}</span>
+      </NavLink>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-[#0b0b0b] to-[#161616] text-white flex">
       <aside className={`fixed md:static top-0 left-0 h-full md:h-auto w-64 p-6 space-y-4 border-r border-white/10 bg-black/95 backdrop-blur-md transition-transform md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} z-[60]`}>
@@ -113,403 +238,14 @@ export const DashboardLayout = ({ children }) => {
           <X size={20} />
         </button>
         <nav className="space-y-4 text-sm">
-          <NavLink
-            to="/"
-            end
-            className={({ isActive }) =>
-              `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
-                isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'
-              }`
-            }
-          >
-            <LayoutGrid size={18} /> <span>Início</span>
-          </NavLink>
-
-          <NavLink
-            to="/dashboard/painel"
-            end
-            className={({ isActive }) =>
-              `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
-                isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'
-              }`
-            }
-          >
-            <LayoutGrid size={18} /> <span>Painel</span>
-          </NavLink>
-
-          <NavLink
-            to="/dashboard/feed"
-            className={({ isActive }) =>
-              `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
-                isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'
-              }`
-            }
-          >
-            <TrendingUp size={18} /> <span>🔥 Feed</span>
-          </NavLink>
-
-          {isCompositor && (
-            <NavLink
-              to="/audicoes"
-              className={({ isActive }) =>
-                `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
-                  isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'
-                }`
-              }
-            >
-              <Target size={18} /> <span>Audições</span>
-            </NavLink>
-          )}
-
-          {isVendedor && (
-            <>
-              {permissions.seller_artists !== false && (
-                <NavLink
-                  to="/seller/artists"
-                  className={({ isActive }) =>
-                    `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
-                      isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'
-                    }`
-                  }
-                >
-                  <Users size={18} /> <span>Artistas</span>
-                </NavLink>
-              )}
-
-              {(permissions.seller_calendar !== false ||
-                permissions.seller_leads !== false ||
-                permissions.seller_proposals !== false ||
-                permissions.seller_communications !== false) && (
-                <div className="space-y-1">
-                  <button
-                    type="button"
-                    onClick={() => toggleSection('trabalhoSeller')}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-colors ${
-                      trabalhoSellerActive ? 'bg-white/10 text-beatwap-gold' : 'text-gray-300 hover:bg-white/5'
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <Calendar size={16} />
-                      <span>Trabalho</span>
-                    </span>
-                    <ChevronDown
-                      size={14}
-                      className={`transition-transform duration-200 ${openSections.trabalhoSeller ? 'rotate-180' : ''}`}
-                    />
-                  </button>
-                  <div
-                    className={`overflow-hidden transition-all duration-200 ${
-                      openSections.trabalhoSeller ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0'
-                    }`}
-                  >
-                    <div className="mt-1 space-y-1">
-                      {permissions.seller_calendar !== false && (
-                        <NavLink
-                          to="/seller/calendar"
-                          className={({ isActive }) =>
-                            `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
-                              isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
-                            }`
-                          }
-                        >
-                          <Calendar size={14} />
-                          <span>Agenda</span>
-                        </NavLink>
-                      )}
-                      {permissions.seller_leads !== false && (
-                        <NavLink
-                          to="/seller/leads"
-                          className={({ isActive }) =>
-                            `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
-                              isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
-                            }`
-                          }
-                        >
-                          <Target size={14} />
-                          <span>Oportunidades</span>
-                        </NavLink>
-                      )}
-                      {permissions.seller_proposals !== false && (
-                        <NavLink
-                          to="/seller/proposals"
-                          className={({ isActive }) =>
-                            `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
-                              isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
-                            }`
-                          }
-                        >
-                          <FileText size={14} />
-                          <span>Propostas</span>
-                        </NavLink>
-                      )}
-                      {permissions.seller_communications !== false && (
-                        <NavLink
-                          to="/seller/communications"
-                          className={({ isActive }) =>
-                            `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
-                              isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
-                            }`
-                          }
-                        >
-                          <MessageCircle size={14} />
-                          <span>Comunicação</span>
-                        </NavLink>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {permissions.seller_finance !== false && (
-                <div className="space-y-1">
-                  <button
-                    type="button"
-                    onClick={() => toggleSection('financeiroSeller')}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-colors ${
-                      financeiroSellerActive ? 'bg-white/10 text-beatwap-gold' : 'text-gray-300 hover:bg-white/5'
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <DollarSign size={16} />
-                      <span>Financeiro</span>
-                    </span>
-                    <ChevronDown
-                      size={14}
-                      className={`transition-transform duration-200 ${openSections.financeiroSeller ? 'rotate-180' : ''}`}
-                    />
-                  </button>
-                  <div
-                    className={`overflow-hidden transition-all duration-200 ${
-                      openSections.financeiroSeller ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'
-                    }`}
-                  >
-                    <div className="mt-1 space-y-1">
-                      <NavLink
-                        to="/seller/finance"
-                        className={({ isActive }) =>
-                          `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
-                            isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
-                          }`
-                        }
-                      >
-                        <DollarSign size={14} />
-                        <span>Comissões</span>
-                      </NavLink>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {showGestao && (
-                <div className="space-y-1">
-                  <button
-                    type="button"
-                    onClick={() => toggleSection('gestao')}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-colors ${
-                      gestaoActive ? 'bg-white/10 text-beatwap-gold' : 'text-gray-300 hover:bg-white/5'
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <Users size={16} />
-                      <span>Gestão</span>
-                    </span>
-                    <ChevronDown
-                      size={14}
-                      className={`transition-transform duration-200 ${openSections.gestao ? 'rotate-180' : ''}`}
-                    />
-                  </button>
-                  <div
-                    className={`overflow-hidden transition-all duration-200 ${
-                      openSections.gestao ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'
-                    }`}
-                  >
-                    <div className="mt-1 space-y-1">
-                    {planAllowsPublicProfile && permissions.public_profile !== false ? (
-                        <NavLink
-                          to="/dashboard/gestao/perfil-publico"
-                          className={({ isActive }) =>
-                            `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
-                              isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
-                            }`
-                          }
-                        >
-                          <User size={14} />
-                          <span>Perfil Público</span>
-                        </NavLink>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={openUpgradeModal}
-                          className="w-full text-left flex items-center gap-2 px-5 py-2 rounded-xl transition-colors hover:bg-white/5 text-gray-400"
-                        >
-                          <User size={14} />
-                          <span>Perfil Público</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {!isVendedor && (
-            <>
+          {sidebarSections.filter((section) => section.items.length > 0).map((section) => (
+            <div key={section.title} className="space-y-2">
+              <div className={sectionTitleClass}>{section.title}</div>
               <div className="space-y-1">
-                <button
-                  type="button"
-                  onClick={() => toggleSection('trabalhos')}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-colors ${
-                    trabalhosActive ? 'bg-white/10 text-beatwap-gold' : 'text-gray-300 hover:bg-white/5'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <Calendar size={16} />
-                    <span>Trabalhos</span>
-                  </span>
-                  <ChevronDown
-                    size={14}
-                    className={`transition-transform duration-200 ${openSections.trabalhos ? 'rotate-180' : ''}`}
-                  />
-                </button>
-                <div
-                  className={`overflow-hidden transition-all duration-200 ${
-                    openSections.trabalhos ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0'
-                  }`}
-                >
-                  <div className="mt-1 space-y-1">
-                    {permissions.musics !== false && !isCompositor && (
-                      <NavLink
-                        to="/dashboard/musics"
-                        className={({ isActive }) =>
-                          `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
-                            isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
-                          }`
-                        }
-                      >
-                        <Music size={14} />
-                        <span>Minhas Músicas</span>
-                      </NavLink>
-                    )}
-                    {permissions.compositions !== false && isCompositor && (
-                      <NavLink
-                        to="/dashboard/compositions"
-                        className={({ isActive }) =>
-                          `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
-                            isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
-                          }`
-                        }
-                      >
-                        <Music size={14} />
-                        <span>Minhas Composições</span>
-                      </NavLink>
-                    )}
-                    {permissions.work !== false && !isCompositor && (
-                      <>
-                        <NavLink
-                          to="/dashboard/work"
-                          className={({ isActive }) =>
-                            `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
-                              isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
-                            }`
-                          }
-                        >
-                          <Calendar size={14} />
-                          <span>Agenda / Afazeres</span>
-                        </NavLink>
-                        <NavLink
-                          to="/dashboard/compositions"
-                          className={({ isActive }) =>
-                            `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
-                              isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
-                            }`
-                          }
-                        >
-                          <Music size={14} />
-                          <span>Composições</span>
-                        </NavLink>
-                      </>
-                    )}
-                    {permissions.marketing !== false && (
-                      <NavLink
-                        to="/dashboard/marketing"
-                        className={({ isActive }) =>
-                          `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
-                            isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
-                          }`
-                        }
-                      >
-                        <TrendingUp size={14} />
-                        <span>{isCompositor ? 'Carreira & Negócios' : 'Marketing / Mentoria'}</span>
-                      </NavLink>
-                    )}
-                  </div>
-                </div>
+                {section.items.map(renderNavItem)}
               </div>
-
-              {permissions.finance !== false && (
-                <NavLink
-                  to="/dashboard/finance"
-                  className={({ isActive }) =>
-                    `flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
-                      isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5'
-                    }`
-                  }
-                >
-                  <DollarSign size={18} /> <span>Financeiro</span>
-                </NavLink>
-              )}
-
-              <div className="space-y-1">
-                <button
-                  type="button"
-                  onClick={() => toggleSection('gestao')}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-colors ${
-                    gestaoActive ? 'bg-white/10 text-beatwap-gold' : 'text-gray-300 hover:bg-white/5'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <Users size={16} />
-                    <span>Gestão</span>
-                  </span>
-                  <ChevronDown
-                    size={14}
-                    className={`transition-transform duration-200 ${openSections.gestao ? 'rotate-180' : ''}`}
-                  />
-                </button>
-                <div
-                  className={`overflow-hidden transition-all duration-200 ${
-                    openSections.gestao ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'
-                  }`}
-                >
-                  <div className="mt-1 space-y-1">
-                    {(permissions.public_profile !== false) && (planAllowsPublicProfile || planOverride) ? (
-                      <NavLink
-                        to="/dashboard/gestao/perfil-publico"
-                        className={({ isActive }) =>
-                          `flex items-center gap-2 px-5 py-2 rounded-xl transition-colors ${
-                            isActive ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 text-gray-300'
-                          }`
-                        }
-                      >
-                        <User size={14} />
-                        <span>Perfil Público</span>
-                      </NavLink>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={openUpgradeModal}
-                        className="w-full text-left flex items-center gap-2 px-5 py-2 rounded-xl transition-colors hover:bg-white/5 text-gray-400"
-                      >
-                        <User size={14} />
-                        <span>Perfil Público</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
+            </div>
+          ))}
         </nav>
       </aside>
 
