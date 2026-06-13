@@ -177,7 +177,7 @@ export default function TicketsHub() {
   const featuredEvent = useMemo(() => filtered[0] || events[0] || null, [events, filtered]);
 
   const spotlightEvents = useMemo(
-    () => filtered.slice(0, 3),
+    () => filtered.slice(0, 10),
     [filtered]
   );
 
@@ -215,39 +215,40 @@ export default function TicketsHub() {
                   </p>
                 </div>
 
-                <div className="rounded-[30px] border border-white/10 bg-black/35 p-4 md:p-5">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-                    <label className="flex flex-1 items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <div className="rounded-[30px] border border-white/10 bg-black/35 p-3 sm:p-4 md:p-5">
+                  <div className="flex flex-col gap-3 md:gap-4 xl:flex-row xl:items-center">
+                    <label className="flex min-h-[56px] w-full flex-1 items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
                       <Search size={18} className="text-gray-400" />
                       <input
                         type="text"
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
                         placeholder="Busque por nome do evento, cidade ou local"
-                        className="w-full bg-transparent text-sm text-white placeholder:text-gray-500 outline-none"
+                        className="w-full min-w-0 bg-transparent text-sm text-white placeholder:text-gray-500 outline-none"
                       />
                     </label>
                     {canManage ? (
-                      <Link to="/admin/eventos" className="inline-flex items-center justify-center gap-2 rounded-full bg-beatwap-gold px-5 py-3 text-sm font-extrabold text-black">
+                      <Link to="/admin/eventos" className="inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-beatwap-gold px-5 py-3 text-sm font-extrabold text-black md:w-auto md:self-start xl:self-auto">
                         Gerenciar meus eventos
                         <ArrowRight size={16} />
                       </Link>
                     ) : (
-                      <Link to="/" className="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white hover:bg-white/5">
+                      <Link to="/" className="inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border border-white/15 px-5 py-3 text-sm font-semibold text-white hover:bg-white/5 md:w-auto md:self-start xl:self-auto">
                         Voltar para Home
                       </Link>
                     )}
                   </div>
 
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {filterDefinitions.map((filter) => {
+                  <div className="mt-4 -mx-1 overflow-x-auto pb-1 no-scrollbar sm:mx-0">
+                    <div className="flex min-w-max gap-2 px-1 sm:flex-wrap sm:px-0">
+                      {filterDefinitions.map((filter) => {
                       const active = activeFilter === filter.id;
                       return (
                         <button
                           key={filter.id}
                           type="button"
                           onClick={() => setActiveFilter(filter.id)}
-                          className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                          className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition ${
                             active
                               ? 'bg-beatwap-gold text-black'
                               : 'border border-white/10 bg-white/5 text-gray-200 hover:bg-white/10'
@@ -256,7 +257,8 @@ export default function TicketsHub() {
                           {filter.label} <span className={`${active ? 'text-black/70' : 'text-gray-400'}`}>({filter.count})</span>
                         </button>
                       );
-                    })}
+                      })}
+                    </div>
                   </div>
                 </div>
 
@@ -394,7 +396,7 @@ export default function TicketsHub() {
           ) : (
             <>
               <section className="space-y-4">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="text-xs uppercase tracking-[0.24em] text-beatwap-gold">Em destaque</div>
                     <h2 className="mt-2 text-2xl font-extrabold">Vitrine principal da BeatWap</h2>
@@ -402,52 +404,78 @@ export default function TicketsHub() {
                   <div className="text-sm text-gray-400">{filtered.length} resultados</div>
                 </div>
 
-                <div className="grid gap-4 xl:grid-cols-3">
-                  {spotlightEvents.map((event) => (
-                    <article key={event.id} className="overflow-hidden rounded-[30px] border border-white/10 bg-white/[0.04] shadow-[0_18px_80px_rgba(0,0,0,0.28)]">
-                      <div className="relative h-52 bg-[linear-gradient(135deg,rgba(245,197,66,0.18),rgba(255,255,255,0.02),rgba(0,0,0,0.45))]">
-                        {event.banner_url ? <img src={event.banner_url} alt={event.title} className="h-full w-full object-cover" /> : null}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/25 to-transparent" />
-                        <div className="absolute left-4 top-4 rounded-2xl bg-black/55 px-3 py-2 text-center">
-                          <div className="text-xs uppercase tracking-[0.16em] text-gray-400">Data</div>
-                          <div className="mt-1 text-lg font-extrabold text-white">{formatShortDate(event.starts_at)}</div>
-                        </div>
-                      </div>
+                <div className="relative -mx-4 sm:-mx-6">
+                  <div className="overflow-x-auto scroll-smooth whitespace-nowrap px-4 pb-3 no-scrollbar sm:px-6 snap-x snap-mandatory">
+                    <div className="flex gap-4 sm:gap-5">
+                      {spotlightEvents.map((event, index) => (
+                        <article
+                          key={event.id}
+                          className={`group inline-flex snap-center whitespace-normal align-top transition-transform duration-300 ${
+                            index === 0
+                              ? 'w-[84vw] sm:w-[72vw] lg:w-[56vw] xl:w-[48vw]'
+                              : 'w-[78vw] sm:w-[52vw] lg:w-[34vw] xl:w-[28vw]'
+                          }`}
+                        >
+                          <div className="w-full overflow-hidden rounded-[34px] border border-white/10 bg-white/[0.04] shadow-[0_20px_90px_rgba(0,0,0,0.28)]">
+                            <div className="relative h-[320px] sm:h-[380px] lg:h-[440px] bg-[linear-gradient(135deg,rgba(245,197,66,0.18),rgba(255,255,255,0.02),rgba(0,0,0,0.45))]">
+                              {event.banner_url ? <img src={event.banner_url} alt={event.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" /> : null}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
+                              <div className="absolute left-4 right-4 top-4 flex items-start justify-between gap-3">
+                                <div className="rounded-2xl border border-white/10 bg-black/55 px-3 py-2 text-center backdrop-blur-sm">
+                                  <div className="text-[10px] uppercase tracking-[0.18em] text-gray-400">Data</div>
+                                  <div className="mt-1 text-base font-extrabold text-white sm:text-lg">{formatShortDate(event.starts_at)}</div>
+                                </div>
+                                <div className="rounded-full border border-beatwap-gold/25 bg-black/55 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-beatwap-gold backdrop-blur-sm">
+                                  Em destaque
+                                </div>
+                              </div>
 
-                      <div className="space-y-4 p-5">
-                        <div>
-                          <h3 className="text-xl font-extrabold">{event.title}</h3>
-                          <div className="mt-2 flex items-center gap-2 text-sm text-gray-400">
-                            <MapPin size={15} />
-                            {event.venue_name}{event.venue_city ? `, ${event.venue_city}` : ''}
+                              <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
+                                <div className="rounded-[28px] border border-white/10 bg-black/45 p-4 backdrop-blur-md sm:p-5">
+                                  <div className="flex items-start justify-between gap-4">
+                                    <div className="min-w-0">
+                                      <h3 className="line-clamp-2 text-xl font-extrabold sm:text-2xl">{event.title}</h3>
+                                      <div className="mt-2 flex items-center gap-2 text-sm text-gray-300">
+                                        <MapPin size={15} className="shrink-0" />
+                                        <span className="line-clamp-1">
+                                          {event.venue_name}{event.venue_city ? `, ${event.venue_city}` : ''}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="shrink-0 rounded-full border border-white/10 bg-black/35 px-3 py-2 text-sm font-bold text-beatwap-gold">
+                                      {formatCurrencyFromCents(event.min_price_cents)}
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
+                                      {Number(event?.totals?.available || 0)} disponiveis
+                                    </span>
+                                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
+                                      {Number(event?.totals?.sold || 0)} emitidos
+                                    </span>
+                                  </div>
+
+                                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="text-sm text-gray-400">
+                                      {event.subtitle || 'Compra publica, convite digital automatico e check-in mobile.'}
+                                    </div>
+                                    <Link
+                                      to={`/ingressos/evento/${event.slug}`}
+                                      className="inline-flex items-center justify-center gap-2 rounded-full bg-beatwap-gold px-4 py-2.5 text-sm font-bold text-black"
+                                    >
+                                      Comprar
+                                      <ArrowRight size={15} />
+                                    </Link>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2 text-xs">
-                          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-                            {Number(event?.totals?.available || 0)} disponiveis
-                          </span>
-                          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-                            {Number(event?.totals?.sold || 0)} emitidos
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <div className="text-xs uppercase tracking-[0.18em] text-gray-400">A partir de</div>
-                            <div className="mt-1 text-2xl font-extrabold text-beatwap-gold">{formatCurrencyFromCents(event.min_price_cents)}</div>
-                          </div>
-                          <Link
-                            to={`/ingressos/evento/${event.slug}`}
-                            className="inline-flex items-center gap-2 rounded-full bg-beatwap-gold px-4 py-2.5 text-sm font-bold text-black"
-                          >
-                            Comprar
-                            <ArrowRight size={15} />
-                          </Link>
-                        </div>
-                      </div>
-                    </article>
-                  ))}
+                        </article>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </section>
 
