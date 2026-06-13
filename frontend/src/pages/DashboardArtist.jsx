@@ -19,19 +19,18 @@ import { useNotification } from '../context/NotificationContext';
 import { useChat } from '../context/ChatContext';
 import { useNavigate } from 'react-router-dom';
 import { usePersistentState } from '../hooks/usePersistentState';
+import { useGlobalAudioPlayer } from '../context/GlobalAudioPlayerContext';
 
 export const DashboardArtistHome = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
+  const { currentTrackId, isPlaying, toggleTrack } = useGlobalAudioPlayer();
   const { notifications = [] } = useNotification();
   const { chats = [], supportQueue = [] } = useChat();
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [latestCompositions, setLatestCompositions] = useState([]);
   const [canViewCompositions, setCanViewCompositions] = useState(true);
-  const [playingTrack, setPlayingTrack] = useState(null);
-  const [audioElement, setAudioElement] = useState(null);
-  const [isPaused, setIsPaused] = useState(false);
   const [activePanelTab, setActivePanelTab] = usePersistentState('dashboard-artist-active-tab', 'resumo');
   const [searchTerm, setSearchTerm] = usePersistentState('dashboard-artist-search', '');
 
@@ -292,80 +291,18 @@ export const DashboardArtistHome = () => {
     }
   }, [user, enrichCompositionsFromProfiles, planAllowsPublicProfile]);
 
-  const [previewTimer, setPreviewTimer] = useState(null);
-  useEffect(() => {
-    return () => {
-      try {
-        if (audioElement) {
-          audioElement.pause();
-          audioElement.src = '';
-          audioElement.load();
-        }
-      } catch (e) {
-        void e;
-      }
-      try {
-        if (previewTimer) clearTimeout(previewTimer);
-      } catch (e) {
-        void e;
-      }
-    };
-  }, [audioElement, previewTimer]);
-
-  const stopPlayback = () => {
-    if (previewTimer) {
-      clearTimeout(previewTimer);
-      setPreviewTimer(null);
-    }
-    if (audioElement) {
-      try {
-        audioElement.pause();
-        audioElement.currentTime = 0;
-        audioElement.src = '';
-        audioElement.load();
-      } catch (e) {
-        void e;
-      }
-    }
-    setPlayingTrack(null);
-    setAudioElement(null);
-    setIsPaused(false);
-  };
-
-  const togglePlay = (id, url, opts = {}) => {
-    if (!url) return;
-    if (playingTrack === id && audioElement) {
-      stopPlayback();
-      return;
-    }
-    if (audioElement) stopPlayback();
-    const audio = new Audio(url);
-    const start = Math.max(0, Number(opts.startSeconds ?? 0));
-    const endOpt = opts.endSeconds;
-    let segLen = 30;
-    if (Number.isFinite(Number(endOpt))) {
-      const diff = Number(endOpt) - start;
-      if (diff > 0) segLen = diff;
-    }
-    const durationLimit = Math.min(30, Math.max(20, segLen));
-    audio.addEventListener('loadedmetadata', () => {
-      try { audio.currentTime = start; } catch (e) { void e; }
-    }, { once: true });
-    audio.onended = () => {
-      stopPlayback();
-    };
-    audio.play().catch(() => {});
-    setAudioElement(audio);
-    setIsPaused(false);
-    setPlayingTrack(id);
-    if (previewTimer) {
-      clearTimeout(previewTimer);
-      setPreviewTimer(null);
-    }
-    const t = setTimeout(() => {
-      stopPlayback();
-    }, durationLimit * 1000);
-    setPreviewTimer(t);
+  const togglePlay = (item) => {
+    const src = sanitizeUrl(item?.audio_url);
+    if (!src) return;
+    toggleTrack({
+      id: `composition:${item.id}`,
+      src,
+      title: item?.titulo || item?.title || 'Composição',
+      artist: item?.composer_name || 'Autor',
+      coverUrl: sanitizeUrl(item?.cover_url),
+      startSeconds: Number(item?.chorus_start_seconds ?? 0),
+      endSeconds: Number(item?.chorus_end_seconds ?? NaN)
+    });
   };
 
   const recentNotifications = useMemo(
@@ -849,7 +786,7 @@ export const DashboardArtistHome = () => {
                   <div key={item.id} className="rounded-xl bg-white/5 border border-white/10 p-4 hover:bg-white/10 transition-colors">
                     <div
                       className="w-full aspect-square rounded-xl overflow-hidden bg-gray-800 relative cursor-pointer"
-                      onClick={() => togglePlay(item.id, sanitizeUrl(item.audio_url), { startSeconds: Number(item.chorus_start_seconds ?? 0), endSeconds: Number(item.chorus_end_seconds ?? NaN) })}
+                      onClick={() => togglePlay(item)}
                     >
                       {safeCover ? (
                         <img src={safeCover} alt={item.titulo || item.title} className="w-full h-full object-cover" draggable={false} style={{ userSelect: 'none' }} />
@@ -861,10 +798,10 @@ export const DashboardArtistHome = () => {
                           className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black"
                           onClick={(e) => {
                             e.stopPropagation();
-                            togglePlay(item.id, sanitizeUrl(item.audio_url), { startSeconds: Number(item.chorus_start_seconds ?? 0), endSeconds: Number(item.chorus_end_seconds ?? NaN) });
+                            togglePlay(item);
                           }}
                         >
-                          {playingTrack === item.id && !isPaused
+                          {currentTrackId === `composition:${item.id}` && isPlaying
                             ? <Pause fill="currentColor" className="ml-1" />
                             : <Play fill="currentColor" className="ml-1" />}
                         </button>

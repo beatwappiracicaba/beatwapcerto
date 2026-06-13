@@ -1,39 +1,25 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { apiClient } from '../services/apiClient';
 import Header from '../components/landing/Header';
 import Footer from '../components/landing/Footer';
 import { Play, Pause, ArrowLeft, Music } from 'lucide-react';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
+import { useGlobalAudioPlayer } from '../context/GlobalAudioPlayerContext';
 
 const AlbumPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { currentTrackId, isPlaying, toggleTrack } = useGlobalAudioPlayer();
   const [tracks, setTracks] = useState([]);
   const [albumInfo, setAlbumInfo] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [playingTrack, setPlayingTrack] = useState(null);
-  const [audioElement, setAudioElement] = useState(null);
-  const [playStartTS, setPlayStartTS] = useState(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
     fetchAlbum();
   }, [id]);
-
-  useEffect(() => {
-    return () => {
-      if (audioElement) {
-        try {
-          audioElement.pause();
-          audioElement.src = '';
-          audioElement.load();
-        } catch (e) {
-          void e;
-        }
-      }
-    };
-  }, [audioElement]);
 
   const fetchAlbum = async () => {
     try {
@@ -67,50 +53,20 @@ const AlbumPage = () => {
     }
   };
 
-  const togglePlay = (trackId, url, artistId) => {
-    if (!url) return;
-    if (playingTrack === trackId && audioElement) {
-      try {
-        audioElement.pause();
-        audioElement.currentTime = 0;
-        audioElement.src = '';
-        audioElement.load();
-      } catch (e) {
-        void e;
+  const togglePlay = (track) => {
+    const src = String(track?.preview_url || track?.audio_url || '').trim();
+    if (!src) return;
+    toggleTrack({
+      id: `album:${track.id}`,
+      src,
+      title: track?.titulo || 'Faixa',
+      artist: track?.nome_artista || albumInfo?.artistName || 'Artista',
+      coverUrl: String(albumInfo?.cover_url || '').trim(),
+      full: true,
+      onPlaybackEvent: ({ durationSeconds }) => {
+        recordEvent({ type: 'music_play', music_id: track.id, artist_id: track.artista_id, duration_seconds: durationSeconds });
       }
-      if (playStartTS) {
-        const duration = Math.max(0, Math.round((Date.now() - playStartTS) / 1000));
-        recordEvent({ type: 'music_play', music_id: trackId, artist_id: artistId, duration_seconds: duration });
-        setPlayStartTS(null);
-      }
-      setPlayingTrack(null);
-      setAudioElement(null);
-      return;
-    }
-    if (audioElement) {
-      try {
-        audioElement.pause();
-        audioElement.currentTime = 0;
-        audioElement.src = '';
-        audioElement.load();
-      } catch (e) {
-        void e;
-      }
-    }
-    const audio = new Audio(url);
-    audio.onended = () => {
-      if (playStartTS) {
-        const duration = Math.max(0, Math.round((Date.now() - playStartTS) / 1000));
-        recordEvent({ type: 'music_play', music_id: trackId, artist_id: artistId, duration_seconds: duration });
-        setPlayStartTS(null);
-      }
-      setPlayingTrack(null);
-      setAudioElement(null);
-    };
-    audio.play().catch(() => {});
-    setPlayStartTS(Date.now());
-    setAudioElement(audio);
-    setPlayingTrack(trackId);
+    });
   };
 
   const hasTracks = tracks && tracks.length > 0;
@@ -123,7 +79,9 @@ const AlbumPage = () => {
           <div className="flex items-center justify-between mb-6">
             <button
               type="button"
-              onClick={() => navigate('/')}
+              onClick={() => navigate(location?.state?.backTo || '/', {
+                state: location?.state?.homeTab ? { homeTab: location.state.homeTab } : undefined
+              })}
               className="inline-flex items-center gap-2 text-sm text-gray-300 hover:text-white relative z-10"
             >
               <ArrowLeft size={16} />
@@ -192,10 +150,10 @@ const AlbumPage = () => {
                       </div>
                       <button
                         type="button"
-                        onClick={() => togglePlay(track.id, track.preview_url || track.audio_url, track.artista_id)}
+                        onClick={() => togglePlay(track)}
                         className="w-9 h-9 rounded-full bg-beatwap-gold flex items-center justify-center text-black hover:bg-white transition-colors shrink-0"
                       >
-                        {playingTrack === track.id ? <Pause size={16} /> : <Play size={16} />}
+                        {currentTrackId === `album:${track.id}` && isPlaying ? <Pause size={16} /> : <Play size={16} />}
                       </button>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-semibold text-white truncate">

@@ -6,6 +6,8 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Play, Pause, Music, MessageCircle, ArrowLeft, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { decryptData } from '../utils/security';
+import { useLocation } from 'react-router-dom';
+import { useGlobalAudioPlayer } from '../context/GlobalAudioPlayerContext';
 
 const buildWhatsAppHref = (rawPhone, title) => {
   const dec = decryptData(rawPhone);
@@ -57,10 +59,9 @@ const hashtagKey = (canonical) => {
 
 const AllCompositions = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { currentTrackId, isPlaying, toggleTrack } = useGlobalAudioPlayer();
   const [list, setList] = useState([]);
-  const [playingTrack, setPlayingTrack] = useState(null);
-  const [audioElement, setAudioElement] = useState(null);
-  const [isPaused, setIsPaused] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState(null);
   const [globalHashtags, setGlobalHashtags] = useState([]);
   const [activeHashtags, setActiveHashtags] = useState([]);
@@ -74,9 +75,6 @@ const AllCompositions = () => {
     fetchAll();
     fetchHashtags();
     fetchLikesSnapshot();
-    return () => {
-      if (audioElement) audioElement.pause();
-    };
   }, []);
 
   const fetchHashtags = async () => {
@@ -167,86 +165,19 @@ const AllCompositions = () => {
     });
   };
 
-  const [previewTimer, setPreviewTimer] = useState(null);
-  useEffect(() => {
-    return () => {
-      try {
-        if (audioElement) {
-          audioElement.pause();
-          audioElement.src = '';
-          audioElement.load();
-        }
-      } catch (e) {
-        void e;
-      }
-      try {
-        if (previewTimer) clearTimeout(previewTimer);
-      } catch (e) {
-        void e;
-      }
-    };
-  }, [audioElement, previewTimer]);
-
-  const stopPlayback = () => {
-    if (previewTimer) {
-      clearTimeout(previewTimer);
-      setPreviewTimer(null);
-    }
-    if (audioElement) {
-      try {
-        audioElement.pause();
-        audioElement.currentTime = 0;
-        audioElement.src = '';
-        audioElement.load();
-      } catch (e) {
-        void e;
-      }
-    }
-    setPlayingTrack(null);
-    setAudioElement(null);
-    setIsPaused(false);
-  };
-
-  const togglePlay = (id, url, opts = {}) => {
-    if (!url) return;
-    const full = opts?.full === true;
-    if (playingTrack === id && audioElement) {
-      stopPlayback();
-      return;
-    }
-    if (audioElement) stopPlayback();
-    const audio = new Audio(url);
-    const start = Math.max(0, Number(opts.startSeconds ?? 0));
-    const endOpt = opts.endSeconds;
-    let durationLimit = null;
-    if (!full) {
-      let segLen = 30;
-      if (Number.isFinite(Number(endOpt))) {
-        const diff = Number(endOpt) - start;
-        if (diff > 0) segLen = diff;
-      }
-      durationLimit = Math.min(30, Math.max(20, segLen));
-    }
-    audio.addEventListener('loadedmetadata', () => {
-      try { audio.currentTime = start; } catch (e) { void e; }
-    }, { once: true });
-    audio.onended = () => {
-      stopPlayback();
-    };
-    audio.play().catch(() => {});
-    setAudioElement(audio);
-    setIsPaused(false);
-    setPlayingTrack(id);
-    if (previewTimer) {
-      clearTimeout(previewTimer);
-      setPreviewTimer(null);
-    }
-    if (durationLimit) {
-      const t = setTimeout(() => {
-        stopPlayback();
-      }, durationLimit * 1000);
-      setPreviewTimer(t);
-    }
+  const playCompositionTrack = (item, opts = {}) => {
+    const src = sanitizeUrl(item?.audio_url);
+    if (!src) return;
+    toggleTrack({
+      id: `composition:${item.id}`,
+      src,
+      title: item?.title || 'Composição',
+      artist: item?.composer_name || 'Autor',
+      coverUrl: sanitizeUrl(item?.cover_url),
+      full: opts?.full === true,
+      startSeconds: Number(opts?.startSeconds ?? 0),
+      endSeconds: opts?.endSeconds
+    });
   };
 
   const folders = (() => {
@@ -341,13 +272,17 @@ const AllCompositions = () => {
               <div className="hidden sm:block">
                 <div className="flex items-center gap-2">
                   <AnimatedButton onClick={() => setArtistModalOpen(true)}><span className="inline-flex items-center gap-2"><Users size={16} /> Selecionar Artista</span></AnimatedButton>
-                  <AnimatedButton onClick={() => navigate('/')}>Voltar para Home</AnimatedButton>
+                  <AnimatedButton onClick={() => navigate(location?.state?.backTo || '/', {
+                    state: location?.state?.homeTab ? { homeTab: location.state.homeTab } : { homeTab: 'novidades' }
+                  })}>Voltar para Home</AnimatedButton>
                 </div>
               </div>
             </div>
             <div className="sm:hidden mb-6">
               <button
-                onClick={() => navigate('/')}
+                onClick={() => navigate(location?.state?.backTo || '/', {
+                  state: location?.state?.homeTab ? { homeTab: location.state.homeTab } : { homeTab: 'novidades' }
+                })}
                 className="inline-flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
               >
                 <ArrowLeft size={16} />
@@ -409,12 +344,12 @@ const AllCompositions = () => {
                       {topSix.map((comp) => {
                         const ccover = sanitizeUrl(comp.cover_url);
                         const caudio = sanitizeUrl(comp.audio_url);
-                        const isPlayingThis = playingTrack === comp.id && !isPaused;
+                        const isPlayingThis = currentTrackId === `composition:${comp.id}` && isPlaying;
                         return (
                           <div key={`top_${comp.id}`} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
                             <div
                               className="w-12 h-12 rounded-lg overflow-hidden bg-gray-800 shrink-0 cursor-pointer relative"
-                              onClick={() => togglePlay(comp.id, caudio, { full: true })}
+                              onClick={() => playCompositionTrack(comp, { full: true })}
                             >
                               {ccover ? (
                                 <img src={ccover} alt={comp.title} className="w-full h-full object-cover" />
@@ -490,12 +425,12 @@ const AllCompositions = () => {
                     .map((comp) => {
                     const ccover = sanitizeUrl(comp.cover_url);
                     const caudio = sanitizeUrl(comp.audio_url);
-                    const isPlayingThis = playingTrack === comp.id && !isPaused;
+                    const isPlayingThis = currentTrackId === `composition:${comp.id}` && isPlaying;
                     return (
                       <div key={comp.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
                         <div
                           className="w-16 h-16 rounded-lg overflow-hidden bg-gray-800 shrink-0 cursor-pointer relative"
-                          onClick={() => togglePlay(comp.id, caudio, { full: true })}
+                          onClick={() => playCompositionTrack(comp, { full: true })}
                         >
                           {ccover ? (
                             <img src={ccover} alt={comp.title} className="w-full h-full object-cover" />

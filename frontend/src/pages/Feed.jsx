@@ -11,11 +11,13 @@ import { apiClient, uploadApi } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { connectRealtime, subscribe, unsubscribe } from '../services/realtime';
 import { getCroppedImg } from '../utils/cropImage';
+import { useGlobalAudioPlayer } from '../context/GlobalAudioPlayerContext';
 
 const Feed = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { currentTrackId, isPlaying, toggleTrack } = useGlobalAudioPlayer();
   const roleLower = String(profile?.cargo || '').toLowerCase();
   const isProdutor = roleLower === 'produtor';
   const isVendedor = roleLower === 'vendedor';
@@ -44,11 +46,6 @@ const Feed = () => {
   const [followLoadingById, setFollowLoadingById] = useState({});
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [playingTrack, setPlayingTrack] = useState(null);
-  const [isPaused, setIsPaused] = useState(false);
-  const [audioElement, setAudioElement] = useState(null);
-  const playStartRef = useRef(null);
-  const playMetaRef = useRef({ musicId: null, artistId: null });
   const [videoModalPost, setVideoModalPost] = useState(null);
   const [postModalOpen, setPostModalOpen] = useState(false);
   const [postType, setPostType] = useState('text'); // text | link | image | video
@@ -232,101 +229,32 @@ const Feed = () => {
     }
   }, []);
 
-  const finalizeCurrentMusicPlay = useCallback(async () => {
-    const startedAt = playStartRef.current;
-    const meta = playMetaRef.current || {};
-    if (!startedAt) return;
-    const musicId = String(meta?.musicId || '').trim();
-    const artistId = String(meta?.artistId || '').trim();
-    const duration = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
-    playStartRef.current = null;
-    playMetaRef.current = { musicId: null, artistId: null };
-    if (!musicId || duration <= 0) return;
-    await recordAnalyticsEvent({
-      type: 'music_play',
-      music_id: musicId,
-      artist_id: artistId || null,
-      duration_seconds: duration,
-      ip_hash: 'feed'
-    });
-  }, [recordAnalyticsEvent]);
-
-  const togglePlay = useCallback(async (trackId, url, meta = null) => {
+  const togglePlay = useCallback((trackId, url, meta = null) => {
     const src = sanitizeUrl(url);
     if (!src) return;
-    if (playingTrack === trackId && audioElement) {
-      try {
-        audioElement.pause();
-        audioElement.currentTime = 0;
-        audioElement.src = '';
-        audioElement.load();
-      } catch (e) {
-        void e;
-      }
-      if (String(trackId || '').startsWith('music:')) {
-        await finalizeCurrentMusicPlay();
-      } else {
-        playStartRef.current = null;
-        playMetaRef.current = { musicId: null, artistId: null };
-      }
-      setPlayingTrack(null);
-      setAudioElement(null);
-      setIsPaused(false);
-      return;
-    }
-    if (audioElement) {
-      try {
-        audioElement.pause();
-        audioElement.currentTime = 0;
-        audioElement.src = '';
-        audioElement.load();
-      } catch (e) {
-        void e;
-      }
-      await finalizeCurrentMusicPlay();
-    }
-    const audio = new Audio(src);
-    audio.onended = () => {
-      const t = String(trackId || '');
-      if (t.startsWith('music:')) {
-        finalizeCurrentMusicPlay().catch(() => void 0);
-      } else {
-        playStartRef.current = null;
-        playMetaRef.current = { musicId: null, artistId: null };
-      }
-      setPlayingTrack(null);
-      setIsPaused(false);
-    };
-    audio.play().catch(() => {});
-    setAudioElement(audio);
-    setPlayingTrack(trackId);
-    setIsPaused(false);
     const t = String(trackId || '');
-    if (t.startsWith('music:')) {
-      const musicId = t.slice('music:'.length).trim();
-      const artistId = meta && typeof meta === 'object' ? String(meta.artistId || '').trim() : '';
-      playMetaRef.current = { musicId, artistId: artistId || null };
-      playStartRef.current = Date.now();
-    } else {
-      playStartRef.current = null;
-      playMetaRef.current = { musicId: null, artistId: null };
-    }
-  }, [audioElement, finalizeCurrentMusicPlay, isPaused, playingTrack, sanitizeUrl]);
-
-  useEffect(() => {
-    return () => {
-      try {
-        if (audioElement) {
-          audioElement.pause();
-          audioElement.src = '';
-          audioElement.load();
-        }
-      } catch {
-        void 0;
-      }
-      finalizeCurrentMusicPlay().catch(() => void 0);
-    };
-  }, [audioElement, finalizeCurrentMusicPlay]);
+    const musicId = t.startsWith('music:') ? t.slice('music:'.length).trim() : '';
+    const artistId = meta && typeof meta === 'object' ? String(meta.artistId || '').trim() : '';
+    toggleTrack({
+      id: trackId,
+      src,
+      title: meta?.title || 'Audio',
+      artist: meta?.artist || 'BeatWap',
+      coverUrl: sanitizeUrl(meta?.coverUrl),
+      full: meta?.full !== false,
+      startSeconds: Number(meta?.startSeconds ?? 0),
+      endSeconds: meta?.endSeconds,
+      onPlaybackEvent: musicId ? ({ durationSeconds }) => {
+        recordAnalyticsEvent({
+          type: 'music_play',
+          music_id: musicId,
+          artist_id: artistId || null,
+          duration_seconds: durationSeconds,
+          ip_hash: 'feed'
+        });
+      } : null
+    });
+  }, [recordAnalyticsEvent, sanitizeUrl, toggleTrack]);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -1108,7 +1036,7 @@ const Feed = () => {
                 <button
                   key={a.id}
                   type="button"
-                  onClick={() => navigate(`/album/${a.id}`)}
+                  onClick={() => navigate(`/album/${a.id}`, { state: { backTo: location.pathname } })}
                   className="text-left bg-white/5 border border-white/10 rounded-xl overflow-hidden hover:bg-white/10 transition-colors"
                 >
                   <div className="aspect-square bg-black/30">
@@ -1179,7 +1107,12 @@ const Feed = () => {
                   <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-4 items-start">
                     <div
                       className="group relative cursor-pointer"
-                      onClick={() => togglePlay(`composition:${it.id}`, c.audio_url)}
+                      onClick={() => togglePlay(`composition:${it.id}`, c.audio_url, {
+                        title,
+                        artist: c.composer_name || 'Autor',
+                        coverUrl: c.cover_url,
+                        full: true
+                      })}
                     >
                       <div className="aspect-square rounded-2xl overflow-hidden relative shadow-lg bg-gray-800">
                         {c.cover_url ? (
@@ -1198,10 +1131,15 @@ const Feed = () => {
                             className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-100 sm:scale-0 sm:group-hover:scale-100 transition-transform duration-300 hover:bg-white"
                             onClick={(e) => {
                               e.stopPropagation();
-                              togglePlay(`composition:${it.id}`, c.audio_url);
+                              togglePlay(`composition:${it.id}`, c.audio_url, {
+                                title,
+                                artist: c.composer_name || 'Autor',
+                                coverUrl: c.cover_url,
+                                full: true
+                              });
                             }}
                           >
-                            {playingTrack === `composition:${it.id}` && !isPaused
+                            {currentTrackId === `composition:${it.id}` && isPlaying
                               ? <Pause fill="currentColor" className="ml-1" />
                               : <Play fill="currentColor" className="ml-1" />}
                           </button>
@@ -1214,8 +1152,13 @@ const Feed = () => {
                       {c.genre && <div className="text-xs text-beatwap-gold uppercase font-bold tracking-wider">{c.genre}</div>}
                       {Number.isFinite(Number(c.price)) && <div className="text-sm text-beatwap-gold font-bold">R$ {c.price}</div>}
                       <div className="flex flex-wrap gap-2 pt-2">
-                        <AnimatedButton onClick={() => togglePlay(`composition:${it.id}`, c.audio_url)}>
-                          <span>{playingTrack === `composition:${it.id}` && !isPaused ? 'Pausar' : 'Reproduzir'}</span>
+                        <AnimatedButton onClick={() => togglePlay(`composition:${it.id}`, c.audio_url, {
+                          title,
+                          artist: c.composer_name || 'Autor',
+                          coverUrl: c.cover_url,
+                          full: true
+                        })}>
+                          <span>{currentTrackId === `composition:${it.id}` && isPlaying ? 'Pausar' : 'Reproduzir'}</span>
                         </AnimatedButton>
                         {href && (
                           <AnimatedButton onClick={() => window.open(href, '_blank')}>
@@ -1241,9 +1184,9 @@ const Feed = () => {
                       className="group relative cursor-pointer"
                       onClick={() => {
                         if (m.album_id) {
-                          navigate(`/album/${m.album_id}`);
+                          navigate(`/album/${m.album_id}`, { state: { backTo: location.pathname } });
                         } else {
-                          togglePlay(`music:${it.id}`, url, { artistId });
+                          togglePlay(`music:${it.id}`, url, { artistId, title, artist: artistName, coverUrl: cover, full: true });
                         }
                       }}
                     >
@@ -1265,10 +1208,10 @@ const Feed = () => {
                               className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-100 sm:scale-0 sm:group-hover:scale-100 transition-transform duration-300 hover:bg-white"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                togglePlay(`music:${it.id}`, url, { artistId });
+                                togglePlay(`music:${it.id}`, url, { artistId, title, artist: artistName, coverUrl: cover, full: true });
                               }}
                             >
-                              {playingTrack === `music:${it.id}` && !isPaused
+                              {currentTrackId === `music:${it.id}` && isPlaying
                                 ? <Pause fill="currentColor" className="ml-1" />
                                 : <Play fill="currentColor" className="ml-1" />}
                             </button>
@@ -1282,12 +1225,12 @@ const Feed = () => {
                       {m.estilo && <div className="text-xs text-beatwap-gold uppercase font-bold tracking-wider">{m.estilo}</div>}
                       <div className="flex flex-wrap gap-2 pt-2">
                         {m.album_id ? (
-                          <AnimatedButton onClick={() => navigate(`/album/${m.album_id}`)}>
+                          <AnimatedButton onClick={() => navigate(`/album/${m.album_id}`, { state: { backTo: location.pathname } })}>
                             <span>Ver Álbum</span>
                           </AnimatedButton>
                         ) : (
-                          <AnimatedButton onClick={() => togglePlay(`music:${it.id}`, url, { artistId })}>
-                            <span>{playingTrack === `music:${it.id}` && !isPaused ? 'Pausar' : 'Reproduzir'}</span>
+                          <AnimatedButton onClick={() => togglePlay(`music:${it.id}`, url, { artistId, title, artist: artistName, coverUrl: cover, full: true })}>
+                            <span>{currentTrackId === `music:${it.id}` && isPlaying ? 'Pausar' : 'Reproduzir'}</span>
                           </AnimatedButton>
                         )}
                         {m.presave_link && (
@@ -1524,7 +1467,7 @@ const Feed = () => {
         )}
       </div>
     );
-  }, [buildWhatsAppHref, commentDraftByPostId, commentPostingById, commentsByPostId, commentsLoadingById, commentsOpenById, deleteMyPost, displayName, feedAlbums, feedSubTab, followLoadingById, followingCount, getEmbedUrl, isFollowing, isPaused, items, loading, loadingMore, meId, myPosts, myPostsError, myPostsLoading, navigate, openEditPost, playingTrack, postActionLoadingById, roleLabel, sanitizeUrl, sendComment, timeAgo, toggleComments, toggleFollow, togglePlay, togglePostLike]);
+  }, [buildWhatsAppHref, commentDraftByPostId, commentPostingById, commentsByPostId, commentsLoadingById, commentsOpenById, currentTrackId, deleteMyPost, displayName, feedAlbums, feedSubTab, followLoadingById, followingCount, getEmbedUrl, isFollowing, isPlaying, items, loading, loadingMore, location.pathname, meId, myPosts, myPostsError, myPostsLoading, navigate, openEditPost, postActionLoadingById, roleLabel, sanitizeUrl, sendComment, timeAgo, toggleComments, toggleFollow, togglePlay, togglePostLike]);
 
   const Layout = isProdutor ? AdminLayout : DashboardLayout;
 
@@ -1746,7 +1689,7 @@ const Feed = () => {
                     <TrendingUp size={18} />
                     <span>Músicas mais tocadas</span>
                     <span className="ml-auto">
-                      <AnimatedButton onClick={() => navigate('/composicoes')}>Ver todas</AnimatedButton>
+                      <AnimatedButton onClick={() => navigate('/composicoes', { state: { backTo: location.pathname } })}>Ver todas</AnimatedButton>
                     </span>
                   </div>
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1799,7 +1742,7 @@ const Feed = () => {
                       <button
                         key={a.id}
                         type="button"
-                        onClick={() => navigate(`/album/${a.id}`)}
+                        onClick={() => navigate(`/album/${a.id}`, { state: { backTo: location.pathname } })}
                         className="flex items-center gap-2 p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-left"
                       >
                         <div className="w-10 h-10 rounded-lg overflow-hidden bg-black/30 border border-white/10 flex items-center justify-center">

@@ -32,6 +32,7 @@ import { buildDistributionContractHTML } from '../utils/contractTemplate';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { usePersistentState } from '../hooks/usePersistentState';
+import { useGlobalAudioPlayer } from '../context/GlobalAudioPlayerContext';
 
 import { encryptData, decryptData, downloadDecryptedFile } from '../utils/security';
 
@@ -1365,6 +1366,7 @@ export const AdminArtists = () => {
 
 export const AdminMusics = () => {
   const { addToast } = useToast();
+  const { currentTrackId, isPlaying, toggleTrack } = useGlobalAudioPlayer();
   const [musics, setMusics] = useState([]);
   const [statusFilter, setStatusFilter] = useState('pendente');
   const [artistFilter, setArtistFilter] = useState('');
@@ -1375,9 +1377,6 @@ export const AdminMusics = () => {
   const [localInputs, setLocalInputs] = useState({});
   const [kindFilter, setKindFilter] = useState('todos');
   const [openAlbums, setOpenAlbums] = useState({});
-  const [playingTrack, setPlayingTrack] = useState(null);
-  const [audioElement, setAudioElement] = useState(null);
-  const [isPaused, setIsPaused] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [musicToEdit, setMusicToEdit] = useState(null);
 
@@ -1414,18 +1413,15 @@ export const AdminMusics = () => {
 
   const togglePlay = (trackId, url) => {
     if (!url) return;
-    if (playingTrack === trackId && audioElement) {
-      if (isPaused) { audioElement.play().catch(() => {}); setIsPaused(false); }
-      else { audioElement.pause(); setIsPaused(true); }
-      return;
-    }
-    if (audioElement) { audioElement.pause(); }
-    const audio = new Audio(url);
-    audio.onended = () => { setPlayingTrack(null); setAudioElement(null); setIsPaused(false); };
-    audio.play().catch(() => {});
-    setAudioElement(audio);
-    setPlayingTrack(trackId);
-    setIsPaused(false);
+    const row = musics.find((item) => String(item?.id || '') === String(trackId || ''));
+    toggleTrack({
+      id: `admin-music:${trackId}`,
+      src: String(url || '').trim(),
+      title: row?.titulo || 'Música',
+      artist: row?.nome_artista || 'Artista',
+      coverUrl: String(row?.cover_url || '').trim(),
+      full: true
+    });
   };
 
   const load = useCallback(async () => {
@@ -1655,7 +1651,7 @@ export const AdminMusics = () => {
             className="w-8 h-8 bg-beatwap-gold rounded-full flex items-center justify-center text-black hover:bg-white"
             onClick={(e) => { e.stopPropagation(); togglePlay(m.id, m.preview_url || m.audio_url); }}
           >
-            {playingTrack === m.id && !isPaused ? <Pause size={16} /> : <Play size={16} />}
+            {currentTrackId === `admin-music:${m.id}` && isPlaying ? <Pause size={16} /> : <Play size={16} />}
           </button>
         </div>
       </div>

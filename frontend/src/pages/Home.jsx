@@ -19,6 +19,7 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Instagram, Globe, Youtube, Video } from 'lucide-react';
 import { decryptData } from '../utils/security';
 import { useAuth } from '../context/AuthContext';
+import { useGlobalAudioPlayer } from '../context/GlobalAudioPlayerContext';
 import studioPhoto1 from '../assets/images/estudio 1.jpeg';
 import studioPhoto2 from '../assets/images/estudio 2.jpeg';
 import studioPhoto3 from '../assets/images/estudio 3.jpeg';
@@ -29,6 +30,7 @@ const Home = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { currentTrackId, isPlaying, toggleTrack } = useGlobalAudioPlayer();
   const [latestReleases, setLatestReleases] = useState([]);
   const [latestCompositions, setLatestCompositions] = useState([]);
   const [latestProjects, setLatestProjects] = useState([]);
@@ -43,12 +45,8 @@ const Home = () => {
   const [hitWinner, setHitWinner] = useState(null);
   const [hitEntries, setHitEntries] = useState([]);
   const [hitVotingId, setHitVotingId] = useState(null);
-  const [playingTrack, setPlayingTrack] = useState(null);
-  const [audioElement, setAudioElement] = useState(null);
   const [activeSponsorMenu, setActiveSponsorMenu] = useState(null);
-  const [isPaused, setIsPaused] = useState(false);
   const [ipHash, setIpHash] = useState(null);
-  const [playStartTS, setPlayStartTS] = useState(null);
   const [activeProjectVideo, setActiveProjectVideo] = useState(null);
   const [openDescriptionId, setOpenDescriptionId] = useState(null);
   const [highlightedHitEntryId, setHighlightedHitEntryId] = useState(null);
@@ -217,12 +215,10 @@ const Home = () => {
   }, [location?.search]);
 
   useEffect(() => {
-    return () => {
-      if (audioElement) {
-        audioElement.pause();
-      }
-    };
-  }, [audioElement]);
+    const requestedTab = String(location?.state?.homeTab || '').trim();
+    if (!requestedTab) return;
+    setActiveHomeTab(requestedTab);
+  }, [location?.state?.homeTab]);
 
   const groupReleasesByAlbum = (items) => {
     const groups = [];
@@ -569,105 +565,57 @@ const Home = () => {
     }
   };
 
-  const [previewTimer, setPreviewTimer] = useState(null);
-  const stopPlayback = (trackIdForAnalytics = null) => {
-    if (previewTimer) {
-      clearTimeout(previewTimer);
-      setPreviewTimer(null);
-    }
-    if (audioElement) {
-      try {
-        audioElement.pause();
-        audioElement.currentTime = 0;
-        audioElement.src = '';
-        audioElement.load();
-      } catch (e) {
-        void e;
-      }
-    }
-    if (playStartTS) {
-      const duration = Math.max(0, Math.round((Date.now() - playStartTS) / 1000));
-      const relId = trackIdForAnalytics || playingTrack;
-      const rel = latestReleases.find(r => r.id === relId);
-      if (rel) recordEvent({ type: 'music_play', music_id: rel.id, artist_id: rel.artista_id, duration_seconds: duration });
-      setPlayStartTS(null);
-    }
-    setPlayingTrack(null);
-    setAudioElement(null);
-    setIsPaused(false);
-  };
-
-  useEffect(() => {
-    return () => {
-      try {
-        if (audioElement) {
-          audioElement.pause();
-          audioElement.src = '';
-          audioElement.load();
-        }
-      } catch (e) {
-        void e;
-      }
-      try {
-        if (previewTimer) clearTimeout(previewTimer);
-      } catch (e) {
-        void e;
-      }
-    };
-  }, [audioElement, previewTimer]);
-
-  const togglePlay = (trackId, url, opts = {}) => {
-    if (!url) return;
-    const full = opts?.full === true;
-    if (playingTrack === trackId && audioElement) {
-      stopPlayback(trackId);
-      return;
-    }
-    if (audioElement) stopPlayback(trackId);
-    const audio = new Audio(url);
-    audio.onended = () => {
-      stopPlayback(trackId);
-      setPlayingTrack(null);
-      setAudioElement(null);
-      setIsPaused(false);
-    };
-    const start = Math.max(0, Number(opts.startSeconds ?? 0));
-    const endOpt = opts.endSeconds;
-    let durationLimit = null;
-    if (!full) {
-      let segLen = 30;
-      if (Number.isFinite(Number(endOpt))) {
-        const diff = Number(endOpt) - start;
-        if (diff > 0) segLen = diff;
-      }
-      durationLimit = segLen;
-    }
-    audio.addEventListener('loadedmetadata', () => {
-      try { audio.currentTime = start; } catch (e) { void e; }
-    }, { once: true });
-    audio.play().catch(() => {});
-    setPlayStartTS(Date.now());
-    setAudioElement(audio);
-    setPlayingTrack(trackId);
-    setIsPaused(false);
-    if (previewTimer) {
-      clearTimeout(previewTimer);
-      setPreviewTimer(null);
-    }
-    if (durationLimit) {
-      const t = setTimeout(() => {
-        stopPlayback(trackId);
-      }, durationLimit * 1000);
-      setPreviewTimer(t);
-    }
-  };
-
   const getReleasePlaybackOptions = (item, full = false) => {
     if (full) return { full: true };
     return {
       startSeconds: Number(item?.chorus_start_seconds ?? 0),
       endSeconds: Number(item?.chorus_end_seconds ?? NaN)
     };
+  };
+
+  const playReleaseTrack = (item, opts = {}) => {
+    const src = sanitizeUrl(opts?.url || item?.audio_url || item?.preview_url);
+    if (!src) return;
+    toggleTrack({
+      id: `release:${item.id}`,
+      src,
+      title: item?.titulo || item?.title || item?.album_title || 'Lançamento',
+      artist: item?.nome_artista || 'Artista',
+      coverUrl: sanitizeUrl(item?.cover_url),
+      full: opts?.full === true,
+      startSeconds: Number(opts?.startSeconds ?? 0),
+      endSeconds: opts?.endSeconds,
+      onPlaybackEvent: ({ durationSeconds }) => {
+        recordEvent({
+          type: 'music_play',
+          music_id: item.id,
+          artist_id: item.artista_id,
+          duration_seconds: durationSeconds
+        });
+      }
+    });
+  };
+
+  const playCompositionTrack = (item) => {
+    const src = sanitizeUrl(item?.audio_url);
+    if (!src) return;
+    toggleTrack({
+      id: `composition:${item.id}`,
+      src,
+      title: item?.title || item?.titulo || 'Composição',
+      artist: item?.composer_name || 'Autor',
+      coverUrl: sanitizeUrl(item?.cover_url),
+      startSeconds: Number(item?.chorus_start_seconds ?? 0),
+      endSeconds: Number(item?.chorus_end_seconds ?? NaN)
+    });
+  };
+
+  const goToAlbum = (albumId) => {
+    navigate(`/album/${albumId}`, { state: { backTo: '/', homeTab: 'novidades' } });
+  };
+
+  const goToAllCompositions = () => {
+    navigate('/composicoes', { state: { backTo: '/', homeTab: 'novidades' } });
   };
 
   const fetchComposers = async () => {
@@ -1418,10 +1366,9 @@ const Home = () => {
                                 className="aspect-square bg-gray-800 relative overflow-hidden"
                                 onClick={() => {
                                   if (item.type === 'album') {
-                                    navigate(`/album/${item.id}`);
+                                    goToAlbum(item.id);
                                   } else {
-                                    const url = item.audio_url || item.preview_url;
-                                    togglePlay(item.id, url, getReleasePlaybackOptions(item));
+                                    playReleaseTrack(item, getReleasePlaybackOptions(item));
                                   }
                                 }}
                               >
@@ -1459,11 +1406,10 @@ const Home = () => {
                                       className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        const url = item.audio_url || item.preview_url;
-                                        togglePlay(item.id, url, getReleasePlaybackOptions(item));
+                                        playReleaseTrack(item, getReleasePlaybackOptions(item));
                                       }}
                                     >
-                                      {playingTrack === item.id && !isPaused
+                                      {currentTrackId === `release:${item.id}` && isPlaying
                                         ? <Pause fill="currentColor" className="ml-1" />
                                         : <Play fill="currentColor" className="ml-1" />}
                                     </button>
@@ -1514,7 +1460,7 @@ const Home = () => {
                                 <div className="mt-2">
                                   {item.type === 'album' ? (
                                     <div className="flex flex-wrap gap-2">
-                                      <AnimatedButton onClick={() => navigate(`/album/${item.id}`)}>
+                                      <AnimatedButton onClick={() => goToAlbum(item.id)}>
                                         <span>Ver Álbum</span>
                                       </AnimatedButton>
                                       {item.presave_link && (
@@ -1610,10 +1556,9 @@ const Home = () => {
                                 className="aspect-square bg-gray-800 relative overflow-hidden"
                                 onClick={() => {
                                   if (item.type === 'album') {
-                                    navigate(`/album/${item.id}`);
+                                    goToAlbum(item.id);
                                   } else {
-                                    const url = item.audio_url || item.preview_url;
-                                    togglePlay(item.id, url, { full: true });
+                                    playReleaseTrack(item, { full: true });
                                   }
                                 }}
                               >
@@ -1651,11 +1596,10 @@ const Home = () => {
                                       className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        const url = item.audio_url || item.preview_url;
-                                        togglePlay(item.id, url, { full: true });
+                                        playReleaseTrack(item, { full: true });
                                       }}
                                     >
-                                      {playingTrack === item.id && !isPaused
+                                      {currentTrackId === `release:${item.id}` && isPlaying
                                         ? <Pause fill="currentColor" className="ml-1" />
                                         : <Play fill="currentColor" className="ml-1" />}
                                     </button>
@@ -1704,7 +1648,7 @@ const Home = () => {
                                 <div className="mt-2">
                                   {item.type === 'album' ? (
                                     <div className="flex flex-wrap gap-2">
-                                      <AnimatedButton onClick={() => navigate(`/album/${item.id}`)}>
+                                      <AnimatedButton onClick={() => goToAlbum(item.id)}>
                                         <span>Ver Álbum</span>
                                       </AnimatedButton>
                                       {item.presave_link && (
@@ -1729,11 +1673,10 @@ const Home = () => {
                                         recordEvent({ type: 'music_click_smartlink', music_id: item.id, artist_id: item.artista_id });
                                         window.open(item.presave_link, '_blank');
                                       } else {
-                                        const url = item.audio_url || item.preview_url;
-                                        togglePlay(item.id, url, { full: true });
+                                        playReleaseTrack(item, { full: true });
                                       }
                                     }}>
-                                      <span>{item.presave_link ? 'Smartlink' : (playingTrack === item.id && !isPaused ? 'Pausar' : 'Reproduzir')}</span>
+                                      <span>{item.presave_link ? 'Smartlink' : (currentTrackId === `release:${item.id}` && isPlaying ? 'Pausar' : 'Reproduzir')}</span>
                                     </AnimatedButton>
                                   )}
                                   {item.type === 'single' && (
@@ -1785,7 +1728,7 @@ const Home = () => {
                 <h2 className="text-3xl md:text-4xl font-bold mb-4"><span>Últimas Composições Lançadas</span></h2>
                 <p className="text-gray-400"><span>Obras exclusivas de nossos compositores parceiros</span></p>
                 <div className="mt-4 flex justify-center">
-                  <AnimatedButton onClick={() => navigate('/composicoes')}>
+                  <AnimatedButton onClick={goToAllCompositions}>
                     Ver todas as composições
                   </AnimatedButton>
                 </div>
@@ -1806,7 +1749,7 @@ const Home = () => {
                       >
                         <div 
                           className="aspect-square rounded-2xl overflow-hidden mb-4 relative shadow-lg cursor-pointer bg-gray-800"
-                          onClick={() => togglePlay(comp.id, sanitizeUrl(comp.audio_url), { startSeconds: Number(comp.chorus_start_seconds ?? 0), endSeconds: Number(comp.chorus_end_seconds ?? NaN) })}
+                          onClick={() => playCompositionTrack(comp)}
                         >
                           {comp.cover_url ? (
                             <img 
@@ -1824,10 +1767,10 @@ const Home = () => {
                               className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-0 group-hover:scale-100 transition-transform duration-300 hover:bg-white"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                togglePlay(comp.id, sanitizeUrl(comp.audio_url), { startSeconds: Number(comp.chorus_start_seconds ?? 0), endSeconds: Number(comp.chorus_end_seconds ?? NaN) });
+                                playCompositionTrack(comp);
                               }}
                             >
-                              {playingTrack === comp.id && !isPaused
+                              {currentTrackId === `composition:${comp.id}` && isPlaying
                                 ? <Pause fill="currentColor" className="ml-1" />
                                 : <Play fill="currentColor" className="ml-1" />}
                             </button>
@@ -2405,12 +2348,19 @@ const Home = () => {
                     <div className="mt-4 flex flex-wrap items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => togglePlay(hitWinner?.entry_id || 'hit_winner', sanitizeUrl(hitWinner?.audio_url || hitWinner?.url), { full: true })}
+                        onClick={() => toggleTrack({
+                          id: `hit:${hitWinner?.entry_id || 'winner'}`,
+                          src: sanitizeUrl(hitWinner?.audio_url || hitWinner?.url),
+                          title: hitWinner?.title || 'Música vencedora',
+                          artist: hitWinner?.composer_name || 'Compositor',
+                          coverUrl: sanitizeUrl(hitWinner?.cover_url),
+                          full: true
+                        })}
                         className="px-4 py-2 rounded-xl bg-beatwap-gold text-black hover:bg-white transition-colors text-sm font-bold flex items-center gap-2"
                         disabled={!sanitizeUrl(hitWinner?.audio_url || hitWinner?.url)}
                       >
-                        <Play size={16} />
-                        Ouvir completo
+                        {currentTrackId === `hit:${hitWinner?.entry_id || 'winner'}` && isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                        {currentTrackId === `hit:${hitWinner?.entry_id || 'winner'}` && isPlaying ? 'Pausar' : 'Ouvir completo'}
                       </button>
                       <a
                         href={sanitizeUrl(hitWinner?.audio_url || hitWinner?.url) || '#'}
@@ -2529,7 +2479,7 @@ const Home = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {hitEntries.slice(0, 10).map((e, idx) => {
                       const url = sanitizeUrl(e?.audio_url || e?.url);
-                      const isPlaying = playingTrack === e.id && !isPaused;
+                      const isEntryPlaying = currentTrackId === `hit:${e.id}` && isPlaying;
                       const voted = e?.voted === true;
                       const highlighted = highlightedHitEntryId && String(highlightedHitEntryId) === String(e.id);
                       const cardBorder = highlighted ? 'border-beatwap-gold/60 shadow-[0_0_0_1px_rgba(245,197,66,0.25)]' : 'border-white/10';
@@ -2563,12 +2513,19 @@ const Home = () => {
                             <div className="mt-3 flex flex-wrap items-center gap-2">
                               <button
                                 type="button"
-                                onClick={() => togglePlay(e.id, url, { full: true })}
+                                onClick={() => toggleTrack({
+                                  id: `hit:${e.id}`,
+                                  src: url,
+                                  title: e?.title || 'Música',
+                                  artist: e?.composer_name || 'Compositor',
+                                  coverUrl: sanitizeUrl(e?.cover_url),
+                                  full: true
+                                })}
                                 className="px-3 py-2 rounded-xl bg-black/30 border border-white/10 hover:bg-black/40 transition-colors text-sm font-bold flex items-center gap-2 flex-1 sm:flex-none justify-center"
                                 disabled={!url}
                               >
-                                {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-                                {isPlaying ? 'Pausar' : 'Ouvir'}
+                                {isEntryPlaying ? <Pause size={16} /> : <Play size={16} />}
+                                {isEntryPlaying ? 'Pausar' : 'Ouvir'}
                               </button>
 
                               <button
