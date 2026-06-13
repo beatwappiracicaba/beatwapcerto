@@ -69,6 +69,7 @@ export const AdminSettings = () => {
   const [featuredPlansAdmin, setFeaturedPlansAdmin] = useState(null);
   const [featuredPlansDraft, setFeaturedPlansDraft] = useState(null);
   const [featuredPlansSaving, setFeaturedPlansSaving] = useState(false);
+  const [activeSettingsSection, setActiveSettingsSection] = useState('convites');
 
   const validEmail = String(form.email).trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
 
@@ -330,6 +331,10 @@ export const AdminSettings = () => {
       return () => { mq.onchange = null; };
     }
   }, []);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activeSettingsSection]);
   const buildInvitePayload = () => {
     const payload = {
       name: String(form.name || '').trim(),
@@ -631,6 +636,32 @@ export const AdminSettings = () => {
   const roleTabs = ['Artista', 'Compositor', 'Produtor', 'Vendedor'];
   const roleLabel = (tab) => (tab === 'Artista' ? 'Artistas' : tab === 'Compositor' ? 'Compositores' : tab === 'Produtor' ? 'Produtores' : 'Vendedores');
   const roleCount = (tab) => artists.filter((a) => a.cargo === tab).length;
+  const settingsSections = [
+    {
+      id: 'convites',
+      title: 'Convites',
+      helper: 'Criar novos acessos, links e migrar cargos',
+      count: invites.filter((invite) => invite.status === 'pending').length
+    },
+    {
+      id: 'lista',
+      title: 'Lista de convites',
+      helper: 'Visualizar pendentes, expirados, usados e reenviar',
+      count: invites.length
+    },
+    {
+      id: 'monetizacao',
+      title: 'Monetizacao',
+      helper: 'Editar destaque pago e monetizacao da Home',
+      count: featuredPlansDraft?.plans ? Object.keys(featuredPlansDraft.plans).length : 0
+    },
+    {
+      id: 'permissoes',
+      title: 'Permissoes',
+      helper: 'Gerenciar acessos, verificacao, override e destaque',
+      count: artists.length
+    }
+  ];
 
   const PermissionPill = ({ enabled, label, onClick, locked = false }) => (
     <button
@@ -726,6 +757,44 @@ export const AdminSettings = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
+        <Card className="space-y-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-lg md:text-xl font-bold">
+              <Settings size={20} className="text-beatwap-gold" />
+              Configuracoes do painel
+            </div>
+            <div className="text-sm text-gray-400">
+              Escolha abaixo a area que deseja abrir. Os cards seguem o estilo da Home para deixar a navegacao mais rapida e visual.
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            {settingsSections.map((section) => {
+              const active = activeSettingsSection === section.id;
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => setActiveSettingsSection(section.id)}
+                  className={`text-left rounded-2xl border p-4 transition-all ${
+                    active
+                      ? 'bg-beatwap-gold text-black border-beatwap-gold shadow-[0_0_30px_rgba(245,197,66,0.18)]'
+                      : 'bg-white/5 text-white border-white/10 hover:border-beatwap-gold/50 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="font-extrabold">{section.title}</div>
+                    <div className={`text-xs font-bold px-2 py-1 rounded-full ${active ? 'bg-black/10 text-black' : 'bg-white/10 text-beatwap-gold'}`}>
+                      {section.count}
+                    </div>
+                  </div>
+                  <div className={`text-xs mt-2 ${active ? 'text-black/80' : 'text-gray-300'}`}>{section.helper}</div>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+
+        {activeSettingsSection === 'convites' && (
         <Card className="space-y-6">
           <div className="flex items-center gap-2 text-lg md:text-xl font-bold">
             <Settings size={20} className="text-beatwap-gold" />
@@ -994,7 +1063,9 @@ export const AdminSettings = () => {
             </div>
           </div>
         </Card>
+        )}
 
+        {activeSettingsSection === 'lista' && (
         <Card className="space-y-6">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-lg md:text-xl font-bold">
@@ -1064,7 +1135,9 @@ export const AdminSettings = () => {
             </AnimatedButton>
           </div>
         </Card>
+        )}
 
+        {activeSettingsSection === 'monetizacao' && (
         <Card className="space-y-6">
           <div className="flex items-center gap-2 text-lg md:text-xl font-bold">
             <Settings size={20} className="text-beatwap-gold" />
@@ -1166,7 +1239,9 @@ export const AdminSettings = () => {
             </div>
           </div>
         </Card>
+        )}
 
+        {activeSettingsSection === 'permissoes' && (
         <Card className="space-y-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex items-center gap-2 text-xl font-bold">
@@ -1665,6 +1740,7 @@ export const AdminSettings = () => {
             )}
           </div>
         </Card>
+        )}
       </div>
       {purgeTarget && (
         <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
