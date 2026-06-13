@@ -185,8 +185,16 @@ router.get('/ticketing/manage/events', auth, async (req, res) => {
 
 router.get('/ticketing/events/:slug', async (req, res) => {
   try {
-    const slug = String(req.params.slug || '').trim();
-    const event = await Event.findOne({ where: { slug, published: true } });
+    const reference = String(req.params.slug || '').trim();
+    const event = await Event.findOne({
+      where: {
+        published: true,
+        [Op.or]: [
+          { slug: reference },
+          { id: reference }
+        ]
+      }
+    });
     if (!event) return res.status(404).json({ error: 'Evento não encontrado' });
     const inventory = await getInventoryForEvent(event, { PaymentOrder, EventTicket });
     res.json(serializeEventForPublic(event, inventory));
