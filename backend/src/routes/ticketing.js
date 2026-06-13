@@ -3,7 +3,9 @@ const crypto = require('crypto');
 const https = require('https');
 const { URL } = require('url');
 const { Op } = require('sequelize');
+const jwt = require('jsonwebtoken');
 const { auth } = require('../middleware/auth');
+const { getJwtSecret } = require('../config/secrets');
 const { Event, EventTicket, PaymentOrder } = require('../models');
 const {
   normalizeSlug,
@@ -89,6 +91,18 @@ function requireProducer(req, res) {
     return false;
   }
   return true;
+}
+
+function getOptionalUser(req) {
+  try {
+    const h = String(req.headers.authorization || '');
+    const token = h.startsWith('Bearer ') ? h.slice(7) : '';
+    if (!token) return null;
+    const payload = jwt.verify(token, getJwtSecret());
+    return { id: payload.sub, email: payload.email, cargo: payload.cargo };
+  } catch {
+    return null;
+  }
 }
 
 async function buildUniqueSlug(title, currentId = '') {
@@ -186,7 +200,7 @@ router.get('/ticketing/manage/events', auth, async (req, res) => {
 router.get('/ticketing/events/:slug', async (req, res) => {
   try {
     const reference = String(req.params.slug || '').trim();
-    const event = await Event.findOne({
+    let event = await Event.findOne({
       where: {
         published: true,
         [Op.or]: [
@@ -195,6 +209,20 @@ router.get('/ticketing/events/:slug', async (req, res) => {
         ]
       }
     });
+    if (!event) {
+      const viewer = getOptionalUser(req);
+      if (viewer && String(viewer.cargo || '') === 'Produtor') {
+        event = await Event.findOne({
+          where: {
+            created_by: viewer.id,
+            [Op.or]: [
+              { slug: reference },
+              { id: reference }
+            ]
+          }
+        });
+      }
+    }
     if (!event) return res.status(404).json({ error: 'Evento não encontrado' });
     const inventory = await getInventoryForEvent(event, { PaymentOrder, EventTicket });
     res.json(serializeEventForPublic(event, inventory));
