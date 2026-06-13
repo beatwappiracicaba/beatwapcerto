@@ -15,7 +15,13 @@ export const AdminLayout = ({ children }) => {
   const location = useLocation();
  
   // Default permissions for admin (all enabled if not set)
-  const permissions = profile?.access_control || {
+  const permissions = {
+    admin_panel: true,
+    admin_feed: true,
+    admin_search: true,
+    admin_events: true,
+    admin_scanner: true,
+    admin_auditions: true,
     admin_artists: true,
     admin_composers: true,
     admin_musics: true,
@@ -24,7 +30,32 @@ export const AdminLayout = ({ children }) => {
     admin_settings: true,
     admin_sellers: true,
     admin_finance: true,
-    chat: true
+    admin_profile: true,
+    admin_public_profile: true,
+    chat: true,
+    ...(profile?.access_control || {})
+  };
+
+  const hasAccess = () => {
+    const path = location.pathname;
+    if (path === '/admin' && permissions.admin_panel === false) return false;
+    if (path.includes('/dashboard/feed') && permissions.admin_feed === false) return false;
+    if (path.includes('/dashboard/pesquisar') && permissions.admin_search === false) return false;
+    if (path.includes('/admin/eventos/portaria') && permissions.admin_scanner === false) return false;
+    if (path.includes('/admin/eventos') && permissions.admin_events === false) return false;
+    if (path.includes('/admin/auditions') && permissions.admin_auditions === false) return false;
+    if (path.includes('/admin/profile') && permissions.admin_profile === false) return false;
+    if (path.includes('/admin/public-profile') && permissions.admin_public_profile === false) return false;
+    if (path.includes('/admin/artists') && permissions.admin_artists === false) return false;
+    if (path.includes('/admin/composers') && permissions.admin_composers === false) return false;
+    if (path.includes('/admin/sellers') && permissions.admin_sellers === false) return false;
+    if (path.includes('/admin/sponsors') && permissions.admin_sponsors === false) return false;
+    if (path.includes('/admin/musics') && permissions.admin_musics === false) return false;
+    if (path.includes('/admin/compositions') && permissions.admin_compositions === false) return false;
+    if (path.includes('/admin/finance') && permissions.admin_finance === false) return false;
+    if (path.includes('/admin/settings') && permissions.admin_settings === false) return false;
+    if (path.includes('/admin/chat') && permissions.chat === false) return false;
+    return true;
   };
  
   // Expose a global helper to close the mobile sidebar from deep components
@@ -53,17 +84,18 @@ export const AdminLayout = ({ children }) => {
     {
       title: 'Visao',
       items: [
-        { to: '/admin', label: 'Painel', icon: LayoutGrid },
-        { to: '/dashboard/feed', label: 'Feed', icon: Music },
-        { to: '/dashboard/pesquisar', label: 'Pesquisar', icon: Search }
+        permissions.admin_panel !== false ? { to: '/admin', label: 'Painel', icon: LayoutGrid } : null,
+        permissions.admin_feed !== false ? { to: '/dashboard/feed', label: 'Feed', icon: Music } : null,
+        permissions.admin_search !== false ? { to: '/dashboard/pesquisar', label: 'Pesquisar', icon: Search } : null
       ]
+      .filter(Boolean)
     },
     {
       title: 'Operacao',
       items: [
-        { to: '/admin/eventos', label: 'Eventos', icon: Ticket },
-        { to: '/admin/eventos/portaria', label: 'Portaria', icon: Ticket },
-        { to: '/admin/auditions', label: 'Audicoes', icon: ClipboardList },
+        permissions.admin_events !== false ? { to: '/admin/eventos', label: 'Eventos', icon: Ticket } : null,
+        permissions.admin_scanner !== false ? { to: '/admin/eventos/portaria', label: 'Portaria', icon: Ticket } : null,
+        permissions.admin_auditions !== false ? { to: '/admin/auditions', label: 'Audicoes', icon: ClipboardList } : null,
         permissions.chat !== false ? { to: '/admin/chat', label: 'Chat Admin', icon: MessageCircle } : null
       ].filter(Boolean)
     },
@@ -92,13 +124,13 @@ export const AdminLayout = ({ children }) => {
     {
       title: 'Conta',
       items: [
-        { to: '/admin/profile', label: 'Perfil', icon: User },
-        { to: '/admin/public-profile', label: 'Perfil Publico', icon: Users },
+        permissions.admin_profile !== false ? { to: '/admin/profile', label: 'Perfil', icon: User } : null,
+        permissions.admin_public_profile !== false ? { to: '/admin/public-profile', label: 'Perfil Publico', icon: Users } : null,
         permissions.admin_settings !== false ? { to: '/admin/settings', label: 'Configuracoes', icon: Settings } : null,
         { to: '/', label: 'Voltar ao site', icon: Home }
       ].filter(Boolean)
     }
-  ]), [permissions.admin_artists, permissions.admin_composers, permissions.admin_finance, permissions.admin_musics, permissions.admin_compositions, permissions.admin_settings, permissions.admin_sellers, permissions.admin_sponsors, permissions.chat]);
+  ]), [permissions.admin_artists, permissions.admin_auditions, permissions.admin_composers, permissions.admin_events, permissions.admin_feed, permissions.admin_finance, permissions.admin_musics, permissions.admin_compositions, permissions.admin_panel, permissions.admin_profile, permissions.admin_public_profile, permissions.admin_scanner, permissions.admin_search, permissions.admin_settings, permissions.admin_sellers, permissions.admin_sponsors, permissions.chat]);
 
   const isSectionActive = (section) =>
     section.items.some((item) => {
@@ -211,7 +243,19 @@ export const AdminLayout = ({ children }) => {
             <ProfileButton profile={profile} />
           </div>
         </div>
-          <div className="space-y-6">{children}</div>
+          <div className="space-y-6">
+            {hasAccess() ? children : (
+              <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-4 text-center">
+                <div className="rounded-full bg-red-500/10 p-4 text-red-500">
+                  <X size={40} />
+                </div>
+                <div className="text-2xl font-bold text-white">Acesso Restrito</div>
+                <div className="max-w-md text-sm text-gray-400">
+                  Você não tem permissão para acessar esta área. Peça ao produtor principal para liberar este módulo.
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </main>
       {permissions.chat !== false && <ChatButton isAdmin={true} currentUserId={currentUserId} />}

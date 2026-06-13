@@ -201,41 +201,65 @@ router.post('/register', async (req, res) => {
       };
       if (cargo === 'Produtor') {
         access_control = {
-          chat: get('p_chat') || true,
-          admin_artists: get('p_admin_artists') || true,
-          admin_composers: get('p_admin_composers') || true,
-          admin_sellers: get('p_admin_sellers') || true,
-          admin_musics: get('p_admin_musics') || true,
-          admin_compositions: get('p_admin_compositions') || true,
-          admin_sponsors: get('p_admin_sponsors') || true,
-          admin_settings: get('p_admin_settings') || true,
-          admin_finance: get('p_admin_finance') || true,
-          marketing: get('p_marketing') || true
+          chat: get('p_chat'),
+          admin_panel: get('p_admin_panel'),
+          admin_feed: get('p_admin_feed'),
+          admin_search: get('p_admin_search'),
+          admin_events: get('p_admin_events'),
+          admin_scanner: get('p_admin_scanner'),
+          admin_auditions: get('p_admin_auditions'),
+          admin_artists: get('p_admin_artists'),
+          admin_composers: get('p_admin_composers'),
+          admin_sellers: get('p_admin_sellers'),
+          admin_musics: get('p_admin_musics'),
+          admin_compositions: get('p_admin_compositions'),
+          admin_sponsors: get('p_admin_sponsors'),
+          admin_settings: get('p_admin_settings'),
+          admin_finance: get('p_admin_finance'),
+          admin_profile: get('p_admin_profile'),
+          admin_public_profile: get('p_admin_public_profile')
         };
       } else if (cargo === 'Vendedor') {
         access_control = {
-          chat: get('p_chat') || true,
-          seller_artists: get('p_seller_artists') || true,
-          seller_calendar: get('p_seller_calendar') || true,
-          seller_leads: get('p_seller_leads') || true,
-          seller_finance: get('p_seller_finance') || true,
-          seller_proposals: get('p_seller_proposals') || true,
-          seller_communications: get('p_seller_communications') || true
+          chat: get('p_chat'),
+          dashboard_panel: get('p_dashboard_panel'),
+          dashboard_feed: get('p_dashboard_feed'),
+          dashboard_search: get('p_dashboard_search'),
+          dashboard_profile: get('p_dashboard_profile'),
+          public_profile: get('p_public_profile'),
+          seller_artists: get('p_seller_artists'),
+          seller_calendar: get('p_seller_calendar'),
+          seller_leads: get('p_seller_leads'),
+          seller_finance: get('p_seller_finance'),
+          seller_proposals: get('p_seller_proposals'),
+          seller_communications: get('p_seller_communications')
         };
       } else if (cargo === 'Compositor') {
         access_control = {
-          chat: get('p_chat') || true,
-          compositions: get('p_compositions') || true,
-          marketing: get('p_marketing') || true,
-          finance: get('p_finance') || true
+          chat: get('p_chat'),
+          dashboard_panel: get('p_dashboard_panel'),
+          dashboard_feed: get('p_dashboard_feed'),
+          dashboard_search: get('p_dashboard_search'),
+          dashboard_profile: get('p_dashboard_profile'),
+          dashboard_auditions: get('p_dashboard_auditions'),
+          public_profile: get('p_public_profile'),
+          compositions: get('p_compositions'),
+          marketing: get('p_marketing'),
+          finance: get('p_finance')
         };
       } else {
         access_control = {
-          chat: get('p_chat') || true,
-          musics: get('p_musics') || true,
-          work: get('p_work') || true,
-          marketing: get('p_marketing') || true,
-          finance: get('p_finance') || true
+          chat: get('p_chat'),
+          dashboard_panel: get('p_dashboard_panel'),
+          dashboard_feed: get('p_dashboard_feed'),
+          dashboard_search: get('p_dashboard_search'),
+          dashboard_profile: get('p_dashboard_profile'),
+          public_profile: get('p_public_profile'),
+          musics: get('p_musics'),
+          compositions: get('p_compositions'),
+          work: get('p_work'),
+          marketing: get('p_marketing'),
+          finance: get('p_finance')
         };
       }
     }
@@ -382,41 +406,65 @@ router.post('/admin/create-invite', auth, async (req, res) => {
       };
       if (role === 'Produtor') {
         access_control = {
-          chat: get('p_chat') || true,
-          admin_artists: get('p_admin_artists') || true,
-          admin_composers: get('p_admin_composers') || true,
-          admin_sellers: get('p_admin_sellers') || true,
-          admin_musics: get('p_admin_musics') || true,
-          admin_compositions: get('p_admin_compositions') || true,
-          admin_sponsors: get('p_admin_sponsors') || true,
-          admin_settings: get('p_admin_settings') || true,
-          admin_finance: get('p_admin_finance') || true,
-          marketing: get('p_marketing') || true
+          chat: get('p_chat'),
+          admin_panel: get('p_admin_panel'),
+          admin_feed: get('p_admin_feed'),
+          admin_search: get('p_admin_search'),
+          admin_events: get('p_admin_events'),
+          admin_scanner: get('p_admin_scanner'),
+          admin_auditions: get('p_admin_auditions'),
+          admin_artists: get('p_admin_artists'),
+          admin_composers: get('p_admin_composers'),
+          admin_sellers: get('p_admin_sellers'),
+          admin_musics: get('p_admin_musics'),
+          admin_compositions: get('p_admin_compositions'),
+          admin_sponsors: get('p_admin_sponsors'),
+          admin_settings: get('p_admin_settings'),
+          admin_finance: get('p_admin_finance'),
+          admin_profile: get('p_admin_profile'),
+          admin_public_profile: get('p_admin_public_profile')
         };
       } else if (role === 'Vendedor') {
         access_control = {
-          chat: get('p_chat') || true,
-          seller_artists: get('p_seller_artists') || true,
-          seller_calendar: get('p_seller_calendar') || true,
-          seller_leads: get('p_seller_leads') || true,
-          seller_finance: get('p_seller_finance') || true,
-          seller_proposals: get('p_seller_proposals') || true,
-          seller_communications: get('p_seller_communications') || true
+          chat: get('p_chat'),
+          dashboard_panel: get('p_dashboard_panel'),
+          dashboard_feed: get('p_dashboard_feed'),
+          dashboard_search: get('p_dashboard_search'),
+          dashboard_profile: get('p_dashboard_profile'),
+          public_profile: get('p_public_profile'),
+          seller_artists: get('p_seller_artists'),
+          seller_calendar: get('p_seller_calendar'),
+          seller_leads: get('p_seller_leads'),
+          seller_finance: get('p_seller_finance'),
+          seller_proposals: get('p_seller_proposals'),
+          seller_communications: get('p_seller_communications')
         };
       } else if (role === 'Compositor') {
         access_control = {
-          chat: get('p_chat') || true,
-          compositions: get('p_compositions') || true,
-          marketing: get('p_marketing') || true,
-          finance: get('p_finance') || true
+          chat: get('p_chat'),
+          dashboard_panel: get('p_dashboard_panel'),
+          dashboard_feed: get('p_dashboard_feed'),
+          dashboard_search: get('p_dashboard_search'),
+          dashboard_profile: get('p_dashboard_profile'),
+          dashboard_auditions: get('p_dashboard_auditions'),
+          public_profile: get('p_public_profile'),
+          compositions: get('p_compositions'),
+          marketing: get('p_marketing'),
+          finance: get('p_finance')
         };
       } else {
         access_control = {
-          chat: get('p_chat') || true,
-          musics: get('p_musics') || true,
-          work: get('p_work') || true,
-          marketing: get('p_marketing') || true,
-          finance: get('p_finance') || true
+          chat: get('p_chat'),
+          dashboard_panel: get('p_dashboard_panel'),
+          dashboard_feed: get('p_dashboard_feed'),
+          dashboard_search: get('p_dashboard_search'),
+          dashboard_profile: get('p_dashboard_profile'),
+          public_profile: get('p_public_profile'),
+          musics: get('p_musics'),
+          compositions: get('p_compositions'),
+          work: get('p_work'),
+          marketing: get('p_marketing'),
+          finance: get('p_finance')
         };
       }
     }

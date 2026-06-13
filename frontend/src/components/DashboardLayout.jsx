@@ -28,6 +28,11 @@ export const DashboardLayout = ({ children }) => {
   const isLifetime = normalizedPlan.includes('vitalicio') || normalizedPlan.includes('lifetime');
   const planOverride = !!profile?.access_control?.plan_override;
   const defaultPermissions = { 
+    dashboard_panel: true,
+    dashboard_feed: true,
+    dashboard_search: true,
+    dashboard_profile: true,
+    dashboard_auditions: isCompositor,
     musics: !isCompositor, 
     compositions: isCompositor,
     work: !isCompositor, 
@@ -78,14 +83,24 @@ export const DashboardLayout = ({ children }) => {
   const closeUpgradeModal = () => setShowUpgradeModal(false);
 
   const hasAccess = () => {
-    if (isVendedor) return true; // Vendedor has access to their specific routes (handled by router)
     const path = location.pathname;
+    if (path.includes('/dashboard/painel') && permissions.dashboard_panel === false) return false;
+    if (path.includes('/dashboard/feed') && permissions.dashboard_feed === false) return false;
+    if (path.includes('/dashboard/pesquisar') && permissions.dashboard_search === false) return false;
+    if (path.includes('/dashboard/profile') && permissions.dashboard_profile === false) return false;
     if (path.includes('/dashboard/musics') && permissions.musics === false) return false;
     if (path.includes('/dashboard/compositions') && permissions.compositions === false) return false;
     if (path.includes('/dashboard/work') && permissions.work === false) return false;
     if (path.includes('/dashboard/marketing') && permissions.marketing === false) return false;
     if (path.includes('/dashboard/chat') && permissions.chat === false) return false;
     if (path.includes('/dashboard/finance') && permissions.finance === false) return false;
+    if (path === '/audicoes' && isCompositor && permissions.dashboard_auditions === false) return false;
+    if (path.includes('/seller/artists') && permissions.seller_artists === false) return false;
+    if (path.includes('/seller/calendar') && permissions.seller_calendar === false) return false;
+    if (path.includes('/seller/leads') && permissions.seller_leads === false) return false;
+    if (path.includes('/seller/finance') && permissions.seller_finance === false) return false;
+    if (path.includes('/seller/proposals') && permissions.seller_proposals === false) return false;
+    if (path.includes('/seller/communications') && permissions.seller_communications === false) return false;
     if (path.includes('/dashboard/gestao/perfil-publico') && (!planAllowsPublicProfile || permissions.public_profile === false)) return false;
     return true;
   };
@@ -102,17 +117,17 @@ export const DashboardLayout = ({ children }) => {
     : { type: 'button', label: 'Perfil Publico', icon: Users, onClick: openUpgradeModal };
 
   const commonViewItems = [
-    { type: 'link', to: '/dashboard/painel', label: 'Painel', icon: LayoutGrid },
-    { type: 'link', to: '/dashboard/feed', label: 'Feed', icon: TrendingUp },
-    { type: 'link', to: '/dashboard/pesquisar', label: 'Pesquisar', icon: Search }
-  ];
+    permissions.dashboard_panel !== false ? { type: 'link', to: '/dashboard/painel', label: 'Painel', icon: LayoutGrid } : null,
+    permissions.dashboard_feed !== false ? { type: 'link', to: '/dashboard/feed', label: 'Feed', icon: TrendingUp } : null,
+    permissions.dashboard_search !== false ? { type: 'link', to: '/dashboard/pesquisar', label: 'Pesquisar', icon: Search } : null
+  ].filter(Boolean);
 
   const sidebarSections = useMemo(() => {
     const accountItems = [
-      { type: 'link', to: '/dashboard/profile', label: 'Perfil', icon: User },
+      permissions.dashboard_profile !== false ? { type: 'link', to: '/dashboard/profile', label: 'Perfil', icon: User } : null,
       profilePublicItem,
       { type: 'link', to: '/', label: 'Voltar ao site', icon: Home }
-    ];
+    ].filter(Boolean);
 
     if (isVendedor) {
       return [
@@ -148,7 +163,7 @@ export const DashboardLayout = ({ children }) => {
         {
           title: 'Oportunidades',
           items: [
-            { type: 'link', to: '/audicoes', label: 'Audicoes', icon: Target },
+            permissions.dashboard_auditions !== false ? { type: 'link', to: '/audicoes', label: 'Audicoes', icon: Target } : null,
             permissions.chat !== false ? { type: 'link', to: '/dashboard/chat', label: 'Chat', icon: MessageCircle } : null
           ].filter(Boolean)
         },
@@ -194,7 +209,7 @@ export const DashboardLayout = ({ children }) => {
       },
       { title: 'Conta', items: accountItems }
     ];
-  }, [commonViewItems, isCompositor, isVendedor, permissions.chat, permissions.compositions, permissions.finance, permissions.musics, permissions.public_profile, permissions.seller_artists, permissions.seller_calendar, permissions.seller_communications, permissions.seller_finance, permissions.seller_leads, permissions.seller_proposals, permissions.work, permissions.marketing, planAllowsPublicProfile, planOverride, profilePublicItem]);
+  }, [commonViewItems, isCompositor, isVendedor, permissions.chat, permissions.compositions, permissions.dashboard_auditions, permissions.dashboard_profile, permissions.dashboard_search, permissions.dashboard_feed, permissions.dashboard_panel, permissions.finance, permissions.musics, permissions.public_profile, permissions.seller_artists, permissions.seller_calendar, permissions.seller_communications, permissions.seller_finance, permissions.seller_leads, permissions.seller_proposals, permissions.work, permissions.marketing, planAllowsPublicProfile, planOverride, profilePublicItem]);
 
   const isSectionActive = (section) =>
     section.items.some((item) => {

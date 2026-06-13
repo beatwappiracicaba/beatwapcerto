@@ -18,12 +18,24 @@ export const AdminSettings = () => {
     role: 'Artista',
     plano: 'Sem Plano',
     p_chat: true,
+    p_dashboard_panel: true,
+    p_dashboard_feed: true,
+    p_dashboard_search: true,
+    p_dashboard_profile: true,
+    p_dashboard_auditions: true,
+    p_public_profile: true,
     p_musics: true,
     p_compositions: true,
     p_work: true,
     p_marketing: true,
     p_finance: true,
     // Admin permissions
+    p_admin_panel: true,
+    p_admin_feed: true,
+    p_admin_search: true,
+    p_admin_events: true,
+    p_admin_scanner: true,
+    p_admin_auditions: true,
     p_admin_artists: true,
     p_admin_musics: true,
     p_admin_composers: true,
@@ -32,6 +44,8 @@ export const AdminSettings = () => {
     p_admin_sponsors: true,
     p_admin_settings: true,
     p_admin_finance: true,
+    p_admin_profile: true,
+    p_admin_public_profile: true,
     // Seller permissions
     p_seller_artists: true,
     p_seller_calendar: true,
@@ -72,6 +86,55 @@ export const AdminSettings = () => {
   const [activeSettingsSection, setActiveSettingsSection] = useState('convites');
 
   const validEmail = String(form.email).trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+  const baseDashboardInvitePermissions = [
+    { key: 'p_dashboard_panel', label: 'Painel' },
+    { key: 'p_dashboard_feed', label: 'Feed' },
+    { key: 'p_dashboard_search', label: 'Pesquisar' },
+    { key: 'p_dashboard_profile', label: 'Perfil' },
+    { key: 'p_public_profile', label: 'Perfil Público' }
+  ];
+  const producerInvitePermissions = [
+    { key: 'p_admin_panel', label: 'Painel' },
+    { key: 'p_admin_feed', label: 'Feed' },
+    { key: 'p_admin_search', label: 'Pesquisar' },
+    { key: 'p_admin_events', label: 'Eventos' },
+    { key: 'p_admin_scanner', label: 'Portaria' },
+    { key: 'p_admin_auditions', label: 'Audições' },
+    { key: 'p_admin_artists', label: 'Artistas' },
+    { key: 'p_admin_composers', label: 'Compositores' },
+    { key: 'p_admin_sellers', label: 'Vendedores' },
+    { key: 'p_admin_musics', label: 'Músicas' },
+    { key: 'p_admin_compositions', label: 'Composições' },
+    { key: 'p_admin_sponsors', label: 'Patrocinadores / Parcerias' },
+    { key: 'p_admin_finance', label: 'Financeiro' },
+    { key: 'p_admin_settings', label: 'Configurações' },
+    { key: 'p_admin_profile', label: 'Perfil' },
+    { key: 'p_admin_public_profile', label: 'Perfil Público' }
+  ];
+  const sellerInvitePermissions = [
+    ...baseDashboardInvitePermissions,
+    { key: 'p_seller_artists', label: 'Artistas' },
+    { key: 'p_seller_calendar', label: 'Agenda' },
+    { key: 'p_seller_leads', label: 'Oportunidades' },
+    { key: 'p_seller_finance', label: 'Comissões' },
+    { key: 'p_seller_proposals', label: 'Propostas' },
+    { key: 'p_seller_communications', label: 'Comunicação' }
+  ];
+  const composerInvitePermissions = [
+    ...baseDashboardInvitePermissions,
+    { key: 'p_dashboard_auditions', label: 'Audições' },
+    { key: 'p_compositions', label: 'Composições' },
+    { key: 'p_marketing', label: 'Marketing' },
+    { key: 'p_finance', label: 'Financeiro' }
+  ];
+  const artistInvitePermissions = [
+    ...baseDashboardInvitePermissions,
+    { key: 'p_musics', label: 'Músicas' },
+    { key: 'p_compositions', label: 'Composições' },
+    { key: 'p_work', label: 'Agenda / Afazeres' },
+    { key: 'p_marketing', label: 'Marketing' },
+    { key: 'p_finance', label: 'Financeiro' }
+  ];
 
   useEffect(() => {
     fetchArtists();
@@ -273,6 +336,11 @@ export const AdminSettings = () => {
         ...artist,
         access_control: artist.access_control || {
           chat: true,
+          dashboard_panel: true,
+          dashboard_feed: true,
+          dashboard_search: true,
+          dashboard_profile: true,
+          dashboard_auditions: true,
           finance: true,
           musics: true,
           public_profile: true,
@@ -281,6 +349,12 @@ export const AdminSettings = () => {
           marketing: true,
           verified: false,
           plan_override: false,
+          admin_panel: true,
+          admin_feed: true,
+          admin_search: true,
+          admin_events: true,
+          admin_scanner: true,
+          admin_auditions: true,
           admin_artists: true,
           admin_composers: true,
           admin_musics: true,
@@ -342,11 +416,23 @@ export const AdminSettings = () => {
       role: String(form.role || '').trim(),
       plano: String(form.plano || '').trim(),
       p_chat: !!form.p_chat,
+      p_dashboard_panel: !!form.p_dashboard_panel,
+      p_dashboard_feed: !!form.p_dashboard_feed,
+      p_dashboard_search: !!form.p_dashboard_search,
+      p_dashboard_profile: !!form.p_dashboard_profile,
+      p_dashboard_auditions: !!form.p_dashboard_auditions,
+      p_public_profile: !!form.p_public_profile,
       p_musics: !!form.p_musics,
       p_compositions: !!form.p_compositions,
       p_work: !!form.p_work,
       p_marketing: !!form.p_marketing,
       p_finance: !!form.p_finance,
+      p_admin_panel: !!form.p_admin_panel,
+      p_admin_feed: !!form.p_admin_feed,
+      p_admin_search: !!form.p_admin_search,
+      p_admin_events: !!form.p_admin_events,
+      p_admin_scanner: !!form.p_admin_scanner,
+      p_admin_auditions: !!form.p_admin_auditions,
       p_admin_artists: !!form.p_admin_artists,
       p_admin_musics: !!form.p_admin_musics,
       p_admin_composers: !!form.p_admin_composers,
@@ -355,6 +441,8 @@ export const AdminSettings = () => {
       p_admin_sponsors: !!form.p_admin_sponsors,
       p_admin_settings: !!form.p_admin_settings,
       p_admin_finance: !!form.p_admin_finance,
+      p_admin_profile: !!form.p_admin_profile,
+      p_admin_public_profile: !!form.p_admin_public_profile,
       p_seller_artists: !!form.p_seller_artists,
       p_seller_calendar: !!form.p_seller_calendar,
       p_seller_leads: !!form.p_seller_leads,
@@ -705,13 +793,13 @@ export const AdminSettings = () => {
     // Define keys by role
     const keys =
       isArtist
-        ? ['musics','compositions','work','marketing','finance','chat','public_profile']
+        ? ['dashboard_panel','dashboard_feed','dashboard_search','dashboard_profile','musics','compositions','work','marketing','finance','chat','public_profile']
         : isComposer
-          ? ['compositions','marketing','finance','chat','public_profile']
+          ? ['dashboard_panel','dashboard_feed','dashboard_search','dashboard_profile','dashboard_auditions','compositions','marketing','finance','chat','public_profile']
           : isProducer
-            ? ['admin_artists','admin_composers','admin_sellers','admin_musics','admin_compositions','admin_sponsors','admin_settings','admin_finance','marketing','chat']
+            ? ['admin_panel','admin_feed','admin_search','admin_events','admin_scanner','admin_auditions','admin_artists','admin_composers','admin_sellers','admin_musics','admin_compositions','admin_sponsors','admin_settings','admin_finance','admin_profile','admin_public_profile','chat']
             : isSeller
-              ? ['seller_artists','seller_calendar','seller_leads','seller_finance','seller_proposals','seller_communications','chat']
+              ? ['dashboard_panel','dashboard_feed','dashboard_search','dashboard_profile','public_profile','seller_artists','seller_calendar','seller_leads','seller_finance','seller_proposals','seller_communications','chat']
               : [];
     if (!keys.length) return { forced, locked };
     if (override) {
@@ -726,9 +814,9 @@ export const AdminSettings = () => {
       if (!nplan || nplan.includes('sem')) {
         allow = [];
       } else if (nplan.includes('avulso')) {
-        allow = isComposer ? ['compositions','chat'] : ['musics','chat'];
+        allow = isComposer ? ['dashboard_panel','dashboard_feed','dashboard_search','dashboard_profile','dashboard_auditions','compositions','chat'] : ['dashboard_panel','dashboard_feed','dashboard_search','dashboard_profile','musics','chat'];
       } else if (nplan.includes('mensal') || nplan.includes('anual') || nplan.includes('vital')) {
-        allow = isComposer ? ['compositions','marketing','finance','chat','public_profile'] : ['musics','compositions','work','marketing','finance','chat','public_profile'];
+        allow = isComposer ? ['dashboard_panel','dashboard_feed','dashboard_search','dashboard_profile','dashboard_auditions','compositions','marketing','finance','chat','public_profile'] : ['dashboard_panel','dashboard_feed','dashboard_search','dashboard_profile','musics','compositions','work','marketing','finance','chat','public_profile'];
       }
       keys.forEach((k) => {
         forced[k] = allow.includes(k);
@@ -871,17 +959,7 @@ export const AdminSettings = () => {
                   </label>
 
                   {form.role === 'Produtor' ? (
-                    // Admin Permissions
-                    [
-                      { key: 'p_admin_artists', label: 'Artistas' },
-                      { key: 'p_admin_composers', label: 'Compositores' },
-                      { key: 'p_admin_sellers', label: 'Vendedores' },
-                      { key: 'p_admin_musics', label: 'Músicas' },
-                      { key: 'p_admin_compositions', label: 'Composições' },
-                      { key: 'p_admin_sponsors', label: 'Patrocinadores / Parcerias' },
-                      { key: 'p_admin_settings', label: 'Sistema' },
-                      { key: 'p_admin_finance', label: 'Financeiro' }
-                    ].map((perm) => (
+                    producerInvitePermissions.map((perm) => (
                       <label key={perm.key} className="flex items-center gap-2 p-2 rounded-lg bg-black/20 border border-white/10 cursor-pointer hover:border-white/30 transition-colors">
                         <input
                           type="checkbox"
@@ -893,15 +971,7 @@ export const AdminSettings = () => {
                       </label>
                     ))
                   ) : form.role === 'Vendedor' ? (
-                    // Seller Permissions
-                    [
-                      { key: 'p_seller_artists', label: 'Artistas' },
-                      { key: 'p_seller_calendar', label: 'Agenda' },
-                      { key: 'p_seller_leads', label: 'Oportunidades' },
-                      { key: 'p_seller_finance', label: 'Comissões' },
-                      { key: 'p_seller_proposals', label: 'Propostas' },
-                      { key: 'p_seller_communications', label: 'Comunicação' }
-                    ].map((perm) => (
+                    sellerInvitePermissions.map((perm) => (
                       <label key={perm.key} className="flex items-center gap-2 p-2 rounded-lg bg-black/20 border border-white/10 cursor-pointer hover:border-white/30 transition-colors">
                         <input
                           type="checkbox"
@@ -913,17 +983,7 @@ export const AdminSettings = () => {
                       </label>
                     ))
                   ) : (
-                    // Artist & Composer Permissions
-                    (form.role === 'Compositor' ? [
-                      { key: 'p_compositions', label: 'Composições' },
-                      { key: 'p_marketing', label: 'Marketing' },
-                      { key: 'p_finance', label: 'Financeiro' }
-                    ] : [
-                      { key: 'p_musics', label: 'Músicas' },
-                      { key: 'p_work', label: 'Trabalho' },
-                      { key: 'p_marketing', label: 'Marketing' },
-                      { key: 'p_finance', label: 'Financeiro' }
-                    ]).map((perm) => (
+                    (form.role === 'Compositor' ? composerInvitePermissions : artistInvitePermissions).map((perm) => (
                       <label key={perm.key} className="flex items-center gap-2 p-2 rounded-lg bg-black/20 border border-white/10 cursor-pointer hover:border-white/30 transition-colors">
                         <input
                           type="checkbox"
@@ -1352,6 +1412,12 @@ export const AdminSettings = () => {
                                 <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Administração</div>
                                 <div className="flex flex-wrap gap-2">
                                   {[
+                                    { key: 'admin_panel', label: 'Painel' },
+                                    { key: 'admin_feed', label: 'Feed' },
+                                    { key: 'admin_search', label: 'Pesquisar' },
+                                    { key: 'admin_events', label: 'Eventos' },
+                                    { key: 'admin_scanner', label: 'Portaria' },
+                                    { key: 'admin_auditions', label: 'Audições' },
                                     { key: 'admin_artists', label: 'Artistas' },
                                     { key: 'admin_composers', label: 'Compositores' },
                                     { key: 'admin_sellers', label: 'Vendedores' },
@@ -1379,8 +1445,9 @@ export const AdminSettings = () => {
                                 <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Geral</div>
                                 <div className="flex flex-wrap gap-2">
                                   {[
-                                    { key: 'marketing', label: 'Marketing' },
                                     { key: 'chat', label: 'Chat' },
+                                    { key: 'admin_profile', label: 'Perfil' },
+                                    { key: 'admin_public_profile', label: 'Perfil Público' },
                                     { key: 'show_on_home', label: 'Mostrar na Home' },
                                   ].map((perm) => (
                                     <PermissionPill
@@ -1404,6 +1471,10 @@ export const AdminSettings = () => {
                                 <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Vendas</div>
                                 <div className="flex flex-wrap gap-2">
                                   {[
+                                    { key: 'dashboard_panel', label: 'Painel' },
+                                    { key: 'dashboard_feed', label: 'Feed' },
+                                    { key: 'dashboard_search', label: 'Pesquisar' },
+                                    { key: 'dashboard_profile', label: 'Perfil' },
                                     { key: 'seller_artists', label: 'Artistas' },
                                     { key: 'seller_calendar', label: 'Agenda' },
                                     { key: 'seller_leads', label: 'Oportunidades' },
@@ -1439,6 +1510,16 @@ export const AdminSettings = () => {
                                     }}
                                   />
                                   <PermissionPill
+                                    enabled={getPermState(artist, 'public_profile').enabled}
+                                    locked={getPermState(artist, 'public_profile').locked}
+                                    label="Perfil Público"
+                                    onClick={() => {
+                                      const s = getPermState(artist, 'public_profile');
+                                      if (s.locked) return;
+                                      handlePermissionChange(artist.id, 'public_profile', !artist.access_control.public_profile);
+                                    }}
+                                  />
+                                  <PermissionPill
                                     enabled={getPermState(artist, 'show_on_home').enabled}
                                     locked={getPermState(artist, 'show_on_home').locked}
                                     label="Mostrar na Home"
@@ -1457,6 +1538,11 @@ export const AdminSettings = () => {
                                 <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Painel</div>
                                 <div className="flex flex-wrap gap-2">
                                   {[
+                                    { key: 'dashboard_panel', label: 'Painel' },
+                                    { key: 'dashboard_feed', label: 'Feed' },
+                                    { key: 'dashboard_search', label: 'Pesquisar' },
+                                    { key: 'dashboard_profile', label: 'Perfil' },
+                                    { key: 'dashboard_auditions', label: 'Audições' },
                                     { key: 'compositions', label: 'Composições' },
                                     { key: 'marketing', label: 'Marketing' },
                                     { key: 'finance', label: 'Financeiro' },
@@ -1517,8 +1603,12 @@ export const AdminSettings = () => {
                                 <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Painel</div>
                                 <div className="flex flex-wrap gap-2">
                                   {[
+                                    { key: 'dashboard_panel', label: 'Painel' },
+                                    { key: 'dashboard_feed', label: 'Feed' },
+                                    { key: 'dashboard_search', label: 'Pesquisar' },
+                                    { key: 'dashboard_profile', label: 'Perfil' },
                                     { key: 'musics', label: 'Músicas' },
-                                { key: 'compositions', label: 'Composições' },
+                                    { key: 'compositions', label: 'Composições' },
                                     { key: 'work', label: 'Agenda / Afazeres' },
                                     { key: 'marketing', label: 'Marketing' },
                                     { key: 'finance', label: 'Financeiro' },
