@@ -730,8 +730,7 @@ const Home = () => {
     { id: 'destaques', label: 'Destaques', helper: 'O melhor da BeatWap agora', count: Number(hitEntries?.length || 0) + Number(latestReleases?.length || 0) },
     { id: 'novidades', label: 'Novidades', helper: 'Lançamentos, composições e projetos recentes', count: Number(latestReleases?.length || 0) + Number(latestCompositions?.length || 0) + Number(latestProjects?.length || 0) },
     { id: 'oportunidades', label: 'Oportunidades', helper: 'Audições abertas e próximos passos', count: Number(homeAuditions?.length || 0) + Number(latestProjects?.length || 0) },
-    { id: 'perfis', label: 'Perfis', helper: 'Compositores, artistas, produtores e marcas', count: Number(composers?.length || 0) + Number(artists?.length || 0) + Number(producers?.length || 0) + Number(sellers?.length || 0) + Number(sponsors?.length || 0) },
-    { id: 'ingressos', label: 'Ingressos', helper: 'Compra publica, convite digital e check-in mobile', count: 6 }
+    { id: 'perfis', label: 'Perfis', helper: 'Compositores, artistas, produtores e marcas', count: Number(composers?.length || 0) + Number(artists?.length || 0) + Number(producers?.length || 0) + Number(sellers?.length || 0) + Number(sponsors?.length || 0) }
   ];
   const studioGallery = [
     { id: 'studio-1', image: studioPhoto1, title: 'Sessao principal', helper: 'Ambiente pronto para captar e criar com qualidade.' },
@@ -791,7 +790,7 @@ const Home = () => {
                 Aba ativa: <span className="text-white font-bold">{homeTabs.find((tab) => tab.id === activeHomeTab)?.label || 'Destaques'}</span>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
               {homeTabs.map((tab) => {
                 const isActive = activeHomeTab === tab.id;
                 return (
