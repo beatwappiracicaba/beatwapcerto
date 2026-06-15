@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +25,8 @@ export const AdminCompositions = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [composers, setComposers] = useState([]);
+  const [viewMode, setViewMode] = useState('biblioteca');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const [hitAdmin, setHitAdmin] = useState(null);
   const [hitDraft, setHitDraft] = useState(null);
@@ -405,6 +407,183 @@ export const AdminCompositions = () => {
     return true;
   });
 
+  const visibleCompositions = useMemo(() => {
+    const term = String(searchTerm || '').trim().toLowerCase();
+    if (!term) return filteredCompositions;
+    return filteredCompositions.filter((comp) => {
+      const title = String(comp?.title || '').toLowerCase();
+      const composerName = String(comp?.profiles?.nome || comp?.profiles?.nome_completo_razao_social || '').toLowerCase();
+      const genre = String(comp?.genre || '').toLowerCase();
+      const desc = String(comp?.description || '').toLowerCase();
+      return title.includes(term) || composerName.includes(term) || genre.includes(term) || desc.includes(term);
+    });
+  }, [filteredCompositions, searchTerm]);
+
+  const compositionCounts = useMemo(() => {
+    const total = visibleCompositions.length;
+    const pending = visibleCompositions.filter((c) => String(c?.status || '') === 'pending').length;
+    const approved = visibleCompositions.filter((c) => String(c?.status || '') === 'approved').length;
+    const rejected = visibleCompositions.filter((c) => String(c?.status || '') === 'rejected').length;
+    return { total, pending, approved, rejected };
+  }, [visibleCompositions]);
+
+  const groupedByComposer = useMemo(() => {
+    const map = new Map();
+    for (const comp of visibleCompositions) {
+      const key = String(comp?.composer_id || comp?.profiles?.id || 'unknown');
+      const name = comp?.profiles?.nome || comp?.profiles?.nome_completo_razao_social || 'Compositor';
+      if (!map.has(key)) map.set(key, { id: key, name, items: [] });
+      map.get(key).items.push(comp);
+    }
+    const groups = Array.from(map.values());
+    groups.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+    for (const g of groups) {
+      g.items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+    return groups;
+  }, [visibleCompositions]);
+
+  const groupedByStatus = useMemo(() => {
+    const pending = [];
+    const approved = [];
+    const rejected = [];
+    for (const comp of visibleCompositions) {
+      const st = String(comp?.status || 'pending');
+      if (st === 'approved') approved.push(comp);
+      else if (st === 'rejected') rejected.push(comp);
+      else pending.push(comp);
+    }
+    return { pending, approved, rejected };
+  }, [visibleCompositions]);
+
+  const renderCompositionCard = (comp) => (
+    <div key={comp.id} className="p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
+      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+        <div
+          className="w-16 h-16 rounded-lg bg-gray-800 overflow-hidden shrink-0 relative cursor-pointer group"
+          onClick={() => togglePlay(comp.audio_url, comp.id)}
+        >
+          {comp.cover_url ? (
+            <img src={sanitizeUrl(comp.cover_url)} alt={comp.title} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-500">
+              <Music size={24} />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            {playingId === comp.id ? <Pause size={24} className="text-white" /> : <Play size={24} className="text-white" />}
+          </div>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-bold text-white text-lg truncate">{comp.title}</span>
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full font-bold uppercase ${
+                comp.status === 'approved'
+                  ? 'bg-green-500/20 text-green-500'
+                  : comp.status === 'rejected'
+                    ? 'bg-red-500/20 text-red-500'
+                    : 'bg-yellow-500/20 text-yellow-500'
+              }`}
+            >
+              {comp.status === 'approved' ? 'Aprovado' : comp.status === 'rejected' ? 'Recusado' : 'Pendente'}
+            </span>
+          </div>
+          <div className="text-sm text-gray-400">
+            Por: <span className="text-white">{comp.profiles?.nome || comp.profiles?.nome_completo_razao_social || 'Desconhecido'}</span>
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            {comp.genre} • {new Date(comp.created_at).toLocaleDateString()} • {comp.price ? `R$ ${comp.price}` : 'Sem preço'}
+          </div>
+          {comp.description && (
+            <div className="text-sm text-gray-400 mt-2 bg-black/20 p-2 rounded-lg">
+              {comp.description}
+            </div>
+          )}
+          {comp.admin_feedback && (
+            <div className="text-xs text-red-400 mt-2">
+              Motivo recusa: {comp.admin_feedback}
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2 w-full md:w-auto">
+          {comp.status === 'pending' && (
+            <>
+              <AnimatedButton
+                onClick={() => handleStatusChange(comp.id, 'approved')}
+                className="bg-green-600 hover:bg-green-700 border-none text-white w-full justify-center"
+              >
+                <Check size={16} className="mr-2" /> Aprovar
+              </AnimatedButton>
+
+              {rejectingId === comp.id ? (
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="text"
+                    placeholder="Motivo da recusa..."
+                    className="bg-black/20 border border-white/10 rounded px-2 py-1 text-sm text-white"
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleStatusChange(comp.id, 'rejected', rejectReason)}
+                      className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1 rounded flex-1"
+                    >
+                      Confirmar
+                    </button>
+                    <button
+                      onClick={() => setRejectingId(null)}
+                      className="bg-gray-600 hover:bg-gray-700 text-white text-xs px-3 py-1 rounded flex-1"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <AnimatedButton
+                  onClick={() => { setRejectingId(comp.id); setRejectReason(''); }}
+                  className="bg-red-600/20 hover:bg-red-600/30 border-red-600 text-red-500 w-full justify-center"
+                >
+                  <X size={16} className="mr-2" /> Recusar
+                </AnimatedButton>
+              )}
+            </>
+          )}
+          {comp.status === 'approved' && (
+            <AnimatedButton
+              onClick={async () => {
+                if (window.confirm(`Tem certeza que deseja apagar a composição "${comp.title}"?`)) {
+                  try {
+                    await apiClient.del(`/admin/compositions/${comp.id}`);
+                    addToast('Composição apagada com sucesso', 'success');
+                    fetchCompositions();
+                  } catch (error) {
+                    addToast('Erro ao apagar composição', 'error');
+                  }
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700 border-none text-white w-full justify-center"
+            >
+              <X size={16} className="mr-2" /> Apagar
+            </AnimatedButton>
+          )}
+          <a
+            href={comp.audio_url}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs text-center text-gray-500 hover:text-white transition-colors"
+          >
+            Baixar Áudio
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -502,6 +681,60 @@ export const AdminCompositions = () => {
                         Filtrar
                         <div className="absolute inset-0 bg-white/20 translate-x-[-100%]"></div>
                     </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                <div className="lg:col-span-2">
+                  <input
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-3 md:py-2 text-white focus:outline-none focus:border-beatwap-gold/50"
+                    placeholder="Buscar por título, compositor, gênero ou descrição..."
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {[
+                    { id: 'biblioteca', label: 'Biblioteca' },
+                    { id: 'esteira', label: 'Esteira' },
+                    { id: 'compositor', label: 'Por compositor' }
+                  ].map((v) => (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => setViewMode(v.id)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
+                        viewMode === v.id
+                          ? 'bg-beatwap-gold text-beatwap-black border-beatwap-gold'
+                          : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'
+                      }`}
+                    >
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Total</div>
+                  <div className="text-2xl font-extrabold text-white">{compositionCounts.total}</div>
+                  <div className="text-xs text-gray-500">Itens no filtro atual</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Pendentes</div>
+                  <div className="text-2xl font-extrabold text-yellow-400">{compositionCounts.pending}</div>
+                  <div className="text-xs text-gray-500">Aguardando ação</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Aprovadas</div>
+                  <div className="text-2xl font-extrabold text-green-400">{compositionCounts.approved}</div>
+                  <div className="text-xs text-gray-500">Prontas para vitrine</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Recusadas</div>
+                  <div className="text-2xl font-extrabold text-red-400">{compositionCounts.rejected}</div>
+                  <div className="text-xs text-gray-500">Com feedback</div>
                 </div>
               </div>
             </>
@@ -742,134 +975,62 @@ export const AdminCompositions = () => {
         {adminView === 'compositions' && (
           <div className="grid grid-cols-1 gap-4">
             {loading && <div className="text-gray-400">Carregando...</div>}
-            {!loading && filteredCompositions.length === 0 && (
+            {!loading && visibleCompositions.length === 0 && (
               <div className="text-center py-10 text-gray-400 border border-dashed border-white/10 rounded-xl">
                 <p>Nenhuma composição encontrada.</p>
               </div>
             )}
-            {!loading && filteredCompositions.map((comp) => (
-              <div key={comp.id} className="p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
-                <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-                  <div 
-                      className="w-16 h-16 rounded-lg bg-gray-800 overflow-hidden shrink-0 relative cursor-pointer group"
-                      onClick={() => togglePlay(comp.audio_url, comp.id)}
-                  >
-                      {comp.cover_url ? (
-                      <img src={sanitizeUrl(comp.cover_url)} alt={comp.title} className="w-full h-full object-cover" />
-                      ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-500">
-                          <Music size={24} />
-                      </div>
-                      )}
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          {playingId === comp.id ? <Pause size={24} className="text-white" /> : <Play size={24} className="text-white" />}
-                      </div>
+            {!loading && viewMode === 'esteira' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="rounded-2xl border border-white/10 bg-black/20 overflow-hidden">
+                  <div className="p-3 border-b border-white/10 flex items-center justify-between">
+                    <div className="text-sm font-extrabold text-white">Pendentes</div>
+                    <div className="text-xs text-gray-400">{groupedByStatus.pending.length}</div>
                   </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-bold text-white text-lg truncate">{comp.title}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-bold uppercase ${
-                          comp.status === 'approved' ? 'bg-green-500/20 text-green-500' :
-                          comp.status === 'rejected' ? 'bg-red-500/20 text-red-500' :
-                          'bg-yellow-500/20 text-yellow-500'
-                      }`}>
-                          {comp.status === 'approved' ? 'Aprovado' : comp.status === 'rejected' ? 'Recusado' : 'Pendente'}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-400">
-                      Por: <span className="text-white">{comp.profiles?.nome || comp.profiles?.nome_completo_razao_social || 'Desconhecido'}</span>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {comp.genre} • {new Date(comp.created_at).toLocaleDateString()} • {comp.price ? `R$ ${comp.price}` : 'Sem preço'}
-                    </div>
-                    {comp.description && (
-                        <div className="text-sm text-gray-400 mt-2 bg-black/20 p-2 rounded-lg">
-                            {comp.description}
-                        </div>
-                    )}
-                    {comp.admin_feedback && (
-                        <div className="text-xs text-red-400 mt-2">
-                            Motivo recusa: {comp.admin_feedback}
-                        </div>
-                    )}
+                  <div className="p-3 space-y-3 max-h-[70vh] overflow-auto">
+                    {groupedByStatus.pending.map(renderCompositionCard)}
                   </div>
-
-                  <div className="flex flex-col gap-2 w-full md:w-auto">
-                    {comp.status === 'pending' && (
-                        <>
-                            <AnimatedButton 
-                                onClick={() => handleStatusChange(comp.id, 'approved')}
-                                className="bg-green-600 hover:bg-green-700 border-none text-white w-full justify-center"
-                            >
-                                <Check size={16} className="mr-2" /> Aprovar
-                            </AnimatedButton>
-                            
-                            {rejectingId === comp.id ? (
-                                <div className="flex flex-col gap-2">
-                                    <input 
-                                        type="text" 
-                                        placeholder="Motivo da recusa..." 
-                                        className="bg-black/20 border border-white/10 rounded px-2 py-1 text-sm text-white"
-                                        value={rejectReason}
-                                        onChange={(e) => setRejectReason(e.target.value)}
-                                        autoFocus
-                                    />
-                                    <div className="flex gap-2">
-                                        <button 
-                                            onClick={() => handleStatusChange(comp.id, 'rejected', rejectReason)}
-                                            className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1 rounded flex-1"
-                                        >
-                                            Confirmar
-                                        </button>
-                                        <button 
-                                            onClick={() => setRejectingId(null)}
-                                            className="bg-gray-600 hover:bg-gray-700 text-white text-xs px-3 py-1 rounded flex-1"
-                                        >
-                                            Cancelar
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <AnimatedButton 
-                                    onClick={() => { setRejectingId(comp.id); setRejectReason(''); }}
-                                    className="bg-red-600/20 hover:bg-red-600/30 border-red-600 text-red-500 w-full justify-center"
-                                >
-                                    <X size={16} className="mr-2" /> Recusar
-                                </AnimatedButton>
-                            )}
-                        </>
-                    )}
-                    {comp.status === 'approved' && (
-                        <AnimatedButton 
-                            onClick={async () => {
-                                if (window.confirm(`Tem certeza que deseja apagar a composição "${comp.title}"?`)) {
-                                    try {
-                                        await apiClient.del(`/admin/compositions/${comp.id}`);
-                                        addToast('Composição apagada com sucesso', 'success');
-                                        fetchCompositions();
-                                    } catch (error) {
-                                        addToast('Erro ao apagar composição', 'error');
-                                    }
-                                }
-                            }}
-                            className="bg-red-600 hover:bg-red-700 border-none text-white w-full justify-center"
-                        >
-                            <X size={16} className="mr-2" /> Apagar
-                        </AnimatedButton>
-                    )}
-                    <a 
-                        href={comp.audio_url} 
-                        target="_blank" 
-                        rel="noreferrer" 
-                        className="text-xs text-center text-gray-500 hover:text-white transition-colors"
-                    >
-                        Baixar Áudio
-                    </a>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/20 overflow-hidden">
+                  <div className="p-3 border-b border-white/10 flex items-center justify-between">
+                    <div className="text-sm font-extrabold text-white">Aprovadas</div>
+                    <div className="text-xs text-gray-400">{groupedByStatus.approved.length}</div>
+                  </div>
+                  <div className="p-3 space-y-3 max-h-[70vh] overflow-auto">
+                    {groupedByStatus.approved.map(renderCompositionCard)}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/20 overflow-hidden">
+                  <div className="p-3 border-b border-white/10 flex items-center justify-between">
+                    <div className="text-sm font-extrabold text-white">Recusadas</div>
+                    <div className="text-xs text-gray-400">{groupedByStatus.rejected.length}</div>
+                  </div>
+                  <div className="p-3 space-y-3 max-h-[70vh] overflow-auto">
+                    {groupedByStatus.rejected.map(renderCompositionCard)}
                   </div>
                 </div>
               </div>
-            ))}
+            )}
+            {!loading && viewMode !== 'esteira' && (
+              <div className="space-y-4">
+                {(viewMode === 'biblioteca' || viewMode === 'compositor') && groupedByComposer.map((group) => (
+                  <div key={group.id} className="rounded-2xl border border-white/10 bg-black/20 overflow-hidden">
+                    <div className="p-3 border-b border-white/10 flex items-center justify-between">
+                      <div className="min-w-0">
+                        <div className="text-sm font-extrabold text-white truncate">{group.name}</div>
+                        <div className="text-[11px] text-gray-400">{group.items.length} itens</div>
+                      </div>
+                      <div className="text-[11px] text-gray-500">
+                        {group.items.filter((c) => String(c?.status || '') === 'pending').length} pendentes • {group.items.filter((c) => String(c?.status || '') === 'approved').length} aprovadas
+                      </div>
+                    </div>
+                    <div className="p-3 space-y-3">
+                      {group.items.map(renderCompositionCard)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

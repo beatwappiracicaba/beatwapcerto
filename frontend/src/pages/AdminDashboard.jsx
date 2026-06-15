@@ -1379,6 +1379,8 @@ export const AdminMusics = () => {
   const [openAlbums, setOpenAlbums] = useState({});
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [musicToEdit, setMusicToEdit] = useState(null);
+  const [viewMode, setViewMode] = useState('biblioteca');
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Group musics by album
   const groupedMusics = useMemo(() => {
@@ -1433,6 +1435,11 @@ export const AdminMusics = () => {
   }, [statusFilter, artistFilter, startDate, endDate]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (viewMode === 'esteira' && statusFilter !== 'todos') {
+      setStatusFilter('todos');
+    }
+  }, [viewMode, statusFilter]);
   useEffect(() => {
     const fetchArtists = async () => {
       const data = await apiClient.get('/artists');
@@ -1799,43 +1806,211 @@ export const AdminMusics = () => {
     </motion.div>
   );
 
+  const visibleGroupedMusics = useMemo(() => {
+    const term = String(searchTerm || '').trim().toLowerCase();
+    const matchTrack = (t) => {
+      if (!term) return true;
+      const title = String(t?.titulo || '').toLowerCase();
+      const artistName = String(t?.nome_artista || '').toLowerCase();
+      const albumTitle = String(t?.album_title || '').toLowerCase();
+      return title.includes(term) || artistName.includes(term) || albumTitle.includes(term);
+    };
+
+    const applyKind = (item) => {
+      if (kindFilter === 'albuns') return item.type === 'album';
+      if (kindFilter === 'singles') return item.type === 'single';
+      return true;
+    };
+
+    const filtered = [];
+    for (const item of groupedMusics) {
+      if (!applyKind(item)) continue;
+      if (item.type === 'album') {
+        const tracks = item.tracks.filter(matchTrack);
+        const albumTitle = String(item?.title || '').toLowerCase();
+        const albumMatch = term ? albumTitle.includes(term) : true;
+        if (tracks.length > 0 || albumMatch) {
+          filtered.push({ ...item, tracks: tracks.length > 0 ? tracks : item.tracks });
+        }
+      } else if (matchTrack(item)) {
+        filtered.push(item);
+      }
+    }
+    return filtered;
+  }, [groupedMusics, kindFilter, searchTerm]);
+
+  const musicCounts = useMemo(() => {
+    const totalTracks = musics.length;
+    const pendingTracks = musics.filter((m) => String(m?.status || '') === 'pendente').length;
+    const approvedTracks = musics.filter((m) => String(m?.status || '') === 'aprovado').length;
+    const rejectedTracks = musics.filter((m) => String(m?.status || '') === 'recusado').length;
+    const albumsCount = groupedMusics.filter((i) => i.type === 'album').length;
+    const singlesCount = groupedMusics.filter((i) => i.type === 'single').length;
+    return { totalTracks, pendingTracks, approvedTracks, rejectedTracks, albumsCount, singlesCount };
+  }, [musics, groupedMusics]);
+
+  const tracksByStatus = useMemo(() => {
+    const term = String(searchTerm || '').trim().toLowerCase();
+    const match = (t) => {
+      if (!term) return true;
+      const title = String(t?.titulo || '').toLowerCase();
+      const artistName = String(t?.nome_artista || '').toLowerCase();
+      const albumTitle = String(t?.album_title || '').toLowerCase();
+      return title.includes(term) || artistName.includes(term) || albumTitle.includes(term);
+    };
+    const applyKind = (t) => {
+      if (kindFilter === 'albuns') return !!t.album_id;
+      if (kindFilter === 'singles') return !t.album_id;
+      return true;
+    };
+    const pending = [];
+    const approved = [];
+    const rejected = [];
+    for (const m of musics) {
+      if (!applyKind(m)) continue;
+      if (!match(m)) continue;
+      const st = String(m?.status || 'pendente');
+      if (st === 'aprovado') approved.push(m);
+      else if (st === 'recusado') rejected.push(m);
+      else pending.push(m);
+    }
+    const sortByDate = (a, b) => new Date(b.created_at) - new Date(a.created_at);
+    pending.sort(sortByDate);
+    approved.sort(sortByDate);
+    rejected.sort(sortByDate);
+    return { pending, approved, rejected };
+  }, [musics, kindFilter, searchTerm]);
+
+  const musicsByArtist = useMemo(() => {
+    const term = String(searchTerm || '').trim().toLowerCase();
+    const match = (t) => {
+      if (!term) return true;
+      const title = String(t?.titulo || '').toLowerCase();
+      const artistName = String(t?.nome_artista || '').toLowerCase();
+      const albumTitle = String(t?.album_title || '').toLowerCase();
+      return title.includes(term) || artistName.includes(term) || albumTitle.includes(term);
+    };
+    const applyKind = (t) => {
+      if (kindFilter === 'albuns') return !!t.album_id;
+      if (kindFilter === 'singles') return !t.album_id;
+      return true;
+    };
+    const map = new Map();
+    for (const m of musics) {
+      if (!applyKind(m)) continue;
+      if (!match(m)) continue;
+      const id = String(m?.artista_id || 'unknown');
+      const name = m?.nome_artista || artists.find((a) => String(a?.id || '') === id)?.nome || 'Artista';
+      if (!map.has(id)) map.set(id, { id, name, items: [] });
+      map.get(id).items.push(m);
+    }
+    const groups = Array.from(map.values());
+    groups.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+    for (const g of groups) g.items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return groups;
+  }, [artists, musics, kindFilter, searchTerm]);
+
   return (
     <AdminLayout>
       <Card className="space-y-4 p-4 md:p-6">
-        <div className="font-bold">Aprovar / Reprovar</div>
-        <div className="flex flex-wrap gap-2 pb-2">
-          {['aprovado', 'pendente', 'todos'].map(st => (
-             <button
-                key={st}
-                onClick={() => setStatusFilter(st)}
-                className={`flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
-                  statusFilter === st 
-                    ? 'bg-beatwap-gold text-beatwap-black font-bold' 
-                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                {st === 'todos' ? 'Todas' : st.charAt(0).toUpperCase() + st.slice(1)}
-              </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2 pb-4">
-          {[
-            { id: 'todos', label: 'Todos' },
-            { id: 'singles', label: 'Singles' },
-            { id: 'albuns', label: 'Álbuns' },
-          ].map(k => (
-            <button
-              key={k.id}
-              onClick={() => setKindFilter(k.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all ${
-                kindFilter === k.id
-                  ? 'bg-beatwap-gold text-beatwap-black font-bold'
-                  : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-              }`}
-            >
-              {k.label}
-            </button>
-          ))}
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-xl font-extrabold text-white">Biblioteca de Músicas</div>
+              <div className="text-sm text-gray-400">Organize por álbuns, singles, artista ou por esteira de status.</div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {[
+                { id: 'biblioteca', label: 'Biblioteca' },
+                { id: 'esteira', label: 'Esteira' },
+                { id: 'artista', label: 'Por artista' }
+              ].map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => setViewMode(v.id)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
+                    viewMode === v.id
+                      ? 'bg-beatwap-gold text-beatwap-black border-beatwap-gold'
+                      : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4 md:col-span-2">
+              <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Total</div>
+              <div className="text-2xl font-extrabold text-white">{musicCounts.totalTracks}</div>
+              <div className="text-xs text-gray-500">{musicCounts.albumsCount} álbuns • {musicCounts.singlesCount} singles</div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Pendentes</div>
+              <div className="text-2xl font-extrabold text-yellow-400">{musicCounts.pendingTracks}</div>
+              <div className="text-xs text-gray-500">Aguardando ação</div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Aprovadas</div>
+              <div className="text-2xl font-extrabold text-green-400">{musicCounts.approvedTracks}</div>
+              <div className="text-xs text-gray-500">Na vitrine</div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Recusadas</div>
+              <div className="text-2xl font-extrabold text-red-400">{musicCounts.rejectedTracks}</div>
+              <div className="text-xs text-gray-500">Com motivo</div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Modo</div>
+              <div className="text-sm font-extrabold text-white">{viewMode === 'biblioteca' ? 'Biblioteca' : viewMode === 'esteira' ? 'Esteira' : 'Artista'}</div>
+              <div className="text-xs text-gray-500">{statusFilter === 'todos' ? 'Todos os status' : `Status: ${statusFilter}`}</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+            <div className="lg:col-span-2">
+              <AnimatedInput
+                placeholder="Buscar por título, artista ou álbum..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {['aprovado', 'pendente', 'todos'].map(st => (
+                <button
+                  key={st}
+                  onClick={() => setStatusFilter(st)}
+                  className={`flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
+                    statusFilter === st
+                      ? 'bg-beatwap-gold text-beatwap-black font-bold'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {st === 'todos' ? 'Todas' : st.charAt(0).toUpperCase() + st.slice(1)}
+                </button>
+              ))}
+              {[
+                { id: 'todos', label: 'Todos' },
+                { id: 'singles', label: 'Singles' },
+                { id: 'albuns', label: 'Álbuns' },
+              ].map(k => (
+                <button
+                  key={k.id}
+                  onClick={() => setKindFilter(k.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all ${
+                    kindFilter === k.id
+                      ? 'bg-beatwap-gold text-beatwap-black font-bold'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {k.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
@@ -1856,178 +2031,313 @@ export const AdminMusics = () => {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 gap-6">
-          {groupedMusics
-          .filter(item => {
-            if (kindFilter === 'albuns') return item.type === 'album';
-            if (kindFilter === 'singles') return item.type === 'single';
-            return true;
-          })
-          .map(item => {
-            if (item.type === 'album') {
-              const isOpen = !!openAlbums[item.id];
-              const base = item.tracks[0] || {};
-              const currentShowOnHome = localInputs[item.id]?.show_on_home ?? (base.show_on_home || false);
+        {viewMode === 'esteira' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="rounded-2xl border border-white/10 bg-black/20 overflow-hidden">
+              <div className="p-3 border-b border-white/10 flex items-center justify-between">
+                <div className="text-sm font-extrabold text-white">Pendentes</div>
+                <div className="text-xs text-gray-400">{tracksByStatus.pending.length}</div>
+              </div>
+              <div className="p-3 space-y-3 max-h-[70vh] overflow-auto">
+                {tracksByStatus.pending.map((t) => renderTrackCard(t, !!t.album_id))}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/20 overflow-hidden">
+              <div className="p-3 border-b border-white/10 flex items-center justify-between">
+                <div className="text-sm font-extrabold text-white">Aprovadas</div>
+                <div className="text-xs text-gray-400">{tracksByStatus.approved.length}</div>
+              </div>
+              <div className="p-3 space-y-3 max-h-[70vh] overflow-auto">
+                {tracksByStatus.approved.map((t) => renderTrackCard(t, !!t.album_id))}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/20 overflow-hidden">
+              <div className="p-3 border-b border-white/10 flex items-center justify-between">
+                <div className="text-sm font-extrabold text-white">Recusadas</div>
+                <div className="text-xs text-gray-400">{tracksByStatus.rejected.length}</div>
+              </div>
+              <div className="p-3 space-y-3 max-h-[70vh] overflow-auto">
+                {tracksByStatus.rejected.map((t) => renderTrackCard(t, !!t.album_id))}
+              </div>
+            </div>
+          </div>
+        ) : viewMode === 'artista' ? (
+          <div className="space-y-4">
+            {musicsByArtist.length === 0 && <div className="text-gray-400 text-center py-8">Nenhuma música encontrada.</div>}
+            {musicsByArtist.map((group) => {
+              const items = group.items;
+              const albumMap = new Map();
+              const singles = [];
+              for (const m of items) {
+                if (m.album_id) {
+                  if (!albumMap.has(m.album_id)) {
+                    albumMap.set(m.album_id, {
+                      type: 'album',
+                      id: m.album_id,
+                      title: m.album_title || 'Álbum',
+                      artist_id: m.artista_id,
+                      cover_url: m.cover_url,
+                      tracks: [],
+                      created_at: m.created_at,
+                      status: m.status
+                    });
+                  }
+                  albumMap.get(m.album_id).tracks.push(m);
+                } else {
+                  singles.push({ type: 'single', ...m });
+                }
+              }
+              const localGrouped = [...Array.from(albumMap.values()), ...singles].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
               return (
-                <div key={item.id} className="border border-white/10 rounded-2xl bg-white/5">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setOpenAlbums(prev => ({
-                        ...prev,
-                        [item.id]: !prev[item.id]
-                      }))
-                    }
-                    className="w-full flex flex-col md:flex-row items-center justify-between gap-4 p-4"
-                  >
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className="w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden bg-black/50 border border-white/10 flex items-center justify-center">
-                        {item.cover_url ? (
-                          <img src={item.cover_url} alt={item.title} className="w-full h-full object-cover" />
-                        ) : (
-                          <FolderDown className="text-gray-500 w-6 h-6" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0 text-left">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-base md:text-lg font-bold text-white truncate">
-                            {item.title}
-                          </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-beatwap-gold uppercase font-semibold">
-                            Álbum
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-400 truncate">
-                          <span>
-                            {item.tracks.length} faixas • {new Date(item.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
+                <div key={group.id} className="rounded-2xl border border-white/10 bg-black/20 overflow-hidden">
+                  <div className="p-3 border-b border-white/10 flex items-center justify-between">
+                    <div className="min-w-0">
+                      <div className="text-sm font-extrabold text-white truncate">{group.name}</div>
+                      <div className="text-[11px] text-gray-400">{items.length} músicas</div>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <div className="flex flex-wrap gap-2 justify-end">
-                        <AnimatedButton onClick={() => downloadAlbum(item)} variant="secondary" icon={Download}>
-                          Baixar Álbum (ZIP)
-                        </AnimatedButton>
-                        <AnimatedButton
-                          variant="secondary"
-                          onClick={() => {
-                            const base = item.tracks[0] || {};
-                            setLocalInputs(prev => ({
-                              ...prev,
-                              [item.id]: {
-                                ...(prev[item.id] || {}),
-                                upc: prev[item.id]?.upc ?? (base.upc || ''),
-                                presave: prev[item.id]?.presave ?? (base.presave_link || ''),
-                                release_date: prev[item.id]?.release_date ?? (base.release_date || ''),
-                                show_on_home: prev[item.id]?.show_on_home ?? (base.show_on_home || false)
-                              }
-                            }));
-                          }}
-                        >
-                          Editar Infos do Álbum
-                        </AnimatedButton>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-300">
-                        <span>{isOpen ? 'Recolher' : 'Ver faixas'}</span>
-                        {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                      </div>
-                    </div>
-                  </button>
-                  <div className="px-4 pb-3">
-                    <div className="mt-2 flex flex-col gap-2 p-3 bg-white/5 rounded-xl border border-white/10">
-                      <div className="text-xs font-bold text-gray-300 mb-1">Informações do Álbum / Aprovar Tudo</div>
-                      <div className="flex flex-col gap-2 md:flex-row md:items-center">
-                        <div className="flex gap-2 flex-1">
-                          <AnimatedInput
-                            placeholder="UPC do Álbum"
-                            value={localInputs[item.id]?.upc ?? base.upc ?? ''}
-                            onChange={(e) =>
-                              setLocalInputs(prev => ({
-                                ...prev,
-                                [item.id]: { ...(prev[item.id] || {}), upc: e.target.value }
-                              }))
-                            }
-                            className="w-32"
-                          />
-                          <AnimatedInput
-                            placeholder="Pre-save / Smartlink"
-                            value={localInputs[item.id]?.presave ?? base.presave_link ?? ''}
-                            onChange={(e) =>
-                              setLocalInputs(prev => ({
-                                ...prev,
-                                [item.id]: { ...(prev[item.id] || {}), presave: e.target.value }
-                              }))
-                            }
-                            className="w-32"
-                          />
-                          <input
-                            type="date"
-                            className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs w-32"
-                            value={localInputs[item.id]?.release_date ?? base.release_date ?? ''}
-                            onChange={(e) =>
-                              setLocalInputs(prev => ({
-                                ...prev,
-                                [item.id]: { ...(prev[item.id] || {}), release_date: e.target.value }
-                              }))
-                            }
-                          />
-                        </div>
-                        <div
-                          className="flex items-center gap-2 cursor-pointer"
-                          onClick={() =>
-                            setLocalInputs(prev => ({
-                              ...prev,
-                              [item.id]: {
-                                ...(prev[item.id] || {}),
-                                show_on_home: !currentShowOnHome
-                              }
-                            }))
-                          }
-                        >
-                          <div
-                            className={`w-4 h-4 rounded border flex items-center justify-center ${
-                              currentShowOnHome
-                                ? 'bg-beatwap-gold border-beatwap-gold text-black'
-                                : 'border-white/20 bg-white/5'
-                            }`}
-                          >
-                            {currentShowOnHome && <Check size={12} strokeWidth={4} />}
-                          </div>
-                          <span className="text-[10px] text-gray-300 select-none">Mostrar na Home</span>
-                        </div>
-                      </div>
-                      <div className="flex flex-col md:flex-row gap-2">
-                        <AnimatedButton
-                          onClick={() => approveAll(item)}
-                          icon={CheckCircle2}
-                          className="w-full md:w-1/2 justify-center"
-                        >
-                          Aprovar Todas as Faixas
-                        </AnimatedButton>
-                        <AnimatedButton
-                          onClick={() => updateAlbumInfo(item)}
-                          variant="secondary"
-                          className="w-full md:w-1/2 justify-center"
-                        >
-                          Salvar Infos do Álbum
-                        </AnimatedButton>
-                      </div>
+                    <div className="text-[11px] text-gray-500">
+                      {items.filter((m) => String(m?.status || '') === 'pendente').length} pendentes • {items.filter((m) => String(m?.status || '') === 'aprovado').length} aprovadas
                     </div>
                   </div>
-                  {isOpen && (
-                    <div className="border-t border-white/10 p-3 space-y-3">
-                      {item.tracks.map(track => renderTrackCard(track, true))}
-                    </div>
-                  )}
+                  <div className="p-3 space-y-4">
+                    {localGrouped.map((item) => {
+                      if (item.type === 'album') {
+                        const isOpen = !!openAlbums[item.id];
+                        const base = item.tracks[0] || {};
+                        const currentShowOnHome = localInputs[item.id]?.show_on_home ?? (base.show_on_home || false);
+                        return (
+                          <div key={item.id} className="border border-white/10 rounded-2xl bg-white/5">
+                            <button
+                              type="button"
+                              onClick={() => setOpenAlbums(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+                              className="w-full flex flex-col md:flex-row items-center justify-between gap-4 p-4"
+                            >
+                              <div className="flex items-center gap-4 min-w-0">
+                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden bg-black/50 border border-white/10 flex items-center justify-center">
+                                  {item.cover_url ? (
+                                    <img src={item.cover_url} alt={item.title} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <FolderDown className="text-gray-500 w-6 h-6" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0 text-left">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-base md:text-lg font-bold text-white truncate">{item.title}</span>
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-beatwap-gold uppercase font-semibold">Álbum</span>
+                                  </div>
+                                  <div className="text-xs text-gray-400 truncate">
+                                    <span>{item.tracks.length} faixas • {new Date(item.created_at).toLocaleDateString()}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end gap-2">
+                                <div className="flex flex-wrap gap-2 justify-end">
+                                  <AnimatedButton onClick={() => downloadAlbum(item)} variant="secondary" icon={Download}>
+                                    Baixar Álbum (ZIP)
+                                  </AnimatedButton>
+                                  <AnimatedButton
+                                    variant="secondary"
+                                    onClick={() => {
+                                      const base = item.tracks[0] || {};
+                                      setLocalInputs(prev => ({
+                                        ...prev,
+                                        [item.id]: {
+                                          ...(prev[item.id] || {}),
+                                          upc: prev[item.id]?.upc ?? (base.upc || ''),
+                                          presave: prev[item.id]?.presave ?? (base.presave_link || ''),
+                                          release_date: prev[item.id]?.release_date ?? (base.release_date || ''),
+                                          show_on_home: prev[item.id]?.show_on_home ?? (base.show_on_home || false)
+                                        }
+                                      }));
+                                    }}
+                                  >
+                                    Editar Infos do Álbum
+                                  </AnimatedButton>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-gray-300">
+                                  <span>{isOpen ? 'Recolher' : 'Ver faixas'}</span>
+                                  {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                </div>
+                              </div>
+                            </button>
+                            <div className="px-4 pb-3">
+                              <div className="mt-2 flex flex-col gap-2 p-3 bg-white/5 rounded-xl border border-white/10">
+                                <div className="text-xs font-bold text-gray-300 mb-1">Informações do Álbum / Aprovar Tudo</div>
+                                <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                                  <div className="flex gap-2 flex-1">
+                                    <AnimatedInput
+                                      placeholder="UPC do Álbum"
+                                      value={localInputs[item.id]?.upc ?? base.upc ?? ''}
+                                      onChange={(e) => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), upc: e.target.value } }))}
+                                      className="w-32"
+                                    />
+                                    <AnimatedInput
+                                      placeholder="Pre-save / Smartlink"
+                                      value={localInputs[item.id]?.presave ?? base.presave_link ?? ''}
+                                      onChange={(e) => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), presave: e.target.value } }))}
+                                      className="w-32"
+                                    />
+                                    <input
+                                      type="date"
+                                      className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs w-32"
+                                      value={localInputs[item.id]?.release_date ?? base.release_date ?? ''}
+                                      onChange={(e) => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), release_date: e.target.value } }))}
+                                    />
+                                  </div>
+                                  <div
+                                    className="flex items-center gap-2 cursor-pointer"
+                                    onClick={() => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), show_on_home: !currentShowOnHome } }))}
+                                  >
+                                    <div className={`w-4 h-4 rounded border flex items-center justify-center ${currentShowOnHome ? 'bg-beatwap-gold border-beatwap-gold text-black' : 'border-white/20 bg-white/5'}`}>
+                                      {currentShowOnHome && <Check size={12} strokeWidth={4} />}
+                                    </div>
+                                    <span className="text-[10px] text-gray-300 select-none">Mostrar na Home</span>
+                                  </div>
+                                </div>
+                                <div className="flex flex-col md:flex-row gap-2">
+                                  <AnimatedButton onClick={() => approveAll(item)} icon={CheckCircle2} className="w-full md:w-1/2 justify-center">
+                                    Aprovar Todas as Faixas
+                                  </AnimatedButton>
+                                  <AnimatedButton onClick={() => updateAlbumInfo(item)} variant="secondary" className="w-full md:w-1/2 justify-center">
+                                    Salvar Infos do Álbum
+                                  </AnimatedButton>
+                                </div>
+                              </div>
+                            </div>
+                            {isOpen && (
+                              <div className="border-t border-white/10 p-3 space-y-3">
+                                {item.tracks.map(track => renderTrackCard(track, true))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+                      return renderTrackCard(item, false);
+                    })}
+                  </div>
                 </div>
               );
-            } else {
+            })}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6">
+            {visibleGroupedMusics.map(item => {
+              if (item.type === 'album') {
+                const isOpen = !!openAlbums[item.id];
+                const base = item.tracks[0] || {};
+                const currentShowOnHome = localInputs[item.id]?.show_on_home ?? (base.show_on_home || false);
+                return (
+                  <div key={item.id} className="border border-white/10 rounded-2xl bg-white/5">
+                    <button
+                      type="button"
+                      onClick={() => setOpenAlbums(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+                      className="w-full flex flex-col md:flex-row items-center justify-between gap-4 p-4"
+                    >
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden bg-black/50 border border-white/10 flex items-center justify-center">
+                          {item.cover_url ? (
+                            <img src={item.cover_url} alt={item.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <FolderDown className="text-gray-500 w-6 h-6" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-base md:text-lg font-bold text-white truncate">{item.title}</span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-beatwap-gold uppercase font-semibold">Álbum</span>
+                          </div>
+                          <div className="text-xs text-gray-400 truncate">
+                            <span>{item.tracks.length} faixas • {new Date(item.created_at).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="flex flex-wrap gap-2 justify-end">
+                          <AnimatedButton onClick={() => downloadAlbum(item)} variant="secondary" icon={Download}>
+                            Baixar Álbum (ZIP)
+                          </AnimatedButton>
+                          <AnimatedButton
+                            variant="secondary"
+                            onClick={() => {
+                              const base = item.tracks[0] || {};
+                              setLocalInputs(prev => ({
+                                ...prev,
+                                [item.id]: {
+                                  ...(prev[item.id] || {}),
+                                  upc: prev[item.id]?.upc ?? (base.upc || ''),
+                                  presave: prev[item.id]?.presave ?? (base.presave_link || ''),
+                                  release_date: prev[item.id]?.release_date ?? (base.release_date || ''),
+                                  show_on_home: prev[item.id]?.show_on_home ?? (base.show_on_home || false)
+                                }
+                              }));
+                            }}
+                          >
+                            Editar Infos do Álbum
+                          </AnimatedButton>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-300">
+                          <span>{isOpen ? 'Recolher' : 'Ver faixas'}</span>
+                          {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                        </div>
+                      </div>
+                    </button>
+                    <div className="px-4 pb-3">
+                      <div className="mt-2 flex flex-col gap-2 p-3 bg-white/5 rounded-xl border border-white/10">
+                        <div className="text-xs font-bold text-gray-300 mb-1">Informações do Álbum / Aprovar Tudo</div>
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                          <div className="flex gap-2 flex-1">
+                            <AnimatedInput
+                              placeholder="UPC do Álbum"
+                              value={localInputs[item.id]?.upc ?? base.upc ?? ''}
+                              onChange={(e) => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), upc: e.target.value } }))}
+                              className="w-32"
+                            />
+                            <AnimatedInput
+                              placeholder="Pre-save / Smartlink"
+                              value={localInputs[item.id]?.presave ?? base.presave_link ?? ''}
+                              onChange={(e) => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), presave: e.target.value } }))}
+                              className="w-32"
+                            />
+                            <input
+                              type="date"
+                              className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-xs w-32"
+                              value={localInputs[item.id]?.release_date ?? base.release_date ?? ''}
+                              onChange={(e) => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), release_date: e.target.value } }))}
+                            />
+                          </div>
+                          <div
+                            className="flex items-center gap-2 cursor-pointer"
+                            onClick={() => setLocalInputs(prev => ({ ...prev, [item.id]: { ...(prev[item.id] || {}), show_on_home: !currentShowOnHome } }))}
+                          >
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${currentShowOnHome ? 'bg-beatwap-gold border-beatwap-gold text-black' : 'border-white/20 bg-white/5'}`}>
+                              {currentShowOnHome && <Check size={12} strokeWidth={4} />}
+                            </div>
+                            <span className="text-[10px] text-gray-300 select-none">Mostrar na Home</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col md:flex-row gap-2">
+                          <AnimatedButton onClick={() => approveAll(item)} icon={CheckCircle2} className="w-full md:w-1/2 justify-center">
+                            Aprovar Todas as Faixas
+                          </AnimatedButton>
+                          <AnimatedButton onClick={() => updateAlbumInfo(item)} variant="secondary" className="w-full md:w-1/2 justify-center">
+                            Salvar Infos do Álbum
+                          </AnimatedButton>
+                        </div>
+                      </div>
+                    </div>
+                    {isOpen && (
+                      <div className="border-t border-white/10 p-3 space-y-3">
+                        {item.tracks.map(track => renderTrackCard(track, true))}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
               return renderTrackCard(item, false);
-            }
-          })}
-          {groupedMusics.length === 0 && <div className="text-gray-400 text-center py-8">Nenhuma música encontrada.</div>}
-        </div>
+            })}
+            {visibleGroupedMusics.length === 0 && <div className="text-gray-400 text-center py-8">Nenhuma música encontrada.</div>}
+          </div>
+        )}
         
         <MusicEditModal 
           isOpen={editModalOpen} 
