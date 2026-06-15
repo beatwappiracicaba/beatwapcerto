@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Music, Pause, Play, RotateCcw, SkipBack, SkipForward, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Music, Pause, Play, Radio, RotateCcw, SkipBack, SkipForward, X } from 'lucide-react';
 
 const GlobalAudioPlayerContext = createContext(null);
 
@@ -41,6 +41,17 @@ export const GlobalAudioPlayerProvider = ({ children }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [queue, setQueueState] = useState([]);
+  const [queueIndex, setQueueIndex] = useState(-1);
+  const queueRef = useRef([]);
+  const queueIndexRef = useRef(-1);
+
+  useEffect(() => {
+    queueRef.current = Array.isArray(queue) ? queue : [];
+  }, [queue]);
+  useEffect(() => {
+    queueIndexRef.current = Number.isFinite(Number(queueIndex)) ? Number(queueIndex) : -1;
+  }, [queueIndex]);
 
   const getTrackBounds = useCallback((track = currentTrackRef.current, audioDuration = null) => {
     const activeTrack = track || null;
@@ -170,10 +181,80 @@ export const GlobalAudioPlayerProvider = ({ children }) => {
   }, [clampTime, getTrackBounds]);
 
   const skipBy = useCallback((deltaSeconds) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    seekTo(audio.currentTime + normalizeNumber(deltaSeconds, 0));
-  }, [seekTo]);
+    seekTo(normalizeNumber(currentTime, 0) + normalizeNumber(deltaSeconds, 0));
+  }, [currentTime, seekTo]);
+
+  const clearQueue = useCallback(() => {
+    setQueueState([]);
+    setQueueIndex(-1);
+  }, []);
+
+  const setQueue = useCallback((tracks, startAt = 0) => {
+    const list = Array.isArray(tracks) ? tracks.map(buildTrack).filter(Boolean) : [];
+    setQueueState(list);
+    const idx = Math.max(0, Math.min(list.length - 1, Math.floor(normalizeNumber(startAt, 0))));
+    setQueueIndex(list.length ? idx : -1);
+    return { list, idx };
+  }, []);
+
+  const playQueueIndex = useCallback(async (index, reason = 'queue') => {
+    const list = queueRef.current || [];
+    const idx = Math.floor(normalizeNumber(index, -1));
+    if (!Array.isArray(list) || list.length === 0) return;
+    if (idx < 0 || idx >= list.length) return;
+    setQueueIndex(idx);
+    await playTrack({ ...list[idx], id: list[idx].id });
+    loadingTrackIdRef.current = null;
+    void reason;
+  }, [playTrack]);
+
+  const playNextTrack = useCallback(async () => {
+    const list = queueRef.current || [];
+    const idx = Math.floor(normalizeNumber(queueIndexRef.current, -1));
+    if (!Array.isArray(list) || list.length === 0) return;
+    const next = idx >= 0 ? idx + 1 : 0;
+    if (next >= list.length) return;
+    await playQueueIndex(next, 'next');
+  }, [playQueueIndex]);
+
+  const playPrevTrack = useCallback(async () => {
+    const list = queueRef.current || [];
+    const idx = Math.floor(normalizeNumber(queueIndexRef.current, -1));
+    if (!Array.isArray(list) || list.length === 0) return;
+    const prev = idx > 0 ? idx - 1 : 0;
+    await playQueueIndex(prev, 'prev');
+  }, [playQueueIndex]);
+
+  const startRadio = useCallback(async (tracks, opts = {}) => {
+    const baseList = Array.isArray(tracks) ? tracks.map(buildTrack).filter(Boolean) : [];
+    const deduped = [];
+    const seen = new Set();
+    for (const t of baseList) {
+      const key = String(t.src || t.id);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(t);
+      if (deduped.length >= 60) break;
+    }
+    const shuffle = opts?.shuffle !== false;
+    const list = shuffle ? (() => {
+      const copy = deduped.slice();
+      for (let i = copy.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = copy[i];
+        copy[i] = copy[j];
+        copy[j] = tmp;
+      }
+      return copy;
+    })() : deduped;
+
+    const startAt = Math.max(0, Math.min(list.length - 1, Math.floor(normalizeNumber(opts?.startAt, 0))));
+    setQueueState(list);
+    setQueueIndex(list.length ? startAt : -1);
+    if (list.length) {
+      await playTrack(list[startAt]);
+    }
+  }, [playTrack]);
 
   const playTrack = useCallback(async (trackLike) => {
     const nextTrack = buildTrack(trackLike);
@@ -263,6 +344,14 @@ export const GlobalAudioPlayerProvider = ({ children }) => {
       setDuration(effectiveDuration);
 
       if (bounds.end != null && audio.currentTime >= bounds.end - 0.1) {
+        const list = queueRef.current || [];
+        const idx = Math.floor(normalizeNumber(queueIndexRef.current, -1));
+        const shouldAdvance = Array.isArray(list) && list.length > 0 && idx >= 0 && idx < list.length - 1;
+        if (shouldAdvance) {
+          flushPlaybackEvent('preview_end');
+          playNextTrack().catch(() => void 0);
+          return;
+        }
         pausePlayback('preview_end');
         try {
           audio.currentTime = bounds.start;
@@ -275,6 +364,14 @@ export const GlobalAudioPlayerProvider = ({ children }) => {
 
     const handleEnded = () => {
       setIsPlaying(false);
+      const list = queueRef.current || [];
+      const idx = Math.floor(normalizeNumber(queueIndexRef.current, -1));
+      const shouldAdvance = Array.isArray(list) && list.length > 0 && idx >= 0 && idx < list.length - 1;
+      if (shouldAdvance) {
+        flushPlaybackEvent('ended');
+        playNextTrack().catch(() => void 0);
+        return;
+      }
       flushPlaybackEvent('ended');
       const track = currentTrackRef.current;
       const bounds = getTrackBounds(track, audio.duration);
@@ -315,7 +412,7 @@ export const GlobalAudioPlayerProvider = ({ children }) => {
       flushPlaybackEvent('unmount');
       audioRef.current = null;
     };
-  }, [flushPlaybackEvent, getTrackBounds, pausePlayback, startPlaybackSession]);
+  }, [flushPlaybackEvent, getTrackBounds, pausePlayback, playNextTrack, startPlaybackSession]);
 
   const value = useMemo(() => ({
     currentTrack,
@@ -323,6 +420,8 @@ export const GlobalAudioPlayerProvider = ({ children }) => {
     isPlaying,
     currentTime,
     duration,
+    queue,
+    queueIndex,
     playTrack,
     toggleTrack,
     togglePlayPause,
@@ -330,8 +429,13 @@ export const GlobalAudioPlayerProvider = ({ children }) => {
     skipBy,
     stopPlayback,
     closePlayer,
+    setQueue,
+    clearQueue,
+    playNextTrack,
+    playPrevTrack,
+    startRadio,
     isTrackActive: (trackId) => String(trackId || '') !== '' && String(currentTrackRef.current?.id || '') === String(trackId || '')
-  }), [currentTime, currentTrack, duration, isPlaying, playTrack, togglePlayPause, toggleTrack, seekTo, skipBy, stopPlayback, closePlayer]);
+  }), [clearQueue, closePlayer, currentTime, currentTrack, duration, isPlaying, playNextTrack, playPrevTrack, playTrack, queue, queueIndex, setQueue, skipBy, seekTo, startRadio, stopPlayback, togglePlayPause, toggleTrack]);
 
   return (
     <GlobalAudioPlayerContext.Provider value={value}>
@@ -351,12 +455,14 @@ export const useGlobalAudioPlayer = () => {
 };
 
 export const GlobalAudioPlayerDock = () => {
-  const { closePlayer, currentTime, currentTrack, duration, isPlaying, seekTo, skipBy, togglePlayPause } = useGlobalAudioPlayer();
+  const { clearQueue, closePlayer, currentTime, currentTrack, duration, isPlaying, playNextTrack, playPrevTrack, queue, queueIndex, seekTo, skipBy, togglePlayPause } = useGlobalAudioPlayer();
 
   if (!currentTrack) return null;
 
   const safeDuration = Math.max(0, normalizeNumber(duration, 0));
   const safeCurrentTime = Math.min(safeDuration || 0, Math.max(0, normalizeNumber(currentTime, 0)));
+  const queueSize = Array.isArray(queue) ? queue.length : 0;
+  const queueActive = queueSize > 0 && Number.isFinite(Number(queueIndex)) && Number(queueIndex) >= 0;
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-[90] border-t border-white/10 bg-[rgba(5,5,8,0.96)] backdrop-blur-xl shadow-[0_-12px_40px_rgba(0,0,0,0.45)]">
@@ -381,6 +487,16 @@ export const GlobalAudioPlayerDock = () => {
 
         <div className="flex flex-1 flex-col gap-3">
           <div className="flex items-center justify-center gap-2">
+            {queueActive && (
+              <button
+                type="button"
+                onClick={() => playPrevTrack().catch(() => void 0)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-gray-200 transition hover:border-beatwap-gold/40 hover:text-white"
+                aria-label="Faixa anterior"
+              >
+                <ChevronLeft size={16} />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => skipBy(-10)}
@@ -405,6 +521,16 @@ export const GlobalAudioPlayerDock = () => {
             >
               <SkipForward size={16} />
             </button>
+            {queueActive && (
+              <button
+                type="button"
+                onClick={() => playNextTrack().catch(() => void 0)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-gray-200 transition hover:border-beatwap-gold/40 hover:text-white"
+                aria-label="Próxima faixa"
+              >
+                <ChevronRight size={16} />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => seekTo(0)}
@@ -430,7 +556,18 @@ export const GlobalAudioPlayerDock = () => {
           </div>
         </div>
 
-        <div className="flex items-center justify-end md:w-[72px]">
+        <div className="flex items-center justify-between gap-2 md:w-[220px] md:justify-end">
+          {queueActive && (
+            <button
+              type="button"
+              onClick={clearQueue}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-bold text-gray-200 transition hover:border-beatwap-gold/35 hover:text-white"
+            >
+              <Radio size={14} className="text-beatwap-gold" />
+              <span>Rádio</span>
+              <span className="text-gray-400">{Number(queueIndex) + 1}/{queueSize}</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={closePlayer}

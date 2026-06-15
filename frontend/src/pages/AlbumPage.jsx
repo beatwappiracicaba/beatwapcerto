@@ -53,16 +53,18 @@ const AlbumPage = () => {
     }
   };
 
-  const togglePlay = (track) => {
+  const togglePlay = (track, startSeconds = 0) => {
     const src = String(track?.preview_url || track?.audio_url || '').trim();
     if (!src) return;
+    const sec = Math.max(0, Number(startSeconds || 0));
     toggleTrack({
-      id: `album:${track.id}`,
+      id: `album:${track.id}@${sec}`,
       src,
       title: track?.titulo || 'Faixa',
       artist: track?.nome_artista || albumInfo?.artistName || 'Artista',
       coverUrl: String(albumInfo?.cover_url || '').trim(),
       full: true,
+      startSeconds: sec,
       onPlaybackEvent: ({ durationSeconds }) => {
         recordEvent({ type: 'music_play', music_id: track.id, artist_id: track.artista_id, duration_seconds: durationSeconds });
       }
@@ -150,10 +152,10 @@ const AlbumPage = () => {
                       </div>
                       <button
                         type="button"
-                        onClick={() => togglePlay(track)}
+                        onClick={() => togglePlay(track, 0)}
                         className="w-9 h-9 rounded-full bg-beatwap-gold flex items-center justify-center text-black hover:bg-white transition-colors shrink-0"
                       >
-                        {currentTrackId === `album:${track.id}` && isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                        {String(currentTrackId || '').startsWith(`album:${track.id}@`) && isPlaying ? <Pause size={16} /> : <Play size={16} />}
                       </button>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-semibold text-white truncate">
@@ -161,6 +163,18 @@ const AlbumPage = () => {
                         </div>
                         <div className="text-xs text-gray-400 truncate">
                           {track.nome_artista}
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {[0, 30, 60].map((sec) => (
+                            <button
+                              key={sec}
+                              type="button"
+                              onClick={() => togglePlay(track, sec)}
+                              className="px-3 py-1.5 rounded-full border bg-black/20 border-white/10 text-[11px] font-bold text-gray-200 hover:bg-white/5 transition"
+                            >
+                              {sec === 0 ? '0:00' : `0:${String(sec).padStart(2, '0')}`}
+                            </button>
+                          ))}
                         </div>
                       </div>
                     </div>

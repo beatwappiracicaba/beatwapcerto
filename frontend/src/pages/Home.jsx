@@ -30,10 +30,12 @@ const Home = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const { currentTrackId, isPlaying, toggleTrack } = useGlobalAudioPlayer();
+  const { currentTrackId, isPlaying, startRadio, toggleTrack } = useGlobalAudioPlayer();
   const [latestReleases, setLatestReleases] = useState([]);
   const [latestCompositions, setLatestCompositions] = useState([]);
   const [latestProjects, setLatestProjects] = useState([]);
+  const [forYouMusics, setForYouMusics] = useState([]);
+  const [forYouLoading, setForYouLoading] = useState(false);
   const [composers, setComposers] = useState([]);
   const [sponsors, setSponsors] = useState([]);
   const [artists, setArtists] = useState([]);
@@ -62,6 +64,65 @@ const Home = () => {
     const delta = Math.max(240, Math.round(el.clientWidth * 0.8));
     el.scrollBy({ left: dir * delta, behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    let alive = true;
+    if (!user) {
+      setForYouMusics([]);
+      setForYouLoading(false);
+      return () => { alive = false; };
+    }
+    if (activeHomeTab !== 'destaques') return () => { alive = false; };
+    (async () => {
+      try {
+        setForYouLoading(true);
+        const qs = new URLSearchParams();
+        qs.set('limit', '25');
+        const data = await apiClient.get(`/feed?${qs.toString()}`, { cache: true, cacheTtlMs: 15000 });
+        if (!alive) return;
+        const list = Array.isArray(data?.items) ? data.items : [];
+        const musics = list
+          .filter((it) => it?.type === 'music')
+          .map((it) => {
+            const m = it?.data || {};
+            const owner = it?.owner || {};
+            const src = String(m?.preview_url || m?.audio_url || '').trim();
+            if (!src) return null;
+            const title = m?.titulo || m?.title || 'Música';
+            const artistName = m?.nome_artista || owner?.nome || owner?.nome_completo_razao_social || 'Artista';
+            const coverUrl = String(m?.cover_url || '').trim();
+            const musicId = m?.id || it?.id;
+            const artistId = String(m?.artista_id || owner?.id || '').trim() || null;
+            return {
+              id: String(musicId || it?.id || src),
+              src,
+              title,
+              artist: artistName,
+              coverUrl,
+              full: true,
+              onPlaybackEvent: artistId ? ({ durationSeconds }) => {
+                apiClient.post('/analytics', {
+                  type: 'music_play',
+                  music_id: musicId,
+                  artist_id: artistId,
+                  duration_seconds: durationSeconds,
+                  ip_hash: 'home_for_you'
+                }).catch(() => void 0);
+              } : null
+            };
+          })
+          .filter(Boolean)
+          .slice(0, 14);
+        setForYouMusics(musics);
+      } catch {
+        if (!alive) return;
+        setForYouMusics([]);
+      } finally {
+        if (alive) setForYouLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [activeHomeTab, user]);
 
   const buildWhatsAppHref = (rawPhone, title) => {
     const raw = decryptData(rawPhone);
@@ -1061,6 +1122,107 @@ const Home = () => {
             </div>
           </div>
         </section>
+        )}
+        {showHighlightsTab && (
+          <section className="py-10 px-6 bg-black/10 border-b border-white/10">
+            <div className="max-w-7xl mx-auto space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+                <div>
+                  <div className="text-xl md:text-2xl font-bold text-white">Para você</div>
+                  <div className="text-sm text-gray-300 mt-1">
+                    Uma seleção rápida de lançamentos de quem você segue.
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {user && forYouMusics.length > 0 && (
+                    <AnimatedButton onClick={() => startRadio(forYouMusics, { shuffle: true })}>
+                      Ouvir Rádio
+                    </AnimatedButton>
+                  )}
+                  {!user && (
+                    <AnimatedButton onClick={() => navigate('/login')}>
+                      Entrar para personalizar
+                    </AnimatedButton>
+                  )}
+                </div>
+              </div>
+
+              {!user && (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-gray-300">
+                  Entre para seguir perfis e receber uma seleção personalizada.
+                </div>
+              )}
+
+              {user && forYouLoading && (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-gray-400">
+                  Carregando recomendações...
+                </div>
+              )}
+
+              {user && !forYouLoading && forYouMusics.length === 0 && (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-gray-400">
+                  Ainda sem itens no seu feed. Siga alguns perfis no painel para alimentar sua rádio.
+                </div>
+              )}
+
+              {user && forYouMusics.length > 0 && (
+                <div className="relative">
+                  <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory">
+                    {forYouMusics.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => toggleTrack({ ...t, id: `home-for-you:${t.id}` })}
+                        className="snap-start shrink-0 w-[260px] rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors overflow-hidden text-left"
+                      >
+                        <div className="aspect-square bg-black/30">
+                          {t.coverUrl ? (
+                            <img src={t.coverUrl} alt={t.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-500">
+                              <Music size={28} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-4 space-y-2">
+                          <div className="font-extrabold text-white truncate">{t.title}</div>
+                          <div className="text-xs text-gray-400 truncate">{t.artist}</div>
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-[11px] font-bold text-gray-200">
+                              {currentTrackId === `home-for-you:${t.id}` && isPlaying ? (
+                                <>
+                                  <Pause size={14} />
+                                  Pausar
+                                </>
+                              ) : (
+                                <>
+                                  <Play size={14} />
+                                  Ouvir
+                                </>
+                              )}
+                            </span>
+                            {[0, 30, 60].map((sec) => (
+                              <button
+                                key={sec}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleTrack({ ...t, id: `home-for-you:${t.id}@${sec}`, startSeconds: sec });
+                                }}
+                                className="px-3 py-1.5 rounded-full border bg-black/20 border-white/10 text-[11px] font-bold text-gray-200 hover:bg-white/5 transition"
+                              >
+                                {sec === 0 ? '0:00' : `0:${String(sec).padStart(2, '0')}`}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
         )}
         {showOpportunitiesTab && Array.isArray(homeAuditions) && homeAuditions.length > 0 && (
           <section className="py-10 px-6 bg-black/10 border-b border-white/10">

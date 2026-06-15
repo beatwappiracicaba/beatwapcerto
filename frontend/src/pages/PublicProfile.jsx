@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { apiClient } from '../services/apiClient';
@@ -34,6 +34,20 @@ const PublicProfile = () => {
   const [descOpen, setDescOpen] = useState({});
   const [videoModalPost, setVideoModalPost] = useState(null);
   const [galleryTab, setGalleryTab] = useState('all');
+  const tracksRef = useRef(null);
+  const albumsRef = useRef(null);
+  const compositionsRef = useRef(null);
+  const galleryRef = useRef(null);
+  const eventsRef = useRef(null);
+  const setTracksNode = (node) => {
+    tracksRef.current = node;
+    compositionsRef.current = node;
+  };
+  const scrollTo = (ref) => {
+    const el = ref?.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   const albumGroups = useMemo(() => {
     const map = new Map();
     (items || []).forEach(m => {
@@ -627,6 +641,48 @@ const PublicProfile = () => {
             </div>
           </div>
 
+          <div className="sticky top-[84px] z-30 mb-10">
+            <div className="rounded-2xl border border-white/10 bg-black/60 backdrop-blur-xl p-2 shadow-[0_0_40px_rgba(0,0,0,0.35)]">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => scrollTo(tracksRef)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold border transition bg-white/5 border-white/10 text-gray-200 hover:bg-white/10"
+                >
+                  Ouvir
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollTo(albumsRef)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold border transition bg-white/5 border-white/10 text-gray-200 hover:bg-white/10"
+                >
+                  Álbuns
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollTo(compositionsRef)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold border transition bg-white/5 border-white/10 text-gray-200 hover:bg-white/10"
+                >
+                  Composições
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollTo(galleryRef)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold border transition bg-white/5 border-white/10 text-gray-200 hover:bg-white/10"
+                >
+                  Galeria
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollTo(eventsRef)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold border transition bg-white/5 border-white/10 text-gray-200 hover:bg-white/10"
+                >
+                  Eventos
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Featured Video Section */}
           {videoId && (
             <div className="mb-12">
@@ -649,7 +705,7 @@ const PublicProfile = () => {
           )}
 
           {cargoLower === 'artista' && events.length > 0 && (
-            <div className="mb-12">
+            <div ref={eventsRef} className="mb-12">
               <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
                 <Calendar className="text-beatwap-gold" />
                 Próximos Shows
@@ -744,7 +800,7 @@ const PublicProfile = () => {
           )}
 
           {cargoLower === 'artista' && albumGroups.length > 0 && (
-              <div className="mb-12">
+              <div ref={albumsRef} className="mb-12">
                 <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
                   <Music className="text-beatwap-gold" />
                   Álbuns
@@ -777,7 +833,7 @@ const PublicProfile = () => {
 
           {/* Gallery / Moments Section */}
           {galleryPosts.length > 0 && (
-            <div className="mb-12">
+            <div ref={galleryRef} className="mb-12">
               <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
                 <Image className="text-blue-400" />
                 Galeria & Momentos
@@ -1062,7 +1118,7 @@ const PublicProfile = () => {
               </div>
             )}
             {cargoLower === 'produtor' && producerTab === 'producoes' && producerProductionAlbumGroups.length > 0 && (
-              <div className="mb-12">
+              <div ref={albumsRef} className="mb-12">
                 <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
                   <Music className="text-beatwap-gold" />
                   Álbuns
@@ -1093,7 +1149,7 @@ const PublicProfile = () => {
               </div>
             )}
             {!((cargoLower === 'artista' && albumGroups.length > 0 && itemsToRender.length === 0) || (cargoLower === 'produtor' && producerTab === 'producoes' && producerProductionAlbumGroups.length > 0 && producerProductionSingles.length === 0)) && (
-              <>
+              <div ref={setTracksNode}>
                 <h2 className="text-xl md:text-2xl font-bold flex items-center gap-3 mb-4">
                   <Music className="text-beatwap-gold" />
                   {cargoLower === 'artista'
@@ -1156,7 +1212,7 @@ const PublicProfile = () => {
                     ))}
                   </div>
                 )}
-              </>
+              </div>
             )}
               </>
             )}

@@ -17,7 +17,7 @@ const Feed = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const { currentTrackId, isPlaying, toggleTrack } = useGlobalAudioPlayer();
+  const { currentTrackId, isPlaying, startRadio, toggleTrack } = useGlobalAudioPlayer();
   const roleLower = String(profile?.cargo || '').toLowerCase();
   const isProdutor = roleLower === 'produtor';
   const isVendedor = roleLower === 'vendedor';
@@ -993,6 +993,17 @@ const Feed = () => {
         ? it?.type === 'music'
         : it?.type !== 'music'
     ));
+    const radioCandidates = feedSubTab === 'musics'
+      ? feedItems
+        .filter((it) => {
+          if (it?.type !== 'music') return false;
+          const m = it?.data || {};
+          if (m?.album_id) return false;
+          const src = String(m?.preview_url || m?.audio_url || '').trim();
+          return !!src;
+        })
+        .slice(0, 40)
+      : [];
 
     if (loading && items.length === 0) {
       return (
@@ -1025,6 +1036,46 @@ const Feed = () => {
 
     return (
       <div className="space-y-4">
+        {feedSubTab === 'musics' && radioCandidates.length > 0 && (
+          <Card className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-white font-extrabold text-lg">Rádio BeatWap</div>
+                <div className="text-sm text-gray-400">Toque uma sequência de lançamentos do seu feed.</div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <AnimatedButton
+                  onClick={() => startRadio(radioCandidates.map((it) => {
+                    const m = it?.data || {};
+                    const owner = it?.owner || {};
+                    const ownerName = displayName(owner);
+                    const src = String(m?.preview_url || m?.audio_url || '').trim();
+                    const artistId = String(m?.artista_id || owner?.id || '').trim() || null;
+                    return {
+                      id: `radio:music:${it.id}`,
+                      src,
+                      title: m?.titulo || m?.title || 'Música',
+                      artist: m?.nome_artista || ownerName || 'Artista',
+                      coverUrl: sanitizeUrl(m?.cover_url),
+                      full: true,
+                      onPlaybackEvent: artistId ? ({ durationSeconds }) => {
+                        recordAnalyticsEvent({
+                          type: 'music_play',
+                          music_id: m?.id || it.id,
+                          artist_id: artistId,
+                          duration_seconds: durationSeconds,
+                          ip_hash: 'feed_radio'
+                        });
+                      } : null
+                    };
+                  }), { shuffle: true })}
+                >
+                  Ouvir Rádio
+                </AnimatedButton>
+              </div>
+            </div>
+          </Card>
+        )}
         {feedSubTab === 'musics' && feedAlbums.length > 0 && (
           <Card className="p-4 sm:p-6">
             <div className="flex items-center gap-2 text-white font-bold">
@@ -1160,6 +1211,22 @@ const Feed = () => {
                         })}>
                           <span>{currentTrackId === `composition:${it.id}` && isPlaying ? 'Pausar' : 'Reproduzir'}</span>
                         </AnimatedButton>
+                        {[0, 30, 60].map((sec) => (
+                          <button
+                            key={sec}
+                            type="button"
+                            onClick={() => togglePlay(`composition:${it.id}@${sec}`, c.audio_url, {
+                              title,
+                              artist: c.composer_name || 'Autor',
+                              coverUrl: c.cover_url,
+                              full: true,
+                              startSeconds: sec
+                            })}
+                            className="px-3 py-2 rounded-xl border bg-black/20 border-white/5 text-xs font-bold text-gray-300 hover:bg-white/5 transition"
+                          >
+                            {sec === 0 ? '0:00' : `0:${String(sec).padStart(2, '0')}`}
+                          </button>
+                        ))}
                         {href && (
                           <AnimatedButton onClick={() => window.open(href, '_blank')}>
                             <span>WhatsApp</span>
@@ -1233,6 +1300,16 @@ const Feed = () => {
                             <span>{currentTrackId === `music:${it.id}` && isPlaying ? 'Pausar' : 'Reproduzir'}</span>
                           </AnimatedButton>
                         )}
+                        {!m.album_id && [0, 30, 60].map((sec) => (
+                          <button
+                            key={sec}
+                            type="button"
+                            onClick={() => togglePlay(`music:${it.id}@${sec}`, url, { artistId, title, artist: artistName, coverUrl: cover, full: true, startSeconds: sec })}
+                            className="px-3 py-2 rounded-xl border bg-black/20 border-white/5 text-xs font-bold text-gray-300 hover:bg-white/5 transition"
+                          >
+                            {sec === 0 ? '0:00' : `0:${String(sec).padStart(2, '0')}`}
+                          </button>
+                        ))}
                         {m.presave_link && (
                           <AnimatedButton onClick={() => window.open(m.presave_link, '_blank')}>
                             <span>Smartlink</span>
