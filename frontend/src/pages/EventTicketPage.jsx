@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { CalendarDays, CheckCircle2, MapPin, Music, Pause, Play, Smartphone, Ticket, Wallet } from 'lucide-react';
+import { CalendarDays, CheckCircle2, MapPin, Smartphone, Ticket, Wallet } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
-import { useGlobalAudioPlayer } from '../context/GlobalAudioPlayerContext';
 
 function formatDate(value) {
   try {
@@ -20,7 +19,6 @@ function formatDate(value) {
 
 export default function EventTicketPage() {
   const { slug } = useParams();
-  const { currentTrackId, isPlaying, toggleTrack } = useGlobalAudioPlayer();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorText, setErrorText] = useState('');
@@ -31,8 +29,6 @@ export default function EventTicketPage() {
   const [quantity, setQuantity] = useState(1);
   const [creatingOrder, setCreatingOrder] = useState(false);
   const [orderLookup, setOrderLookup] = useState('');
-  const [showcaseLoading, setShowcaseLoading] = useState(false);
-  const [showcase, setShowcase] = useState([]);
 
   useEffect(() => {
     let mounted = true;
@@ -58,64 +54,6 @@ export default function EventTicketPage() {
       mounted = false;
     };
   }, [slug]);
-
-  useEffect(() => {
-    let alive = true;
-    if (!event) return () => { alive = false; };
-    (async () => {
-      try {
-        setShowcaseLoading(true);
-        const boosted = await apiClient.get('/boosted-profiles', { cache: true, cacheTtlMs: 15000 });
-        const list = Array.isArray(boosted) ? boosted : [];
-        const selected = list.slice(0, 3).map((p) => ({
-          id: String(p?.id || '').trim(),
-          nome: p?.nome || p?.nome_completo_razao_social || p?.email || 'Artista',
-          avatar_url: p?.avatar_url || null
-        })).filter((p) => p.id);
-
-        const enriched = await Promise.all(selected.map(async (p) => {
-          try {
-            const musics = await apiClient.get(`/profiles/${encodeURIComponent(p.id)}/musics`, { cache: true, cacheTtlMs: 15000 });
-            const list = Array.isArray(musics) ? musics : [];
-            const first = list.find((m) => String(m?.status || '') === 'aprovado' && String(m?.preview_url || m?.audio_url || '').trim());
-            if (!first) return { ...p, track: null };
-            const src = String(first?.preview_url || first?.audio_url || '').trim();
-            return {
-              ...p,
-              track: {
-                id: `event-showcase:${p.id}:${first.id}`,
-                src,
-                title: first?.titulo || 'Música',
-                artist: first?.nome_artista || p.nome || 'Artista',
-                coverUrl: String(first?.cover_url || '').trim(),
-                full: true,
-                onPlaybackEvent: ({ durationSeconds }) => {
-                  apiClient.post('/analytics', {
-                    type: 'music_play',
-                    music_id: first?.id,
-                    artist_id: p.id,
-                    duration_seconds: durationSeconds,
-                    ip_hash: 'event_showcase'
-                  }).catch(() => void 0);
-                }
-              }
-            };
-          } catch {
-            return { ...p, track: null };
-          }
-        }));
-
-        if (!alive) return;
-        setShowcase(enriched.filter((p) => p.track));
-      } catch {
-        if (!alive) return;
-        setShowcase([]);
-      } finally {
-        if (alive) setShowcaseLoading(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, [event]);
 
   const selectedType = useMemo(
     () => (Array.isArray(event?.ticket_types) ? event.ticket_types.find((ticket) => String(ticket.id) === String(selectedTypeId)) : null),
@@ -413,70 +351,6 @@ export default function EventTicketPage() {
               </div>
             ))}
           </div>
-        </section>
-
-        <section className="rounded-[32px] border border-white/10 bg-white/[0.04] p-6">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-            <div>
-              <div className="text-xs uppercase tracking-[0.22em] text-beatwap-gold">Lineup tocável</div>
-              <h2 className="text-2xl font-extrabold mt-2">Artistas em alta na BeatWap</h2>
-              <div className="text-sm text-gray-400 mt-1">Entre no clima do evento ouvindo agora.</div>
-            </div>
-          </div>
-
-          {showcaseLoading && (
-            <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4 text-gray-400">
-              Carregando artistas...
-            </div>
-          )}
-
-          {!showcaseLoading && showcase.length === 0 && (
-            <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4 text-gray-400">
-              Em breve: lineup do evento com músicas para ouvir aqui mesmo.
-            </div>
-          )}
-
-          {!showcaseLoading && showcase.length > 0 && (
-            <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
-              {showcase.map((p) => {
-                const t = p.track;
-                const active = currentTrackId === t.id && isPlaying;
-                return (
-                  <div key={p.id} className="rounded-3xl border border-white/10 bg-black/25 overflow-hidden">
-                    <div className="p-5 flex items-start gap-4">
-                      <div className="w-14 h-14 rounded-2xl overflow-hidden border border-white/10 bg-white/5 flex items-center justify-center shrink-0">
-                        {t.coverUrl ? (
-                          <img src={t.coverUrl} alt={t.title} className="w-full h-full object-cover" />
-                        ) : (
-                          <Music size={18} className="text-beatwap-gold" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-extrabold text-white truncate">{p.nome}</div>
-                        <div className="text-xs text-gray-400 truncate">{t.title}</div>
-                        <div className="mt-3 flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => toggleTrack(t)}
-                            className="inline-flex items-center gap-2 rounded-full bg-beatwap-gold px-4 py-2 text-xs font-extrabold text-black hover:bg-white transition"
-                          >
-                            {active ? <Pause size={14} /> : <Play size={14} className="ml-0.5" />}
-                            {active ? 'Pausar' : 'Ouvir'}
-                          </button>
-                          <Link
-                            to={`/profile/${encodeURIComponent(p.id)}`}
-                            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold text-white hover:bg-white/10"
-                          >
-                            Ver perfil
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </section>
       </div>
     </div>
