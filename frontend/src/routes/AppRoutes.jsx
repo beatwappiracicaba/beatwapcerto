@@ -56,6 +56,7 @@ import EventTicketPage from '../pages/EventTicketPage';
 import TicketInvitePage from '../pages/TicketInvitePage';
 import TicketScannerPage from '../pages/TicketScannerPage';
 import AdminEvents from '../pages/AdminEvents';
+import AdminPodcasts from '../pages/AdminPodcasts';
 
 // Admin temporariamente desativado
 
@@ -199,6 +200,7 @@ export const AppRoutes = () => {
         <Route path="/admin/compositions" element={isProdutor ? <AdminCompositions /> : <Navigate to="/" replace />} />
         <Route path="/admin/chat" element={isProdutor ? <AdminChat /> : <Navigate to="/" replace />} />
         <Route path="/admin/sponsors" element={isProdutor ? <AdminSponsors /> : <Navigate to="/" replace />} />
+        <Route path="/admin/podcasts" element={isProdutor ? <AdminPodcasts /> : <Navigate to="/" replace />} />
         <Route path="/admin/settings" element={isProdutor ? <AdminSettings /> : <Navigate to="/" replace />} />
         <Route path="/legal/termos" element={<Terms />} />
         <Route path="/legal/privacidade" element={<Privacy />} />

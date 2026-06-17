@@ -1083,4 +1083,131 @@ router.delete('/sponsors/:id', async (req, res) => {
   }
 });
 
+function normalizeStr(v) {
+  return String(v || '').trim();
+}
+
+function requireProducer(req, res) {
+  const role = String(req.user?.cargo || '').trim();
+  if (role !== 'Produtor') {
+    res.status(403).json({ error: 'Sem permissão' });
+    return false;
+  }
+  return true;
+}
+
+router.get('/admin/podcasts', auth, async (req, res) => {
+  try {
+    if (!requireProducer(req, res)) return;
+    const clips = Array.isArray(memory.podcast_clips) ? memory.podcast_clips : [];
+    const schedule = Array.isArray(memory.podcast_schedule) ? memory.podcast_schedule : [];
+    res.json({
+      clips: clips.slice(),
+      schedule: schedule.slice()
+    });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.post('/admin/podcasts/clip', auth, async (req, res) => {
+  try {
+    if (!requireProducer(req, res)) return;
+    const title = normalizeStr(req.body?.title);
+    const caption = normalizeStr(req.body?.caption);
+    const video_url = normalizeStr(req.body?.video_url);
+    const cover_url = normalizeStr(req.body?.cover_url) || null;
+    const guest = normalizeStr(req.body?.guest) || null;
+    const tags = Array.isArray(req.body?.tags) ? req.body.tags.map(normalizeStr).filter(Boolean).slice(0, 10) : [];
+    const publish_at = normalizeStr(req.body?.publish_at) || null;
+
+    if (!title) return res.status(400).json({ error: 'Título obrigatório' });
+    if (!video_url) return res.status(400).json({ error: 'Vídeo obrigatório' });
+
+    const item = {
+      id: `podclip_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      title,
+      caption: caption || null,
+      video_url,
+      cover_url,
+      guest,
+      tags,
+      publish_at,
+      created_by: req.user.id,
+      created_at: new Date().toISOString()
+    };
+
+    if (!Array.isArray(memory.podcast_clips)) memory.podcast_clips = [];
+    memory.podcast_clips.unshift(item);
+    scheduleSave();
+    res.json({ ok: true, clip: item });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.delete('/admin/podcasts/clip/:id', auth, async (req, res) => {
+  try {
+    if (!requireProducer(req, res)) return;
+    const id = normalizeStr(req.params.id);
+    if (!id) return res.status(400).json({ error: 'ID inválido' });
+    memory.podcast_clips = Array.isArray(memory.podcast_clips) ? memory.podcast_clips.filter((x) => String(x?.id || '') !== id) : [];
+    scheduleSave();
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.post('/admin/podcasts/schedule', auth, async (req, res) => {
+  try {
+    if (!requireProducer(req, res)) return;
+    const title = normalizeStr(req.body?.title);
+    const description = normalizeStr(req.body?.description) || null;
+    const starts_at = normalizeStr(req.body?.starts_at);
+    const duration_minutes = Number(req.body?.duration_minutes || 0) || 0;
+    const link_url = normalizeStr(req.body?.link_url) || null;
+    const cover_url = normalizeStr(req.body?.cover_url) || null;
+    const guests = Array.isArray(req.body?.guests) ? req.body.guests.map(normalizeStr).filter(Boolean).slice(0, 10) : [];
+
+    if (!title) return res.status(400).json({ error: 'Título obrigatório' });
+    if (!starts_at) return res.status(400).json({ error: 'Data/horário obrigatório' });
+    const ts = new Date(starts_at).getTime();
+    if (!Number.isFinite(ts)) return res.status(400).json({ error: 'Data/horário inválido' });
+
+    const item = {
+      id: `podsched_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      title,
+      description,
+      starts_at: new Date(ts).toISOString(),
+      duration_minutes: Math.max(0, Math.min(600, Math.floor(duration_minutes))),
+      link_url,
+      cover_url,
+      guests,
+      created_by: req.user.id,
+      created_at: new Date().toISOString()
+    };
+
+    if (!Array.isArray(memory.podcast_schedule)) memory.podcast_schedule = [];
+    memory.podcast_schedule.unshift(item);
+    scheduleSave();
+    res.json({ ok: true, schedule: item });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.delete('/admin/podcasts/schedule/:id', auth, async (req, res) => {
+  try {
+    if (!requireProducer(req, res)) return;
+    const id = normalizeStr(req.params.id);
+    if (!id) return res.status(400).json({ error: 'ID inválido' });
+    memory.podcast_schedule = Array.isArray(memory.podcast_schedule) ? memory.podcast_schedule.filter((x) => String(x?.id || '') !== id) : [];
+    scheduleSave();
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 module.exports = router;

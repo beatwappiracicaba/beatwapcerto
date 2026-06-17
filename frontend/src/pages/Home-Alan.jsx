@@ -34,6 +34,10 @@ const Home = () => {
   const [latestReleases, setLatestReleases] = useState([]);
   const [latestCompositions, setLatestCompositions] = useState([]);
   const [latestProjects, setLatestProjects] = useState([]);
+  const [podcastLoading, setPodcastLoading] = useState(false);
+  const [podcastClips, setPodcastClips] = useState([]);
+  const [podcastSchedule, setPodcastSchedule] = useState([]);
+  const [podcastModal, setPodcastModal] = useState(null);
   const [composers, setComposers] = useState([]);
   const [sponsors, setSponsors] = useState([]);
   const [artists, setArtists] = useState([]);
@@ -62,6 +66,27 @@ const Home = () => {
     const delta = Math.max(240, Math.round(el.clientWidth * 0.8));
     el.scrollBy({ left: dir * delta, behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    let alive = true;
+    if (activeHomeTab !== 'destaques') return () => { alive = false; };
+    (async () => {
+      try {
+        setPodcastLoading(true);
+        const data = await apiClient.get('/podcasts', { cache: true, cacheTtlMs: 15000 });
+        if (!alive) return;
+        setPodcastClips(Array.isArray(data?.clips) ? data.clips : []);
+        setPodcastSchedule(Array.isArray(data?.schedule) ? data.schedule : []);
+      } catch {
+        if (!alive) return;
+        setPodcastClips([]);
+        setPodcastSchedule([]);
+      } finally {
+        if (alive) setPodcastLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [activeHomeTab]);
 
   const buildWhatsAppHref = (rawPhone, title) => {
     const raw = decryptData(rawPhone);
@@ -1049,6 +1074,134 @@ const Home = () => {
             </div>
           </div>
         </section>
+        )}
+
+        {showHighlightsTab && (
+          <section className="py-12 px-6 bg-gradient-to-b from-black/10 to-black/30 border-b border-white/10">
+            <div className="max-w-7xl mx-auto space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.22em] text-beatwap-gold font-bold">Podcasts</div>
+                  <div className="text-2xl md:text-3xl font-extrabold text-white mt-2">🎙️ Cortes e agenda do próximo episódio</div>
+                  <div className="text-sm text-gray-300 mt-2 max-w-3xl">
+                    Conteúdo rápido estilo Reels para descobrir ideias, bastidores e conversas que movimentam a BeatWap.
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <AnimatedButton onClick={() => navigate(user ? '/admin/podcasts' : '/login')}>
+                    {user?.cargo === 'Produtor' ? 'Publicar Podcasts' : 'Ver no Painel'}
+                  </AnimatedButton>
+                </div>
+              </div>
+
+              {podcastLoading && (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-gray-400">Carregando podcasts...</div>
+              )}
+
+              {!podcastLoading && podcastClips.length === 0 && podcastSchedule.length === 0 && (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-gray-400">
+                  Em breve: cortes do podcast e a agenda do próximo episódio.
+                </div>
+              )}
+
+              {(!podcastLoading && (podcastClips.length > 0 || podcastSchedule.length > 0)) && (
+                <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_0.75fr] gap-5">
+                  <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 md:p-5">
+                    <div className="flex items-center justify-between gap-3 mb-4">
+                      <div className="text-sm font-extrabold text-white">Cortes (Reels)</div>
+                      <div className="text-xs text-gray-400">Arraste para o lado</div>
+                    </div>
+                    {podcastClips.length === 0 ? (
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-gray-400">
+                        Nenhum corte publicado ainda.
+                      </div>
+                    ) : (
+                      <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory">
+                        {podcastClips.slice(0, 12).map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => setPodcastModal(c)}
+                            className="snap-start shrink-0 w-[240px] sm:w-[260px] rounded-3xl border border-white/10 bg-black/30 hover:bg-white/5 transition overflow-hidden text-left"
+                          >
+                            <div className="aspect-[9/16] bg-black">
+                              <video
+                                src={String(c.video_url || '')}
+                                className="w-full h-full object-cover"
+                                muted
+                                playsInline
+                                preload="metadata"
+                              />
+                            </div>
+                            <div className="p-4">
+                              <div className="text-white font-extrabold truncate">{c.title}</div>
+                              {c.guest ? <div className="text-xs text-gray-400 truncate mt-1">Convidado: {c.guest}</div> : null}
+                              {c.caption ? <div className="text-xs text-gray-300 mt-2 line-clamp-2 whitespace-pre-wrap">{String(c.caption)}</div> : null}
+                              {Array.isArray(c.tags) && c.tags.length > 0 ? (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {c.tags.slice(0, 4).map((t) => (
+                                    <span key={t} className="px-2 py-1 rounded-full text-[10px] font-bold border bg-black/20 border-white/10 text-gray-200">
+                                      {t}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 md:p-5">
+                    <div className="text-sm font-extrabold text-white mb-4">Próximos episódios</div>
+                    {podcastSchedule.length === 0 ? (
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-gray-400">
+                        Nenhuma data publicada ainda.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {podcastSchedule.slice(0, 4).map((s) => (
+                          <div key={s.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                            <div className="text-white font-extrabold">{s.title}</div>
+                            <div className="text-xs text-gray-400 mt-1">
+                              {(() => { try { return new Date(s.starts_at).toLocaleString('pt-BR'); } catch { return String(s.starts_at || ''); } })()}
+                              {s.duration_minutes ? ` • ${s.duration_minutes} min` : ''}
+                            </div>
+                            {Array.isArray(s.guests) && s.guests.length > 0 ? (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {s.guests.slice(0, 5).map((g) => (
+                                  <span key={g} className="px-2 py-1 rounded-full text-[10px] font-bold border bg-black/20 border-white/10 text-gray-200">
+                                    {g}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
+                            {s.description ? (
+                              <div className="mt-3 text-sm text-gray-300 line-clamp-3 whitespace-pre-wrap">
+                                {String(s.description)}
+                              </div>
+                            ) : null}
+                            {s.link_url ? (
+                              <div className="mt-3">
+                                <button
+                                  type="button"
+                                  onClick={() => window.open(String(s.link_url), '_blank')}
+                                  className="px-4 py-2 rounded-xl bg-beatwap-gold text-black hover:bg-white transition-colors text-sm font-bold"
+                                >
+                                  Abrir link
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
         )}
         {showOpportunitiesTab && Array.isArray(homeAuditions) && homeAuditions.length > 0 && (
           <section className="py-10 px-6 bg-black/10 border-b border-white/10">
@@ -2630,6 +2783,41 @@ const Home = () => {
         )}
       </main>
       <Footer />
+      {podcastModal && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-black/90 overflow-hidden">
+            <div className="p-4 flex items-start justify-between gap-3 border-b border-white/10">
+              <div className="min-w-0">
+                <div className="text-white font-extrabold truncate">{String(podcastModal?.title || 'Corte')}</div>
+                {podcastModal?.guest ? (
+                  <div className="text-xs text-gray-400 truncate">Convidado: {String(podcastModal.guest)}</div>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => setPodcastModal(null)}
+                className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-gray-200 hover:bg-white/10 transition"
+              >
+                Fechar
+              </button>
+            </div>
+            <div className="aspect-[9/16] bg-black">
+              <video
+                src={String(podcastModal?.video_url || '')}
+                className="w-full h-full object-cover"
+                controls
+                playsInline
+                autoPlay
+              />
+            </div>
+            {podcastModal?.caption ? (
+              <div className="p-4 text-sm text-gray-200 whitespace-pre-wrap border-t border-white/10">
+                {String(podcastModal.caption)}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

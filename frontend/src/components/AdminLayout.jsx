@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, User, Music, Menu, X, Settings, DollarSign, ClipboardList, Ticket, Search, MessageCircle, Home, ChevronDown } from 'lucide-react';
+import { LayoutGrid, Users, User, Music, Menu, X, Settings, DollarSign, ClipboardList, Ticket, Search, MessageCircle, Home, ChevronDown, Mic } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { NotificationBell } from './notifications/NotificationBell';
 import { ProfileButton } from './ProfileButton';
@@ -22,6 +22,7 @@ export const AdminLayout = ({ children }) => {
     admin_events: true,
     admin_scanner: true,
     admin_auditions: true,
+    admin_podcasts: true,
     admin_artists: true,
     admin_composers: true,
     admin_musics: true,
@@ -44,6 +45,7 @@ export const AdminLayout = ({ children }) => {
     if (path.includes('/admin/eventos/portaria') && permissions.admin_scanner === false) return false;
     if (path.includes('/admin/eventos') && permissions.admin_events === false) return false;
     if (path.includes('/admin/auditions') && permissions.admin_auditions === false) return false;
+    if (path.includes('/admin/podcasts') && permissions.admin_podcasts === false) return false;
     if (path.includes('/admin/profile') && permissions.admin_profile === false) return false;
     if (path.includes('/admin/public-profile') && permissions.admin_public_profile === false) return false;
     if (path.includes('/admin/artists') && permissions.admin_artists === false) return false;
@@ -96,6 +98,7 @@ export const AdminLayout = ({ children }) => {
         permissions.admin_events !== false ? { to: '/admin/eventos', label: 'Eventos', icon: Ticket } : null,
         permissions.admin_scanner !== false ? { to: '/admin/eventos/portaria', label: 'Portaria', icon: Ticket } : null,
         permissions.admin_auditions !== false ? { to: '/admin/auditions', label: 'Audicoes', icon: ClipboardList } : null,
+        permissions.admin_podcasts !== false ? { to: '/admin/podcasts', label: 'Podcasts', icon: Mic } : null,
         permissions.chat !== false ? { to: '/admin/chat', label: 'Chat Admin', icon: MessageCircle } : null
       ].filter(Boolean)
     },

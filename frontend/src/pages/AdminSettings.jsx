@@ -797,7 +797,7 @@ export const AdminSettings = () => {
         : isComposer
           ? ['dashboard_panel','dashboard_feed','dashboard_search','dashboard_profile','dashboard_auditions','compositions','marketing','finance','chat','public_profile']
           : isProducer
-            ? ['admin_panel','admin_feed','admin_search','admin_events','admin_scanner','admin_auditions','admin_artists','admin_composers','admin_sellers','admin_musics','admin_compositions','admin_sponsors','admin_settings','admin_finance','admin_profile','admin_public_profile','chat']
+            ? ['admin_panel','admin_feed','admin_search','admin_events','admin_scanner','admin_auditions','admin_podcasts','admin_artists','admin_composers','admin_sellers','admin_musics','admin_compositions','admin_sponsors','admin_settings','admin_finance','admin_profile','admin_public_profile','chat']
             : isSeller
               ? ['dashboard_panel','dashboard_feed','dashboard_search','dashboard_profile','public_profile','seller_artists','seller_calendar','seller_leads','seller_finance','seller_proposals','seller_communications','chat']
               : [];
@@ -1418,6 +1418,7 @@ export const AdminSettings = () => {
                                     { key: 'admin_events', label: 'Eventos' },
                                     { key: 'admin_scanner', label: 'Portaria' },
                                     { key: 'admin_auditions', label: 'Audições' },
+                                    { key: 'admin_podcasts', label: 'Podcasts' },
                                     { key: 'admin_artists', label: 'Artistas' },
                                     { key: 'admin_composers', label: 'Compositores' },
                                     { key: 'admin_sellers', label: 'Vendedores' },

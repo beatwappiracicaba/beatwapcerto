@@ -2900,6 +2900,38 @@ router.get('/sellers/:id/stats', async (req, res) => {
   res.json({ leads: 0, proposals: 0, deals: 0 });
 });
 
+router.get('/podcasts', async (req, res) => {
+  try {
+    const clips = Array.isArray(memory.podcast_clips) ? memory.podcast_clips : [];
+    const schedule = Array.isArray(memory.podcast_schedule) ? memory.podcast_schedule : [];
+    const now = Date.now();
+
+    const nextSchedule = schedule
+      .slice()
+      .filter((s) => {
+        const ts = new Date(String(s?.starts_at || '')).getTime();
+        return Number.isFinite(ts) && ts >= now - 5 * 60 * 1000;
+      })
+      .sort((a, b) => (new Date(String(a?.starts_at || '')).getTime() - new Date(String(b?.starts_at || '')).getTime()))
+      .slice(0, 6);
+
+    const publishedClips = clips
+      .slice()
+      .filter((c) => {
+        const publishAt = String(c?.publish_at || '').trim();
+        if (!publishAt) return true;
+        const ts = new Date(publishAt).getTime();
+        if (!Number.isFinite(ts)) return true;
+        return ts <= now;
+      })
+      .slice(0, 30);
+
+    res.json({ clips: publishedClips, schedule: nextSchedule });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 
 // removed conflicting mock endpoints for /profile and /profile/avatar
 

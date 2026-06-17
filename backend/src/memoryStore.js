@@ -37,6 +37,8 @@ function ensureDefaults(m) {
   if (!m.artist_todos) m.artist_todos = [];
   if (!m.profileGallery) m.profileGallery = {};
   if (!m.sponsors) m.sponsors = [];
+  if (!Array.isArray(m.podcast_clips)) m.podcast_clips = [];
+  if (!Array.isArray(m.podcast_schedule)) m.podcast_schedule = [];
   if (!m.featured_plans || typeof m.featured_plans !== 'object') {
     m.featured_plans = {
       cta: 'Apareça primeiro e aumente suas chances de ser descoberto',
