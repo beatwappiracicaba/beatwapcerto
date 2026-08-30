@@ -1,0 +1,40 @@
+name: Deploy BeatWap Backend
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy na VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+
+            cd /var/www/backend/backend
+
+            echo "== Atualizando código =="
+            git fetch origin master
+            git reset --hard origin/master
+
+            echo "== Instalando dependências =="
+            npm install --production
+
+            echo "== Aplicando migrations =="
+            npm run db:migrate
+
+            echo "== Reiniciando API =="
+            pm2 restart beatwap-api
+
+            echo "== Verificando PM2 =="
+            pm2 status
+
+            echo "== Deploy concluído =="
