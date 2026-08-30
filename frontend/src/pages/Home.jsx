@@ -67,9 +67,6 @@ const Home = () => {
     el.scrollBy({ left: dir * delta, behavior: 'smooth' });
   };
 
-  const [youtubeVideoUrl, setYoutubeVideoUrl] = useState('');
-  const [showVideo, setShowVideo] = useState(false);
-
   useEffect(() => {
     let alive = true;
     if (activeHomeTab !== 'destaques') return () => { alive = false; };
@@ -200,7 +197,6 @@ const Home = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
     fetchHomeData();
-    fetchYoutubeVideoUrl();
     (async () => {
       try {
         const data = await apiClient.get('/auditions/public/open', { cache: true, cacheTtlMs: 15000 });
@@ -405,15 +401,6 @@ const Home = () => {
       } catch {
         void 0;
       }
-    }
-  };
-
-  const fetchYoutubeVideoUrl = async () => {
-    try {
-      const data = await apiClient.get('/youtube-video', { cache: false });
-      setYoutubeVideoUrl(String(data?.video_url || ''));
-    } catch {
-      setYoutubeVideoUrl('');
     }
   };
 
@@ -1280,35 +1267,11 @@ const Home = () => {
             <div className="rounded-[32px] border border-white/10 bg-white/[.04] p-4 md:p-6 shadow-[0_0_60px_rgba(0,0,0,0.35)]">
               <div className="grid xl:grid-cols-[1.15fr_0.85fr] gap-4">
                 <div className="relative min-h-[420px] rounded-[28px] overflow-hidden">
-                  {youtubeVideoUrl ? (
-                    (() => {
-                      const ytId = getYoutubeId(youtubeVideoUrl);
-                      if (!ytId) return (
-                        <img
-                          src={studioGallery[0].image}
-                          alt={studioGallery[0].title}
-                          className="absolute inset-0 h-full w-full object-cover"
-                        />
-                      );
-                      return (
-                        <iframe
-                          key={ytId}
-                          src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&playsinline=1&controls=0&showinfo=0&rel=0&modestbranding=1`}
-                          title="YouTube video background"
-                          className="absolute inset-0 h-full w-full"
-                          allow="autoplay; encrypted-media"
-                          allowFullScreen
-                          loading="lazy"
-                        />
-                      );
-                    })()
-                  ) : (
-                    <img
-                      src={studioGallery[0].image}
-                      alt={studioGallery[0].title}
-                      className="absolute inset-0 h-full w-full object-cover"
-                    />
-                  )}
+                  <img
+                    src={studioGallery[0].image}
+                    alt={studioGallery[0].title}
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-transparent" />
                   <div className="absolute inset-x-0 bottom-0 p-6 md:p-8">
                     <div className="inline-flex items-center rounded-full border border-beatwap-gold/40 bg-black/40 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em] text-beatwap-gold">

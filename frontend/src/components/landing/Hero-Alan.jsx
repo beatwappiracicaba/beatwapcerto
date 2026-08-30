@@ -1,16 +1,48 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { Play, ArrowRight } from 'lucide-react';
 
 const Hero = () => {
   const navigate = useNavigate();
+  const [youtubeVideoUrl, setYoutubeVideoUrl] = useState('');
+  const getYoutubeId = (u) => {
+    const m = String(u || '').match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
+    return m ? m[1] : null;
+  };
+
+  useEffect(() => {
+    fetch('/api/youtube-video')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.video_url) setYoutubeVideoUrl(data.video_url);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <section id="home" className="relative min-h-screen flex items-center pt-20 overflow-hidden">
-      {/* Background Elements */}
+          {/* Background Elements */}
       <div className="absolute inset-0 bg-beatwap-dark z-0">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-10 mix-blend-overlay"></div>
+        {(() => {
+          const ytId = getYoutubeId(youtubeVideoUrl);
+          if (ytId) {
+            return (
+              <iframe
+                key={ytId}
+                src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&showinfo=0&rel=0&modestbranding=1`}
+                title="YouTube video background"
+                className="absolute inset-0 h-full w-full z-0"
+                allow="autoplay; encrypted-media"
+                allowFullScreen
+              />
+            );
+          }
+          return (
+            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-10 mix-blend-overlay"></div>
+          );
+        })()}
         <div className="absolute inset-0 bg-gradient-to-b from-beatwap-dark/80 via-beatwap-dark/90 to-beatwap-dark"></div>
         
         {/* Animated Particles/Orbs */}
