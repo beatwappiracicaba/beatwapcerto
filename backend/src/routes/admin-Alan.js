@@ -981,4 +981,13 @@ async function putYoutubeVideoAdmin(req, res) {
   }
 }
 
+async function getYoutubeVideoPublic(req, res) {
+  try {
+    const video = memory.youtube_video && typeof memory.youtube_video === 'object' ? memory.youtube_video : { video_url: '' };
+    res.json(video);
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+}
+
 module.exports = router;
