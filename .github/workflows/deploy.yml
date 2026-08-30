@@ -1,4 +1,4 @@
-name: Deploy BeatWap Backend
+name: Deploy BeatWap
 
 on:
   push:
@@ -6,11 +6,10 @@ on:
       - master
 
 jobs:
-  deploy:
+  deploy-backend:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Deploy na VPS
+      - name: Deploy Backend na VPS
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -18,23 +17,54 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             set -e
-
             cd /var/www/backend/backend
-
-            echo "== Atualizando código =="
+            echo "== Atualizando código backend =="
             git fetch origin master
             git reset --hard origin/master
-
             echo "== Instalando dependências =="
             npm install --production
-
             echo "== Aplicando migrations =="
             npm run db:migrate
-
+            echo "== Configurando vídeo da Home =="
+            node -e "
+const http = require('http');
+const payload = JSON.stringify({ video_url: 'https://www.youtube.com/watch?v=af-M8NS89F4' });
+const req = http.request({ hostname: 'localhost', port: 3000, path: '/api/admin/youtube-video', method: 'PUT', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } }, (res) => { res.resume(); });
+req.on('error', () => {});
+req.write(payload);
+req.end();
+"
             echo "== Reiniciando API =="
             pm2 restart beatwap-api
-
             echo "== Verificando PM2 =="
             pm2 status
+            echo "== Backend deploy concluído =="
 
-            echo "== Deploy concluído =="
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install and Build Frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+      - name: Deploy Frontend na VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /var/www/frontend
+            echo "== Atualizando frontend =="
+            rm -rf *
+            cp -r /home/runner/work/beatwapcerto/beatwapcerto/frontend/dist/* .
+            echo "== Frontend deploy concluído =="
