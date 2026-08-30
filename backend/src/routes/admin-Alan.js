@@ -810,6 +810,8 @@ router.get('/admin/featured-plans', auth, getFeaturedPlansAdmin);
   router.put('/admin/youtube-video', auth, putYoutubeVideoAdmin);
   router.put('/admin/youtube_video', auth, putYoutubeVideoAdmin);
 
+  router.get('/youtube-video', getYoutubeVideoPublic);
+
 router.put('/admin/featured-plans', auth, putFeaturedPlansAdmin);
 router.put('/admin/featured_plans', auth, putFeaturedPlansAdmin);
 router.put('/featured-plans', auth, putFeaturedPlansAdmin);

@@ -932,6 +932,8 @@ router.get('/admin/featured-plans', auth, getFeaturedPlansAdmin);
   router.put('/admin/youtube-video', auth, putYoutubeVideoAdmin);
   router.put('/admin/youtube_video', auth, putYoutubeVideoAdmin);
 
+  router.get('/youtube-video', getYoutubeVideoPublic);
+
 router.put('/admin/featured-plans', auth, putFeaturedPlansAdmin);
 router.put('/admin/featured_plans', auth, putFeaturedPlansAdmin);
 router.put('/featured-plans', auth, putFeaturedPlansAdmin);
@@ -1233,6 +1235,15 @@ async function putYoutubeVideoAdmin(req, res) {
     memory.youtube_video = { video_url, updated_at: new Date().toISOString() };
     scheduleSave();
     res.json({ ok: true, message: 'Vídeo atualizado com sucesso', video_url });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+}
+
+async function getYoutubeVideoPublic(req, res) {
+  try {
+    const video = memory.youtube_video && typeof memory.youtube_video === 'object' ? memory.youtube_video : { video_url: '' };
+    res.json(video);
   } catch {
     res.status(500).json({ error: 'Erro interno' });
   }

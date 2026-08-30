@@ -410,7 +410,7 @@ const Home = () => {
 
   const fetchYoutubeVideoUrl = async () => {
     try {
-      const data = await apiClient.get('/admin/youtube-video');
+      const data = await apiClient.get('/youtube-video', { cache: false });
       setYoutubeVideoUrl(String(data?.video_url || ''));
     } catch {
       setYoutubeVideoUrl('');
