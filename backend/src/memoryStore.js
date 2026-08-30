@@ -90,6 +90,12 @@ function ensureDefaults(m) {
     if (!m.hit_of_week.updated_at) m.hit_of_week.updated_at = new Date().toISOString();
   }
   if (!Object.prototype.hasOwnProperty.call(m, 'hit_winner')) m.hit_winner = null;
+  
+  // Initialize youtube_video memory if not present
+  if (!m.youtube_video || typeof m.youtube_video !== 'object') {
+    m.youtube_video = { video_url: 'https://www.youtube.com/watch?v=af-M8NS89F4', updated_at: new Date().toISOString() };
+  }
+  
   return m;
 }
 
