@@ -922,9 +922,15 @@ router.post('/admin/credits/hit-of-week/grant', auth, async (req, res) => {
 });
 
 router.get('/admin/featured-plans', auth, getFeaturedPlansAdmin);
-router.get('/admin/featured_plans', auth, getFeaturedPlansAdmin);
-router.get('/featured-plans', auth, getFeaturedPlansAdmin);
-router.get('/featured_plans', auth, getFeaturedPlansAdmin);
+  router.get('/admin/featured_plans', auth, getFeaturedPlansAdmin);
+  router.get('/featured-plans', auth, getFeaturedPlansAdmin);
+  router.get('/featured_plans', auth, getFeaturedPlansAdmin);
+
+  router.get('/admin/youtube-video', auth, getYoutubeVideoAdmin);
+  router.get('/admin/youtube_video', auth, getYoutubeVideoAdmin);
+
+  router.put('/admin/youtube-video', auth, putYoutubeVideoAdmin);
+  router.put('/admin/youtube_video', auth, putYoutubeVideoAdmin);
 
 router.put('/admin/featured-plans', auth, putFeaturedPlansAdmin);
 router.put('/admin/featured_plans', auth, putFeaturedPlansAdmin);
@@ -1209,5 +1215,27 @@ router.delete('/admin/podcasts/schedule/:id', auth, async (req, res) => {
     res.status(500).json({ error: 'Erro interno' });
   }
 });
+
+async function getYoutubeVideoAdmin(req, res) {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+    const video = memory.youtube_video && typeof memory.youtube_video === 'object' ? memory.youtube_video : { video_url: '' };
+    res.json(video);
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+}
+
+async function putYoutubeVideoAdmin(req, res) {
+  try {
+    if (req.user.cargo !== 'Produtor') return res.status(403).json({ error: 'Sem permissão' });
+    const video_url = String(req.body?.video_url || '').trim();
+    memory.youtube_video = { video_url, updated_at: new Date().toISOString() };
+    scheduleSave();
+    res.json({ ok: true, message: 'Vídeo atualizado com sucesso', video_url });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+}
 
 module.exports = router;

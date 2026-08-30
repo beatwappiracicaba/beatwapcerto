@@ -84,6 +84,7 @@ export const AdminSettings = () => {
   const [featuredPlansDraft, setFeaturedPlansDraft] = useState(null);
   const [featuredPlansSaving, setFeaturedPlansSaving] = useState(false);
   const [activeSettingsSection, setActiveSettingsSection] = useState('convites');
+  const [youtubeVideoUrl, setYoutubeVideoUrl] = useState('');
 
   const validEmail = String(form.email).trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
   const baseDashboardInvitePermissions = [
@@ -146,6 +147,7 @@ export const AdminSettings = () => {
 
   useEffect(() => {
     fetchFeaturedPlansAdmin();
+    fetchYoutubeVideoUrl();
   }, []);
 
   const fetchInvites = async () => {
@@ -222,6 +224,24 @@ export const AdminSettings = () => {
       addToast(e?.message || 'Erro ao salvar destaque', 'error');
     } finally {
       setFeaturedPlansSaving(false);
+    }
+  };
+
+  const fetchYoutubeVideoUrl = async () => {
+    try {
+      const data = await apiClient.get('/admin/youtube-video');
+      setYoutubeVideoUrl(String(data?.video_url || ''));
+    } catch {
+      setYoutubeVideoUrl('');
+    }
+  };
+
+  const saveYoutubeVideoUrl = async () => {
+    try {
+      const res = await apiClient.put('/admin/youtube-video', { video_url: youtubeVideoUrl });
+      addToast(res?.message || 'Link do YouTube salvo com sucesso.', 'success');
+    } catch (e) {
+      addToast(e?.message || 'Erro ao salvar link do YouTube', 'error');
     }
   };
 
@@ -739,9 +759,15 @@ export const AdminSettings = () => {
     },
     {
       id: 'monetizacao',
-      title: 'Monetizacao',
+      title: 'Monetização',
       helper: 'Editar destaque pago e monetizacao da Home',
       count: featuredPlansDraft?.plans ? Object.keys(featuredPlansDraft.plans).length : 0
+    },
+    {
+      id: 'video',
+      title: 'Video Home',
+      helper: 'Configurar link do YouTube para fundo da Home',
+      count: 1
     },
     {
       id: 'permissoes',
@@ -1297,11 +1323,45 @@ export const AdminSettings = () => {
                 </AnimatedButton>
               </div>
             </div>
-          </div>
-        </Card>
-        )}
+</div>
+            </Card>
+          )}
+          
+          {activeSettingsSection === 'video' && (
+            <Card className="space-y-6">
+              <div className="flex items-center gap-2 text-lg md:text-xl font-bold">
+                <Settings size={20} className="text-beatwap-gold" />
+                Vídeo da Home
+              </div>
+              <div className="text-sm text-gray-300">
+                Configure o link do YouTube que será exibido como fundo da Home. Deixe em branco para usar a imagem padrão.
+              </div>
 
-        {activeSettingsSection === 'permissoes' && (
+              <div className="space-y-2">
+                <div className="text-sm text-gray-300">Link do YouTube</div>
+                <input
+                  value={youtubeVideoUrl}
+                  onChange={(e) => setYoutubeVideoUrl(e.target.value)}
+                  className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
+                  placeholder="https://www.youtube.com/watch?v=af-M8NS89F4"
+                />
+                <div className="text-xs text-gray-400 mt-1">
+                  Exemplos: https://www.youtube.com/watch?v=af-M8NS89F4 ou https://youtu.be/af-M8NS89F4
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2">
+                <AnimatedButton onClick={fetchYoutubeVideoUrl} variant="outline">
+                  Recarregar
+                </AnimatedButton>
+                <AnimatedButton onClick={saveYoutubeVideoUrl}>
+                  Salvar Vídeo
+                </AnimatedButton>
+              </div>
+            </Card>
+          )}
+          
+          {activeSettingsSection === 'permissoes' && (
         <Card className="space-y-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex items-center gap-2 text-xl font-bold">
