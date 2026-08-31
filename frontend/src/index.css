@@ -226,3 +226,13 @@
     font-size: 13px;
   }
 }
+
+/* Hide scrollbar on mobile horizontal scroll for plans */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
