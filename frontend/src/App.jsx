@@ -6,6 +6,7 @@ import { DataProvider } from './context/DataContext';
 import { GlobalAudioPlayerDock, GlobalAudioPlayerProvider } from './context/GlobalAudioPlayerContext';
 import { AppRoutes } from './routes/AppRoutes';
 import { ImageProtectionManager } from './components/security/ImageProtectionManager';
+import PWAInstallButton from './components/PWAInstallButton';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
                 <ImageProtectionManager />
                 <AppRoutes />
                 <GlobalAudioPlayerDock />
+                <PWAInstallButton />
               </ChatProvider>
             </DataProvider>
           </NotificationProvider>
