@@ -9,7 +9,6 @@ const Hero = () => {
   const navigate = useNavigate();
   const [youtubeVideoUrl, setYoutubeVideoUrl] = useState('');
   const [isMuted, setIsMuted] = useState(true);
-  const [latestRelease, setLatestRelease] = useState(null);
   const iframeRef = useRef(null);
   const getYoutubeId = (u) => {
     const m = String(u || '').match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
@@ -21,18 +20,6 @@ const Hero = () => {
       .then((r) => r.json())
       .then((data) => {
         if (data?.video_url) setYoutubeVideoUrl(data.video_url);
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    fetch(`${API_BASE_URL}/api/releases`)
-      .then((r) => r.json())
-      .then((data) => {
-        const list = Array.isArray(data) ? data : (Array.isArray(data?.releases) ? data.releases : []);
-        const approved = list.filter(m => String(m?.status || '').toLowerCase() === 'aprovado' || String(m?.status || '').toLowerCase() === 'approved');
-        const sorted = approved.sort((a, b) => new Date(b?.created_at || 0) - new Date(a?.created_at || 0));
-        if (sorted[0]) setLatestRelease(sorted[0]);
       })
       .catch(() => {});
   }, []);
@@ -71,7 +58,7 @@ const Hero = () => {
               <iframe
                 ref={iframeRef}
                 key={ytId}
-                src={`https://www.youtube.com/embed/${ytId}?autoplay=1&loop=1&playlist=${ytId}&controls=0&showinfo=0&rel=0&modestbranding=1&enablejsapi=1`}
+                src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&showinfo=0&rel=0&modestbranding=1&enablejsapi=1&iv_load_policy=3&cc_load_policy=0`}
                 title="YouTube video background"
                 className="absolute inset-0 h-full w-full -z-10"
                 allow="autoplay; encrypted-media"
@@ -90,18 +77,17 @@ const Hero = () => {
         {/* Marquee Ticker */}
         {(() => {
           const ytId = getYoutubeId(youtubeVideoUrl);
-          if (!ytId || !latestRelease) return null;
-          const text = `${releaseArtist ? releaseArtist + ' - ' : ''}${releaseTitle}`;
+          if (!ytId) return null;
           return (
             <div className="absolute top-16 md:top-20 left-0 right-0 z-50 overflow-hidden bg-beatwap-gold/90 border-b border-beatwap-gold text-black">
               <div className="flex whitespace-nowrap animate-marquee">
-                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">Último lançamento</span>
+                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">Último projeto feito</span>
                 <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">•</span>
-                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">{text}</span>
+                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">BeatWap</span>
                 <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">•</span>
-                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">Último lançamento</span>
+                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">Último projeto feito</span>
                 <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">•</span>
-                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">{text}</span>
+                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">BeatWap</span>
                 <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">•</span>
               </div>
             </div>

@@ -71,7 +71,7 @@ const Hero = () => {
               <iframe
                 ref={iframeRef}
                 key={ytId}
-                src={`https://www.youtube.com/embed/${ytId}?autoplay=1&loop=1&playlist=${ytId}&controls=0&showinfo=0&rel=0&modestbranding=1&enablejsapi=1`}
+                src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&showinfo=0&rel=0&modestbranding=1&enablejsapi=1&iv_load_policy=3&cc_load_policy=0`}
                 title="YouTube video background"
                 className="absolute inset-0 h-full w-full -z-10"
                 allow="autoplay; encrypted-media"
@@ -90,18 +90,17 @@ const Hero = () => {
         {/* Marquee Ticker */}
         {(() => {
           const ytId = getYoutubeId(youtubeVideoUrl);
-          if (!ytId || !latestRelease) return null;
-          const text = `${releaseArtist ? releaseArtist + ' - ' : ''}${releaseTitle}`;
+          if (!ytId) return null;
           return (
             <div className="absolute top-16 md:top-20 left-0 right-0 z-50 overflow-hidden bg-beatwap-gold/90 border-b border-beatwap-gold text-black">
               <div className="flex whitespace-nowrap animate-marquee">
-                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">Último lançamento</span>
+                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">Último projeto feito</span>
                 <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">•</span>
-                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">{text}</span>
+                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">BeatWap</span>
                 <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">•</span>
-                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">Último lançamento</span>
+                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">Último projeto feito</span>
                 <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">•</span>
-                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">{text}</span>
+                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">BeatWap</span>
                 <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">•</span>
               </div>
             </div>
