@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { Play, ArrowRight } from 'lucide-react';
-import { API_BASE_URL } from '../config/apiConfig.js';
+import { API_BASE_URL } from '../../config/apiConfig';
 
 const Hero = () => {
   const navigate = useNavigate();
