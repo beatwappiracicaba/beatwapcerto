@@ -61,22 +61,24 @@ const Hero = () => {
   const releaseArtist = latestRelease?.nome_artista || latestRelease?.artist_name || '';
 
   return (
-    <section id="home" className="relative min-h-screen flex items-center pt-20 overflow-hidden">
+    <section id="home" className="relative min-h-screen flex items-center pt-28 md:pt-28 overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0">
         {(() => {
           const ytId = getYoutubeId(youtubeVideoUrl);
           if (ytId) {
             return (
-              <iframe
-                ref={iframeRef}
-                key={ytId}
-                src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&showinfo=0&rel=0&modestbranding=1&enablejsapi=1&iv_load_policy=3&cc_load_policy=0`}
-                title="YouTube video background"
-                className="absolute inset-0 h-full w-full -z-10"
-                allow="autoplay; encrypted-media"
-                allowFullScreen
-              />
+              <div className="absolute inset-0 overflow-hidden -z-10">
+                <iframe
+                  ref={iframeRef}
+                  key={ytId}
+                  src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&showinfo=0&rel=0&modestbranding=1&enablejsapi=1&iv_load_policy=3&cc_load_policy=0`}
+                  title="YouTube video background"
+                  className="absolute top-1/2 left-1/2 w-[177.78vh] h-[100vw] -translate-x-1/2 -translate-y-1/2"
+                  allow="autoplay; encrypted-media"
+                  allowFullScreen
+                />
+              </div>
             );
           }
           return (
