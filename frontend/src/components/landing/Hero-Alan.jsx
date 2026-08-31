@@ -59,11 +59,15 @@ const Hero = () => {
                 <iframe
                   ref={iframeRef}
                   key={ytId}
-                  src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&showinfo=0&rel=0&modestbranding=1&enablejsapi=1&iv_load_policy=3&cc_load_policy=0`}
+                  src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&showinfo=0&rel=0&modestbranding=1&iv_load_policy=3&cc_load_policy=0&playsinline=1`}
                   title="YouTube video background"
-                  className="absolute top-1/2 left-1/2 w-[100vw] h-[56.25vw] min-h-[100vh] -translate-x-1/2 -translate-y-1/2"
-                  allow="autoplay; encrypted-media"
+                  className="absolute top-1/2 left-1/2 w-full min-w-[100vw] min-h-[100vh] -translate-x-1/2 -translate-y-1/2"
+                  allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
+                  allowInlineAutoplay
                   allowFullScreen
+                  playsInline
+                  webkitallowfullscreen
+                  mozallowfullscreen
                 />
               </div>
             );
@@ -81,7 +85,7 @@ const Hero = () => {
           const ytId = getYoutubeId(youtubeVideoUrl);
           if (!ytId) return null;
           return (
-            <div className="absolute top-16 md:top-20 left-0 right-0 z-50 overflow-hidden bg-beatwap-gold/90 border-b border-beatwap-gold text-black">
+            <div className="absolute top-16 md:top-20 left-0 right-0 z-30 overflow-hidden bg-beatwap-gold/90 border-b border-beatwap-gold text-black">
               <div className="flex whitespace-nowrap animate-marquee">
                 <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">Último projeto feito</span>
                 <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">•</span>

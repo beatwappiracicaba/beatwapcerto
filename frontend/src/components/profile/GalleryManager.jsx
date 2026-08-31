@@ -574,11 +574,14 @@ export const GalleryManager = ({ userId }) => {
                     <iframe
                       width="100%"
                       height="100%"
-                      src={embed || ''}
+                      src={`${embed || ''}?playsinline=1`}
                       title="Vídeo"
                       frameBorder="0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
+                      playsInline
+                      webkitallowfullscreen
+                      mozallowfullscreen
                     />
                   </div>
                 );

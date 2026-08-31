@@ -1051,16 +1051,19 @@ const Feed = () => {
                 return (
                   <div className="group relative overflow-hidden bg-black/40 border border-white/10 rounded-xl">
                     <div className={`relative w-full ${aspectClass} bg-black cursor-pointer`} onClick={open}>
-                      {embed ? (
-                        <iframe
-                          className="absolute inset-0 w-full h-full"
-                          src={embed}
-                          title="Link"
-                          frameBorder="0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          allowFullScreen
-                        />
-                      ) : mediaType === 'video' ? (
+{embed ? (
+                          <iframe
+                            className="absolute inset-0 w-full h-full"
+                            src={`${embed}?playsinline=1`}
+                            title="Link"
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowFullScreen
+                            playsInline
+                            webkitallowfullscreen
+                            mozallowfullscreen
+                          />
+                        ) : mediaType === 'video' ? (
                         <video
                           src={mediaUrl}
                           muted
@@ -1475,11 +1478,14 @@ const Feed = () => {
                 <iframe
                   width="100%"
                   height="100%"
-                  src={getEmbedUrl(videoModalPost.link_url || videoModalPost.media_url)}
+                  src={`${getEmbedUrl(videoModalPost.link_url || videoModalPost.media_url)}?playsinline=1`}
                   title="Link"
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
+                  playsInline
+                  webkitallowfullscreen
+                  mozallowfullscreen
                 />
               </div>
             ) : String(videoModalPost.media_type || '').toLowerCase() === 'image' ? (
