@@ -9,6 +9,7 @@ const Hero = () => {
   const navigate = useNavigate();
   const [youtubeVideoUrl, setYoutubeVideoUrl] = useState('');
   const [isMuted, setIsMuted] = useState(true);
+  const [latestRelease, setLatestRelease] = useState(null);
   const iframeRef = useRef(null);
   const getYoutubeId = (u) => {
     const m = String(u || '').match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
@@ -24,6 +25,29 @@ const Hero = () => {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/releases`)
+      .then((r) => r.json())
+      .then((data) => {
+        const list = Array.isArray(data) ? data : (Array.isArray(data?.releases) ? data.releases : []);
+        const approved = list.filter(m => String(m?.status || '').toLowerCase() === 'aprovado' || String(m?.status || '').toLowerCase() === 'approved');
+        const sorted = approved.sort((a, b) => new Date(b?.created_at || 0) - new Date(a?.created_at || 0));
+        if (sorted[0]) setLatestRelease(sorted[0]);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    const timer = setTimeout(() => {
+      try {
+        iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo' }), '*');
+      } catch {}
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [youtubeVideoUrl]);
+
   const toggleMute = () => {
     const iframe = iframeRef.current;
     if (!iframe) return;
@@ -32,6 +56,9 @@ const Hero = () => {
     } catch {}
     setIsMuted(!isMuted);
   };
+
+  const releaseTitle = latestRelease?.titulo || latestRelease?.title || '';
+  const releaseArtist = latestRelease?.nome_artista || latestRelease?.artist_name || '';
 
   return (
     <section id="home" className="relative min-h-screen flex items-center pt-20 overflow-hidden">
@@ -58,7 +85,28 @@ const Hero = () => {
             </div>
           );
         })()}
-        <div className="absolute inset-0 bg-gradient-to-b from-beatwap-dark/80 via-beatwap-dark/90 to-beatwap-dark z-0"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-black/80 to-black/90 z-0"></div>
+        
+        {/* Marquee Ticker */}
+        {(() => {
+          const ytId = getYoutubeId(youtubeVideoUrl);
+          if (!ytId || !latestRelease) return null;
+          const text = `${releaseArtist ? releaseArtist + ' - ' : ''}${releaseTitle}`;
+          return (
+            <div className="absolute top-16 md:top-20 left-0 right-0 z-50 overflow-hidden bg-beatwap-gold/90 border-b border-beatwap-gold text-black">
+              <div className="flex whitespace-nowrap animate-marquee">
+                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">Último lançamento</span>
+                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">•</span>
+                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">{text}</span>
+                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">•</span>
+                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">Último lançamento</span>
+                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">•</span>
+                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">{text}</span>
+                <span className="mx-4 text-xs md:text-sm font-bold uppercase tracking-widest">•</span>
+              </div>
+            </div>
+          );
+        })()}
         
         {/* Sound Toggle Button */}
         {(() => {

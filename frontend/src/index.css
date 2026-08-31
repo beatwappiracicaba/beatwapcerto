@@ -177,3 +177,14 @@
 .bw-stories-scroll > * {
   scroll-snap-align: start;
 }
+
+@keyframes bw-marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: inline-flex;
+  animation: bw-marquee 18s linear infinite;
+  min-width: 100%;
+}
