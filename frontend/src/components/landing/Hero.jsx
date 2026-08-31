@@ -1,13 +1,15 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { AnimatedButton } from '../ui/AnimatedButton';
-import { Play, ArrowRight } from 'lucide-react';
+import { Play, ArrowRight, Volume2, VolumeX } from 'lucide-react';
 import { API_BASE_URL } from '../../config/apiConfig';
 
 const Hero = () => {
   const navigate = useNavigate();
   const [youtubeVideoUrl, setYoutubeVideoUrl] = useState('');
+  const [isMuted, setIsMuted] = useState(true);
+  const iframeRef = useRef(null);
   const getYoutubeId = (u) => {
     const m = String(u || '').match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
     return m ? m[1] : null;
@@ -22,6 +24,15 @@ const Hero = () => {
       .catch(() => {});
   }, []);
 
+  const toggleMute = () => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    try {
+      iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: isMuted ? 'unMute' : 'mute' }), '*');
+    } catch {}
+    setIsMuted(!isMuted);
+  };
+
   return (
     <section id="home" className="relative min-h-screen flex items-center pt-20 overflow-hidden">
       {/* Background Elements */}
@@ -31,8 +42,9 @@ const Hero = () => {
           if (ytId) {
             return (
               <iframe
+                ref={iframeRef}
                 key={ytId}
-                src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&showinfo=0&rel=0&modestbranding=1`}
+                src={`https://www.youtube.com/embed/${ytId}?autoplay=1&loop=1&playlist=${ytId}&controls=0&showinfo=0&rel=0&modestbranding=1&enablejsapi=1`}
                 title="YouTube video background"
                 className="absolute inset-0 h-full w-full -z-10"
                 allow="autoplay; encrypted-media"
@@ -47,6 +59,24 @@ const Hero = () => {
           );
         })()}
         <div className="absolute inset-0 bg-gradient-to-b from-beatwap-dark/80 via-beatwap-dark/90 to-beatwap-dark z-0"></div>
+        
+        {/* Sound Toggle Button */}
+        {(() => {
+          const ytId = getYoutubeId(youtubeVideoUrl);
+          if (ytId) {
+            return (
+              <button
+                onClick={toggleMute}
+                className="absolute top-20 right-4 md:right-8 z-50 flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full bg-black/50 border border-white/20 text-white hover:bg-black/70 hover:border-beatwap-gold transition-all backdrop-blur-sm"
+                aria-label={isMuted ? 'Ativar som' : 'Desativar som'}
+                title={isMuted ? 'Ativar som' : 'Desativar som'}
+              >
+                {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+              </button>
+            );
+          }
+          return null;
+        })()}
         
         {/* Animated Particles/Orbs */}
         <motion.div 
