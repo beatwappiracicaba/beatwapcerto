@@ -1294,16 +1294,16 @@ const Home = () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-row gap-6 overflow-x-auto snap-x snap-mandatory md:snap-none md:grid md:grid-cols-2 md:gap-8 scrollbar-hide pb-2 md:pb-0 -mx-4 sm:mx-0 mb-20">
+                  <div className="flex flex-row gap-6 overflow-x-auto snap-x snap-mandatory md:snap-none md:grid md:grid-cols-2 md:gap-8 scrollbar-hide pb-2 md:pb-0 mb-20">
                   {studioGallery.slice(1).map((item, index) => (
                     <div
                       key={item.id}
-                      className="group relative overflow-hidden rounded-[24px] border border-white/10 bg-black/30 w-[85vw] md:w-auto md:min-w-[calc(50%_-_12px)] aspect-[4/3] min-h-[200px] snap-center shrink-0"
+                      className="group relative overflow-hidden rounded-[24px] border border-white/10 bg-black/30 w-[85vw] md:w-auto md:min-w-[calc(50%_-_12px)] h-[260px] snap-center shrink-0"
                     >
                       <img
                         src={item.image}
                         alt={item.title}
-                        className="absolute inset-0 w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
                       <div className="absolute inset-x-0 bottom-0 p-4">
