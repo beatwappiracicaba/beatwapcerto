@@ -1250,7 +1250,7 @@ const Home = () => {
         )}
         {null}
         {showHighlightsTab && (
-          <section className="py-12 px-4 sm:px-6 bg-gradient-to-b from-[#120d03] via-black to-black border-b border-white/10 overflow-hidden">
+          <section className="py-12 px-4 sm:px-6 bg-gradient-to-b from-[#120d03] via-black to-black border-b border-white/10">
             <div className="max-w-7xl mx-auto">
               <div className="rounded-[32px] border border-white/10 bg-white/[0.04] p-4 md:p-6 shadow-[0_0_60px_rgba(0,0,0,0.35)]">
                 <div className="grid xl:grid-cols-[1.15fr_0.85fr] gap-4">

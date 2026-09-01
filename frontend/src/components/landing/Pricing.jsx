@@ -190,7 +190,7 @@ const Pricing = () => {
   }
 
   return (
-    <section id="planos" className="py-20 px-6 bg-gradient-to-b from-beatwap-black to-black relative overflow-hidden">
+    <section id="planos" className="py-20 px-6 bg-gradient-to-b from-beatwap-black to-black relative">
       <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-beatwap-gold/30 to-transparent"></div>
 
       <div className="max-w-7xl mx-auto relative z-10">

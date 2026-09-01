@@ -67,7 +67,7 @@ const ShowProduction = () => {
   ];
 
   return (
-    <section className="py-20 bg-black relative overflow-hidden">
+    <section className="py-20 bg-black relative">
       {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-beatwap-gold/5 rounded-full blur-[120px]" />

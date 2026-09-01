@@ -48,7 +48,7 @@ const Hero = () => {
   const releaseArtist = latestRelease?.nome_artista || latestRelease?.artist_name || '';
 
   return (
-    <section id="home" className="relative min-h-screen flex items-center pt-28 md:pt-28 overflow-hidden">
+    <section id="home" className="relative min-h-screen flex items-center pt-28 md:pt-28">
       {/* Background Elements */}
       <div className="absolute inset-0">
         {(() => {
