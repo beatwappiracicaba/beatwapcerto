@@ -102,7 +102,7 @@ const ShowProduction = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
-              className={`relative flex flex-col rounded-2xl border ${plan.highlight ? 'border-beatwap-gold bg-beatwap-gold/5 shadow-2xl shadow-beatwap-gold/10' : 'border-white/10 bg-white/5'} p-8 hover:border-beatwap-gold/30 transition-all duration-300 snap-center shrink-0 w-[85vw] sm:w-[280px] min-h-[340px]`}
+              className={`relative flex flex-col h-full md:h-full rounded-2xl border ${plan.highlight ? 'border-beatwap-gold bg-beatwap-gold/5 md:scale-105 shadow-2xl shadow-beatwap-gold/10' : 'border-white/10 bg-white/5'} p-8 hover:border-beatwap-gold/30 transition-all duration-300 snap-center shrink-0 w-[85vw] sm:w-[280px] md:w-auto md:min-w-0 min-h-[340px] md:min-h-0`}
             >
               {plan.highlight && (
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-beatwap-gold text-black font-bold px-4 py-1 rounded-full text-sm flex items-center gap-2 shadow-lg">

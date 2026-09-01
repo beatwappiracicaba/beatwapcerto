@@ -2417,7 +2417,7 @@ const Home = () => {
                           : 'APAREÇA ACIMA';
 
                     return (
-                      <div key={key} className={`bg-white/5 border ${accent} rounded-2xl p-6 transition-colors snap-center shrink-0 w-[85vw] sm:w-[280px]`}>
+                      <div key={key} className={`bg-white/5 border ${accent} rounded-2xl p-6 transition-colors snap-center shrink-0 w-[85vw] sm:w-[280px] md:w-auto md:min-w-0`}>
                         <div className="flex items-center justify-between mb-3">
                           <div className="text-sm font-extrabold text-white">{label}</div>
                           <div className="text-[10px] font-bold text-black bg-beatwap-gold px-2 py-1 rounded-full">{badge}</div>
