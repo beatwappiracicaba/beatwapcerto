@@ -2394,7 +2394,7 @@ const Home = () => {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+                <div className="flex flex-row gap-6 overflow-x-auto snap-x snap-mandatory md:snap-none md:grid md:grid-cols-3 md:gap-6 scrollbar-hide pb-2 md:pb-0 max-w-6xl mx-auto">
                   {order.map((key) => {
                     const p = plans?.[key] || {};
                     const level = String(p.level || key);
@@ -2417,7 +2417,7 @@ const Home = () => {
                           : 'APAREÇA ACIMA';
 
                     return (
-                      <div key={key} className={`bg-white/5 border ${accent} rounded-2xl p-6 transition-colors`}>
+                      <div key={key} className={`bg-white/5 border ${accent} rounded-2xl p-6 transition-colors snap-center shrink-0 w-[85vw] sm:w-[280px]`}>
                         <div className="flex items-center justify-between mb-3">
                           <div className="text-sm font-extrabold text-white">{label}</div>
                           <div className="text-[10px] font-bold text-black bg-beatwap-gold px-2 py-1 rounded-full">{badge}</div>
