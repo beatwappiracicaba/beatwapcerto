@@ -94,7 +94,7 @@ const ShowProduction = () => {
           </motion.p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
+        <div className="flex flex-row gap-6 overflow-x-auto snap-x snap-mandatory md:snap-none md:grid md:grid-cols-3 md:gap-8 scrollbar-hide pb-2 md:pb-0 mb-20">
           {plans.map((plan, index) => (
             <motion.div
               key={index}
@@ -102,7 +102,7 @@ const ShowProduction = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
-              className={`relative flex flex-col h-full rounded-2xl border ${plan.highlight ? 'border-beatwap-gold bg-beatwap-gold/5 scale-105 shadow-2xl shadow-beatwap-gold/10' : 'border-white/10 bg-white/5'} p-8 hover:border-beatwap-gold/30 transition-all duration-300`}
+              className={`relative flex flex-col h-full rounded-2xl border ${plan.highlight ? 'border-beatwap-gold bg-beatwap-gold/5 scale-105 shadow-2xl shadow-beatwap-gold/10' : 'border-white/10 bg-white/5'} p-8 hover:border-beatwap-gold/30 transition-all duration-300 snap-center shrink-0 w-[85vw] sm:w-[280px]`}
             >
               {plan.highlight && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-beatwap-gold text-black font-bold px-4 py-1 rounded-full text-sm flex items-center gap-2 shadow-lg">
