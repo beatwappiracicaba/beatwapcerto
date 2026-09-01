@@ -1306,11 +1306,11 @@ const Home = () => {
                   </div>
                 </div>
 
-                <div className="flex flex-row gap-6 overflow-x-auto sm:grid sm:grid-cols-2 sm:overflow-hidden snap-x snap-mandatory md:snap-none scrollbar-hide pb-2 md:pb-0 mb-20 max-w-6xl mx-auto">
+                <div className="flex flex-row gap-6 overflow-x-auto snap-x snap-mandatory md:snap-none md:grid md:grid-cols-2 md:gap-8 scrollbar-hide pb-2 md:pb-0 -mx-4 sm:mx-0 mb-20">
                   {studioGallery.slice(1).map((item, index) => (
                     <div
                       key={item.id}
-                      className={`group relative overflow-hidden rounded-[24px] border border-white/10 bg-black/30 w-full sm:w-[calc(50%-12px)] aspect-[4/3] min-h-[200px] snap-center shrink-0`}
+                      className="group relative overflow-hidden rounded-[24px] border border-white/10 bg-black/30 w-[85vw] md:w-auto md:min-w-[calc(50%_-_12px)] aspect-[4/3] min-h-[200px] snap-center shrink-0"
                     >
                       <img
                         src={item.image}
