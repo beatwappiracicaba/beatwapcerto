@@ -9,7 +9,7 @@
     @apply bg-beatwap-black text-beatwap-white;
   }
   html, body {
-    overflow-x: hidden;
+    overflow-x: clip;
     width: 100%;
   }
   :root {
