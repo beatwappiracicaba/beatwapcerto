@@ -1294,27 +1294,25 @@ const Home = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    {studioGallery.slice(1).map((item, index) => (
-                      <div
-                        key={item.id}
-                        className={`group relative overflow-hidden rounded-[24px] border border-white/10 bg-black/30 ${
-                          index === 0 ? 'col-span-2 min-h-[200px]' : 'min-h-[200px]'
-                        }`}
-                      >
-                        <img
-                          src={item.image}
-                          alt={item.title}
-                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
-                        <div className="absolute inset-x-0 bottom-0 p-4">
-                          <div className="text-lg font-extrabold text-white">{item.title}</div>
-                          <div className="mt-1 text-sm text-gray-200">{item.helper}</div>
-                        </div>
+                  <div className="flex flex-row gap-6 overflow-x-auto sm:grid sm:grid-cols-2 sm:overflow-hidden snap-x snap-mandatory md:snap-none scrollbar-hide pb-2 md:pb-0 mb-20 max-w-6xl mx-auto">
+                  {studioGallery.slice(1).map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={`group relative overflow-hidden rounded-[24px] border border-white/10 bg-black/30 w-full aspect-[4/3] min-h-[200px]`}
+                    >
+                      <img
+                        src={item.image}
+                        alt={item.title}
+                        className="absolute inset-0 w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+                      <div className="absolute inset-x-0 bottom-0 p-4">
+                        <div className="text-lg font-extrabold text-white">{item.title}</div>
+                        <div className="mt-1 text-sm text-gray-200">{item.helper}</div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
+                </div>
                 </div>
               </div>
             </div>
