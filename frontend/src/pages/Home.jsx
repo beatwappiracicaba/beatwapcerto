@@ -1310,7 +1310,7 @@ const Home = () => {
                   {studioGallery.slice(1).map((item, index) => (
                     <div
                       key={item.id}
-                      className={`group relative overflow-hidden rounded-[24px] border border-white/10 bg-black/30 w-full aspect-[4/3] min-h-[200px]`}
+                      className={`group relative overflow-hidden rounded-[24px] border border-white/10 bg-black/30 w-full sm:w-[calc(50%-12px)] aspect-[4/3] min-h-[200px] snap-center shrink-0`}
                     >
                       <img
                         src={item.image}
