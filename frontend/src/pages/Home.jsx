@@ -1310,7 +1310,7 @@ const Home = () => {
                   {studioGallery.slice(1).map((item, index) => (
                     <div
                       key={item.id}
-                      className="group relative overflow-hidden rounded-[24px] border border-white/10 bg-black/30 w-[85vw] md:w-auto md:min-w-[calc(50%_-_12px)] h-[260px] snap-center shrink-0"
+                      className="group relative overflow-hidden rounded-[24px] border border-white/10 bg-black/30 w-[85vw] sm:w-[calc(50%-12px)] md:w-auto md:min-w-[calc(50%_-_12px)] h-[260px] snap-center shrink-0 md:shrink"
                     >
                       <img
                         src={item.image}
@@ -2429,7 +2429,7 @@ const Home = () => {
                           : 'APAREÇA ACIMA';
 
                     return (
-                      <div key={key} className={`bg-white/5 border ${accent} rounded-2xl p-6 transition-colors snap-center shrink-0 w-[85vw] sm:w-[280px] md:w-auto md:min-w-0`}>
+                      <div key={key} className={`bg-white/5 border ${accent} rounded-2xl p-6 transition-colors snap-center shrink-0 w-[85vw] md:w-full`}>
                         <div className="flex items-center justify-between mb-3">
                           <div className="text-sm font-extrabold text-white">{label}</div>
                           <div className="text-[10px] font-bold text-black bg-beatwap-gold px-2 py-1 rounded-full">{badge}</div>

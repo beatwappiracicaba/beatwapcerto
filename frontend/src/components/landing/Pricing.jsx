@@ -231,7 +231,7 @@ const Pricing = () => {
         <div className="flex flex-row gap-6 overflow-x-auto snap-x snap-mandatory md:snap-none md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-8 scrollbar-hide pb-2 md:pb-0 mb-20 max-w-6xl mx-auto">
           
           {/* 1. PLANO AVULSO */}
-          <div className="bg-white/5 border border-white/10 rounded-3xl p-6 hover:border-purple-500/50 transition-all duration-300 flex flex-col snap-center shrink-0 w-[85vw] sm:w-[280px] md:w-auto md:min-w-0">
+          <div className="bg-white/5 border border-white/10 rounded-3xl p-6 hover:border-purple-500/50 transition-all duration-300 flex flex-col snap-center shrink-0 w-[85vw] md:w-full">
             <div className="mb-4">
               <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center mb-4 text-purple-400">
                 <Music size={24} />
@@ -300,7 +300,7 @@ const Pricing = () => {
           </div>
 
           {/* 2. PLANO MENSAL */}
-          <div className="bg-white/5 border border-white/10 rounded-3xl p-6 hover:border-beatwap-gold/50 transition-all duration-300 flex flex-col relative group snap-center shrink-0 w-[85vw] sm:w-[280px] md:w-auto md:min-w-0">
+          <div className="bg-white/5 border border-white/10 rounded-3xl p-6 hover:border-beatwap-gold/50 transition-all duration-300 flex flex-col relative group snap-center shrink-0 w-[85vw] md:w-full">
             <div className="absolute top-0 right-0 bg-beatwap-gold/20 text-beatwap-gold text-xs font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl">
               MAIS POPULAR
             </div>
@@ -364,7 +364,7 @@ const Pricing = () => {
           </div>
 
           {/* 3. PLANO ANUAL */}
-          <div className="bg-white/5 border border-white/10 rounded-3xl p-6 hover:border-blue-500/50 transition-all duration-300 flex flex-col snap-center shrink-0 w-[85vw] sm:w-[280px] md:w-auto md:min-w-0">
+          <div className="bg-white/5 border border-white/10 rounded-3xl p-6 hover:border-blue-500/50 transition-all duration-300 flex flex-col snap-center shrink-0 w-[85vw] md:w-full">
             <div className="mb-4 text-center sm:text-left">
               <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mb-4 text-blue-400">
                 <CreditCard size={24} />
