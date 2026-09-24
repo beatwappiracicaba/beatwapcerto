@@ -21,33 +21,10 @@ const server = http.createServer(app);
 app.set('trust proxy', true);
 app.set('etag', false);
 
-const normalizeOrigin = (value) => {
-  const s = String(value || '').trim();
-  if (!s) return '';
-  return s.replace(/^['"`]+|['"`]+$/g, '').replace(/\/+$/g, '');
-};
-
-const defaultAllowed = ['https://www.beatwap.com.br', 'https://beatwap.com.br'];
-const envAllowed = String(process.env.CORS_ORIGIN || '').split(',').map(normalizeOrigin).filter(Boolean);
-const allowed = (envAllowed.length ? envAllowed : defaultAllowed).map(normalizeOrigin).filter(Boolean);
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 app.use(compression());
-app.use((req, res, next) => {
-  const origin = normalizeOrigin(req.headers.origin);
-  const allowOrigin = origin && allowed.includes(origin) ? origin : (allowed[0] || '*');
-  res.setHeader('Access-Control-Allow-Origin', allowOrigin);
-  res.setHeader('Vary', 'Origin');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Device-Id');
-  if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Max-Age', '600');
-    return res.sendStatus(204);
-  }
-  next();
-});
 const limiter = rateLimit({
   windowMs: 60 * 1000,
   max: Number(process.env.RATE_LIMIT_MAX || 120),
@@ -71,11 +48,6 @@ const limiter = rateLimit({
     return false;
   },
   handler: (req, res, _next, options) => {
-    const origin = normalizeOrigin(req.headers.origin);
-    const allowOrigin = origin && allowed.includes(origin) ? origin : (allowed[0] || '*');
-    res.setHeader('Access-Control-Allow-Origin', allowOrigin);
-    res.setHeader('Vary', 'Origin');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.status(options.statusCode).json({ ok: false, error: 'Too Many Requests' });
   },
@@ -90,12 +62,7 @@ setupSentry(app);
 const { Server } = require('socket.io');
 const io = new Server(server, {
   cors: {
-    origin: (origin, cb) => {
-      const o = normalizeOrigin(origin);
-      if (!o) return cb(null, true);
-      if (allowed.length === 0) return cb(null, true);
-      cb(null, allowed.includes(o));
-    },
+    origin: true,
     credentials: true
   },
   transports: ['websocket', 'polling']
@@ -185,10 +152,6 @@ app.use((err, req, res, next) => {
     if (!res.headersSent) {
       res.status(status);
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      const origin = normalizeOrigin(req.headers.origin);
-      const allowOrigin = origin && allowed.includes(origin) ? origin : (allowed[0] || '*');
-      res.setHeader('Access-Control-Allow-Origin', allowOrigin);
-      res.setHeader('Vary', 'Origin');
       res.json({ error: msg });
     } else {
       next(err);
