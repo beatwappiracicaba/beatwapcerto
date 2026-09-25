@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
-import { AdminLayout } from '../components/AdminLayout';
+import { SettingsShell } from '../components/settings/SettingsShell';
 import { useToast } from '../context/ToastContext';
 import { Mail, User, Settings, Shield, Search, Save, Check, Loader, Trash2, X, Lock } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
@@ -10,6 +11,7 @@ import { connectRealtime, subscribe, unsubscribe } from '../services/realtime';
 
 export const AdminSettings = () => {
   const { addToast } = useToast();
+  const navigate = useNavigate();
   
   // Invite Form State
   const [form, setForm] = useState({
@@ -755,6 +757,153 @@ export const AdminSettings = () => {
   const roleTabs = ['Artista', 'Compositor', 'Produtor', 'Vendedor'];
   const roleLabel = (tab) => (tab === 'Artista' ? 'Artistas' : tab === 'Compositor' ? 'Compositores' : tab === 'Produtor' ? 'Produtores' : 'Vendedores');
   const roleCount = (tab) => artists.filter((a) => a.cargo === tab).length;
+
+  // Grupos de permissao por cargo. Substitui os quatro ramos de JSX duplicados
+  // que existiam antes: chaves, rotulos, agrupamentos e descricoes ficam em
+  // um lugar so, e o renderizador e unico para todos os cargos.
+  const PERMISSION_GROUPS = {
+    Produtor: [
+      {
+        title: 'Administracao',
+        hint: 'Modulos de operacao do painel do produtor',
+        items: [
+          { key: 'admin_panel', label: 'Painel', desc: 'Acesso ao painel principal' },
+          { key: 'admin_feed', label: 'Feed' },
+          { key: 'admin_search', label: 'Pesquisar' },
+          { key: 'admin_events', label: 'Eventos' },
+          { key: 'admin_scanner', label: 'Portaria' },
+          { key: 'admin_auditions', label: 'Audicoes' },
+          { key: 'admin_podcasts', label: 'Podcasts' },
+          { key: 'admin_settings', label: 'Sistema', desc: 'Acesso as configuracoes do painel' }
+        ]
+      },
+      {
+        title: 'Conteudo',
+        hint: 'Quem pode ser gerenciado no catalogo',
+        items: [
+          { key: 'admin_artists', label: 'Artistas' },
+          { key: 'admin_composers', label: 'Compositores' },
+          { key: 'admin_sellers', label: 'Vendedores' },
+          { key: 'admin_musics', label: 'Musicas' },
+          { key: 'admin_compositions', label: 'Composicoes' },
+          { key: 'admin_sponsors', label: 'Patrocinadores' }
+        ]
+      },
+      {
+        title: 'Gestao',
+        hint: 'Areas financeiras e de negocio',
+        items: [
+          { key: 'admin_finance', label: 'Financeiro', desc: 'Permite visualizar informacoes financeiras' }
+        ]
+      },
+      {
+        title: 'Perfil e experiencia',
+        items: [
+          { key: 'chat', label: 'Chat' },
+          { key: 'admin_profile', label: 'Perfil' },
+          { key: 'admin_public_profile', label: 'Perfil Publico' },
+          { key: 'show_on_home', label: 'Mostrar na Home' }
+        ]
+      }
+    ],
+    Vendedor: [
+      {
+        title: 'Administracao',
+        hint: 'Modulos do painel do vendedor',
+        items: [
+          { key: 'dashboard_panel', label: 'Painel', desc: 'Acesso ao painel principal' },
+          { key: 'dashboard_feed', label: 'Feed' },
+          { key: 'dashboard_search', label: 'Pesquisar' },
+          { key: 'dashboard_profile', label: 'Perfil' }
+        ]
+      },
+      {
+        title: 'Gestao de vendas',
+        hint: 'Operacao comercial do vendedor',
+        items: [
+          { key: 'seller_artists', label: 'Artistas' },
+          { key: 'seller_calendar', label: 'Agenda' },
+          { key: 'seller_leads', label: 'Oportunidades' },
+          { key: 'seller_finance', label: 'Comissoes', desc: 'Permite visualizar comissoes e valores' },
+          { key: 'seller_proposals', label: 'Propostas' },
+          { key: 'seller_communications', label: 'Comunicacao' }
+        ]
+      },
+      {
+        title: 'Perfil e experiencia',
+        items: [
+          { key: 'chat', label: 'Chat' },
+          { key: 'public_profile', label: 'Perfil Publico' },
+          { key: 'show_on_home', label: 'Mostrar na Home' }
+        ]
+      }
+    ],
+    Compositor: [
+      {
+        title: 'Administracao',
+        hint: 'Modulos do painel do compositor',
+        items: [
+          { key: 'dashboard_panel', label: 'Painel', desc: 'Acesso ao painel principal' },
+          { key: 'dashboard_feed', label: 'Feed' },
+          { key: 'dashboard_search', label: 'Pesquisar' },
+          { key: 'dashboard_profile', label: 'Perfil' },
+          { key: 'dashboard_auditions', label: 'Audicoes' }
+        ]
+      },
+      {
+        title: 'Conteudo',
+        items: [
+          { key: 'compositions', label: 'Composicoes' },
+          { key: 'marketing', label: 'Marketing' },
+          { key: 'finance', label: 'Financeiro', desc: 'Permite visualizar informacoes financeiras' }
+        ]
+      },
+      {
+        title: 'Perfil e experiencia',
+        items: [
+          { key: 'chat', label: 'Chat' },
+          { key: 'public_profile', label: 'Perfil Publico' },
+          { key: 'show_on_home', label: 'Mostrar na Home' }
+        ]
+      }
+    ],
+    Artista: [
+      {
+        title: 'Administracao',
+        hint: 'Modulos do painel do artista',
+        items: [
+          { key: 'dashboard_panel', label: 'Painel', desc: 'Acesso ao painel principal' },
+          { key: 'dashboard_feed', label: 'Feed' },
+          { key: 'dashboard_search', label: 'Pesquisar' },
+          { key: 'dashboard_profile', label: 'Perfil' }
+        ]
+      },
+      {
+        title: 'Conteudo',
+        items: [
+          { key: 'musics', label: 'Musicas' },
+          { key: 'compositions', label: 'Composicoes' },
+          { key: 'work', label: 'Agenda / Afazeres' }
+        ]
+      },
+      {
+        title: 'Gestao',
+        items: [
+          { key: 'marketing', label: 'Marketing' },
+          { key: 'finance', label: 'Financeiro', desc: 'Permite visualizar informacoes financeiras' }
+        ]
+      },
+      {
+        title: 'Perfil e experiencia',
+        items: [
+          { key: 'chat', label: 'Chat' },
+          { key: 'public_profile', label: 'Perfil Publico' },
+          { key: 'show_on_home', label: 'Mostrar na Home' }
+        ]
+      }
+    ]
+  };
+
   const settingsSections = [
     {
       id: 'convites',
@@ -788,33 +937,61 @@ export const AdminSettings = () => {
     }
   ];
 
-  const PermissionPill = ({ enabled, label, onClick, locked = false }) => (
+  // Linha de permissao. Substitui as "pills" soltas: cada permissao passa a
+  // ocupar uma linha propria, com nome, descricao opcional e estado a direita.
+  const PermissionRow = ({ enabled, label, desc, locked = false, onClick }) => (
     <button
       type="button"
       onClick={onClick}
-      className={`group inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold transition-colors ${
-        enabled
-          ? 'bg-beatwap-gold/15 text-beatwap-gold border-beatwap-gold/40 hover:bg-beatwap-gold/20'
-          : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/20 hover:text-gray-200'
-      } ${locked ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}`}
+      disabled={locked}
       aria-disabled={locked}
+      aria-pressed={enabled}
+      className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
+        locked ? 'cursor-not-allowed opacity-60' : 'hover:bg-white/[0.04]'
+      }`}
     >
-      <span className={`h-2 w-2 rounded-full ${enabled ? 'bg-beatwap-gold' : 'bg-gray-500'}`} />
-      <span className="whitespace-nowrap">{label}</span>
       <span
-        className={`ml-1 text-[10px] px-2 py-0.5 rounded-full border ${
-          enabled ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
+          enabled ? 'bg-green-500/10 text-green-400' : 'bg-white/5 text-gray-500'
+        }`}
+      >
+        {enabled ? <Check size={14} /> : <Lock size={13} />}
+      </span>
+
+      <span className="min-w-0 flex-1">
+        <span className={`block text-sm font-semibold ${enabled ? 'text-white' : 'text-gray-400'}`}>
+          {label}
+        </span>
+        {desc && <span className="mt-0.5 block text-xs leading-relaxed text-gray-500">{desc}</span>}
+      </span>
+
+      {locked && (
+        <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+          Pelo plano
+        </span>
+      )}
+      <span
+        className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+          enabled ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
         }`}
       >
         {enabled ? 'Pode ver' : 'Bloqueado'}
       </span>
-      {locked && (
-        <span className="ml-1 text-[10px] px-2 py-0.5 rounded-full border bg-black/20 border-white/10 text-gray-400">
-          Plano
-        </span>
-      )}
     </button>
   );
+
+  const PermissionGroup = ({ title, hint, children }) => (
+    <section className="rounded-2xl bg-white/[0.03] p-1.5">
+      <header className="px-3 pb-2 pt-3">
+        <h4 className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-beatwap-gold">
+          {title}
+        </h4>
+        {hint && <p className="mt-1 text-xs text-gray-500">{hint}</p>}
+      </header>
+      <div className="space-y-0.5 pb-1.5">{children}</div>
+    </section>
+  );
+
 
   const normalize = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const planPolicyFor = (artist) => {
@@ -879,45 +1056,50 @@ export const AdminSettings = () => {
     return { enabled, locked };
   };
 
+  const goBack = useCallback(() => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate('/admin');
+  }, [navigate]);
+
   return (
-    <AdminLayout>
-      <div className="space-y-6">
-        <Card className="space-y-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-lg md:text-xl font-bold">
-              <Settings size={20} className="text-beatwap-gold" />
-              Configuracoes do painel
-            </div>
-            <div className="text-sm text-gray-400">
-              Escolha abaixo a area que deseja abrir. Os cards seguem o estilo da Home para deixar a navegacao mais rapida e visual.
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-            {settingsSections.map((section) => {
-              const active = activeSettingsSection === section.id;
-              return (
-                <button
-                  key={section.id}
-                  type="button"
-                  onClick={() => setActiveSettingsSection(section.id)}
-                  className={`text-left rounded-2xl border p-4 transition-all ${
-                    active
-                      ? 'bg-beatwap-gold text-black border-beatwap-gold shadow-[0_0_30px_rgba(245,197,66,0.18)]'
-                      : 'bg-white/5 text-white border-white/10 hover:border-beatwap-gold/50 hover:bg-white/10'
+    <SettingsShell onBack={goBack}>
+      <div className="space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-extrabold text-white sm:text-3xl">Configuracoes</h1>
+          <p className="text-sm text-gray-400">
+            Gerencie as configuracoes da sua conta e as permissoes de acesso da equipe.
+          </p>
+        </div>
+
+        <nav className="-mx-3 flex gap-1.5 overflow-x-auto px-3 pb-1 scrollbar-hide sm:mx-0 sm:px-0">
+          {settingsSections.map((section) => {
+            const active = activeSettingsSection === section.id;
+            return (
+              <button
+                key={section.id}
+                type="button"
+                onClick={() => setActiveSettingsSection(section.id)}
+                className={`inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                  active
+                    ? 'bg-beatwap-gold text-black'
+                    : 'bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <span>{section.title}</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                    active ? 'bg-black/15 text-black' : 'bg-white/10 text-gray-400'
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="font-extrabold">{section.title}</div>
-                    <div className={`text-xs font-bold px-2 py-1 rounded-full ${active ? 'bg-black/10 text-black' : 'bg-white/10 text-beatwap-gold'}`}>
-                      {section.count}
-                    </div>
-                  </div>
-                  <div className={`text-xs mt-2 ${active ? 'text-black/80' : 'text-gray-300'}`}>{section.helper}</div>
-                </button>
-              );
-            })}
-          </div>
-        </Card>
+                  {section.count}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
 
         {activeSettingsSection === 'convites' && (
         <Card className="space-y-6">
@@ -1372,616 +1554,431 @@ export const AdminSettings = () => {
             </Card>
           )}
           
-          {activeSettingsSection === 'permissoes' && (
-        <Card className="space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div className="flex items-center gap-2 text-xl font-bold">
-              <Shield size={20} className="text-beatwap-gold" />
-              Gerenciar Permissões
-            </div>
-            <div className="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto">
-
-              <div className="relative w-full md:w-64">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                <input
-                  type="text"
-                  placeholder="Buscar usuário..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-black/20 border border-white/10 rounded-full pl-9 pr-4 py-2 text-sm text-white focus:border-beatwap-gold outline-none"
-                />
+        {activeSettingsSection === 'permissoes' && (
+          <div className="space-y-8">
+            <header className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-beatwap-gold/10">
+                    <Shield size={20} className="text-beatwap-gold" />
+                  </span>
+                  <h2 className="text-xl font-extrabold text-white sm:text-2xl">
+                    Gerenciar Permissoes
+                  </h2>
+                </div>
+                <p className="mt-2 max-w-xl text-sm text-gray-400">
+                  Controle quais areas e recursos cada usuario pode acessar.
+                </p>
               </div>
-              <div className="w-full md:w-72">
+
+              <div className="grid w-full shrink-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:w-auto lg:min-w-[420px]">
+                <div className="relative">
+                  <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <input
+                    type="text"
+                    placeholder="Buscar usuario..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-black/30 py-2.5 pl-9 pr-3 text-sm text-white placeholder-gray-600 outline-none transition focus:border-beatwap-gold/60"
+                  />
+                </div>
                 <select
-                  className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
+                  className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none transition focus:border-beatwap-gold/60"
                   onChange={(e) => setSelectedUserId(e.target.value || null)}
                 >
-                  <option value="">Selecionar usuário ({roleLabel(activeTab)})</option>
+                  <option value="">Selecionar usuario ({roleLabel(activeTab)})</option>
                   {artists
-                    .filter(a => a.cargo === activeTab)
-                    .sort((a,b) => (a.nome || a.nome_completo_razao_social || '').localeCompare(b.nome || b.nome_completo_razao_social || ''))
-                    .map(a => (
+                    .filter((a) => a.cargo === activeTab)
+                    .sort((a, b) =>
+                      (a.nome || a.nome_completo_razao_social || '')
+                        .localeCompare(b.nome || b.nome_completo_razao_social || '')
+                    )
+                    .map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.nome || a.nome_completo_razao_social || a.email || `#${a.id}`}
                       </option>
                     ))}
                 </select>
               </div>
-            </div>
-          </div>
+            </header>
 
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-2 overflow-x-auto">
-              <div className="flex gap-2 min-w-max">
-              {roleTabs.map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors whitespace-nowrap flex items-center gap-2 ${
-                    activeTab === tab 
-                      ? 'bg-beatwap-gold text-black shadow-[0_0_0_1px_rgba(245,197,66,0.35)]' 
-                      : 'bg-white/5 text-gray-300 hover:bg-white/10'
-                  }`}
-                >
-                  <span>{roleLabel(tab)}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full border ${
-                    activeTab === tab ? 'bg-black/10 border-black/20' : 'bg-black/20 border-white/10'
-                  }`}>
-                    {roleCount(tab)}
-                  </span>
-                </button>
-              ))}
+            <div className="-mx-3 overflow-x-auto px-3 scrollbar-hide sm:mx-0 sm:px-0">
+              <div
+                role="tablist"
+                aria-label="Categorias de usuarios"
+                className="inline-flex min-w-full gap-1 rounded-2xl bg-white/[0.03] p-1"
+              >
+                {roleTabs.map((tab) => {
+                  const active = activeTab === tab;
+                  return (
+                    <button
+                      key={tab}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => setActiveTab(tab)}
+                      className={`flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-bold transition-colors ${
+                        active
+                          ? 'bg-beatwap-gold text-black'
+                          : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                      }`}
+                    >
+                      <span>{roleLabel(tab)}</span>
+                      <span
+                        className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                          active ? 'bg-black/15 text-black' : 'bg-white/10 text-gray-500'
+                        }`}
+                      >
+                        {roleCount(tab)}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
-            </div>
-
-            <div className="text-xs text-gray-400">
-              Clique em cada função para alternar. “Pode ver” libera o acesso ao menu/módulo; “Bloqueado” esconde e restringe.
             </div>
 
             {loadingArtists ? (
-              <div className="text-center py-8 text-gray-500">Carregando...</div>
-            ) : !selectedUserId ? (
-              <div className="text-center py-8 text-gray-500">Selecione um usuário para editar as permissões.</div>
+              <div className="rounded-2xl bg-white/[0.03] py-16 text-center text-sm text-gray-500">
+                Carregando usuarios...
+              </div>
             ) : filteredArtists.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">Nenhum usuário encontrado nesta categoria.</div>
+              <div className="rounded-2xl bg-white/[0.03] py-16 text-center">
+                <p className="text-sm text-gray-400">
+                  Nenhum usuario encontrado nesta categoria.
+                </p>
+                {!selectedUserId && (
+                  <p className="mt-1.5 text-xs text-gray-600">
+                    Selecione um usuario para editar as permissoes.
+                  </p>
+                )}
+              </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4">
-                {filteredArtists.map(artist => (
-                  <div key={artist.id} className="rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 transition-all overflow-hidden">
-                    <div className="p-4 md:p-5">
-                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                        <div className="lg:col-span-3 flex items-center gap-3 min-w-0">
-                          <div className="w-12 h-12 rounded-2xl bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center shrink-0">
-                            {artist.avatar_url ? (
-                              <img src={artist.avatar_url} alt={artist.nome || artist.nome_completo_razao_social} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full bg-gradient-to-br from-beatwap-gold to-yellow-600 flex items-center justify-center text-black font-bold">
-                                {(artist.nome || artist.nome_completo_razao_social || 'U').charAt(0).toUpperCase()}
-                              </div>
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <div className="font-extrabold text-white truncate">
-                                {artist.nome || artist.nome_completo_razao_social || 'Sem Nome'}
-                              </div>
-                              {artist?.access_control?.verified && (
-                                <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-beatwap-gold/20 border border-beatwap-gold/30 text-beatwap-gold font-bold">
-                                  Verificado
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-xs text-gray-400 truncate">{artist.email}</div>
-                            <div className="text-xs text-beatwap-gold mt-1 font-bold">{artist.cargo}</div>
-                          </div>
-                        </div>
+              filteredArtists.map((artist) => {
+                const groups = PERMISSION_GROUPS[artist.cargo] || PERMISSION_GROUPS.Artista;
+                const featured = artist?.access_control?.featured && typeof artist.access_control.featured === 'object'
+                  ? artist.access_control.featured
+                  : null;
+                const featuredOn = !!(featured && featured.enabled !== false);
+                const featuredLevel = String(featured?.level || '').toLowerCase();
+                const featuredEndsAt = featured?.ends_at || featured?.until || null;
+                const featuredEndsText = (() => {
+                  if (!featuredEndsAt) return null;
+                  const t = new Date(featuredEndsAt);
+                  return Number.isFinite(t.getTime()) ? t.toLocaleString() : null;
+                })();
+                const featuredLabel =
+                  featuredLevel === 'top'
+                    ? 'Destaque Top'
+                    : featuredLevel === 'pro'
+                      ? 'Destaque Pro'
+                      : featuredLevel === 'basic'
+                        ? 'Destaque Basico'
+                        : 'Destaque';
+                const busy = savingId === artist.id;
 
-                        <div className="lg:col-span-6 space-y-3">
-                          {artist.cargo === 'Produtor' ? (
-                            <>
-                              <div className="space-y-2">
-                                <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Administração</div>
-                                <div className="flex flex-wrap gap-2">
-                                  {[
-                                    { key: 'admin_panel', label: 'Painel' },
-                                    { key: 'admin_feed', label: 'Feed' },
-                                    { key: 'admin_search', label: 'Pesquisar' },
-                                    { key: 'admin_events', label: 'Eventos' },
-                                    { key: 'admin_scanner', label: 'Portaria' },
-                                    { key: 'admin_auditions', label: 'Audições' },
-                                    { key: 'admin_podcasts', label: 'Podcasts' },
-                                    { key: 'admin_artists', label: 'Artistas' },
-                                    { key: 'admin_composers', label: 'Compositores' },
-                                    { key: 'admin_sellers', label: 'Vendedores' },
-                                    { key: 'admin_musics', label: 'Músicas' },
-                                    { key: 'admin_compositions', label: 'Composições' },
-                                    { key: 'admin_sponsors', label: 'Patrocinadores' },
-                                    { key: 'admin_settings', label: 'Sistema' },
-                                    { key: 'admin_finance', label: 'Financeiro' },
-                                  ].map((perm) => (
-                                    <PermissionPill
-                                      key={perm.key}
-                                      enabled={getPermState(artist, perm.key).enabled}
-                                      locked={getPermState(artist, perm.key).locked}
-                                      label={perm.label}
-                                      onClick={() => {
-                                        const s = getPermState(artist, perm.key);
-                                        if (s.locked) return;
-                                        handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key]);
-                                      }}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                              <div className="space-y-2">
-                                <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Geral</div>
-                                <div className="flex flex-wrap gap-2">
-                                  {[
-                                    { key: 'chat', label: 'Chat' },
-                                    { key: 'admin_profile', label: 'Perfil' },
-                                    { key: 'admin_public_profile', label: 'Perfil Público' },
-                                    { key: 'show_on_home', label: 'Mostrar na Home' },
-                                  ].map((perm) => (
-                                    <PermissionPill
-                                      key={perm.key}
-                                      enabled={getPermState(artist, perm.key).enabled}
-                                      locked={getPermState(artist, perm.key).locked}
-                                      label={perm.label}
-                                      onClick={() => {
-                                        const s = getPermState(artist, perm.key);
-                                        if (s.locked) return;
-                                        handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key]);
-                                      }}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                            </>
-                          ) : artist.cargo === 'Vendedor' ? (
-                            <>
-                              <div className="space-y-2">
-                                <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Vendas</div>
-                                <div className="flex flex-wrap gap-2">
-                                  {[
-                                    { key: 'dashboard_panel', label: 'Painel' },
-                                    { key: 'dashboard_feed', label: 'Feed' },
-                                    { key: 'dashboard_search', label: 'Pesquisar' },
-                                    { key: 'dashboard_profile', label: 'Perfil' },
-                                    { key: 'seller_artists', label: 'Artistas' },
-                                    { key: 'seller_calendar', label: 'Agenda' },
-                                    { key: 'seller_leads', label: 'Oportunidades' },
-                                    { key: 'seller_finance', label: 'Comissões' },
-                                    { key: 'seller_proposals', label: 'Propostas' },
-                                    { key: 'seller_communications', label: 'Comunicação' },
-                                  ].map((perm) => (
-                                    <PermissionPill
-                                      key={perm.key}
-                                      enabled={getPermState(artist, perm.key).enabled}
-                                      locked={getPermState(artist, perm.key).locked}
-                                      label={perm.label}
-                                      onClick={() => {
-                                        const s = getPermState(artist, perm.key);
-                                        if (s.locked) return;
-                                        handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key]);
-                                      }}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                              <div className="space-y-2">
-                                <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Geral</div>
-                                <div className="flex flex-wrap gap-2">
-                                  <PermissionPill
-                                    enabled={getPermState(artist, 'chat').enabled}
-                                    locked={getPermState(artist, 'chat').locked}
-                                    label="Chat"
-                                    onClick={() => {
-                                      const s = getPermState(artist, 'chat');
-                                      if (s.locked) return;
-                                      handlePermissionChange(artist.id, 'chat', !artist.access_control.chat);
-                                    }}
-                                  />
-                                  <PermissionPill
-                                    enabled={getPermState(artist, 'public_profile').enabled}
-                                    locked={getPermState(artist, 'public_profile').locked}
-                                    label="Perfil Público"
-                                    onClick={() => {
-                                      const s = getPermState(artist, 'public_profile');
-                                      if (s.locked) return;
-                                      handlePermissionChange(artist.id, 'public_profile', !artist.access_control.public_profile);
-                                    }}
-                                  />
-                                  <PermissionPill
-                                    enabled={getPermState(artist, 'show_on_home').enabled}
-                                    locked={getPermState(artist, 'show_on_home').locked}
-                                    label="Mostrar na Home"
-                                    onClick={() => {
-                                      const s = getPermState(artist, 'show_on_home');
-                                      if (s.locked) return;
-                                      handlePermissionChange(artist.id, 'show_on_home', artist?.access_control?.show_on_home === false);
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            </>
-                          ) : activeTab === 'Compositor' ? (
-                            <>
-                              <div className="space-y-2">
-                                <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Painel</div>
-                                <div className="flex flex-wrap gap-2">
-                                  {[
-                                    { key: 'dashboard_panel', label: 'Painel' },
-                                    { key: 'dashboard_feed', label: 'Feed' },
-                                    { key: 'dashboard_search', label: 'Pesquisar' },
-                                    { key: 'dashboard_profile', label: 'Perfil' },
-                                    { key: 'dashboard_auditions', label: 'Audições' },
-                                    { key: 'compositions', label: 'Composições' },
-                                    { key: 'marketing', label: 'Marketing' },
-                                    { key: 'finance', label: 'Financeiro' },
-                                  ].map((perm) => (
-                                    <PermissionPill
-                                      key={perm.key}
-                                      enabled={getPermState(artist, perm.key).enabled}
-                                      locked={getPermState(artist, perm.key).locked}
-                                      label={perm.label}
-                                      onClick={() => {
-                                        const s = getPermState(artist, perm.key);
-                                        if (s.locked) return;
-                                        handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key]);
-                                      }}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                              <div className="space-y-2">
-                                <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Geral</div>
-                                <div className="flex flex-wrap gap-2">
-                                  <PermissionPill
-                                    enabled={getPermState(artist, 'chat').enabled}
-                                    locked={getPermState(artist, 'chat').locked}
-                                    label="Chat"
-                                    onClick={() => {
-                                      const s = getPermState(artist, 'chat');
-                                      if (s.locked) return;
-                                      handlePermissionChange(artist.id, 'chat', !artist.access_control.chat);
-                                    }}
-                                  />
-                                  <PermissionPill
-                                    enabled={getPermState(artist, 'public_profile').enabled}
-                                    locked={getPermState(artist, 'public_profile').locked}
-                                    label="Perfil Público"
-                                    onClick={() => {
-                                      const s = getPermState(artist, 'public_profile');
-                                      if (s.locked) return;
-                                      handlePermissionChange(artist.id, 'public_profile', !artist.access_control.public_profile);
-                                    }}
-                                  />
-                                  <PermissionPill
-                                    enabled={getPermState(artist, 'show_on_home').enabled}
-                                    locked={getPermState(artist, 'show_on_home').locked}
-                                    label="Mostrar na Home"
-                                    onClick={() => {
-                                      const s = getPermState(artist, 'show_on_home');
-                                      if (s.locked) return;
-                                      handlePermissionChange(artist.id, 'show_on_home', artist?.access_control?.show_on_home === false);
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="space-y-2">
-                                <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Painel</div>
-                                <div className="flex flex-wrap gap-2">
-                                  {[
-                                    { key: 'dashboard_panel', label: 'Painel' },
-                                    { key: 'dashboard_feed', label: 'Feed' },
-                                    { key: 'dashboard_search', label: 'Pesquisar' },
-                                    { key: 'dashboard_profile', label: 'Perfil' },
-                                    { key: 'musics', label: 'Músicas' },
-                                    { key: 'compositions', label: 'Composições' },
-                                    { key: 'work', label: 'Agenda / Afazeres' },
-                                    { key: 'marketing', label: 'Marketing' },
-                                    { key: 'finance', label: 'Financeiro' },
-                                  ].map((perm) => (
-                                    <PermissionPill
-                                      key={perm.key}
-                                      enabled={getPermState(artist, perm.key).enabled}
-                                      locked={getPermState(artist, perm.key).locked}
-                                      label={perm.label}
-                                      onClick={() => {
-                                        const s = getPermState(artist, perm.key);
-                                        if (s.locked) return;
-                                        handlePermissionChange(artist.id, perm.key, !artist.access_control[perm.key]);
-                                      }}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                              <div className="space-y-2">
-                                <div className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Geral</div>
-                                <div className="flex flex-wrap gap-2">
-                                  <PermissionPill
-                                    enabled={getPermState(artist, 'chat').enabled}
-                                    locked={getPermState(artist, 'chat').locked}
-                                    label="Chat"
-                                    onClick={() => {
-                                      const s = getPermState(artist, 'chat');
-                                      if (s.locked) return;
-                                      handlePermissionChange(artist.id, 'chat', !artist.access_control.chat);
-                                    }}
-                                  />
-                                  <PermissionPill
-                                    enabled={getPermState(artist, 'public_profile').enabled}
-                                    locked={getPermState(artist, 'public_profile').locked}
-                                    label="Perfil Público"
-                                    onClick={() => {
-                                      const s = getPermState(artist, 'public_profile');
-                                      if (s.locked) return;
-                                      handlePermissionChange(artist.id, 'public_profile', !artist.access_control.public_profile);
-                                    }}
-                                  />
-                                  <PermissionPill
-                                    enabled={getPermState(artist, 'show_on_home').enabled}
-                                    locked={getPermState(artist, 'show_on_home').locked}
-                                    label="Mostrar na Home"
-                                    onClick={() => {
-                                      const s = getPermState(artist, 'show_on_home');
-                                      if (s.locked) return;
-                                      handlePermissionChange(artist.id, 'show_on_home', artist?.access_control?.show_on_home === false);
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            </>
+                // show_on_home usa a semantica invertida (=== false), por isso
+                // fica separado do resto. Preserva o comportamento anterior.
+                const nextValueFor = (key) =>
+                  key === 'show_on_home'
+                    ? artist?.access_control?.show_on_home === false
+                    : !artist?.access_control?.[key];
+
+                return (
+                  <div key={artist.id} className="space-y-6">
+                    <section className="flex flex-wrap items-center gap-4 rounded-2xl bg-white/[0.03] p-4 sm:p-5">
+                      <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/30">
+                        {artist.avatar_url ? (
+                          <img
+                            src={artist.avatar_url}
+                            alt={artist.nome || artist.nome_completo_razao_social}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-beatwap-gold to-yellow-600 text-lg font-extrabold text-black">
+                            {(artist.nome || artist.nome_completo_razao_social || 'U').charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </span>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="truncate text-base font-extrabold text-white">
+                            {artist.nome || artist.nome_completo_razao_social || 'Sem Nome'}
+                          </h3>
+                          {artist?.access_control?.verified && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-beatwap-gold/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-beatwap-gold">
+                              <Check size={11} /> Verificado
+                            </span>
                           )}
                         </div>
+                        <p className="mt-0.5 truncate text-sm text-gray-400">{artist.email}</p>
+                      </div>
 
-                        <div className="lg:col-span-3 space-y-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = !artist?.access_control?.plan_override;
-                              if (next) {
-                                const pin = window.prompt('Digite o PIN (PIM) para liberar override');
-                                if (String(pin || '').trim() !== '18084907') {
-                                  addToast('PIN incorreto', 'error');
-                                  return;
+                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-gray-300">
+                        {artist.cargo}
+                      </span>
+                    </section>
+
+                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+                      <div className="space-y-4 xl:col-span-8">
+                        {groups.map((group) => (
+                          <PermissionGroup key={group.title} title={group.title} hint={group.hint}>
+                            {group.items.map((perm) => {
+                              const state = getPermState(artist, perm.key);
+                              return (
+                                <PermissionRow
+                                  key={perm.key}
+                                  enabled={state.enabled}
+                                  locked={state.locked}
+                                  label={perm.label}
+                                  desc={perm.desc}
+                                  onClick={() => {
+                                    if (state.locked) return;
+                                    handlePermissionChange(artist.id, perm.key, nextValueFor(perm.key));
+                                  }}
+                                />
+                              );
+                            })}
+                          </PermissionGroup>
+                        ))}
+                      </div>
+
+                      <div className="space-y-4 xl:col-span-4">
+                        <section className="rounded-2xl bg-white/[0.03] p-4">
+                          <h4 className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-gray-400">
+                            Controle da conta
+                          </h4>
+
+                          <div className="mt-4 space-y-3">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = !artist?.access_control?.plan_override;
+                                if (next) {
+                                  const pin = window.prompt('Digite o PIN (PIM) para liberar override');
+                                  if (String(pin || '').trim() !== '18084907') {
+                                    addToast('PIN incorreto', 'error');
+                                    return;
+                                  }
                                 }
-                              }
-                              const updated = {
-                                ...artist,
-                                access_control: {
-                                  ...(artist.access_control || {}),
-                                  plan_override: next,
-                                },
-                              };
-                              setArtists((prev) => prev.map((a) => (a.id === artist.id ? updated : a)));
-                            }}
-                            disabled={savingId === artist.id}
-                            className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border transition-colors ${
-                              artist?.access_control?.plan_override
-                                ? 'bg-blue-500/10 border-blue-400/30 hover:bg-blue-500/15'
-                                : 'bg-black/20 border-white/10 hover:border-white/20'
-                            } ${savingId === artist.id ? 'opacity-60 cursor-not-allowed' : ''}`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${
-                                artist?.access_control?.plan_override ? 'border-blue-400/30 bg-blue-500/10' : 'border-white/10 bg-white/5'
-                              }`}>
-                                <Lock size={16} className={artist?.access_control?.plan_override ? 'text-blue-400' : 'text-gray-400'} />
-                              </div>
-                              <div className="text-left">
-                                <div className="text-sm font-extrabold text-white leading-tight">Override bloqueios do plano</div>
-                                <div className="text-xs text-gray-400">{artist?.access_control?.plan_override ? 'Ativo' : 'Inativo'}</div>
-                              </div>
-                            </div>
-                            <div className={`w-11 h-6 rounded-full p-1 transition-colors ${
-                              artist?.access_control?.plan_override ? 'bg-blue-500' : 'bg-white/10'
-                            }`}>
-                              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                                artist?.access_control?.plan_override ? 'translate-x-5' : 'translate-x-0'
-                              }`} />
-                            </div>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => toggleVerified(artist)}
-                            disabled={savingId === artist.id}
-                            className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border transition-colors ${
-                              artist?.access_control?.verified
-                                ? 'bg-beatwap-gold/10 border-beatwap-gold/30 hover:bg-beatwap-gold/15'
-                                : 'bg-black/20 border-white/10 hover:border-white/20'
-                            } ${savingId === artist.id ? 'opacity-60 cursor-not-allowed' : ''}`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${
-                                artist?.access_control?.verified ? 'border-beatwap-gold/30 bg-beatwap-gold/10' : 'border-white/10 bg-white/5'
-                              }`}>
-                                <Check size={16} className={artist?.access_control?.verified ? 'text-beatwap-gold' : 'text-gray-400'} />
-                              </div>
-                              <div className="text-left">
-                                <div className="text-sm font-extrabold text-white leading-tight">Perfil verificado</div>
-                                <div className="text-xs text-gray-400">{artist?.access_control?.verified ? 'Ativo' : 'Inativo'}</div>
-                              </div>
-                            </div>
-                            <div className={`w-11 h-6 rounded-full p-1 transition-colors ${
-                              artist?.access_control?.verified ? 'bg-beatwap-gold' : 'bg-white/10'
-                            }`}>
-                              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                                artist?.access_control?.verified ? 'translate-x-5' : 'translate-x-0'
-                              }`} />
-                            </div>
-                          </button>
+                                setArtists((prev) =>
+                                  prev.map((a) =>
+                                    a.id === artist.id
+                                      ? {
+                                          ...a,
+                                          access_control: { ...(a.access_control || {}), plan_override: next },
+                                        }
+                                      : a
+                                  )
+                                );
+                              }}
+                              disabled={busy}
+                              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                                artist?.access_control?.plan_override
+                                  ? 'bg-blue-500/10'
+                                  : 'bg-white/[0.03] hover:bg-white/[0.06]'
+                              }`}
+                            >
+                              <span
+                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                                  artist?.access_control?.plan_override
+                                    ? 'bg-blue-500/10 text-blue-300'
+                                    : 'bg-white/5 text-gray-500'
+                                }`}
+                              >
+                                <Lock size={15} />
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-sm font-semibold text-white">Override do plano</span>
+                                <span className="mt-0.5 block text-xs text-gray-500">
+                                  Permite acesso mesmo quando bloqueado pelo plano.
+                                </span>
+                              </span>
+                              <span
+                                className={`h-6 w-11 shrink-0 rounded-full p-1 transition-colors ${
+                                  artist?.access_control?.plan_override ? 'bg-blue-500' : 'bg-white/10'
+                                }`}
+                              >
+                                <span
+                                  className={`block h-4 w-4 rounded-full bg-white transition-transform ${
+                                    artist?.access_control?.plan_override ? 'translate-x-5' : 'translate-x-0'
+                                  }`}
+                                />
+                              </span>
+                            </button>
 
-                          {(() => {
-                            const f = artist?.access_control?.featured && typeof artist.access_control.featured === 'object' ? artist.access_control.featured : null;
-                            const enabled = !!(f && f.enabled !== false);
-                            const level = String(f?.level || '').toLowerCase();
-                            const endsAt = f?.ends_at || f?.until || null;
-                            const endsText = endsAt ? (() => {
-                              const t = new Date(endsAt);
-                              const ms = t.getTime();
-                              if (!Number.isFinite(ms)) return null;
-                              return t.toLocaleString();
-                            })() : null;
-                            const label = level === 'top' ? 'Destaque Top' : level === 'pro' ? 'Destaque Pro' : level === 'basic' ? 'Destaque Básico' : 'Destaque';
+                            <button
+                              type="button"
+                              onClick={() => toggleVerified(artist)}
+                              disabled={busy}
+                              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                                artist?.access_control?.verified
+                                  ? 'bg-beatwap-gold/10'
+                                  : 'bg-white/[0.03] hover:bg-white/[0.06]'
+                              }`}
+                            >
+                              <span
+                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                                  artist?.access_control?.verified
+                                    ? 'bg-beatwap-gold/10 text-beatwap-gold'
+                                    : 'bg-white/5 text-gray-500'
+                                }`}
+                              >
+                                <Check size={15} />
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-sm font-semibold text-white">Perfil verificado</span>
+                                <span className="mt-0.5 block text-xs text-gray-500">
+                                  Exibe o selo de verificacao no perfil.
+                                </span>
+                              </span>
+                              <span
+                                className={`h-6 w-11 shrink-0 rounded-full p-1 transition-colors ${
+                                  artist?.access_control?.verified ? 'bg-beatwap-gold' : 'bg-white/10'
+                                }`}
+                              >
+                                <span
+                                  className={`block h-4 w-4 rounded-full bg-white transition-transform ${
+                                    artist?.access_control?.verified ? 'translate-x-5' : 'translate-x-0'
+                                  }`}
+                                />
+                              </span>
+                            </button>
+                          </div>
+                        </section>
 
-                            return (
-                              <div className="w-full rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
-                                <div className="flex items-center justify-between gap-3">
-                                  <div className="text-left">
-                                    <div className="text-sm font-extrabold text-white leading-tight">Impulsionar na Home</div>
-                                    <div className="text-xs text-gray-400">
-                                      {enabled ? `${label}${endsText ? ` • até ${endsText}` : ''}` : 'Sem destaque'}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                  <button
-                                    type="button"
-                                    disabled={savingId === artist.id}
-                                    className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-xs font-extrabold text-white hover:border-beatwap-gold transition-colors disabled:opacity-60"
-                                    onClick={() => applyFeaturedToUser(artist.id, 'basic')}
-                                  >
-                                    Destaque Básico
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={savingId === artist.id}
-                                    className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-xs font-extrabold text-white hover:border-purple-400 transition-colors disabled:opacity-60"
-                                    onClick={() => applyFeaturedToUser(artist.id, 'pro')}
-                                  >
-                                    Destaque Pro
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={savingId === artist.id}
-                                    className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-xs font-extrabold text-white hover:border-beatwap-gold transition-colors disabled:opacity-60"
-                                    onClick={() => applyFeaturedToUser(artist.id, 'top')}
-                                  >
-                                    Destaque Top
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={savingId === artist.id}
-                                    className="px-3 py-2 rounded-xl border border-white/10 bg-black/30 text-xs font-extrabold text-gray-300 hover:border-white/20 transition-colors disabled:opacity-60"
-                                    onClick={() => applyFeaturedToUser(artist.id, 'off')}
-                                  >
-                                    Remover
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })()}
+                        <section className="rounded-2xl bg-white/[0.03] p-4">
+                          <h4 className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-gray-400">
+                            Destaque na Home
+                          </h4>
+                          <p className="mt-2 text-sm text-gray-400">
+                            {featuredOn
+                              ? `${featuredLabel}${featuredEndsText ? ` • ate ${featuredEndsText}` : ''}`
+                              : 'Sem destaque'}
+                          </p>
 
-                          <AnimatedButton
-                            onClick={() => savePermissions(artist)}
-                            disabled={savingId === artist.id}
-                            className="w-full justify-center"
-                          >
-                            {savingId === artist.id ? <Loader size={16} className="animate-spin" /> : <Save size={16} />}
-                            <span className="ml-2">Salvar alterações</span>
-                          </AnimatedButton>
+                          <div className="mt-3 grid grid-cols-2 gap-2">
+                            {[
+                              { level: 'basic', label: 'Destaque Basico', active: featuredOn && featuredLevel === 'basic' },
+                              { level: 'pro', label: 'Destaque Pro', active: featuredOn && featuredLevel === 'pro' },
+                              { level: 'top', label: 'Destaque Top', active: featuredOn && featuredLevel === 'top' },
+                              { level: 'off', label: 'Remover', active: !featuredOn }
+                            ].map((opt) => (
+                              <button
+                                key={opt.level}
+                                type="button"
+                                disabled={busy}
+                                aria-pressed={opt.active}
+                                onClick={() => applyFeaturedToUser(artist.id, opt.level)}
+                                className={`rounded-xl px-3 py-2.5 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                                  opt.active
+                                    ? 'bg-beatwap-gold text-black'
+                                    : 'bg-white/[0.03] text-gray-300 hover:bg-white/[0.06] hover:text-white'
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </section>
 
+                        <AnimatedButton
+                          onClick={() => savePermissions(artist)}
+                          disabled={busy}
+                          className="w-full justify-center"
+                        >
+                          {busy ? <Loader size={16} className="animate-spin" /> : <Save size={16} />}
+                          <span className="ml-2">Salvar alteracoes</span>
+                        </AnimatedButton>
+
+                        <section className="rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-4">
+                          <h4 className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-red-400/90">
+                            Zona destrutiva
+                          </h4>
+                          <p className="mt-2 text-xs leading-relaxed text-gray-400">
+                            A remocao e definitiva e apaga todos os dados deste usuario.
+                          </p>
                           <AnimatedButton
                             onClick={() => openPurgeModal(artist)}
                             variant="danger"
-                            className="w-full justify-center"
+                            className="mt-3 w-full justify-center"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={15} />
                             <span className="ml-2">Apagar conta</span>
                           </AnimatedButton>
-                        </div>
+                        </section>
                       </div>
                     </div>
                   </div>
-                ))}
+                );
+              })
+            )}
+
+            {purgeTarget && (
+              <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4">
+                <div className="absolute inset-0" onClick={closePurgeModal} />
+                <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#121212] p-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <h3 className="text-lg font-bold text-white">Apagar conta definitivamente</h3>
+                    <button
+                      type="button"
+                      onClick={closePurgeModal}
+                      aria-label="Fechar"
+                      className="rounded-lg border border-white/10 bg-white/5 p-2 text-gray-300 transition hover:bg-white/10"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                  <p className="mt-2 text-sm text-gray-400">
+                    Esta acao nao pode ser desfeita. Digite <strong className="text-white">APAGAR {purgeTarget.email}</strong> para confirmar.
+                  </p>
+                  <input
+                    type="text"
+                    value={purgeConfirm}
+                    onChange={(e) => setPurgeConfirm(e.target.value)}
+                    placeholder={`APAGAR ${purgeTarget.email}`}
+                    className="mt-4 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-red-400"
+                  />
+                  <input
+                    type="password"
+                    value={purgePin}
+                    onChange={(e) => setPurgePin(e.target.value)}
+                    placeholder="PIN (PIM)"
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-beatwap-gold"
+                  />
+                  <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-black/20 p-3">
+                    <input
+                      type="checkbox"
+                      checked={purgeAcknowledge}
+                      onChange={(e) => setPurgeAcknowledge(e.target.checked)}
+                      className="mt-1"
+                    />
+                    <span className="text-xs text-gray-300">Entendo que esta acao e irreversivel.</span>
+                  </label>
+                  <div className="mt-5 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={closePurgeModal}
+                      className="rounded-xl border border-white/10 px-4 py-2 text-white hover:bg-white/5"
+                    >
+                      Cancelar
+                    </button>
+                    <AnimatedButton
+                      onClick={purgeAccount}
+                      variant="danger"
+                      isLoading={purgeLoading}
+                      disabled={String(purgeConfirm || '').trim() !== `APAGAR ${purgeTarget.email}` || !purgeAcknowledge || String(purgePin || '').trim() !== '18084907'}
+                      className="px-4"
+                    >
+                      Apagar definitivamente
+                    </AnimatedButton>
+                  </div>
+                </div>
               </div>
             )}
           </div>
-        </Card>
         )}
       </div>
-      {purgeTarget && (
-        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg">
-            <Card className="space-y-4">
-              <div className="flex items-center justify-between gap-4">
-                <div className="text-lg font-extrabold text-white flex items-center gap-2">
-                  <Trash2 size={18} className="text-red-400" />
-                  Apagar conta
-                </div>
-                <button
-                  type="button"
-                  onClick={closePurgeModal}
-                  className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10"
-                >
-                  <X size={16} className="text-gray-300" />
-                </button>
-              </div>
-
-              <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4 space-y-3">
-                <div className="text-sm text-gray-200">
-                  Você está prestes a apagar permanentemente a conta de <span className="text-white font-extrabold">{purgeTarget.nome || purgeTarget.nome_completo_razao_social || 'Sem Nome'}</span>.
-                </div>
-                <ul className="text-sm text-gray-300 space-y-1 list-disc list-inside">
-                  <li>Remove o acesso de login (email) e dados vinculados no sistema.</li>
-                  <li>Essa ação é irreversível.</li>
-                </ul>
-                <div className="text-sm text-gray-300">
-                  Para confirmar, digite: <span className="text-white font-extrabold">APAGAR {purgeTarget.email}</span>
-                </div>
-              </div>
-
-              <input
-                type="text"
-                value={purgeConfirm}
-                onChange={(e) => setPurgeConfirm(e.target.value)}
-                placeholder={`APAGAR ${purgeTarget.email}`}
-                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-beatwap-gold outline-none"
-              />
-
-              <input
-                type="password"
-                value={purgePin}
-                onChange={(e) => setPurgePin(e.target.value)}
-                placeholder="PIN (PIM)"
-                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-beatwap-gold outline-none"
-              />
-
-              <label className="flex items-start gap-3 p-3 rounded-2xl bg-black/20 border border-white/10 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={purgeAcknowledge}
-                  onChange={(e) => setPurgeAcknowledge(e.target.checked)}
-                  className="mt-0.5 rounded border-gray-600 text-beatwap-gold focus:ring-beatwap-gold bg-transparent"
-                />
-                <div className="min-w-0">
-                  <div className="text-sm font-bold text-white">Entendo que essa ação é permanente</div>
-                  <div className="text-xs text-gray-400">Use essa opção apenas quando realmente precisar excluir a conta.</div>
-                </div>
-              </label>
-
-              <div className="flex gap-2 justify-end">
-                <AnimatedButton onClick={closePurgeModal} variant="secondary" className="px-4">
-                  Cancelar
-                </AnimatedButton>
-                <AnimatedButton
-                  onClick={purgeAccount}
-                  variant="danger"
-                  isLoading={purgeLoading}
-                  disabled={String(purgeConfirm || '').trim() !== `APAGAR ${purgeTarget.email}` || !purgeAcknowledge || String(purgePin || '').trim() !== '18084907'}
-                  className="px-4"
-                >
-                  Apagar definitivamente
-                </AnimatedButton>
-              </div>
-            </Card>
-          </div>
-        </div>
-      )}
-    </AdminLayout>
+    </SettingsShell>
   );
 };
