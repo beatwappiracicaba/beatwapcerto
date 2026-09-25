@@ -2,6 +2,7 @@ const express = require('express');
 const { auth } = require('../middleware/auth');
 const { Op } = require('sequelize');
 const { Profile } = require('../models');
+const { emitEvent } = require('../realtime');
 const {
   createNotification,
   listNotificationsByRecipient,
@@ -516,7 +517,17 @@ router.post('/messages', auth, (req, res) => {
     created_at: nowIso(),
   };
   state.messages.push(message);
-  emitStreamEvent('message', { chat_id, message });
+
+  if (chatContextOf(chat) === CHAT_CONTEXT_SOCIAL) {
+    // Chat Social: entrega apenas aos dois participantes da conversa.
+    emitEvent('message', { chat_id, message }, `chat:${chat_id}`);
+    // Avisa os dois para a lista de conversas nao ficar desatualizada.
+    (Array.isArray(chat.participant_ids) ? chat.participant_ids : []).forEach((pid) => {
+      emitEvent('chats.refresh', { chat_id }, `user:${String(pid || '').trim()}`);
+    });
+  } else {
+    emitStreamEvent('message', { chat_id, message });
+  }
   res.json(message);
 });
 
@@ -533,5 +544,18 @@ router.post('/typing', auth, (req, res) => {
   emitStreamEvent('typing', { chat_id, user_id: req.user?.id || null, is_typing });
   res.json({ ok: true });
 });
+
+// Exporta a verificacao de participacao para o servidor validar, no realtime,
+// se o socket pode entrar na sala `chat:<id>`. Precisa usar o mesmo `state`
+// local deste modulo, que e onde as conversas vivem.
+router.isChatParticipant = function isChatParticipant(chatId, userId) {
+  const id = String(chatId || '').trim();
+  const uid = String(userId || '').trim();
+  if (!id || !uid) return false;
+  const chat = (state.chats || []).find((c) => String(c?.id || '') === id);
+  if (!chat) return false;
+  return (Array.isArray(chat.participant_ids) ? chat.participant_ids : [])
+    .some((pid) => String(pid || '') === uid);
+};
 
 module.exports = router;

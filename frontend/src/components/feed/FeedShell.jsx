@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Lock, X, Plus, Search } from 'lucide-react';
+import { Lock, X, Plus, Search } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
-import { NotificationBell } from '../notifications/NotificationBell';
-import { CONTEXT_FEED } from '../../context/NotificationContext';
 import { ProfileButton } from '../ProfileButton';
 import { FeedChatPanel } from './FeedChatPanel';
+import { FeedNotificationsPanel } from './FeedNotificationsPanel';
 
 const iconBtn =
   'flex h-10 w-10 items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-beatwap-gold/60';
@@ -23,7 +22,6 @@ const iconBtn =
  * cabecalho.
  */
 export const FeedShell = ({
-  onBack,
   canAccess = true,
   railItems = [],
   bottomItems = [],
@@ -39,7 +37,7 @@ export const FeedShell = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatTarget, setChatTarget] = useState(null);
-  const bellRef = useRef(null);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const panelRef = useRef(null);
   const burgerRef = useRef(null);
 
@@ -99,13 +97,14 @@ export const FeedShell = ({
 
   const runItem = (item) => {
     if (item.key === 'notifications') {
-      requestAnimationFrame(() => {
-        bellRef.current?.querySelector('button')?.click();
-      });
+      // Abre a aba de notificacoes do Feed, nao o sino.
+      setChatOpen(false);
+      setNotificationsOpen(true);
       return;
     }
     if (item.key === 'messages') {
       // Chat Social do Feed. Nao abre o chat administrativo.
+      setNotificationsOpen(false);
       setChatTarget(null);
       setChatOpen(true);
       return;
@@ -153,30 +152,6 @@ export const FeedShell = ({
               </button>
             );
           })}
-
-          <div className="mt-2 h-px w-8 bg-white/10" />
-
-          <button
-            type="button"
-            onClick={onBack}
-            title="Voltar"
-            aria-label="Voltar"
-            className={`${iconBtn} flex-col gap-0.5 text-gray-300 hover:bg-white/5 hover:text-white`}
-          >
-            <ArrowLeft size={21} />
-            <span className="text-[9px] font-semibold leading-none">Voltar</span>
-          </button>
-        </div>
-
-        {/* Sino e perfil ficam no rodape do menu lateral, para nao consumir
-            altura da area de conteudo. Os dropdowns abrem para a direita. */}
-        <div className="mt-auto flex flex-col items-center gap-2 border-t border-white/10 px-1 py-3">
-          <div ref={bellRef} className="relative z-50 flex items-center justify-center">
-            {currentUserId && <NotificationBell userId={currentUserId} context={CONTEXT_FEED} />}
-          </div>
-          <div className="flex items-center justify-center">
-            <ProfileButton profile={profile} />
-          </div>
         </div>
       </aside>
 
@@ -215,7 +190,13 @@ export const FeedShell = ({
             </div>
           ) : (
             <div className="mx-auto flex w-full max-w-6xl items-start gap-6 px-2 py-3 sm:px-4 sm:py-5 xl:gap-8">
-              <div className="min-w-0 flex-1">{children}</div>
+              <div className="min-w-0 flex-1">
+                {notificationsOpen ? (
+                  <FeedNotificationsPanel open onClose={() => setNotificationsOpen(false)} />
+                ) : (
+                  children
+                )}
+              </div>
               {rightRail && (
                 <aside className="hidden w-[300px] shrink-0 xl:block">
                   <div className="sticky top-4">{rightRail}</div>

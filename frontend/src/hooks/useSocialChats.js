@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiClient } from '../services/apiClient';
+import { API_BASE_URL } from '../config/apiConfig';
+import { connectRealtime, subscribe, unsubscribe } from '../services/realtime';
 import { useAuth } from '../context/AuthContext';
 
 // Chat Social do Feed.
@@ -61,6 +63,57 @@ export const useSocialChats = () => {
     }
     refresh();
   }, [meId, refresh]);
+
+  // Tempo real: o backend emite `message` para a sala `chat:{id}` (so os dois
+  // participantes) e `chats.refresh` para `user:{id}` quando nasce conversa
+  // nova. Mensagens chegam sem recarregar a pagina.
+  useEffect(() => {
+    if (!meId) return undefined;
+    const socket = connectRealtime(API_BASE_URL || 'https://api.beatwap.com.br');
+    const onMessage = ({ chat_id: chatId, message } = {}) => {
+      if (!chatId || !message) return;
+      setRaw((prev) => prev.map((c) => {
+        if (c.id !== chatId) return c;
+        const list = Array.isArray(c.messages) ? c.messages : [];
+        // evita duplicar se a propria mensagem veio pelo refresh do envio
+        if (list.some((m) => m.id === message.id)) return c;
+        return { ...c, messages: [...list, message] };
+      }));
+    };
+    const onRefresh = () => { refresh(); };
+    const userRoom = `user:${meId}`;
+    socket.on('message', onMessage);
+    socket.on('chats.refresh', onRefresh);
+    subscribe(userRoom);
+    return () => {
+      socket.off('message', onMessage);
+      socket.off('chats.refresh', onRefresh);
+      unsubscribe(userRoom);
+    };
+  }, [meId, refresh]);
+
+  // Assina a sala de cada conversa social para receber as mensagens dela.
+  const chatIds = useMemo(() => (Array.isArray(raw) ? raw.map((c) => c.id) : []), [raw]);
+  useEffect(() => {
+    if (!meId || chatIds.length === 0) return undefined;
+    const socket = connectRealtime(API_BASE_URL || 'https://api.beatwap.com.br');
+    const onMessage = ({ chat_id: chatId, message } = {}) => {
+      if (!chatId || !message) return;
+      setRaw((prev) => prev.map((c) => {
+        if (c.id !== chatId) return c;
+        const list = Array.isArray(c.messages) ? c.messages : [];
+        if (list.some((m) => m.id === message.id)) return c;
+        return { ...c, messages: [...list, message] };
+      }));
+    };
+    socket.on('message', onMessage);
+    const rooms = chatIds.map((id) => `chat:${id}`);
+    rooms.forEach((room) => subscribe(room));
+    return () => {
+      socket.off('message', onMessage);
+      rooms.forEach((room) => unsubscribe(room));
+    };
+  }, [meId, chatIds]);
 
   // Contador: mensagens nao lidas em conversas SOCIAIS. Nunca soma o
   // administrativo, que tem o proprio contador na bolinha flutuante.

@@ -2094,7 +2094,6 @@ const Feed = () => {
 
   return (
     <FeedShell
-      onBack={handleBack}
       canAccess={canAccessFeed}
       railItems={feedNavItems}
       bottomItems={feedBottomItems}
@@ -2111,38 +2110,6 @@ const Feed = () => {
               {activeTab === 'feed' && 'Novidades de quem você segue'}
               {activeTab === 'painel' && 'Desempenho e métricas'}
             </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto sm:justify-end">
-            {activeTab === 'feed' && (
-              <>
-                <AnimatedButton
-                  onClick={() => { searchInputRef.current?.focus(); searchInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
-                  className="w-full sm:w-auto px-4 py-2 text-xs"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <Search size={16} />
-                    <span className="hidden sm:inline">Pesquisar</span>
-                    <span className="sm:hidden">Buscar</span>
-                  </span>
-                </AnimatedButton>
-                <AnimatedButton
-                  onClick={() => setPostModalOpen(true)}
-                  disabled={!meId}
-                  className="w-full sm:w-auto px-4 py-2 text-xs"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <Plus size={16} />
-                    <span>Postar</span>
-                  </span>
-                </AnimatedButton>
-              </>
-            )}
-            <AnimatedButton
-              onClick={activeTab === 'painel' ? loadPanel : refresh}
-              className="w-full sm:w-auto px-4 py-2 text-xs"
-            >
-              Atualizar
-            </AnimatedButton>
           </div>
         </div>
 

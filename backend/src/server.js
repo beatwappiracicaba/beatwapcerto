@@ -7,7 +7,9 @@ const rateLimit = require('express-rate-limit');
 const http = require('http');
 const { Op } = require('sequelize');
 const { sequelize, Profile } = require('./models');
+const { getJwtSecret } = require('./config/secrets');
 const { setIO } = require('./realtime');
+const jwt = require('jsonwebtoken');
 const { setupSentry, useSentryErrorHandler } = require('./monitoring/sentry');
 const { validateRequiredSecrets } = require('./config/secrets');
 const { initializeMemoryStore } = require('./memoryStore');
@@ -68,10 +70,58 @@ const io = new Server(server, {
   transports: ['websocket', 'polling']
 });
 setIO(io);
+
+// Salas de realtime: cada usuario so entra em salas que lhe pertencem.
+// Sem essa checagem, qualquer cliente podia assinar `chat:<id>` de uma
+// conversa alheia e receber as mensagens em tempo real.
+const canJoinRoom = (socket, room) => {
+  const user = socket.data?.user;
+  const name = String(room || '');
+  if (!user || !name) return false;
+
+  // Salas de perfil: "profile:<meuId>" e variantes por contexto.
+  if (name.startsWith('profile:')) {
+    const parts = name.split(':');
+    return parts[1] === String(user.id);
+  }
+  // Sala pessoal: "user:<meuId>".
+  if (name.startsWith('user:')) {
+    return name.slice('user:'.length) === String(user.id);
+  }
+  // Sala de conversa: "chat:<id>". Precisa participar dela.
+  if (name.startsWith('chat:')) {
+    const chatId = name.slice('chat:'.length);
+    try {
+      // As conversas vivem no state local de routes/chat; usa o verificador
+      // de la para nao divergir de onde elas sao realmente gravadas.
+      const chatRoute = require('./routes/chat');
+      return chatRoute?.isChatParticipant?.(chatId, user.id) === true;
+    } catch {
+      return false;
+    }
+  }
+  // Qualquer outra sala e negada por padrao.
+  return false;
+};
+
+io.use((socket, next) => {
+  try {
+    const token = socket.handshake?.auth?.token || socket.handshake?.query?.token;
+    if (!token) return next(new Error('unauthorized'));
+    const payload = jwt.verify(String(token), getJwtSecret());
+    socket.data.user = { id: payload.sub, email: payload.email, cargo: payload.cargo };
+    return next();
+  } catch {
+    return next(new Error('unauthorized'));
+  }
+});
+
 io.on('connection', (socket) => {
   const ch = socket.handshake.query?.channel;
-  if (ch) socket.join(String(ch));
-  socket.on('subscribe', (room) => socket.join(String(room)));
+  if (ch && canJoinRoom(socket, ch)) socket.join(String(ch));
+  socket.on('subscribe', (room) => {
+    if (canJoinRoom(socket, room)) socket.join(String(room));
+  });
   socket.on('unsubscribe', (room) => socket.leave(String(room)));
 });
 
