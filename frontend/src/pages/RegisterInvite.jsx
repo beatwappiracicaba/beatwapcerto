@@ -6,7 +6,6 @@ import { Card } from '../components/ui/Card';
 import { useToast } from '../context/ToastContext';
 import { apiClient, authApi } from '../services/apiClient';
 import { Mail, Lock, User, CheckCircle } from 'lucide-react';
-import { AuthLayout } from '../components/AuthLayout';
 import { useAuth } from '../context/AuthContext';
 
 export default function RegisterInvite() {
@@ -179,11 +178,13 @@ export default function RegisterInvite() {
     }
   };
 
-  if (loading) return <AuthLayout><div className="min-h-[60vh] flex items-center justify-center text-gray-400">Validando convite...</div></AuthLayout>;
+  // A rota /register/invite ja e filha de <AuthLayout />, que resolve o
+  // <Outlet />. Envolver aqui de novo renderizava dois MotivationalPanel e
+  // nenhum formulario, porque o <Outlet /> interno nao tem rota aninhada.
+  if (loading) return <div className="min-h-[60vh] flex items-center justify-center text-gray-400">Validando convite...</div>;
 
   return (
-    <AuthLayout>
-      <div className="max-w-md mx-auto">
+    <div className="max-w-md mx-auto">
         <Card className="space-y-5">
           <div className="text-center space-y-1">
             <div className="text-xl font-extrabold text-white">Criar conta por convite</div>
@@ -389,7 +390,6 @@ export default function RegisterInvite() {
             Convite inválido? <Link className="text-beatwap-gold hover:underline" to="/register/invite-invalid">Ver ajuda</Link>
           </div>
         </Card>
-      </div>
-    </AuthLayout>
+    </div>
   );
 }
