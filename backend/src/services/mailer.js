@@ -45,9 +45,11 @@ function assertMailerConfigured() {
       'SMTP_NOT_CONFIGURED'
     );
   }
-  if (!/^https?:\/\//i.test(host)) {
+  // Hostname puro e o esperado. Rejeita URL colada por engano
+  // (ex: "https://smtp.gmail.com"), que o nodemailer nao aceita.
+  if (/^https?:\/\//i.test(host) || /[/?#]/.test(host)) {
     throw new MailerConfigError(
-      `SMTP_HOST invalido: "${host}". Use o hostname do servidor SMTP (ex: smtp.gmail.com).`,
+      `SMTP_HOST invalido: "${host}". Use apenas o hostname do servidor SMTP (ex: smtp.gmail.com).`,
       'SMTP_INVALID_HOST'
     );
   }
