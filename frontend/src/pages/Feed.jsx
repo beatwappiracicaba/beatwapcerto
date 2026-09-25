@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Cropper from 'react-easy-crop';
-import { Play, Pause, Music, Image, Video, ExternalLink, Search, Plus, X, TrendingUp, Heart, MessageCircle, Send, Pencil, Trash2, Share2, MoreHorizontal, RefreshCw, AlertCircle, Compass, Users, Bell, Home, User, Settings, ChevronUp } from 'lucide-react';
+import { Play, Pause, Music, Image, Video, ExternalLink, Search, Plus, X, TrendingUp, Heart, MessageCircle, Send, Pencil, Trash2, Share2, MoreHorizontal, RefreshCw, AlertCircle, Compass, Users, Bell, Home, User, Settings } from 'lucide-react';
 import { FeedShell } from '../components/feed/FeedShell';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -12,6 +12,7 @@ import { apiClient, uploadApi } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useNotification } from '../context/NotificationContext';
+import { useChat } from '../context/ChatContext';
 import { connectRealtime, subscribe, unsubscribe } from '../services/realtime';
 import { getCroppedImg } from '../utils/cropImage';
 import { useGlobalAudioPlayer } from '../context/GlobalAudioPlayerContext';
@@ -108,6 +109,7 @@ const Feed = () => {
   const { profile } = useAuth();
   const { addToast } = useToast();
   const { getUnreadCount } = useNotification();
+  const { chats } = useChat();
   const { toggleTrack } = useGlobalAudioPlayer();
   const roleLower = String(profile?.cargo || '').toLowerCase();
   const isProdutor = roleLower === 'produtor';
@@ -1467,7 +1469,11 @@ const Feed = () => {
                 const sending = commentPostingById?.[postId] === true;
                 const likeLoading = postActionLoadingById?.[`like:${postId}`] === true;
                 const format = String(p.format || '').toLowerCase().trim() || (mediaType === 'video' ? 'vertical' : 'square');
-                const aspectClass = format === 'vertical' ? 'aspect-[9/16]' : 'aspect-square';
+                // No celular a midia ganha altura (4:5) para cortar menos uma
+                // imagem horizontal. No desktop segue quadrada, como antes.
+                const aspectClass = format === 'vertical'
+                  ? 'aspect-[9/16]'
+                  : 'aspect-[4/5] md:aspect-square';
                 const rawPos = p.object_position && typeof p.object_position === 'object' ? p.object_position : null;
                 const ox = Math.max(0, Math.min(100, Number(rawPos?.x ?? 50) || 50));
                 const oy = Math.max(0, Math.min(100, Number(rawPos?.y ?? 50) || 50));
@@ -1879,6 +1885,36 @@ const Feed = () => {
   }, []);
 
   const unreadCount = Number(getUnreadCount?.() || 0);
+  const chatUnread = useMemo(() => {
+    const list = Array.isArray(chats) ? chats : [];
+    return list.reduce((sum, c) => sum + (Number(c?.unreadCount) || 0), 0);
+  }, [chats]);
+
+  const myProfileRoute = isProdutor ? '/admin/profile' : '/dashboard/profile';
+
+  // Menu lateral do desktop e barra inferior do celular apontam para as
+  // mesmas acoes reais: nenhuma tela nova e criada aqui.
+  const feedNavItems = useMemo(() => {
+    const items = [
+      { key: 'home', label: 'Home', icon: Home, short: 'Home', onSelect: () => navigate('/') },
+      { key: 'feed', label: 'Feed', icon: TrendingUp, short: 'Feed', onSelect: goToTop },
+      { key: 'search', label: 'Buscar', icon: Search, short: 'Busca', onSelect: focusSearch },
+      { key: 'messages', label: 'Mensagens', icon: MessageCircle, short: 'Msg', badge: chatUnread },
+      { key: 'notifications', label: 'Notificações', icon: Bell, short: 'Alerta', badge: unreadCount }
+    ];
+
+    if (meId) {
+      items.push({ key: 'compose', label: 'Criar', icon: Plus, short: 'Criar', onSelect: openComposer });
+      items.push({ key: 'profile', label: 'Perfil', icon: User, short: 'Perfil', onSelect: () => navigate(myProfileRoute) });
+    }
+
+    return items;
+  }, [chatUnread, focusSearch, goToTop, meId, myProfileRoute, navigate, openComposer, unreadCount]);
+
+  const feedBottomItems = useMemo(
+    () => feedNavItems.map((i) => ({ ...i, label: i.short })),
+    [feedNavItems]
+  );
 
   const feedMenuItems = useMemo(() => {
     const items = [
@@ -1911,26 +1947,28 @@ const Feed = () => {
     return items;
   }, [focusSearch, goToTop, isProdutor, meId, navigate, openComposer, profile?.access_control?.admin_settings, unreadCount]);
 
-  // Coluna lateral do desktop: dados reais ja carregados (perfil logado,
-  // destaques vindos de boostedProfiles e os contadores que a tela ja usa).
+  // Coluna lateral do desktop: dados reais ja carregados (perfil logado e a
+  // lista de perfis que a propria busca do feed usa). Nada aqui e ficticio.
   const feedRightRail = useMemo(() => {
     if (activeTab !== 'feed' || !meId) return null;
 
-    const highlights = (Array.isArray(boostedProfiles) ? boostedProfiles : []).slice(0, 4);
-    const shortcuts = [
-      { key: 'search', label: 'Buscar perfis', icon: Search, onSelect: focusSearch },
-      { key: 'feed', label: 'Voltar ao topo', icon: ChevronUp, onSelect: goToTop }
-    ];
+    // Perfis que a pessoa ainda nao segue viram sugestoes.
+    const suggestions = (Array.isArray(profiles) ? profiles : [])
+      .filter((p) => !isFollowing(String(p?.id || '')))
+      .slice(0, 4);
+    const following = (Array.isArray(profiles) ? profiles : [])
+      .filter((p) => isFollowing(String(p?.id || '')))
+      .slice(0, 3);
 
     return (
       <div className="space-y-4">
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/30">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-black/30">
               {profile?.avatar_url ? (
                 <img src={sanitizeUrl(profile.avatar_url)} alt="Meu perfil" className="h-full w-full object-cover" loading="lazy" />
               ) : (
-                <User size={22} className="text-gray-400" />
+                <User size={18} className="text-gray-400" />
               )}
             </span>
             <div className="min-w-0 flex-1">
@@ -1938,47 +1976,91 @@ const Feed = () => {
                 {profile?.nome || profile?.nome_completo_razao_social || 'Usuário'}
               </div>
               <div className="truncate text-xs text-beatwap-gold">{profile?.cargo || ''}</div>
+              <button
+                type="button"
+                onClick={() => navigate(isProdutor ? '/admin/profile' : '/dashboard/profile')}
+                className="mt-1 text-xs font-bold text-gray-300 underline-offset-2 hover:underline"
+              >
+                Ver perfil
+              </button>
             </div>
-          </div>
-
-          <div className="mt-3 space-y-1">
-            <button
-              type="button"
-              onClick={() => navigate(isProdutor ? '/admin/profile' : '/dashboard/profile')}
-              className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-gray-200 transition hover:bg-white/5"
-            >
-              <User size={15} className="shrink-0 text-beatwap-gold" />
-              <span className="truncate">Meu perfil</span>
-            </button>
-            {shortcuts.map((s) => {
-              const Icon = s.icon;
-              return (
-                <button
-                  key={`rail-${s.key}`}
-                  type="button"
-                  onClick={s.onSelect}
-                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-gray-200 transition hover:bg-white/5"
-                >
-                  <Icon size={15} className="shrink-0 text-beatwap-gold" />
-                  <span className="truncate">{s.label}</span>
-                </button>
-              );
-            })}
           </div>
         </Card>
 
-        {highlights.length > 0 && (
+        {suggestions.length > 0 && (
           <Card className="p-4">
-            <div className="text-sm font-bold text-white">Destaques</div>
-            <div className="mt-3 space-y-2">
-              {highlights.map((p) => {
+            <div className="text-sm font-bold text-white">Sugestões para você</div>
+            <div className="mt-3 space-y-3">
+              {suggestions.map((p) => {
+                const pid = String(p?.id || '');
+                const name = String(p?.nome || 'Usuário');
+                const loading = followLoadingById?.[pid] === true;
+                return (
+                  <div key={`sug-${pid}`} className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/profile/${pid}`)}
+                      className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5"
+                      aria-label={`Ver perfil de ${name}`}
+                    >
+                      {p.avatar_url ? (
+                        <img src={sanitizeUrl(p.avatar_url)} alt={name} className="h-full w-full object-cover" loading="lazy" />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center text-xs font-bold text-white">
+                          {name.trim() ? name.trim()[0].toUpperCase() : 'U'}
+                        </span>
+                      )}
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/profile/${pid}`)}
+                        className="block max-w-full truncate text-xs font-bold text-white hover:underline"
+                      >
+                        {name}
+                      </button>
+                      <div className="truncate text-[11px] text-gray-400">
+                        {p.cargo || 'Perfil na BeatWap'}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() => toggleFollow(pid)}
+                      className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold transition disabled:opacity-60 ${
+                        isFollowing(pid)
+                          ? 'bg-white/10 text-gray-200'
+                          : 'bg-beatwap-gold text-black hover:bg-white'
+                      }`}
+                    >
+                      {loading ? '...' : (isFollowing(pid) ? 'Seguindo' : 'Seguir')}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={focusSearch}
+              className="mt-3 text-xs font-bold text-gray-300 hover:text-beatwap-gold"
+            >
+              Ver todos
+            </button>
+          </Card>
+        )}
+
+        {following.length > 0 && (
+          <Card className="p-4">
+            <div className="text-sm font-bold text-white">Seguindo</div>
+            <div className="mt-3 space-y-3">
+              {following.map((p) => {
                 const name = String(p?.nome || 'Usuário');
                 return (
                   <button
-                    key={`rail-hl-${p.id}`}
+                    key={`fol-${p.id}`}
                     type="button"
                     onClick={() => navigate(`/profile/${p.id}`)}
-                    className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition hover:bg-white/5"
+                    className="flex w-full items-center gap-2.5 text-left"
                   >
                     <span className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5">
                       {p.avatar_url ? (
@@ -2001,12 +2083,14 @@ const Feed = () => {
         )}
       </div>
     );
-  }, [activeTab, boostedProfiles, focusSearch, goToTop, isProdutor, meId, navigate, profile, sanitizeUrl]);
+  }, [activeTab, focusSearch, followLoadingById, isFollowing, isProdutor, meId, navigate, profile, profiles, sanitizeUrl, toggleFollow]);
 
   return (
     <FeedShell
       onBack={handleBack}
       canAccess={canAccessFeed}
+      railItems={feedNavItems}
+      bottomItems={feedBottomItems}
       menuItems={feedMenuItems}
       rightRail={feedRightRail}
     >

@@ -1,25 +1,39 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Lock, Menu, X } from 'lucide-react';
+import { ArrowLeft, Lock, X, Plus, Search } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
+import { useChat } from '../../context/ChatContext';
 import { NotificationBell } from '../notifications/NotificationBell';
 import { ProfileButton } from '../ProfileButton';
 import { ChatButton } from '../FloatingChat/ChatButton';
 import { ChatWindow } from '../FloatingChat/ChatWindow';
 
+const iconBtn =
+  'flex h-10 w-10 items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-beatwap-gold/60';
+
 /**
- * Tela independente do Feed.
+ * Tela independente do Feed, em tres areas no desktop:
+ * menu lateral fixo | feed central | sidebar direita.
+ * No celular troca para header compacto + barra inferior de navegacao.
  *
- * Reproduz apenas a casca que os layouts (DashboardLayout/AdminLayout)
- * forneciam: cabecalho com notificacoes/perfil, o gate de permissao e o
- * chat flutuante. Nao ha sidebar do sistema aqui de proposito: o Feed
- * ocupa a tela inteira e a volta para a tela anterior usa o historico.
+ * Nao ha sidebar do sistema aqui: o Feed ocupa a tela inteira e a volta
+ * para a tela anterior usa o historico.
  *
- * `menuItems` recebe { key, label, icon, badge, onSelect }. O item
- * "notifications" e resolvido aqui dentro, porque o sino vive neste cabecalho.
+ * `railItems` e `bottomItems` recebem { key, label, icon, badge, onSelect }.
+ * O item "notifications" e resolvido aqui dentro, porque o sino vive neste
+ * cabecalho.
  */
-export const FeedShell = ({ onBack, canAccess = true, menuItems = [], rightRail = null, children }) => {
+export const FeedShell = ({
+  onBack,
+  canAccess = true,
+  railItems = [],
+  bottomItems = [],
+  menuItems = [],
+  rightRail = null,
+  children
+}) => {
   const { user, profile } = useAuth();
+  const { setIsOpen: openChat } = useChat();
   const currentUserId = user?.id;
   const chatAllowed = profile?.access_control?.chat !== false;
 
@@ -33,7 +47,6 @@ export const FeedShell = ({ onBack, canAccess = true, menuItems = [], rightRail 
     burgerRef.current?.focus();
   };
 
-  // ESC fecha o menu e devolve o foco ao botao que o abriu.
   useEffect(() => {
     if (!menuOpen) return undefined;
     const onKeyDown = (event) => {
@@ -42,7 +55,6 @@ export const FeedShell = ({ onBack, canAccess = true, menuItems = [], rightRail 
         closeMenu();
         return;
       }
-      // Mantem o foco dentro do painel enquanto ele estiver aberto.
       if (event.key === 'Tab' && panelRef.current) {
         const focusables = panelRef.current.querySelectorAll(
           'button:not([disabled]), a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -63,7 +75,6 @@ export const FeedShell = ({ onBack, canAccess = true, menuItems = [], rightRail 
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [menuOpen]);
 
-  // Impede o fundo de rolar enquanto o menu esta aberto no mobile.
   useEffect(() => {
     if (!menuOpen) return undefined;
     const previous = document.body.style.overflow;
@@ -73,80 +84,169 @@ export const FeedShell = ({ onBack, canAccess = true, menuItems = [], rightRail 
     };
   }, [menuOpen]);
 
-  const selectItem = (item) => {
-    setMenuOpen(false);
+  const runItem = (item) => {
     if (item.key === 'notifications') {
-      // Reaproveita o sino que ja existe no cabecalho em vez de criar
-      // uma segunda tela de notificacoes.
       requestAnimationFrame(() => {
         bellRef.current?.querySelector('button')?.click();
       });
       return;
     }
+    if (item.key === 'messages') {
+      openChat?.(true);
+      return;
+    }
     item.onSelect?.();
   };
 
+  const selectItem = (item) => {
+    setMenuOpen(false);
+    runItem(item);
+  };
+
+  const renderBadge = (badge) =>
+    badge > 0 ? (
+      <span className="absolute -right-0.5 -top-0.5 min-w-[18px] rounded-full bg-red-500 px-1 text-[10px] font-bold leading-[18px] text-white">
+        {badge > 99 ? '99+' : badge}
+      </span>
+    ) : null;
+
   return (
     <div className="feed-shell bg-gradient-to-br from-black via-[#0b0b0b] to-[#161616] text-white">
-      <header className="feed-header border-b border-white/10 bg-black/85 backdrop-blur-xl">
-        <div className="flex w-full items-center gap-1.5 px-3 py-2.5 sm:gap-3 sm:px-5 sm:py-3">
-          {menuItems.length > 0 && (
-            <button
-              ref={burgerRef}
-              type="button"
-              onClick={() => setMenuOpen(true)}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:border-beatwap-gold/50 hover:bg-white/10 hover:text-beatwap-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-beatwap-gold/60 md:h-9 md:w-9"
-              aria-label="Abrir menu"
-              aria-expanded={menuOpen}
-              aria-haspopup="menu"
-            >
-              <Menu size={18} />
-            </button>
-          )}
+      {/* ---------- Menu lateral fixo (desktop) ---------- */}
+      <aside className="feed-rail">
+        <div className="flex flex-col items-center gap-1 py-4">
+          <div className="mb-2 text-lg font-bold tracking-wide">
+            <span className="text-beatwap-gold">B</span>W
+          </div>
+
+          {railItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={`rail-${item.key}`}
+                type="button"
+                onClick={() => runItem(item)}
+                title={item.label}
+                aria-label={item.label}
+                className={`${iconBtn} relative flex-col gap-0.5 text-gray-300 hover:bg-white/5 hover:text-white`}
+              >
+                <span className="relative">
+                  {Icon ? <Icon size={21} /> : null}
+                  {renderBadge(item.badge)}
+                </span>
+                <span className="text-[9px] font-semibold leading-none">{item.label}</span>
+              </button>
+            );
+          })}
+
+          <div className="mt-2 h-px w-8 bg-white/10" />
 
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm font-bold text-white transition hover:border-beatwap-gold/50 hover:bg-white/10 hover:text-beatwap-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-beatwap-gold/60 md:px-3 md:py-2 md:text-xs"
+            title="Voltar"
             aria-label="Voltar"
+            className={`${iconBtn} flex-col gap-0.5 text-gray-300 hover:bg-white/5 hover:text-white`}
           >
-            <ArrowLeft size={16} />
-            <span>Voltar</span>
+            <ArrowLeft size={21} />
+            <span className="text-[9px] font-semibold leading-none">Voltar</span>
           </button>
+        </div>
 
-          <div className="min-w-0 flex-1 truncate text-lg font-bold tracking-wide sm:text-xl">
-            <span className="text-beatwap-gold">Beat</span>Wap
-            <span className="ml-2 hidden text-sm font-normal text-gray-400 sm:inline">Feed</span>
-          </div>
-
-          <div ref={bellRef} className="relative z-50 shrink-0">
+        {/* Sino e perfil ficam no rodape do menu lateral, para nao consumir
+            altura da area de conteudo. Os dropdowns abrem para a direita. */}
+        <div className="mt-auto flex flex-col items-center gap-2 border-t border-white/10 px-1 py-3">
+          <div ref={bellRef} className="relative z-50 flex items-center justify-center">
             {currentUserId && <NotificationBell userId={currentUserId} />}
           </div>
-          <ProfileButton profile={profile} />
-        </div>
-      </header>
-
-      <main className="feed-body">
-        {!canAccess ? (
-          <div className="mx-auto flex h-[60vh] w-full max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
-            <div className="rounded-full bg-red-500/10 p-4 text-red-500">
-              <Lock size={40} />
-            </div>
-            <h2 className="text-2xl font-bold">Acesso Restrito</h2>
-            <p className="text-sm text-gray-400">
-              Voce nao tem permissao para acessar o Feed. Entre em contato com o produtor para solicitar acesso.
-            </p>
+          <div className="flex items-center justify-center">
+            <ProfileButton profile={profile} />
           </div>
-        ) : (
-          <div className="mx-auto flex w-full max-w-6xl items-start gap-6 px-2 py-3 sm:px-5 sm:py-6">
-            <div className="min-w-0 flex-1">{children}</div>
-            {rightRail && (
-              <aside className="hidden w-[300px] shrink-0 xl:block">{rightRail}</aside>
+        </div>
+      </aside>
+
+      {/* ---------- Coluna principal ---------- */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Header compacto (celular) */}
+        <header className="feed-header border-b border-white/10 bg-black/85 backdrop-blur-xl md:hidden">
+          <div className="flex w-full items-center gap-2 px-3 py-2.5">
+            <div className="min-w-0 flex-1 truncate text-lg font-bold tracking-wide">
+              <span className="text-beatwap-gold">Beat</span>Wap
+            </div>
+            {bottomItems.some((i) => i.key === 'search') && (
+              <button
+                type="button"
+                onClick={() => runItem(bottomItems.find((i) => i.key === 'search'))}
+                className={`${iconBtn} shrink-0 text-gray-300 hover:bg-white/5 hover:text-white`}
+                aria-label="Pesquisar"
+              >
+                <Search size={20} />
+              </button>
             )}
           </div>
-        )}
-      </main>
+        </header>
 
+        <main className="feed-body">
+          {!canAccess ? (
+            <div className="mx-auto flex h-[60vh] w-full max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
+              <div className="rounded-full bg-red-500/10 p-4 text-red-500">
+                <Lock size={40} />
+              </div>
+              <h2 className="text-2xl font-bold">Acesso Restrito</h2>
+              <p className="text-sm text-gray-400">
+                Voce nao tem permissao para acessar o Feed. Entre em contato com o produtor para solicitar acesso.
+              </p>
+            </div>
+          ) : (
+            <div className="mx-auto flex w-full max-w-6xl items-start gap-6 px-2 py-3 sm:px-4 sm:py-5 xl:gap-8">
+              <div className="min-w-0 flex-1">{children}</div>
+              {rightRail && (
+                <aside className="hidden w-[300px] shrink-0 xl:block">
+                  <div className="sticky top-4">{rightRail}</div>
+                </aside>
+              )}
+            </div>
+          )}
+        </main>
+
+        {/* ---------- Barra inferior (celular) ---------- */}
+        {bottomItems.length > 0 && (
+          <nav
+            className="feed-bottom-nav md:hidden"
+            aria-label="Navegacao principal"
+          >
+            {bottomItems.map((item) => {
+              const Icon = item.icon;
+              const isCreate = item.key === 'compose';
+              return (
+                <button
+                  key={`bottom-${item.key}`}
+                  type="button"
+                  onClick={() => runItem(item)}
+                  aria-label={item.label}
+                  className="relative flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-gray-300"
+                >
+                  <span className="relative">
+                    {isCreate ? (
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-beatwap-gold text-black">
+                        <Plus size={18} />
+                      </span>
+                    ) : (
+                      (Icon ? <Icon size={21} /> : null)
+                    )}
+                    {renderBadge(item.badge)}
+                  </span>
+                  <span className="max-w-full truncate px-0.5 text-[9px] font-semibold leading-none">
+                    {item.label}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+        )}
+      </div>
+
+      {/* ---------- Menu de acoes (todas as telas) ---------- */}
       <AnimatePresence>
         {menuOpen && (
           <div className="fixed inset-0 z-[100]">
@@ -214,7 +314,10 @@ export const FeedShell = ({ onBack, canAccess = true, menuItems = [], rightRail 
 
       {chatAllowed && (
         <>
-          <ChatButton />
+          {/* No celular o botao flutuante some: mensagens ja estao na barra inferior. */}
+          <div className="hidden md:block">
+            <ChatButton />
+          </div>
           <ChatWindow currentUserId={currentUserId} allowAI />
         </>
       )}

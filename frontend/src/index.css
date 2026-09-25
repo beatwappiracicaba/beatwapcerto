@@ -260,30 +260,90 @@
 
 /* Tela independente do Feed: ocupa 100% da viewport, sem depender do layout
    do dashboard. min-height 100dvh evita o "salto" da barra do navegador no
-   mobile; o 100vh antes dele mantem suporte em navegadores antigos. */
+   mobile; o 100vh antes dele mantem suporte em navegadores antigos.
+   No desktop o container vira linha, com o menu lateral fixo a esquerda. */
 .feed-shell {
   width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  background-color: #0b0b0b;
 }
 
-/* Header em 100% da largura, com o conteudo alinhado as bordas reais da tela. */
+@media (min-width: 768px) {
+  .feed-shell {
+    flex-direction: row;
+  }
+}
+
+/* Menu lateral: fixo no desktop, some no celular (vira bottom nav). */
+.feed-rail {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .feed-rail {
+    display: flex;
+    flex-direction: column;
+    width: 72px;
+    flex-shrink: 0;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.6);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    height: 100dvh;
+    overflow-y: auto;
+  }
+}
+
+/* Header: só no celular. No desktop o logo e as acoes ficam no menu lateral. */
 .feed-header {
-  position: sticky;
-  top: 0;
-  z-index: 70;
   width: 100%;
   padding-top: env(safe-area-inset-top);
 }
 
-/* Coluna de leitura do feed, com respiro para a barra inferior do aparelho. */
+@media (min-width: 768px) {
+  .feed-header {
+    display: none;
+  }
+}
+
+/* Corpo do feed. O padding inferior reserva espaco para a barra de
+   navegacao do celular, senao o ultimo post fica escondido atras dela. */
 .feed-body {
   flex: 1 1 auto;
   width: 100%;
   min-width: 0;
-  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 768px) {
+  .feed-body {
+    padding-bottom: 1.5rem;
+  }
+}
+
+/* Barra inferior: so no celular, fixa no rodape com safe-area. */
+.feed-bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 80;
+  display: flex;
+  align-items: stretch;
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media (min-width: 768px) {
+  .feed-bottom-nav {
+    display: none;
+  }
 }
 
 /* Hide scrollbar on mobile horizontal scroll for plans */
