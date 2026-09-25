@@ -271,10 +271,63 @@ router.post('/ai/chat', auth, async (req, res) => {
 });
 
 // Chats
-router.get('/chats', async (req, res) => {
+//
+// Autorizacao (validada no servidor, nunca so no front):
+//   - administrador (produtor/vendedor) enxerga todas as conversas;
+//   - usuario comum so enxerga as conversas de que participa.
+// O `context` separa o chat administrativo do Chat Social do Feed.
+const CHAT_CONTEXT_ADMIN = 'admin';
+const CHAT_CONTEXT_SOCIAL = 'social';
+
+function isChatAdmin(cargo) {
+  return ['produtor', 'vendedor'].includes(String(cargo || '').trim().toLowerCase());
+}
+
+function chatContextOf(chat) {
+  const v = String(chat?.context || '').trim().toLowerCase();
+  return v === CHAT_CONTEXT_SOCIAL ? CHAT_CONTEXT_SOCIAL : CHAT_CONTEXT_ADMIN;
+}
+
+function isParticipant(chat, userId) {
+  const uid = String(userId || '').trim();
+  if (!uid) return false;
+  return (Array.isArray(chat?.participant_ids) ? chat.participant_ids : []).some(
+    (id) => String(id || '').trim() === uid
+  );
+}
+
+// Admin passa direto NAS CONVERSAS ADMINISTRATIVAS. No Chat Social a regra e
+// sempre a mesma: so participa conversa. Nem produtor nem vendedor le a
+// conversa privada de duas outras pessoas.
+function canAccessChat(chat, user) {
+  if (!chat) return false;
+  if (chatContextOf(chat) === CHAT_CONTEXT_SOCIAL) {
+    return isParticipant(chat, user?.id);
+  }
+  if (isChatAdmin(user?.cargo)) return true;
+  return isParticipant(chat, user?.id);
+}
+
+router.get('/chats', auth, async (req, res) => {
+  const requested = String(req.query?.context || '').trim().toLowerCase();
+  const want = requested === CHAT_CONTEXT_SOCIAL ? CHAT_CONTEXT_SOCIAL
+    : (requested === CHAT_CONTEXT_ADMIN ? CHAT_CONTEXT_ADMIN : null);
+  const admin = isChatAdmin(req.user?.cargo);
+
+  if (want === CHAT_CONTEXT_ADMIN && !admin) {
+    return res.status(403).json({ error: 'Acesso restrito ao chat administrativo' });
+  }
+
+  // Chat Social: o usuario so enxerga o que participa, sem excecao por cargo.
+  // Chat administrativo: o admin ve todas, o resto so as suas.
+  const visible = state.chats.filter((c) => {
+    if (want && chatContextOf(c) !== want) return false;
+    return canAccessChat(c, req.user);
+  });
+
   // Backfill participant names/avatars if missing
   const enriched = [];
-  for (const c of state.chats) {
+  for (const c of visible) {
     const ids = Array.isArray(c.participant_ids) ? c.participant_ids : [];
     let names = Array.isArray(c.participant_names) ? [...c.participant_names] : [];
     let avatars = Array.isArray(c.participant_avatars) ? [...c.participant_avatars] : [];
@@ -309,7 +362,47 @@ router.get('/chats', async (req, res) => {
   }
   res.json(enriched);
 });
-router.post('/chats', async (req, res) => {
+router.post('/chats', auth, async (req, res) => {
+  const requested = String(req.body?.context || '').trim().toLowerCase();
+  if (requested === CHAT_CONTEXT_SOCIAL) {
+    // Chat Social: conversa direta entre dois usuarios cadastrados.
+    const other = String(req.body?.participant_id || req.body?.user_id || '').trim();
+    const me = String(req.user?.id || '').trim();
+    if (!me) return res.status(401).json({ error: 'Não autorizado' });
+    if (!other) return res.status(400).json({ error: 'participante obrigatório' });
+    if (other === me) {
+      return res.status(400).json({ error: 'Você não pode iniciar conversa com você mesmo' });
+    }
+    const alvo = await Profile.findByPk(other);
+    if (!alvo) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+    // Reaproveita a conversa existente entre as duas pessoas, em qualquer
+    // ordem, para nao duplicar.
+    const existing = state.chats.find((c) => {
+      if (chatContextOf(c) !== CHAT_CONTEXT_SOCIAL) return false;
+      const ids = (Array.isArray(c.participant_ids) ? c.participant_ids : []).map((x) => String(x || '').trim());
+      return ids.length === 2 && ids.includes(me) && ids.includes(other);
+    });
+    if (existing) return res.json(existing);
+
+    const participants = [me, other];
+    const rows = await Profile.findAll({ where: { id: { [Op.in]: participants } } });
+    const byId = new Map(rows.map((r) => [String(r.id), r]));
+    const chat = {
+      id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      context: CHAT_CONTEXT_SOCIAL,
+      participant_ids: participants,
+      participant_names: participants.map((pid) => byId.get(pid)?.nome || 'Usuário'),
+      participant_avatars: participants.map((pid) => byId.get(pid)?.avatar_url || null),
+      metadata: {},
+      status: 'open',
+      assigned_to: null,
+      created_at: nowIso(),
+    };
+    state.chats.push(chat);
+    return res.json(chat);
+  }
+
   const id = `c_${Date.now()}`;
   const participant_ids = Array.isArray(req.body?.participant_ids) ? req.body.participant_ids : [];
   let participant_names = [];
@@ -333,6 +426,7 @@ router.post('/chats', async (req, res) => {
   }
   const chat = {
     id,
+    context: CHAT_CONTEXT_ADMIN,
     participant_ids,
     participant_names,
     participant_avatars,
@@ -346,6 +440,9 @@ router.post('/chats', async (req, res) => {
   res.json(chat);
 });
 router.put('/chats/:id/assign', auth, (req, res) => {
+  if (!isChatAdmin(req.user?.cargo)) {
+    return res.status(403).json({ error: 'Somente administradores atribuem conversas' });
+  }
   const id = req.params.id;
   const chat = state.chats.find(c => c.id === id);
   if (!chat) return res.status(404).json({ error: 'Chat não encontrado' });
@@ -355,6 +452,11 @@ router.put('/chats/:id/assign', auth, (req, res) => {
 });
 router.put('/chats/:id/mark-read', auth, (req, res) => {
   const id = req.params.id;
+  const chat = state.chats.find(c => c.id === id);
+  if (!chat) return res.status(404).json({ error: 'Chat não encontrado' });
+  if (!canAccessChat(chat, req.user)) {
+    return res.status(403).json({ error: 'Você não participa desta conversa' });
+  }
   const msgs = state.messages.filter(m => m.chat_id === id);
   msgs.forEach(m => (m.read = true));
   emitStreamEvent('chat', { action: 'mark_read', chatId: id });
@@ -362,6 +464,12 @@ router.put('/chats/:id/mark-read', auth, (req, res) => {
 });
 router.delete('/chats/:id', auth, (req, res) => {
   const id = req.params.id;
+  const chat = state.chats.find(c => c.id === id);
+  if (!chat) return res.status(404).json({ error: 'Chat não encontrado' });
+  // Quem apaga e o admin ou um dos participantes.
+  if (!canAccessChat(chat, req.user)) {
+    return res.status(403).json({ error: 'Você não participa desta conversa' });
+  }
   state.chats = state.chats.filter(c => c.id !== id);
   state.messages = state.messages.filter(m => m.chat_id !== id);
   emitStreamEvent('chat', { action: 'deleted', chatId: id });
@@ -369,19 +477,39 @@ router.delete('/chats/:id', auth, (req, res) => {
 });
 
 // Messages
-router.get('/messages', (req, res) => {
-  res.json(state.messages);
+router.get('/messages', auth, (req, res) => {
+  // So devolve mensagens das conversas que o usuario pode acessar.
+  const chatId = String(req.query?.chat_id || '').trim();
+  const allowed = (c) => canAccessChat(c, req.user);
+  if (chatId) {
+    const chat = state.chats.find((c) => c.id === chatId);
+    if (!chat) return res.status(404).json({ error: 'Chat não encontrado' });
+    if (!allowed(chat)) {
+      return res.status(403).json({ error: 'Você não participa desta conversa' });
+    }
+    return res.json(state.messages.filter((m) => m.chat_id === chatId));
+  }
+  const visible = new Set(
+    state.chats.filter(allowed).map((c) => c.id)
+  );
+  res.json(state.messages.filter((m) => visible.has(m.chat_id)));
 });
 router.post('/messages', auth, (req, res) => {
   const chat_id = req.body?.chat_id;
   const chat = state.chats.find(c => c.id === chat_id);
   if (!chat) return res.status(404).json({ error: 'Chat não encontrado' });
+  // Nao basta estar autenticado: e preciso participar da conversa.
+  if (!canAccessChat(chat, req.user)) {
+    return res.status(403).json({ error: 'Você não participa desta conversa' });
+  }
   const message = {
     id: `m_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
     chat_id,
-    sender_id: req.body?.sender_id || req.user?.id || null,
+    // O remetente e sempre o usuario autenticado. Aceitar sender_id do
+    // body permitiria fingir ser outra pessoa.
+    sender_id: req.user?.id || null,
     receiver_id: req.body?.receiver_id || null,
-    sender_role: req.body?.sender_role || req.user?.cargo || 'Produtor',
+    sender_role: req.user?.cargo || 'Produtor',
     content: req.body?.content || req.body?.message || '',
     read: false,
     metadata: req.body?.metadata || {},
@@ -397,6 +525,11 @@ router.post('/typing', auth, (req, res) => {
   const chat_id = req.body?.chat_id || req.body?.chatId;
   const is_typing = !!(req.body?.is_typing ?? req.body?.isTyping);
   if (!chat_id) return res.status(400).json({ error: 'chat_id obrigatório' });
+  const chat = state.chats.find((c) => c.id === chat_id);
+  if (!chat) return res.status(404).json({ error: 'Chat não encontrado' });
+  if (!canAccessChat(chat, req.user)) {
+    return res.status(403).json({ error: 'Você não participa desta conversa' });
+  }
   emitStreamEvent('typing', { chat_id, user_id: req.user?.id || null, is_typing });
   res.json({ ok: true });
 });
