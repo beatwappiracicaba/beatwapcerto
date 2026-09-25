@@ -148,21 +148,188 @@ function getPlansFromEnv() {
     .filter(Boolean);
 }
 
-function inviteTemplate(link) {
-  return `
-  <div style="font-family: Arial; background:#0f172a; padding:40px; color:#fff; text-align:center;">
-    <h1 style="color:#38bdf8;">Você foi convidado 🚀</h1>
-    <p>Recebemos um pedido para criar sua conta.</p>
-    <a href="${link}"
-       style="display:inline-block; margin-top:20px; padding:15px 30px; background:#22c55e; color:#fff; text-decoration:none; border-radius:8px; font-weight:bold;">
-       Criar minha conta
-    </a>
-    <p style="margin-top:30px; font-size:12px; color:#94a3b8;">
-      Esse link expira em 24 horas
-    </p>
-  </div>
-  `;
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
+
+// Deriva um nome legivel a partir do email quando o convite nao tem nome salvo.
+function displayNameFromEmail(email) {
+  const local = String(email || '').split('@')[0] || '';
+  const parts = local
+    .replace(/[._-]+/g, ' ')
+    .split(' ')
+    .filter(Boolean);
+  if (!parts.length) return '';
+  return parts.map((s) => s.charAt(0).toUpperCase() + s.slice(1).join('')).join(' ');
+}
+
+const GOLD = '#F5C542';
+const INK = '#0B0B0B';
+const SURFACE = '#141414';
+const LINE = 'rgba(245,197,66,0.18)';
+
+function inviteTemplate(link, opts = {}) {
+  const safeLink = escapeHtml(link);
+  const safeName = escapeHtml(opts.name);
+  const rawRole = String(opts.role || '').trim();
+  const safeRole = escapeHtml(rawRole);
+  const rawSite = String(opts.site || '').trim();
+  const safeSite = escapeHtml(rawSite);
+  const safeLogo = escapeHtml(opts.logoUrl || '');
+  const ttlHours = Math.max(1, Math.round(Number(opts.ttlHours) || 24));
+
+  const greeting = safeName ? `Olá, ${safeName}!` : 'Olá!';
+  const roleLine = rawRole
+    ? `Seu convite para fazer parte da <strong style="color:${GOLD};">BeatWap como ${safeRole}</strong> está esperando por você.`
+    : 'Seu convite para fazer parte da <strong style="color:' + GOLD + ';">BeatWap</strong> está esperando por você.';
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR" xmlns="v" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="dark light">
+<meta name="supported-color-schemes" content="dark light">
+<title>Você foi convidado para a BeatWap</title>
+<!--[if mso]>
+<noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
+<![endif]-->
+<style>
+  body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
+  table,td{mso-table-lspace:0pt;mso-table-rspace:0pt;}
+  img{-ms-interpolation-mode:bicubic;border:0;height:auto;line-height:100%;outline:none;text-decoration:none;}
+  a{color:${GOLD};}
+  @media only screen and (max-width:620px){
+    .bw-pad{padding-left:22px !important;padding-right:22px !important;}
+    .bw-h1{font-size:26px !important;line-height:32px !important;}
+    .bw-btn{width:100% !important;}
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background-color:${INK};word-spacing:normal;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">Você foi convidado para fazer parte da BeatWap. Aceite o convite e crie seu acesso.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${INK};">
+  <tr>
+    <td align="center" style="padding:28px 14px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
+
+        <tr>
+          <td align="center" class="bw-pad" style="padding:8px 40px 26px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">
+              <tr>
+                ${safeLogo ? `<td align="center" style="padding-right:14px;"><img src="${safeLogo}" width="76" alt="BeatWap" style="display:block;width:76px;max-width:76px;height:auto;"></td>` : ''}
+                <td align="center">
+                  <div style="font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:30px;line-height:34px;font-weight:800;letter-spacing:2px;color:#FFFFFF;"><span style="color:${GOLD};">BEAT</span>WAP</div>
+                  <div style="font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:10px;line-height:14px;letter-spacing:3.4px;text-transform:uppercase;color:rgba(245,245,247,0.5);padding-top:4px;">Conectando talentos e música</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="bw-pad" style="padding:0 24px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${SURFACE};border:1px solid ${LINE};border-radius:20px;">
+
+              <tr>
+                <td align="center" style="padding:44px 34px 8px;">
+                  <div style="font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;line-height:18px;letter-spacing:2.6px;text-transform:uppercase;color:${GOLD};">Convite oficial</div>
+                </td>
+              </tr>
+
+              <tr>
+                <td align="center" class="bw-pad" style="padding:6px 34px 0;">
+                  <h1 class="bw-h1" style="margin:0;font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:32px;line-height:40px;font-weight:800;color:#FFFFFF;">🎉 Você foi convidado!</h1>
+                </td>
+              </tr>
+
+              <tr>
+                <td align="center" class="bw-pad" style="padding:14px 34px 0;">
+                  <p style="margin:0;font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:24px;color:rgba(245,245,247,0.72);">A música conecta pessoas, talentos e oportunidades. Agora você também faz parte dessa conexão.</p>
+                </td>
+              </tr>
+
+              <tr>
+                <td class="bw-pad" style="padding:26px 34px 0;">
+                  <div style="font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:26px;color:rgba(245,245,247,0.78);">
+                    <p style="margin:0 0 14px;">${greeting}</p>
+                    <p style="margin:0 0 14px;">É um prazer ter você por aqui. Você recebeu um convite para fazer parte da <strong style="color:#F5F5F7;">BeatWap</strong>, uma plataforma criada para conectar artistas, produtores, compositores e profissionais da música.</p>
+                    <p style="margin:0;">${roleLine}</p>
+                  </div>
+                </td>
+              </tr>
+
+              <tr>
+                <td align="center" class="bw-pad" style="padding:30px 34px 0;">
+                  <!--[if mso]>
+                  <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${link}" style="height:54px;v-text-anchor:middle;width:320px;" arcsize="50%" stroke="f" fillcolor="${GOLD}">
+                    <w:anchorlock/>
+                    <center style="color:${INK};font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;font-weight:800;letter-spacing:0.6px;">ACEITAR MEU CONVITE</center>
+                  </v:roundrect>
+                  <![endif]-->
+                  <!--[if !mso]><!-- -->
+                  <a class="bw-btn" href="${link}" target="_blank" rel="noopener" style="display:inline-block;width:320px;max-width:100%;padding:17px 26px;background-color:${GOLD};color:${INK};font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;font-weight:800;letter-spacing:0.6px;text-decoration:none;border-radius:999px;">ACEITAR MEU CONVITE</a>
+                  <!--<![endif]-->
+                </td>
+              </tr>
+
+              <tr>
+                <td align="center" class="bw-pad" style="padding:16px 34px 0;">
+                  <p style="margin:0;font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;line-height:22px;color:rgba(245,245,247,0.6);">Seu acesso está a um clique de distância. Esperamos você dentro da BeatWap.</p>
+                </td>
+              </tr>
+
+              <tr>
+                <td class="bw-pad" style="padding:30px 34px 0;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;">
+                    <tr>
+                      <td style="padding:18px 20px;">
+                        <p style="margin:0 0 10px;font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:rgba(245,245,247,0.62);">Se o botão acima não funcionar, copie e cole este endereço no navegador:</p>
+                        <p style="margin:0;font-family:'Segoe UI',Menlo,Consolas,monospace;font-size:12px;line-height:20px;color:${GOLD};word-break:break-all;overflow-wrap:anywhere;">${safeLink}</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <tr>
+                <td class="bw-pad" style="padding:26px 34px 34px;">
+                  <p style="margin:0;font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;line-height:22px;color:rgba(245,245,247,0.5);">Este convite é válido por ${ttlHours} ${ttlHours === 1 ? 'hora' : 'horas'}.</p>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="bw-pad" align="center" style="padding:24px 40px 6px;">
+            <p style="margin:0 0 10px;font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;line-height:22px;color:rgba(245,245,247,0.55);">Não reconhece este convite ou não deseja participar? Sem problema. Você pode simplesmente ignorar este e-mail. Nenhuma ação é necessária.</p>
+          </td>
+        </tr>
+
+        <tr>
+          <td align="center" class="bw-pad" style="padding:22px 40px 34px;">
+            <div style="height:1px;line-height:1px;font-size:0;background-color:${LINE};">&nbsp;</div>
+            <p style="margin:18px 0 0;font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:rgba(245,245,247,0.55);">© BeatWap</p>
+            <p style="margin:6px 0 0;font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:20px;color:rgba(245,245,247,0.38);">Conectando talentos, música e oportunidades.${rawSite ? `<br><a href="${safeSite}" target="_blank" rel="noopener" style="color:${GOLD};text-decoration:none;">${safeSite}</a>` : ''}</p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
+}
+
 
 function codeTemplate(code) {
   return `
@@ -214,6 +381,12 @@ async function sendInviteEmail(email, token, opts = {}) {
     roleLower === 'produtor' ||
     roleLower === 'vendedor';
   const useQuery = !forceToken && envUseQuery;
+  // Nome exibido no e-mail. O mesmo valor continua sendo usado no link de
+  // query abaixo, entao a geracao do link permanece identica.
+  const name = (() => {
+    if (opts.name && String(opts.name).trim()) return String(opts.name).trim();
+    return displayNameFromEmail(email);
+  })();
   let link;
   if (useQuery) {
     const role = opts.role || process.env.REG_ROLE || 'Artista';
@@ -223,16 +396,6 @@ async function sendInviteEmail(email, token, opts = {}) {
     if (allowed.length > 0 && !allowed.includes(plano)) {
       plano = allowed[0];
     }
-    const name = (() => {
-      if (opts.name && String(opts.name).trim()) return String(opts.name).trim();
-      const local = String(email).split('@')[0] || '';
-      return local
-        .replace(/[._-]+/g, ' ')
-        .split(' ')
-        .filter(Boolean)
-        .map(s => s.charAt(0).toUpperCase() + s.slice(1))
-        .join(' ');
-    })();
     const params = new URLSearchParams({
       name,
       email,
@@ -250,8 +413,14 @@ async function sendInviteEmail(email, token, opts = {}) {
   }
   const info = await dispatch({
     to: email,
-    subject: 'Convite para cadastro',
-    html: inviteTemplate(link),
+    subject: '🎉 Você foi convidado para a BeatWap',
+    html: inviteTemplate(link, {
+      name,
+      role: roleRaw,
+      site: base,
+      logoUrl: process.env.INVITE_LOGO_URL || `${base}/icons/icon-192x192.png`,
+      ttlHours: Number(process.env.INVITE_TTL_HOURS || 24)
+    }),
     logLabel: 'invite-email',
     log: true
   });
