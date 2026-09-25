@@ -1,23 +1,112 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Cropper from 'react-easy-crop';
-import { Play, Pause, Music, Image, Video, ExternalLink, Search, Plus, X, TrendingUp, Heart, MessageCircle, Send, Pencil, Trash2 } from 'lucide-react';
-import { DashboardLayout } from '../components/DashboardLayout';
-import { AdminLayout } from '../components/AdminLayout';
+import { Play, Pause, Music, Image, Video, ExternalLink, Search, Plus, X, TrendingUp, Heart, MessageCircle, Send, Pencil, Trash2, Share2, MoreHorizontal, RefreshCw, AlertCircle, Compass, Users } from 'lucide-react';
+import { FeedShell } from '../components/feed/FeedShell';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
+import { Skeleton } from '../components/ui/Skeleton';
+import { EmptyState } from '../components/ui/EmptyState';
 import { apiClient, uploadApi } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { connectRealtime, subscribe, unsubscribe } from '../services/realtime';
 import { getCroppedImg } from '../utils/cropImage';
 import { useGlobalAudioPlayer } from '../context/GlobalAudioPlayerContext';
+
+const FEED_FILTERS = [
+  { key: 'todos', label: 'Todos' },
+  { key: 'artista', label: 'Artistas' },
+  { key: 'compositor', label: 'Compositores' },
+  { key: 'produtor', label: 'Produtores' }
+];
+
+const POST_TYPE_OPTIONS = [
+  { key: 'text', label: 'Texto' },
+  { key: 'link', label: 'Link' },
+  { key: 'image', label: 'Foto' },
+  { key: 'video', label: 'Vídeo' }
+];
+
+const formatClock = (seconds) => {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+};
+
+/**
+ * Player de audio compacto para os cards do Feed.
+ *
+ * Reaproveita o player global (mesmo elemento <audio> do dock inferior):
+ * nao cria audio novo nem chamada de API extra. A duracao so aparece depois
+ * que a faixa carrega, porque o endpoint do feed nao devolve esse campo.
+ */
+const InlineAudioPlayer = ({ trackId, title, artist, coverUrl, onPlay }) => {
+  const { currentTime, duration, isPlaying, seekTo, isTrackActive } = useGlobalAudioPlayer();
+  const active = isTrackActive(trackId);
+  const playing = active && isPlaying;
+  const safeDuration = Math.max(0, Number(duration) || 0);
+  const safeCurrent = Math.min(safeDuration || 0, Math.max(0, Number(currentTime) || 0));
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/40 p-3 sm:p-4">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onPlay}
+          className="group relative h-14 w-14 sm:h-16 sm:w-16 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white/5"
+          aria-label={playing ? `Pausar ${title}` : `Reproduzir ${title}`}
+        >
+          {coverUrl ? (
+            <img src={coverUrl} alt={title} className="h-full w-full object-cover" loading="lazy" />
+          ) : (
+            <span className="flex h-full w-full items-center justify-center">
+              <Music size={20} className="text-beatwap-gold" />
+            </span>
+          )}
+          <span className={`absolute inset-0 flex items-center justify-center bg-black/55 transition-opacity ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+            {playing
+              ? <Pause size={20} fill="currentColor" className="text-white" />
+              : <Play size={20} fill="currentColor" className="ml-0.5 text-white" />}
+          </span>
+        </button>
+
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-bold text-white">{title}</div>
+          <div className="truncate text-xs text-gray-400">{artist || 'BeatWap'}</div>
+        </div>
+
+        <span className="shrink-0 text-[11px] tabular-nums text-gray-400">
+          {active ? formatClock(safeCurrent) : '--:--'}
+        </span>
+      </div>
+
+      <div className="mt-3 flex items-center gap-2">
+        <input
+          type="range"
+          min="0"
+          max={safeDuration > 0 ? safeDuration : 0}
+          step="0.1"
+          value={safeCurrent}
+          onChange={(event) => seekTo(event.target.value)}
+          disabled={!active || safeDuration <= 0}
+          aria-label={`Progresso de ${title}`}
+          className="h-1.5 min-w-0 flex-1 cursor-pointer accent-[#f5c542] disabled:cursor-default disabled:opacity-40"
+        />
+        <span className="shrink-0 text-[11px] tabular-nums text-gray-400">{formatClock(safeDuration)}</span>
+      </div>
+    </div>
+  );
+};
+
+
 
 const Feed = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const { currentTrackId, isPlaying, toggleTrack } = useGlobalAudioPlayer();
+  const { addToast } = useToast();
+  const { toggleTrack } = useGlobalAudioPlayer();
   const roleLower = String(profile?.cargo || '').toLowerCase();
   const isProdutor = roleLower === 'produtor';
   const isVendedor = roleLower === 'vendedor';
@@ -29,6 +118,40 @@ const Feed = () => {
     return 'feed';
   }); // feed | painel
   const [feedSubTab, setFeedSubTab] = useState('posts'); // posts | musics | mine
+  const [feedFilter, setFeedFilter] = useState('todos');
+  const [openMenuPostId, setOpenMenuPostId] = useState(null);
+  const [shareFeedbackId, setShareFeedbackId] = useState(null);
+
+  const canAccessFeed = isProdutor
+    ? profile?.access_control?.admin_feed !== false
+    : profile?.access_control?.dashboard_feed !== false;
+
+  const handleBack = useCallback(() => {
+    setOpenMenuPostId(null);
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate(isProdutor ? '/admin' : '/dashboard/painel');
+  }, [isProdutor, navigate]);
+
+  const sharePost = useCallback(async (post) => {
+    const url = `${window.location.origin}/dashboard/feed`;
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+        await navigator.share({ title: 'BeatWap', text: String(post?.caption || 'Confira isso no Feed da BeatWap'), url });
+        return;
+      }
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        addToast('Link copiado', 'success');
+      }
+    } catch {
+      addToast('Nao foi possivel compartilhar', 'error');
+    } finally {
+      setShareFeedbackId(null);
+    }
+  }, [addToast]);
 
   useEffect(() => {
     const p = String(location?.pathname || '');
@@ -38,6 +161,7 @@ const Feed = () => {
   const [items, setItems] = useState([]);
   const [nextCursor, setNextCursor] = useState(null);
   const [followingCount, setFollowingCount] = useState(null);
+  const [feedError, setFeedError] = useState('');
   const [followingIds, setFollowingIds] = useState([]);
   const [followLoadingById, setFollowLoadingById] = useState({});
   const [loading, setLoading] = useState(false);
@@ -264,6 +388,7 @@ const Feed = () => {
   const loadPage = useCallback(async ({ cursor, replace } = { cursor: null, replace: false }) => {
     if (replace) setLoading(true);
     else setLoadingMore(true);
+    if (replace) setFeedError('');
     try {
       const qs = new URLSearchParams();
       qs.set('limit', '15');
@@ -280,6 +405,7 @@ const Feed = () => {
         setNextCursor(null);
         setFollowingCount(0);
         setFollowingIds([]);
+        setFeedError('Nao foi possivel carregar o feed. Verifique sua conexao e tente novamente.');
       }
     } finally {
       setLoading(false);
@@ -985,38 +1111,85 @@ const Feed = () => {
       );
     }
 
-    const feedItems = (Array.isArray(items) ? items : []).filter((it) => (
-      feedSubTab === 'musics'
+    const feedItems = (Array.isArray(items) ? items : []).filter((it) => {
+      const byType = feedSubTab === 'musics'
         ? it?.type === 'music'
-        : it?.type !== 'music'
-    ));
+        : it?.type !== 'music';
+      if (!byType) return false;
+      if (feedFilter === 'todos') return true;
+      return String(it?.owner?.cargo || '').toLowerCase() === feedFilter;
+    });
 
     if (loading && items.length === 0) {
       return (
-        <Card className="p-6">
-          <div className="text-gray-400">Carregando...</div>
-        </Card>
+        <div className="space-y-4" aria-busy="true" aria-live="polite">
+          {[0, 1, 2].map((i) => (
+            <Card key={`feed-skeleton-${i}`} className="p-4 sm:p-5">
+              <div className="flex items-center gap-3">
+                <Skeleton width={44} height={44} rounded="rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton width="42%" height={14} />
+                  <Skeleton width="26%" height={11} />
+                </div>
+              </div>
+              <Skeleton className="mt-4" height={16} />
+              <Skeleton className="mt-2" width="72%" height={16} />
+              <Skeleton className="mt-4" height={220} rounded="rounded-xl" />
+            </Card>
+          ))}
+        </div>
+      );
+    }
+
+    if (!loading && feedError) {
+      return (
+        <EmptyState
+          icon={AlertCircle}
+          title="Nao foi possivel carregar o feed"
+          description={feedError}
+          action={(
+            <AnimatedButton onClick={() => refresh()}>
+              <span className="inline-flex items-center gap-2">
+                <RefreshCw size={16} />
+                <span>Tentar novamente</span>
+              </span>
+            </AnimatedButton>
+          )}
+        />
       );
     }
 
     if ((followingCount === 0 || followingCount === null) && !loading) {
       return (
-        <Card className="p-6">
-          <div className="text-gray-300 font-bold">Você ainda não segue ninguém. Comece a seguir para ver novidades.</div>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <AnimatedButton onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); searchInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}>Pesquisar perfis</AnimatedButton>
-          </div>
-        </Card>
+        <EmptyState
+          icon={Users}
+          title="Seu Feed esta vazio"
+          description="Voce ainda nao segue ninguem. Comece a seguir artistas, compositores e produtores para acompanhar as novidades."
+          action={(
+            <AnimatedButton onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); searchInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}>
+              <span>Pesquisar perfis</span>
+            </AnimatedButton>
+          )}
+        />
       );
     }
 
     if (!loading && feedItems.length === 0) {
       return (
-        <Card className="p-6">
-          <div className="text-gray-400">
-            {feedSubTab === 'musics' ? 'Nenhum lançamento de música ainda.' : 'Nenhuma novidade ainda.'}
-          </div>
-        </Card>
+        <EmptyState
+          icon={feedFilter === 'todos' ? Compass : Search}
+          title={feedSubTab === 'musics' ? 'Nenhum lancamento ainda' : 'Nada por aqui'}
+          description={
+            feedFilter === 'todos'
+              ? (feedSubTab === 'musics' ? 'Nenhum lancamento de musica publicado ate agora.' : 'Nenhuma novidade publicada ate agora.')
+              : 'Nenhum item encontrado para este filtro. Tente ver Todos.'
+          }
+          action={feedFilter !== 'todos' ? (
+            <AnimatedButton variant="secondary" onClick={() => setFeedFilter('todos')}>
+              <span>Ver todos</span>
+            </AnimatedButton>
+          ) : null}
+        />
       );
     }
 
@@ -1065,26 +1238,51 @@ const Feed = () => {
           const canFollow = !!meId && !!ownerId && ownerId !== meId;
           const following = canFollow ? isFollowing(ownerId) : false;
           const followLoading = canFollow ? followLoadingById?.[ownerId] === true : false;
+          const isMine = !!meId && ownerId === meId;
 
           return (
-            <Card key={`${it.type}-${it.id}-${owner?.id || 'x'}`} className="p-4 sm:p-6">
-              <div className="flex items-center justify-between gap-3 mb-4">
+            <Card key={`${it.type}-${it.id}-${owner?.id || 'x'}`} className="p-4 sm:p-5">
+              <div className="mb-4 flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => { if (ownerHref) navigate(ownerHref); }}
-                  className="min-w-0 text-left"
+                  className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5"
+                  aria-label={`Ver perfil de ${ownerName}`}
                 >
-                  <div className="font-bold text-white truncate">{ownerName}</div>
-                  <div className="text-xs text-gray-400 truncate">{ownerRole}</div>
+                  {owner?.avatar_url ? (
+                    <img src={sanitizeUrl(owner.avatar_url)} alt={ownerName} className="h-full w-full object-cover" loading="lazy" />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center text-sm font-bold text-white">
+                      {String(ownerName || 'U').slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
                 </button>
-                <div className="flex items-center gap-3 shrink-0">
-                  <div className="text-xs text-gray-400">{at}</div>
+
+                <button
+                  type="button"
+                  onClick={() => { if (ownerHref) navigate(ownerHref); }}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate text-sm font-bold text-white sm:text-base">{ownerName}</span>
+                    {owner?.verified === true && (
+                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-beatwap-gold">Verificado</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                    <span className="truncate">{ownerRole}</span>
+                    <span aria-hidden="true">&middot;</span>
+                    <span className="shrink-0">{at}</span>
+                  </div>
+                </button>
+
+                <div className="flex shrink-0 items-center gap-2">
                   {canFollow && (
                     <button
                       type="button"
                       disabled={followLoading}
                       onClick={() => toggleFollow(ownerId)}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                      className={`rounded-full px-3 py-1.5 text-xs font-bold border transition ${
                         following
                           ? 'bg-white/10 border-white/10 text-gray-200 hover:bg-white/15'
                           : 'bg-beatwap-gold text-black border-beatwap-gold hover:bg-white hover:border-white'
@@ -1093,76 +1291,97 @@ const Feed = () => {
                       {followLoading ? '...' : (following ? 'Seguindo' : 'Seguir')}
                     </button>
                   )}
+
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setOpenMenuPostId((prev) => (prev === `${it.type}-${it.id}` ? null : `${it.type}-${it.id}`))}
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-gray-300 transition hover:bg-white/10 hover:text-white"
+                      aria-label="Mais opcoes"
+                      aria-expanded={openMenuPostId === `${it.type}-${it.id}`}
+                    >
+                      <MoreHorizontal size={16} />
+                    </button>
+                    {openMenuPostId === `${it.type}-${it.id}` && (
+                      <div className="absolute right-0 z-20 mt-2 w-48 overflow-hidden rounded-2xl border border-white/10 bg-[#121212] py-1 shadow-2xl">
+                        <button
+                          type="button"
+                          onClick={() => { setShareFeedbackId(`${it.type}-${it.id}`); sharePost(it.data || {}); setOpenMenuPostId(null); }}
+                          className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-bold text-gray-200 transition hover:bg-white/5"
+                        >
+                          <Share2 size={14} />
+                          <span>{shareFeedbackId === `${it.type}-${it.id}` ? 'Link copiado' : 'Compartilhar'}</span>
+                        </button>
+                        {isMine && it.type === 'post' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => { setOpenMenuPostId(null); openEditPost(it.data || {}); }}
+                              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-bold text-gray-200 transition hover:bg-white/5"
+                            >
+                              <Pencil size={14} />
+                              <span>Editar</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setOpenMenuPostId(null); deleteMyPost(String(it?.id || it?.data?.id || '')); }}
+                              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-bold text-red-300 transition hover:bg-red-500/10"
+                            >
+                              <Trash2 size={14} />
+                              <span>Apagar</span>
+                            </button>
+                          </>
+                        )}
+                        {ownerHref && (
+                          <button
+                            type="button"
+                            onClick={() => { setOpenMenuPostId(null); navigate(ownerHref); }}
+                            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-bold text-gray-200 transition hover:bg-white/5"
+                          >
+                            <Users size={14} />
+                            <span>Ver perfil</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {it.type === 'composition' && (() => {
                 const c = it.data || {};
                 const title = c.title || c.titulo || 'Sem título';
+                const artist = c.composer_name || 'Autor';
                 const href = c.composer_phone ? buildWhatsAppHref(c.composer_phone, title) : null;
+                const playComposition = () => togglePlay(`composition:${it.id}`, c.audio_url, {
+                  title,
+                  artist,
+                  coverUrl: c.cover_url,
+                  full: true
+                });
                 return (
-                  <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-4 items-start">
-                    <div
-                      className="group relative cursor-pointer"
-                      onClick={() => togglePlay(`composition:${it.id}`, c.audio_url, {
-                        title,
-                        artist: c.composer_name || 'Autor',
-                        coverUrl: c.cover_url,
-                        full: true
-                      })}
-                    >
-                      <div className="aspect-square rounded-2xl overflow-hidden relative shadow-lg bg-gray-800">
-                        {c.cover_url ? (
-                          <img
-                            src={sanitizeUrl(c.cover_url)}
-                            alt={title}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-500">
-                            <Music size={40} />
-                          </div>
-                        )}
-                        <div className="absolute inset-0 bg-black/40 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <button
-                            className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-100 sm:scale-0 sm:group-hover:scale-100 transition-transform duration-300 hover:bg-white"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              togglePlay(`composition:${it.id}`, c.audio_url, {
-                                title,
-                                artist: c.composer_name || 'Autor',
-                                coverUrl: c.cover_url,
-                                full: true
-                              });
-                            }}
-                          >
-                            {currentTrackId === `composition:${it.id}` && isPlaying
-                              ? <Pause fill="currentColor" className="ml-1" />
-                              : <Play fill="currentColor" className="ml-1" />}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="font-bold text-xl text-white">{title}</div>
-                      <div className="text-sm text-gray-400">{c.composer_name || 'Autor'}</div>
-                      {c.genre && <div className="text-xs text-beatwap-gold uppercase font-bold tracking-wider">{c.genre}</div>}
-                      {Number.isFinite(Number(c.price)) && <div className="text-sm text-beatwap-gold font-bold">R$ {c.price}</div>}
-                      <div className="flex flex-wrap gap-2 pt-2">
-                        <AnimatedButton onClick={() => togglePlay(`composition:${it.id}`, c.audio_url, {
-                          title,
-                          artist: c.composer_name || 'Autor',
-                          coverUrl: c.cover_url,
-                          full: true
-                        })}>
-                          <span>{currentTrackId === `composition:${it.id}` && isPlaying ? 'Pausar' : 'Reproduzir'}</span>
+                  <div className="space-y-3">
+                    <InlineAudioPlayer
+                      trackId={`composition:${it.id}`}
+                      title={title}
+                      artist={artist}
+                      coverUrl={c.cover_url ? sanitizeUrl(c.cover_url) : ''}
+                      onPlay={playComposition}
+                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                      {c.genre && (
+                        <span className="rounded-full border border-beatwap-gold/30 bg-beatwap-gold/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-beatwap-gold">
+                          {c.genre}
+                        </span>
+                      )}
+                      {Number.isFinite(Number(c.price)) && (
+                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-beatwap-gold">R$ {c.price}</span>
+                      )}
+                      {href && (
+                        <AnimatedButton variant="secondary" onClick={() => window.open(href, '_blank')}>
+                          <span>WhatsApp</span>
                         </AnimatedButton>
-                        {href && (
-                          <AnimatedButton onClick={() => window.open(href, '_blank')}>
-                            <span>WhatsApp</span>
-                          </AnimatedButton>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -1175,67 +1394,53 @@ const Feed = () => {
                 const artistName = m.nome_artista || m.artist_name || ownerName;
                 const url = m.preview_url || m.audio_url;
                 const artistId = String(m.artista_id || m.artist_id || ownerId || '').trim() || null;
+                const playMusic = () => togglePlay(`music:${it.id}`, url, { artistId, title, artist: artistName, coverUrl: cover, full: true });
                 return (
-                  <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-4 items-start">
-                    <div
-                      className="group relative cursor-pointer"
-                      onClick={() => {
-                        if (m.album_id) {
-                          navigate(`/album/${m.album_id}`, { state: { backTo: location.pathname } });
-                        } else {
-                          togglePlay(`music:${it.id}`, url, { artistId, title, artist: artistName, coverUrl: cover, full: true });
-                        }
-                      }}
-                    >
-                      <div className="aspect-square rounded-2xl overflow-hidden relative shadow-lg bg-gray-800">
-                        {cover ? (
-                          <img
-                            src={cover}
-                            alt={title}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-500">
-                            <Music size={40} />
-                          </div>
-                        )}
-                        {!m.album_id && (
-                          <div className="absolute inset-0 bg-black/40 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <button
-                              className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black transform scale-100 sm:scale-0 sm:group-hover:scale-100 transition-transform duration-300 hover:bg-white"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                togglePlay(`music:${it.id}`, url, { artistId, title, artist: artistName, coverUrl: cover, full: true });
-                              }}
-                            >
-                              {currentTrackId === `music:${it.id}` && isPlaying
-                                ? <Pause fill="currentColor" className="ml-1" />
-                                : <Play fill="currentColor" className="ml-1" />}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="font-bold text-xl text-white">{title}</div>
-                      <div className="text-sm text-gray-400">{artistName || 'Artista'}</div>
-                      {m.estilo && <div className="text-xs text-beatwap-gold uppercase font-bold tracking-wider">{m.estilo}</div>}
-                      <div className="flex flex-wrap gap-2 pt-2">
-                        {m.album_id ? (
-                          <AnimatedButton onClick={() => navigate(`/album/${m.album_id}`, { state: { backTo: location.pathname } })}>
-                            <span>Ver Álbum</span>
-                          </AnimatedButton>
-                        ) : (
-                          <AnimatedButton onClick={() => togglePlay(`music:${it.id}`, url, { artistId, title, artist: artistName, coverUrl: cover, full: true })}>
-                            <span>{currentTrackId === `music:${it.id}` && isPlaying ? 'Pausar' : 'Reproduzir'}</span>
-                          </AnimatedButton>
-                        )}
-                        {m.presave_link && (
-                          <AnimatedButton onClick={() => window.open(m.presave_link, '_blank')}>
-                            <span>Smartlink</span>
-                          </AnimatedButton>
-                        )}
-                      </div>
+                  <div className="space-y-3">
+                    {m.album_id ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/album/${m.album_id}`, { state: { backTo: location.pathname } })}
+                        className="group flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-black/40 p-3 text-left transition hover:border-beatwap-gold/40 sm:p-4"
+                      >
+                        <span className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white/5 sm:h-16 sm:w-16">
+                          {cover ? (
+                            <img src={cover} alt={title} className="h-full w-full object-cover" loading="lazy" />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center"><Music size={20} className="text-beatwap-gold" /></span>
+                          )}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-bold text-white">{title}</span>
+                          <span className="block truncate text-xs text-gray-400">{artistName || 'Artista'}</span>
+                        </span>
+                        <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-bold text-gray-200">Ver álbum</span>
+                      </button>
+                    ) : (
+                      <InlineAudioPlayer
+                        trackId={`music:${it.id}`}
+                        title={title}
+                        artist={artistName || 'Artista'}
+                        coverUrl={cover}
+                        onPlay={playMusic}
+                      />
+                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {m.estilo && (
+                        <span className="rounded-full border border-beatwap-gold/30 bg-beatwap-gold/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-beatwap-gold">
+                          {m.estilo}
+                        </span>
+                      )}
+                      {m.album_id && (
+                        <AnimatedButton variant="secondary" onClick={() => navigate(`/album/${m.album_id}`, { state: { backTo: location.pathname } })}>
+                          <span>Ver Álbum</span>
+                        </AnimatedButton>
+                      )}
+                      {m.presale_link && (
+                        <AnimatedButton variant="secondary" onClick={() => window.open(m.presale_link, '_blank')}>
+                          <span>Smartlink</span>
+                        </AnimatedButton>
+                      )}
                     </div>
                   </div>
                 );
@@ -1298,6 +1503,15 @@ const Feed = () => {
                         >
                           <MessageCircle size={14} />
                           <span>{commentsCount}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setShareFeedbackId(`post-${postId}`); sharePost(p); }}
+                          className="ml-auto inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border bg-black/20 border-white/5 text-gray-300 hover:bg-white/5 transition"
+                          aria-label="Compartilhar publicacao"
+                        >
+                          <Share2 size={14} />
+                          <span>{shareFeedbackId === `post-${postId}` ? 'Copiado' : 'Compartilhar'}</span>
                         </button>
                       </div>
 
@@ -1413,6 +1627,15 @@ const Feed = () => {
                         <MessageCircle size={14} />
                         <span>{commentsCount}</span>
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => { setShareFeedbackId(`post-${postId}`); sharePost(p); }}
+                        className="ml-auto inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border bg-black/20 border-white/5 text-gray-300 hover:bg-white/5 transition"
+                        aria-label="Compartilhar publicacao"
+                      >
+                        <Share2 size={14} />
+                        <span>{shareFeedbackId === `post-${postId}` ? 'Copiado' : 'Compartilhar'}</span>
+                      </button>
                     </div>
                     {commentsOpen && (
                       <div className="px-4 pb-4 space-y-3">
@@ -1460,15 +1683,14 @@ const Feed = () => {
         })}
         <div ref={sentinelRef} />
         {loadingMore && (
-          <Card className="p-4">
-            <div className="text-gray-400 text-sm">Carregando mais...</div>
-          </Card>
+          <div className="flex items-center justify-center gap-2 py-4 text-sm text-gray-400">
+            <RefreshCw size={15} className="animate-spin" />
+            <span>Carregando mais...</span>
+          </div>
         )}
       </div>
     );
-  }, [buildWhatsAppHref, commentDraftByPostId, commentPostingById, commentsByPostId, commentsLoadingById, commentsOpenById, currentTrackId, deleteMyPost, displayName, feedAlbums, feedSubTab, followLoadingById, followingCount, getEmbedUrl, isFollowing, isPlaying, items, loading, loadingMore, location.pathname, meId, myPosts, myPostsError, myPostsLoading, navigate, openEditPost, postActionLoadingById, roleLabel, sanitizeUrl, sendComment, timeAgo, toggleComments, toggleFollow, togglePlay, togglePostLike]);
-
-  const Layout = isProdutor ? AdminLayout : DashboardLayout;
+  }, [buildWhatsAppHref, commentDraftByPostId, commentPostingById, commentsByPostId, commentsLoadingById, commentsOpenById, deleteMyPost, displayName, feedAlbums, feedError, feedFilter, feedSubTab, followLoadingById, followingCount, getEmbedUrl, isFollowing, items, loading, loadingMore, location.pathname, meId, myPosts, myPostsError, myPostsLoading, navigate, openEditPost, openMenuPostId, postActionLoadingById, refresh, roleLabel, sanitizeUrl, sendComment, setFeedFilter, shareFeedbackId, sharePost, timeAgo, toggleComments, toggleFollow, togglePlay, togglePostLike]);
 
   const filteredProfiles = useMemo(() => {
     const term = String(searchQuery || '').trim().toLowerCase();
@@ -1625,9 +1847,80 @@ const Feed = () => {
     );
   }, [activeTab, boostedProfiles, boostedProfilesError, boostedProfilesLoading, navigate, sanitizeUrl]);
 
+  const feedSubTabs = useMemo(() => ([
+    { key: 'posts', label: 'Novidades' },
+    { key: 'musics', label: 'Lançamentos' },
+    { key: 'mine', label: 'Minhas postagens' }
+  ]), []);
+
+  const sideRail = useMemo(() => {
+    if (activeTab !== 'feed') return null;
+    const highlights = (Array.isArray(boostedProfiles) ? boostedProfiles : []).slice(0, 5);
+    if (!meId && highlights.length === 0) return null;
+    return (
+      <aside className="hidden w-[300px] shrink-0 space-y-4 lg:block">
+        <Card className="p-4">
+          <div className="text-sm font-bold text-white">Atalhos</div>
+          <div className="mt-3 space-y-1.5">
+            <button
+              type="button"
+              onClick={() => navigate('/dashboard/profile')}
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-bold text-gray-200 transition hover:bg-white/5"
+            >
+              <Users size={16} className="shrink-0 text-beatwap-gold" />
+              <span className="truncate">Meu Perfil</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/dashboard/musics')}
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-bold text-gray-200 transition hover:bg-white/5"
+            >
+              <Music size={16} className="shrink-0 text-beatwap-gold" />
+              <span className="truncate">Minhas Músicas</span>
+            </button>
+          </div>
+        </Card>
+
+        {highlights.length > 0 && (
+          <Card className="p-4">
+            <div className="text-sm font-bold text-white">Artistas em destaque</div>
+            <div className="mt-3 space-y-2">
+              {highlights.map((p) => {
+                const name = String(p?.nome || 'Usuário');
+                return (
+                  <button
+                    key={`rail-${p.id}`}
+                    type="button"
+                    onClick={() => navigate(`/profile/${p.id}`)}
+                    className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition hover:bg-white/5"
+                  >
+                    <span className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5">
+                      {p.avatar_url ? (
+                        <img src={sanitizeUrl(p.avatar_url)} alt={name} className="h-full w-full object-cover" loading="lazy" />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center text-xs font-bold text-white">
+                          {name.trim() ? name.trim()[0].toUpperCase() : 'U'}
+                        </span>
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-bold text-white">{name}</span>
+                      <span className="block truncate text-[11px] text-gray-400">{String(p?.cargo || '')}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+        )}
+      </aside>
+    );
+  }, [activeTab, boostedProfiles, meId, navigate, sanitizeUrl]);
+
   return (
-    <Layout>
-      <div className="space-y-6">
+    <FeedShell onBack={handleBack} canAccess={canAccessFeed}>
+      <div className="flex items-start gap-6">
+        <div className="min-w-0 flex-1 space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div className="min-w-0">
             <div className="text-2xl font-bold text-white truncate">BeatWap</div>
@@ -1685,37 +1978,80 @@ const Feed = () => {
             {profileResults || (
               <>
                 {boostedStories}
-                <Card className="p-3">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFeedSubTab('posts')}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
-                    feedSubTab === 'posts' ? 'bg-white/10 border-white/15 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
-                  }`}
-                >
-                  Feed
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFeedSubTab('musics')}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
-                    feedSubTab === 'musics' ? 'bg-white/10 border-white/15 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
-                  }`}
-                >
-                  Músicas lançadas
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFeedSubTab('mine')}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
-                    feedSubTab === 'mine' ? 'bg-white/10 border-white/15 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
-                  }`}
-                >
-                  Minhas postagens
-                </button>
-              </div>
-            </Card>
+
+                {meId && (
+                  <Card className="p-4">
+                    <button
+                      type="button"
+                      onClick={() => setPostModalOpen(true)}
+                      className="flex w-full items-center gap-3 text-left"
+                    >
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-beatwap-gold/40 bg-beatwap-gold/10">
+                        {profile?.avatar_url ? (
+                          <img
+                            src={sanitizeUrl(profile.avatar_url)}
+                            alt="Seu perfil"
+                            className="h-full w-full rounded-full object-cover"
+                          />
+                        ) : (
+                          <Image size={16} className="text-beatwap-gold" />
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1 text-sm text-gray-400">
+                        O que você está produzindo hoje?
+                      </span>
+                    </button>
+                    <div className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+                      {POST_TYPE_OPTIONS.map((opt) => (
+                        <button
+                          key={`composer-${opt.key}`}
+                          type="button"
+                          onClick={() => { setPostType(opt.key); setPostModalOpen(true); }}
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-bold text-gray-200 transition hover:border-beatwap-gold/40 hover:text-beatwap-gold"
+                        >
+                          <Plus size={12} />
+                          <span>{opt.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </Card>
+                )}
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {feedSubTabs.map((tab) => (
+                    <button
+                      key={`subtab-${tab.key}`}
+                      type="button"
+                      onClick={() => setFeedSubTab(tab.key)}
+                      className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
+                        feedSubTab === tab.key
+                          ? 'border-beatwap-gold bg-beatwap-gold text-black'
+                          : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {feedSubTab !== 'mine' && (
+                  <div className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-hide">
+                    {FEED_FILTERS.map((f) => (
+                      <button
+                        key={`filter-${f.key}`}
+                        type="button"
+                        onClick={() => setFeedFilter(f.key)}
+                        className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[11px] font-bold transition ${
+                          feedFilter === f.key
+                            ? 'border-white/20 bg-white/10 text-white'
+                            : 'border-white/5 bg-black/20 text-gray-400 hover:bg-white/5'
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
             {content}
               </>
             )}
@@ -1838,6 +2174,8 @@ const Feed = () => {
             )}
           </div>
         )}
+      </div>
+        {sideRail}
       </div>
 
       {videoModalPost && (
@@ -2146,10 +2484,10 @@ const Feed = () => {
                 Posts feitos aqui aparecem só no feed. Posts do perfil público aparecem no feed também.
               </div>
             </div>
+            </div>
           </div>
-        </div>
-      )}
-    </Layout>
+        )}
+    </FeedShell>
   );
 };
 
