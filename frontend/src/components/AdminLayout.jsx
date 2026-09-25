@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, User, Music, Menu, X, Settings, DollarSign, ClipboardList, Ticket, Search, MessageCircle, Home, ChevronDown, Mic } from 'lucide-react';
+import { LayoutGrid, Users, User, Music, Menu, X, Settings, DollarSign, ClipboardList, Ticket, MessageCircle, Home, ChevronDown, Mic } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { NotificationBell } from './notifications/NotificationBell';
 import { ProfileButton } from './ProfileButton';
@@ -87,8 +87,7 @@ export const AdminLayout = ({ children }) => {
       title: 'Visao',
       items: [
         permissions.admin_panel !== false ? { to: '/admin', label: 'Painel', icon: LayoutGrid } : null,
-        permissions.admin_feed !== false ? { to: '/dashboard/feed', label: 'Feed', icon: Music } : null,
-        permissions.admin_search !== false ? { to: '/dashboard/pesquisar', label: 'Pesquisar', icon: Search } : null
+        permissions.admin_feed !== false ? { to: '/dashboard/feed', label: 'Feed', icon: Music } : null
       ]
       .filter(Boolean)
     },

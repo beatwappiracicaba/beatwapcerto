@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutGrid, Music, Menu, X, TrendingUp, Lock, Users, User, Calendar, Target, FileText, MessageCircle, DollarSign, Search, Home, ChevronDown } from 'lucide-react';
+import { LayoutGrid, Music, Menu, X, TrendingUp, Lock, Users, User, Calendar, Target, FileText, MessageCircle, DollarSign, Home, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ChatButton } from './FloatingChat/ChatButton';
 import { ChatWindow } from './FloatingChat/ChatWindow';
@@ -118,8 +118,7 @@ export const DashboardLayout = ({ children }) => {
 
   const commonViewItems = [
     permissions.dashboard_panel !== false ? { type: 'link', to: '/dashboard/painel', label: 'Painel', icon: LayoutGrid } : null,
-    permissions.dashboard_feed !== false ? { type: 'link', to: '/dashboard/feed', label: 'Feed', icon: TrendingUp } : null,
-    permissions.dashboard_search !== false ? { type: 'link', to: '/dashboard/pesquisar', label: 'Pesquisar', icon: Search } : null
+    permissions.dashboard_feed !== false ? { type: 'link', to: '/dashboard/feed', label: 'Feed', icon: TrendingUp } : null
   ].filter(Boolean);
 
   const sidebarSections = useMemo(() => {

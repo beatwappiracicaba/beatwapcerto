@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
+import { forwardRef } from 'react';
 
-export const AnimatedInput = ({ 
+export const AnimatedInput = forwardRef(function AnimatedInput({ 
   label, 
   type = 'text', 
   placeholder, 
@@ -9,7 +10,7 @@ export const AnimatedInput = ({
   error,
   icon: Icon,
   ...inputProps
-}) => {
+}, ref) {
   return (
     <div className="w-full space-y-2">
       {label && <label className="text-sm text-gray-400 ml-1">{label}</label>}
@@ -20,6 +21,7 @@ export const AnimatedInput = ({
           </div>
         )}
         <motion.input
+          ref={ref}
           type={type}
           value={value ?? ''}
           onChange={onChange}
@@ -42,4 +44,4 @@ export const AnimatedInput = ({
       )}
     </div>
   );
-};
+});

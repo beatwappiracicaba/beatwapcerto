@@ -26,17 +26,13 @@ const Feed = () => {
   const [activeTab, setActiveTab] = useState(() => {
     const p = String(location?.pathname || '');
     if (/\/painel(?:\/|$)/.test(p)) return 'painel';
-    if (/\/pesquisar(?:\/|$)/.test(p)) return 'search';
     return 'feed';
-  }); // feed | painel | search
+  }); // feed | painel
   const [feedSubTab, setFeedSubTab] = useState('posts'); // posts | musics | mine
 
   useEffect(() => {
     const p = String(location?.pathname || '');
-    const next =
-      /\/painel(?:\/|$)/.test(p) ? 'painel'
-        : /\/pesquisar(?:\/|$)/.test(p) ? 'search'
-          : 'feed';
+    const next = /\/painel(?:\/|$)/.test(p) ? 'painel' : 'feed';
     setActiveTab((prev) => (prev === next ? prev : next));
   }, [location?.pathname]);
   const [items, setItems] = useState([]);
@@ -83,6 +79,7 @@ const Feed = () => {
   const [myPosts, setMyPosts] = useState([]);
   const [editingPostId, setEditingPostId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef(null);
   const sentinelRef = useRef(null);
   const subscribedRoomsRef = useRef([]);
   const refreshTimerRef = useRef(null);
@@ -811,9 +808,11 @@ const Feed = () => {
   }, [isPrivileged, meId, profile?.nome]);
 
   useEffect(() => {
-    if (activeTab === 'search') loadProfiles();
     if (activeTab === 'painel') loadPanel();
-    if (activeTab === 'feed') loadBoostedProfiles();
+    if (activeTab === 'feed') {
+      loadProfiles();
+      loadBoostedProfiles();
+    }
   }, [activeTab, loadBoostedProfiles, loadPanel, loadProfiles]);
 
   useEffect(() => {
@@ -1010,7 +1009,7 @@ const Feed = () => {
         <Card className="p-6">
           <div className="text-gray-300 font-bold">Você ainda não segue ninguém. Comece a seguir para ver novidades.</div>
           <div className="mt-4 flex flex-wrap gap-3">
-            <AnimatedButton onClick={() => { setActiveTab('search'); navigate('/dashboard/pesquisar'); }}>Pesquisar perfis</AnimatedButton>
+            <AnimatedButton onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); searchInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}>Pesquisar perfis</AnimatedButton>
           </div>
         </Card>
       );
@@ -1490,6 +1489,86 @@ const Feed = () => {
       .slice(0, 60);
   }, [profiles, searchQuery]);
 
+  const profileResults = useMemo(() => {
+    if (activeTab !== 'feed') return null;
+    if (!String(searchQuery || '').trim()) return null;
+    return (
+      <div className="space-y-4">
+        <Card className="p-4">
+          <div className="text-white font-bold">Perfis</div>
+          <div className="mt-3 flex gap-4 overflow-x-auto pb-2">
+            {filteredProfiles.slice(0, 20).map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => navigate(`/profile/${p.id}`)}
+                className="w-20 shrink-0 text-center"
+              >
+                <div className="w-16 h-16 mx-auto rounded-full overflow-hidden border-2 border-beatwap-gold/60 bg-black/30 flex items-center justify-center">
+                  {p.avatar_url ? (
+                    <img src={sanitizeUrl(p.avatar_url)} alt={p.nome} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-white font-bold">{String(p.nome || 'U').slice(0, 1).toUpperCase()}</span>
+                  )}
+                </div>
+                <div className="mt-2 text-xs text-gray-200 truncate">{p.nome}</div>
+              </button>
+            ))}
+            {profilesLoading && (
+              <div className="text-sm text-gray-400">Carregando...</div>
+            )}
+            {!profilesLoading && filteredProfiles.length === 0 && (
+              <div className="text-sm text-gray-400">Nenhum perfil encontrado.</div>
+            )}
+          </div>
+        </Card>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredProfiles.map((p) => {
+            const canFollow = !!meId && p.id !== meId;
+            const following = canFollow ? isFollowing(p.id) : false;
+            const followLoading = canFollow ? followLoadingById?.[p.id] === true : false;
+            return (
+              <Card key={`card-${p.id}`} className="p-4">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/profile/${p.id}`)}
+                    className="w-12 h-12 rounded-full overflow-hidden border border-white/10 bg-black/30 flex items-center justify-center shrink-0"
+                  >
+                    {p.avatar_url ? (
+                      <img src={sanitizeUrl(p.avatar_url)} alt={p.nome} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-white font-bold">{String(p.nome || 'U').slice(0, 1).toUpperCase()}</span>
+                    )}
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-white font-bold truncate">{p.nome}</div>
+                    <div className="text-xs text-gray-400 truncate">{p.cargo}{p.verified ? ' · Verificado' : ''}</div>
+                  </div>
+                  {canFollow && (
+                    <button
+                      type="button"
+                      disabled={followLoading}
+                      onClick={() => toggleFollow(p.id)}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                        following
+                          ? 'bg-white/10 border-white/10 text-gray-200 hover:bg-white/15'
+                          : 'bg-beatwap-gold text-black border-beatwap-gold hover:bg-white hover:border-white'
+                      } ${followLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    >
+                      {followLoading ? '...' : (following ? 'Seguindo' : 'Seguir')}
+                    </button>
+                  )}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }, [activeTab, filteredProfiles, followLoadingById, isFollowing, meId, navigate, profilesLoading, sanitizeUrl, searchQuery, toggleFollow]);
+
   const boostedStories = useMemo(() => {
     if (activeTab !== 'feed') return null;
     if (boostedProfilesLoading) {
@@ -1561,35 +1640,13 @@ const Feed = () => {
             <div className="text-sm text-gray-400 truncate">
               {activeTab === 'feed' && 'Novidades de quem você segue'}
               {activeTab === 'painel' && 'Desempenho e métricas'}
-              {activeTab === 'search' && 'Pesquisar perfis'}
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => { setActiveTab('feed'); navigate('/dashboard/feed'); }}
-                className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
-                  activeTab === 'feed' ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
-                }`}
-              >
-                Feed
-              </button>
-              <button
-                type="button"
-                onClick={() => { setActiveTab('search'); navigate('/dashboard/pesquisar'); }}
-                className={`px-4 py-2 rounded-xl text-xs font-bold border transition inline-flex items-center gap-2 ${
-                  activeTab === 'search' ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
-                }`}
-              >
-                <Search size={14} />
-                Pesquisar
-              </button>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto sm:justify-end">
             {activeTab === 'feed' && (
               <>
                 <AnimatedButton
-                  onClick={() => { setActiveTab('search'); navigate('/dashboard/pesquisar'); }}
+                  onClick={() => { searchInputRef.current?.focus(); searchInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
                   className="w-full sm:w-auto px-4 py-2 text-xs"
                 >
                   <span className="inline-flex items-center gap-2">
@@ -1621,8 +1678,20 @@ const Feed = () => {
 
         {activeTab === 'feed' && (
           <>
-            {boostedStories}
-            <Card className="p-3">
+            <Card className="p-4">
+              <AnimatedInput
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar por nome ou cargo (Artista, Produtor, Compositor, Vendedor)"
+              />
+              {profilesError && <div className="mt-2 text-xs text-red-400">{profilesError}</div>}
+            </Card>
+
+            {profileResults || (
+              <>
+                {boostedStories}
+                <Card className="p-3">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -1654,6 +1723,8 @@ const Feed = () => {
               </div>
             </Card>
             {content}
+              </>
+            )}
           </>
         )}
 
@@ -1771,91 +1842,6 @@ const Feed = () => {
                 </Card>
               </>
             )}
-          </div>
-        )}
-
-        {activeTab === 'search' && (
-          <div className="space-y-4">
-            <Card className="p-4">
-              <AnimatedInput
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar por nome ou cargo (Artista, Produtor, Compositor, Vendedor)"
-              />
-              {profilesError && <div className="mt-2 text-xs text-red-400">{profilesError}</div>}
-            </Card>
-
-            <Card className="p-4">
-              <div className="text-white font-bold">Perfis</div>
-              <div className="mt-3 flex gap-4 overflow-x-auto pb-2">
-                {filteredProfiles.slice(0, 20).map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => navigate(`/profile/${p.id}`)}
-                    className="w-20 shrink-0 text-center"
-                  >
-                    <div className="w-16 h-16 mx-auto rounded-full overflow-hidden border-2 border-beatwap-gold/60 bg-black/30 flex items-center justify-center">
-                      {p.avatar_url ? (
-                        <img src={sanitizeUrl(p.avatar_url)} alt={p.nome} className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-white font-bold">{String(p.nome || 'U').slice(0, 1).toUpperCase()}</span>
-                      )}
-                    </div>
-                    <div className="mt-2 text-xs text-gray-200 truncate">{p.nome}</div>
-                  </button>
-                ))}
-                {profilesLoading && (
-                  <div className="text-sm text-gray-400">Carregando...</div>
-                )}
-                {!profilesLoading && filteredProfiles.length === 0 && (
-                  <div className="text-sm text-gray-400">Nenhum perfil encontrado.</div>
-                )}
-              </div>
-            </Card>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredProfiles.map((p) => {
-                const canFollow = !!meId && p.id !== meId;
-                const following = canFollow ? isFollowing(p.id) : false;
-                const followLoading = canFollow ? followLoadingById?.[p.id] === true : false;
-                return (
-                  <Card key={`card-${p.id}`} className="p-4">
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/profile/${p.id}`)}
-                        className="w-12 h-12 rounded-full overflow-hidden border border-white/10 bg-black/30 flex items-center justify-center shrink-0"
-                      >
-                        {p.avatar_url ? (
-                          <img src={sanitizeUrl(p.avatar_url)} alt={p.nome} className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-white font-bold">{String(p.nome || 'U').slice(0, 1).toUpperCase()}</span>
-                        )}
-                      </button>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-white font-bold truncate">{p.nome}</div>
-                        <div className="text-xs text-gray-400 truncate">{p.cargo}{p.verified ? ' · Verificado' : ''}</div>
-                      </div>
-                      {canFollow && (
-                        <button
-                          type="button"
-                          disabled={followLoading}
-                          onClick={() => toggleFollow(p.id)}
-                          className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
-                            following
-                              ? 'bg-white/10 border-white/10 text-gray-200 hover:bg-white/15'
-                              : 'bg-beatwap-gold text-black border-beatwap-gold hover:bg-white hover:border-white'
-                          } ${followLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
-                        >
-                          {followLoading ? '...' : (following ? 'Seguindo' : 'Seguir')}
-                        </button>
-                      )}
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
           </div>
         )}
       </div>

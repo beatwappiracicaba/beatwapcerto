@@ -157,7 +157,7 @@ export const AppRoutes = () => {
         <Route path="/dashboard" element={<ProtectedRoute element={<Navigate to={routeForRole(profile?.cargo)} replace />} />} />
         <Route path="/dashboard/feed" element={<ProtectedRoute element={<Feed />} />} />
         <Route path="/dashboard/painel" element={<ProtectedRoute element={<DashboardPanel />} />} />
-        <Route path="/dashboard/pesquisar" element={<ProtectedRoute element={<Feed />} />} />
+        <Route path="/dashboard/pesquisar" element={<ProtectedRoute element={<Navigate to="/dashboard/feed" replace />} />} />
         <Route path="/dashboard/musics" element={isArtista ? <DashboardArtistMusics /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/compositions" element={(isArtista || isCompositor) ? <DashboardCompositions /> : <Navigate to="/" replace />} />
         <Route path="/dashboard/profile" element={(isArtista || isCompositor || isVendedor) ? <DashboardArtistProfile /> : <Navigate to="/" replace />} />
