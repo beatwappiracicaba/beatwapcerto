@@ -97,6 +97,18 @@ export const AppRoutes = () => {
     return element;
   };
 
+  // Guarda de rota por cargo: so renderiza `element` quando o usuario logado
+  // tem um dos cargos em `roles`. Sem sessao vai para /login; com cargo fora da
+  // lista vai para a tela padrao daquele cargo (routeForRole).
+  const RoleBasedRoute = ({ roles, element }) => {
+    if (loading) return null;
+    if (!profile) return <Navigate to="/login" replace />;
+    const current = normalizeRole(profile?.cargo);
+    const allowed = (Array.isArray(roles) ? roles : []).map(normalizeRole);
+    if (allowed.includes(current)) return element;
+    return <Navigate to={routeForRole(current)} replace />;
+  };
+
   const splashActive = !splashMinDone || loading;
 
   useEffect(() => {

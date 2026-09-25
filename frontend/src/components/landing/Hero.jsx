@@ -43,7 +43,10 @@ const Hero = () => {
     const timer = setTimeout(() => {
       try {
         iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo' }), '*');
-      } catch {}
+      } catch {
+        // postMessage para o iframe cross-origin do YouTube pode falhar enquanto
+        // o player ainda nao carregou. O autoplay ja esta pedido pela URL.
+      }
     }, 800);
     return () => clearTimeout(timer);
   }, [youtubeVideoUrl]);
@@ -53,7 +56,10 @@ const Hero = () => {
     if (!iframe) return;
     try {
       iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: isMuted ? 'unMute' : 'mute' }), '*');
-    } catch {}
+    } catch {
+      // Falha ao falar com o iframe e ignorada de proposito: o botao de mudo
+      // deve refletir o estado local mesmo sem confirmacao do player.
+    }
     setIsMuted(!isMuted);
   };
 
@@ -76,9 +82,7 @@ const Hero = () => {
                   title="YouTube video background"
                   className="hero-video-frame"
                   allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
-                  allowInlineAutoplay
                   allowFullScreen
-                  playsInline
                   webkitallowfullscreen
                   mozallowfullscreen
                 />

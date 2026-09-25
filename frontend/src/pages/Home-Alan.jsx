@@ -1298,7 +1298,7 @@ const Home = () => {
                   {studioGallery.slice(1).map((item, index) => (
                     <div
                       key={item.id}
-                      className="group relative overflow-hidden rounded-[24px] border border-white/10 bg-black/30 w-[85vw] sm:w-[calc(50%-12px)] md:w-auto md:min-w-[calc(50%_-_12px)] h-[260px] snap-center shrink-0 md:shrink">
+                      className="group relative overflow-hidden rounded-[24px] border border-white/10 bg-black/30 w-[85vw] sm:w-[calc(50%-12px)] md:w-auto md:min-w-[calc(50%_-_12px)] h-[260px] snap-center shrink-0 md:shrink"
                     >
                       <img
                         src={item.image}

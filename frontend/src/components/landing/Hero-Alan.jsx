@@ -9,6 +9,7 @@ const Hero = () => {
   const navigate = useNavigate();
   const [youtubeVideoUrl, setYoutubeVideoUrl] = useState('');
   const [isMuted, setIsMuted] = useState(true);
+  const [latestRelease, setLatestRelease] = useState(null);
   const iframeRef = useRef(null);
   const getYoutubeId = (u) => {
     const m = String(u || '').match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
@@ -25,12 +26,27 @@ const Hero = () => {
   }, []);
 
   useEffect(() => {
+    fetch(`${API_BASE_URL}/api/releases`)
+      .then((r) => r.json())
+      .then((data) => {
+        const list = Array.isArray(data) ? data : (Array.isArray(data?.releases) ? data.releases : []);
+        const approved = list.filter(m => String(m?.status || '').toLowerCase() === 'aprovado' || String(m?.status || '').toLowerCase() === 'approved');
+        const sorted = approved.sort((a, b) => new Date(b?.created_at || 0) - new Date(a?.created_at || 0));
+        if (sorted[0]) setLatestRelease(sorted[0]);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
     const timer = setTimeout(() => {
       try {
         iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo' }), '*');
-      } catch {}
+      } catch {
+        // postMessage para o iframe cross-origin do YouTube pode falhar enquanto
+        // o player ainda nao carregou. O autoplay ja esta pedido pela URL.
+      }
     }, 800);
     return () => clearTimeout(timer);
   }, [youtubeVideoUrl]);
@@ -40,7 +56,10 @@ const Hero = () => {
     if (!iframe) return;
     try {
       iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: isMuted ? 'unMute' : 'mute' }), '*');
-    } catch {}
+    } catch {
+      // Falha ao falar com o iframe e ignorada de proposito: o botao de mudo
+      // deve refletir o estado local mesmo sem confirmacao do player.
+    }
     setIsMuted(!isMuted);
   };
 
@@ -63,9 +82,7 @@ const Hero = () => {
                   title="YouTube video background"
                   className="absolute top-0 left-0 w-[110vw] h-[110vh] min-w-[110vw] min-h-[110vh] -translate-x-[5vw] -translate-y-[5vh]"
                   allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
-                  allowInlineAutoplay
                   allowFullScreen
-                  playsInline
                   webkitallowfullscreen
                   mozallowfullscreen
                 />
