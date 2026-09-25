@@ -74,7 +74,7 @@ const Hero = () => {
                   key={ytId}
                   src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&showinfo=0&rel=0&modestbranding=1&iv_load_policy=3&cc_load_policy=0&playsinline=1`}
                   title="YouTube video background"
-                  className="absolute top-0 left-0 w-[110vw] h-[110vh] min-w-[110vw] min-h-[110vh] -translate-x-[5vw] -translate-y-[5vh]"
+                  className="hero-video-frame"
                   allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
                   allowInlineAutoplay
                   allowFullScreen

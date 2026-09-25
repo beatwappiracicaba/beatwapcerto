@@ -227,6 +227,37 @@
   }
 }
 
+/* Hero background video (YouTube iframe).
+   Desktop keeps the original 110vw/110vh bleed with a -5vw/-5vh offset. */
+.hero-video-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 110vw;
+  height: 110vh;
+  min-width: 110vw;
+  min-height: 110vh;
+  transform: translate(-5vw, -5vh);
+}
+
+/* Mobile only: cover the whole hero area.
+   The iframe is locked to the video's 16:9 ratio and scaled to the hero
+   height, so it grows past the viewport width instead of letterboxing.
+   The parent wrapper clips that horizontal overflow, which leaves no black
+   bar above or below the video. */
+@media (max-width: 767px) {
+  .hero-video-frame {
+    top: 50%;
+    left: 50%;
+    width: auto;
+    min-width: 0;
+    height: 102%;
+    min-height: 0;
+    aspect-ratio: 16 / 9;
+    transform: translate(-50%, -50%);
+  }
+}
+
 /* Hide scrollbar on mobile horizontal scroll for plans */
 .scrollbar-hide {
   -ms-overflow-style: none;
