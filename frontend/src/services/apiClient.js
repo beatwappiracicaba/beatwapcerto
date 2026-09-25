@@ -26,11 +26,16 @@ function getStoredItem(key) {
   try {
     const a = localStorage.getItem(key);
     if (a != null && a !== '') return a;
-  } catch {}
+  } catch {
+    // localStorage pode estar bloqueado (modo privado, cookies bloqueados, iframe
+    // cross-origin, cota excedida). Segue para o proximo nivel de storage.
+  }
   try {
     const b = sessionStorage.getItem(key);
     if (b != null && b !== '') return b;
-  } catch {}
+  } catch {
+    // Armazenamento indisponivel neste navegador: trata como "sem valor salvo".
+  }
   return null;
 }
 
@@ -44,12 +49,17 @@ function setStoredItem(key, value, remember) {
       if (v == null) sessionStorage.removeItem(key);
       else sessionStorage.setItem(key, v);
     }
-  } catch {}
+  } catch {
+    // Nao foi possivel gravar no storage. O app segue funcionando e a leitura
+    // feita no login continuara devolvendo o valor enquanto a aba estiver viva.
+  }
 }
 
 function removeStoredItemEverywhere(key) {
-  try { localStorage.removeItem(key); } catch {}
-  try { sessionStorage.removeItem(key); } catch {}
+  // Remocao e sempre "best effort": se um storage estiver bloqueado, o outro
+  // ainda limpa o valor e nada trava.
+  try { localStorage.removeItem(key); } catch { /* storage bloqueado: ignora localStorage */ }
+  try { sessionStorage.removeItem(key); } catch { /* storage bloqueado: ignora sessionStorage */ }
 }
 
 function getOrCreateDeviceId({ persist } = {}) {
@@ -58,7 +68,9 @@ function getOrCreateDeviceId({ persist } = {}) {
   let id = '';
   try {
     id = globalThis?.crypto?.randomUUID ? globalThis.crypto.randomUUID() : '';
-  } catch {}
+  } catch {
+    // crypto.randomUUID exige contexto seguro. O chamador cai no id gerado abaixo.
+  }
   if (!id) id = `dev_${Date.now()}_${Math.random().toString(16).slice(2)}`;
   if (persist) {
     setStoredItem(DEVICE_ID_KEY, id, true);
@@ -324,9 +336,11 @@ export const authApi = {
     if (data?.token) {
       setStoredItem(AUTH_TOKEN_KEY, data.token, remember);
       if (remember) {
-        try { sessionStorage.removeItem(AUTH_TOKEN_KEY); } catch {}
+        // O token acabou de ser gravado no storage escolhido; limpa o outro para
+        // nao deixar sessao duplicada. Falha ao limpar e intencionalmente ignorada.
+        try { sessionStorage.removeItem(AUTH_TOKEN_KEY); } catch { /* storage bloqueado: ignora */ }
       } else {
-        try { localStorage.removeItem(AUTH_TOKEN_KEY); } catch {}
+        try { localStorage.removeItem(AUTH_TOKEN_KEY); } catch { /* storage bloqueado: ignora */ }
       }
       setStoredItem(AUTH_REMEMBER_KEY, remember ? '1' : '0', true);
     }
@@ -344,9 +358,10 @@ export const authApi = {
     if (user) {
       setStoredItem(AUTH_USER_KEY, JSON.stringify(user), remember);
       if (remember) {
-        try { sessionStorage.removeItem(AUTH_USER_KEY); } catch {}
+        // Mesma limpeza do token: evita duplicar o usuario nos dois storages.
+        try { sessionStorage.removeItem(AUTH_USER_KEY); } catch { /* storage bloqueado: ignora */ }
       } else {
-        try { localStorage.removeItem(AUTH_USER_KEY); } catch {}
+        try { localStorage.removeItem(AUTH_USER_KEY); } catch { /* storage bloqueado: ignora */ }
       }
     }
     return data;
