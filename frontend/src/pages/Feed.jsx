@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Cropper from 'react-easy-crop';
-import { Play, Pause, Music, Image, Video, ExternalLink, Search, Plus, X, TrendingUp, Heart, MessageCircle, Send, Pencil, Trash2, Share2, MoreHorizontal, RefreshCw, AlertCircle, Compass, Users, Bell, Home, User, Settings } from 'lucide-react';
+import { Play, Pause, Music, Image, Video, ExternalLink, Search, Plus, X, TrendingUp, Heart, MessageCircle, Send, Pencil, Trash2, Share2, MoreHorizontal, RefreshCw, AlertCircle, Compass, Users, Bell, Home, User, Settings, ArrowLeft } from 'lucide-react';
 import { FeedShell } from '../components/feed/FeedShell';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -1865,8 +1865,12 @@ const Feed = () => {
   // Todos os itens reaproveitam o que ja existe: o campo de busca atual, o
   // modal de publicacao atual e as rotas de perfil ja cadastradas. Nenhuma
   // chamada de API nova e feita aqui.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+
   const focusSearch = useCallback(() => {
     setActiveTab('feed');
+    setSearchOpen(true);
     setSearchQuery('');
     requestAnimationFrame(() => {
       searchInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1876,12 +1880,9 @@ const Feed = () => {
 
   const openComposer = useCallback(() => {
     setActiveTab('feed');
+    setComposerOpen(true);
     setPostType('text');
     setPostModalOpen(true);
-  }, []);
-
-  const goToTop = useCallback(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
   const unreadCount = Number(getUnreadCount?.() || 0);
@@ -1895,21 +1896,22 @@ const Feed = () => {
   // Menu lateral do desktop e barra inferior do celular apontam para as
   // mesmas acoes reais: nenhuma tela nova e criada aqui.
   const feedNavItems = useMemo(() => {
+    // Home virou "Voltar": no feed quem entra pela Home quer retornar.
     const items = [
-      { key: 'home', label: 'Home', icon: Home, short: 'Home', onSelect: () => navigate('/') },
-      { key: 'feed', label: 'Feed', icon: TrendingUp, short: 'Feed', onSelect: goToTop },
+      { key: 'home', label: 'Voltar', icon: ArrowLeft, short: 'Voltar', onSelect: handleBack },
       { key: 'search', label: 'Buscar', icon: Search, short: 'Busca', onSelect: focusSearch },
       { key: 'messages', label: 'Mensagens', icon: MessageCircle, short: 'Msg', badge: chatUnread },
       { key: 'notifications', label: 'Notificações', icon: Bell, short: 'Alerta', badge: unreadCount }
     ];
 
     if (meId) {
-      items.push({ key: 'compose', label: 'Criar', icon: Plus, short: 'Criar', onSelect: openComposer });
+      // "compose" precisa existir e ficar no meio da barra inferior.
+      items.splice(3, 0, { key: 'compose', label: 'Criar', icon: Plus, short: 'Criar', onSelect: openComposer });
       items.push({ key: 'profile', label: 'Perfil', icon: User, short: 'Perfil', onSelect: () => navigate(myProfileRoute) });
     }
 
     return items;
-  }, [chatUnread, focusSearch, goToTop, meId, myProfileRoute, navigate, openComposer, unreadCount]);
+  }, [chatUnread, focusSearch, handleBack, meId, myProfileRoute, navigate, openComposer, unreadCount]);
 
   const feedBottomItems = useMemo(
     () => feedNavItems.map((i) => ({ ...i, label: i.short })),
@@ -1917,27 +1919,12 @@ const Feed = () => {
   );
 
   const feedMenuItems = useMemo(() => {
-    const items = [
-      { key: 'feed', label: 'Feed', icon: TrendingUp, onSelect: goToTop },
-      { key: 'search', label: 'Buscar', icon: Search, onSelect: focusSearch }
-    ];
-
-    if (meId) {
-      items.push({ key: 'compose', label: 'Criar publicação', icon: Plus, onSelect: openComposer });
-    }
+    // O menu hamburguer nao repete o que ja esta na barra inferior / rail:
+    // Feed, Buscar, Criar e Perfil ficam de fora de proposito.
+    const items = [];
 
     items.push({ key: 'notifications', label: 'Notificações', icon: Bell, badge: unreadCount });
 
-    if (meId) {
-      items.push({
-        key: 'profile',
-        label: 'Meu perfil',
-        icon: User,
-        onSelect: () => navigate(isProdutor ? '/admin/profile' : '/dashboard/profile')
-      });
-    }
-
-    // Configuracoes e exclusiva do produtor e so entra se ele puder acessar.
     if (isProdutor && profile?.access_control?.admin_settings !== false) {
       items.push({ key: 'settings', label: 'Configurações', icon: Settings, onSelect: () => navigate('/admin/settings') });
     }
@@ -1945,7 +1932,7 @@ const Feed = () => {
     items.push({ key: 'site', label: 'Voltar para o BeatWap', icon: Home, onSelect: () => navigate('/') });
 
     return items;
-  }, [focusSearch, goToTop, isProdutor, meId, navigate, openComposer, profile?.access_control?.admin_settings, unreadCount]);
+  }, [isProdutor, navigate, profile?.access_control?.admin_settings, unreadCount]);
 
   // Coluna lateral do desktop: dados reais ja carregados (perfil logado e a
   // lista de perfis que a propria busca do feed usa). Nada aqui e ficticio.
@@ -2139,21 +2126,35 @@ const Feed = () => {
 
         {activeTab === 'feed' && (
           <>
-            <Card className="p-4">
-              <AnimatedInput
-                ref={searchInputRef}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar por nome ou cargo (Artista, Produtor, Compositor, Vendedor)"
-              />
-              {profilesError && <div className="mt-2 text-xs text-red-400">{profilesError}</div>}
-            </Card>
+            {searchOpen && (
+              <Card className="p-4">
+                <div className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    <AnimatedInput
+                      ref={searchInputRef}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Buscar por nome ou cargo (Artista, Produtor, Compositor, Vendedor)"
+                    />
+                    {profilesError && <div className="mt-2 text-xs text-red-400">{profilesError}</div>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
+                    className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-gray-300 transition hover:bg-white/10 hover:text-white"
+                    aria-label="Fechar busca"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </Card>
+            )}
 
             {profileResults || (
               <>
                 {boostedStories}
 
-                {meId && (
+                {meId && composerOpen && (
                   <Card className="p-4">
                     <button
                       type="button"
@@ -2191,13 +2192,15 @@ const Feed = () => {
                   </Card>
                 )}
 
-                <div className="flex flex-wrap items-center gap-1.5">
+                {/* No celular as tabs viram um trilho com rolagem horizontal,
+                    sem quebrar linha. No desktop voltam a ser pílulas com wrap. */}
+                <div className="-mx-2 flex items-center gap-2 overflow-x-auto px-2 pb-1 scrollbar-hide md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
                   {feedSubTabs.map((tab) => (
                     <button
                       key={`subtab-${tab.key}`}
                       type="button"
                       onClick={() => setFeedSubTab(tab.key)}
-                      className={`rounded-full border px-4 py-2.5 text-sm font-bold transition md:py-2 md:text-xs ${
+                      className={`shrink-0 whitespace-nowrap rounded-full border px-5 py-2.5 text-sm font-bold transition md:px-4 md:py-2 md:text-xs ${
                         feedSubTab === tab.key
                           ? 'border-beatwap-gold bg-beatwap-gold text-black'
                           : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'

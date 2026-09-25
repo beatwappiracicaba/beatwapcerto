@@ -3,11 +3,38 @@ const { auth } = require('../middleware/auth');
 const { Profile, PaymentOrder } = require('../models');
 const { memory, scheduleSave } = require('../memoryStore');
 const { emitEvent } = require('../realtime');
+const { createNotification } = require('../services/notifications');
 
 const router = express.Router();
 
 function normId(v) {
   return String(v || '').trim();
+}
+
+// Nome curto para a mensagem da notificacao. Nunca pode derrubar a acao:
+// qualquer falha aqui e silenciosa de proposito.
+async function actorName(userId) {
+  try {
+    const p = await Profile.findByPk(normId(userId));
+    return p ? (p.nome || p.nome_completo_razao_social || 'Alguém') : 'Alguém';
+  } catch {
+    return 'Alguém';
+  }
+}
+
+function ownerIdOfPost(post) {
+  return normId(post?.user_id || post?.owner_id || post?.author_id);
+}
+
+// Notifica o dono do post, exceto quando ele mesmo executou a acao.
+async function notifyPostOwner({ post, actorId, type, title, message, link }) {
+  try {
+    const ownerId = ownerIdOfPost(post);
+    if (!ownerId || ownerId === normId(actorId)) return null;
+    return createNotification({ recipient_id: ownerId, type, title, message, link });
+  } catch {
+    return null;
+  }
 }
 
 function getFollowingIds(followerId) {
@@ -310,6 +337,23 @@ router.post('/follow/:id', auth, async (req, res) => {
     }
 
     setFollowingIds(meId, next);
+
+    // Só notifica quando o follow foi realmente criado.
+    if (next.includes(targetId) && !exists) {
+      const who = await actorName(meId);
+      try {
+        createNotification({
+          recipient_id: targetId,
+          type: 'follow',
+          title: 'Novo seguidor',
+          message: `${who} começou a seguir você.`,
+          link: `/profile/${meId}`
+        });
+      } catch {
+        void 0;
+      }
+    }
+
     res.json({ following: next.includes(targetId) });
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -535,6 +579,7 @@ router.post('/feed/posts/:id/like', auth, async (req, res) => {
     const id = String(req.params.id || '').trim();
     const existsIdx = (memory.posts || []).findIndex(p => String(p?.id || '') === id);
     if (existsIdx < 0) return res.status(404).json({ error: 'Post não encontrado' });
+    const post = (memory.posts || [])[existsIdx];
 
     const arr = Array.isArray(memory.likes && memory.likes[id]) ? memory.likes[id] : [];
     const exists = arr.includes(meId);
@@ -542,6 +587,20 @@ router.post('/feed/posts/:id/like', auth, async (req, res) => {
     memory.likes[id] = next;
     scheduleSave();
     emitEvent('posts.likes.updated', { id, likes: next.length }, `profile:${meId}`);
+
+    // Só avisa quando é curtida nova; descurtir não gera notificação.
+    if (!exists) {
+      const who = await actorName(meId);
+      await notifyPostOwner({
+        post,
+        actorId: meId,
+        type: 'like',
+        title: 'Nova curtida',
+        message: `${who} curtiu sua publicação.`,
+        link: `/dashboard/feed?post=${id}`
+      });
+    }
+
     res.json({ liked: !exists, likes: next.length });
   } catch {
     res.status(500).json({ error: 'Erro interno' });
@@ -612,6 +671,7 @@ router.post('/feed/posts/:id/comments', auth, async (req, res) => {
     if (!text) return res.status(400).json({ error: 'Comentário vazio' });
     if (text.length > 600) return res.status(400).json({ error: 'Comentário muito longo' });
 
+    const post = (memory.posts || [])[existsIdx];
     const comment = { id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, post_id: id, user_id: meId, text, created_at: new Date().toISOString() };
     if (!memory.comments || typeof memory.comments !== 'object') memory.comments = {};
     const arr = Array.isArray(memory.comments[id]) ? memory.comments[id] : [];
@@ -619,6 +679,19 @@ router.post('/feed/posts/:id/comments', auth, async (req, res) => {
     memory.comments[id] = arr;
     scheduleSave();
     emitEvent('posts.comments.created', { post_id: id }, `profile:${meId}`);
+
+    {
+      const who = await actorName(meId);
+      const resumo = text.length > 80 ? `${text.slice(0, 77)}...` : text;
+      await notifyPostOwner({
+        post,
+        actorId: meId,
+        type: 'comment',
+        title: 'Novo comentário',
+        message: `${who} comentou: "${resumo}"`,
+        link: `/dashboard/feed?post=${id}`
+      });
+    }
 
     const p = await Profile.findByPk(meId);
     const owner = p ? { id: p.id, nome: p.nome, nome_completo_razao_social: p.nome_completo_razao_social, cargo: p.cargo, avatar_url: p.avatar_url } : { id: meId, nome: null, nome_completo_razao_social: null, cargo: null, avatar_url: null };

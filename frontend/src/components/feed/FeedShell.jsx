@@ -42,6 +42,8 @@ export const FeedShell = ({
   const panelRef = useRef(null);
   const burgerRef = useRef(null);
 
+  const searchItem = bottomItems.find((i) => i.key === 'search') || null;
+
   const closeMenu = () => {
     setMenuOpen(false);
     burgerRef.current?.focus();
@@ -167,22 +169,23 @@ export const FeedShell = ({
 
       {/* ---------- Coluna principal ---------- */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Header compacto (celular) */}
+        {/* Header compacto (celular): lupa a esquerda, avatar a direita. */}
         <header className="feed-header border-b border-white/10 bg-black/85 backdrop-blur-xl md:hidden">
           <div className="flex w-full items-center gap-2 px-3 py-2.5">
-            <div className="min-w-0 flex-1 truncate text-lg font-bold tracking-wide">
-              <span className="text-beatwap-gold">Beat</span>Wap
-            </div>
-            {bottomItems.some((i) => i.key === 'search') && (
+            {searchItem && (
               <button
                 type="button"
-                onClick={() => runItem(bottomItems.find((i) => i.key === 'search'))}
+                onClick={() => runItem(searchItem)}
                 className={`${iconBtn} shrink-0 text-gray-300 hover:bg-white/5 hover:text-white`}
                 aria-label="Pesquisar"
               >
                 <Search size={20} />
               </button>
             )}
+            <div className="min-w-0 flex-1" />
+            <div className="shrink-0">
+              <ProfileButton profile={profile} />
+            </div>
           </div>
         </header>
 
@@ -215,33 +218,54 @@ export const FeedShell = ({
             className="feed-bottom-nav md:hidden"
             aria-label="Navegacao principal"
           >
-            {bottomItems.map((item) => {
-              const Icon = item.icon;
-              const isCreate = item.key === 'compose';
+            {(() => {
+              // O botao de criar fica no meio: itens antes | criar | itens depois.
+              const createIdx = bottomItems.findIndex((i) => i.key === 'compose');
+              const antes = createIdx === -1 ? bottomItems : bottomItems.slice(0, createIdx);
+              const depois = createIdx === -1 ? [] : bottomItems.slice(createIdx + 1);
+              const createItem = createIdx === -1 ? null : bottomItems[createIdx];
+              const Node = ({ item }) => {
+                if (!item) return null;
+                const Icon = item.icon;
+                return (
+                  <button
+                    type="button"
+                    onClick={() => runItem(item)}
+                    aria-label={item.label}
+                    className="relative flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-gray-300"
+                  >
+                    <span className="relative">
+                      {Icon ? <Icon size={21} /> : null}
+                      {renderBadge(item.badge)}
+                    </span>
+                    <span className="max-w-full truncate px-0.5 text-[9px] font-semibold leading-none">
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              };
               return (
-                <button
-                  key={`bottom-${item.key}`}
-                  type="button"
-                  onClick={() => runItem(item)}
-                  aria-label={item.label}
-                  className="relative flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-gray-300"
-                >
-                  <span className="relative">
-                    {isCreate ? (
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-beatwap-gold text-black">
+                <>
+                  {antes.map((i) => <Node key={`b-${i.key}`} item={i} />)}
+                  {createItem && (
+                    <button
+                      type="button"
+                      onClick={() => runItem(createItem)}
+                      aria-label={createItem.label}
+                      className="relative flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-gray-300"
+                    >
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-beatwap-gold text-black shadow-[0_0_18px_rgba(245,197,66,0.35)]">
                         <Plus size={18} />
                       </span>
-                    ) : (
-                      (Icon ? <Icon size={21} /> : null)
-                    )}
-                    {renderBadge(item.badge)}
-                  </span>
-                  <span className="max-w-full truncate px-0.5 text-[9px] font-semibold leading-none">
-                    {item.label}
-                  </span>
-                </button>
+                      <span className="max-w-full truncate px-0.5 text-[9px] font-semibold leading-none">
+                        {createItem.label}
+                      </span>
+                    </button>
+                  )}
+                  {depois.map((i) => <Node key={`b-${i.key}`} item={i} />)}
+                </>
               );
-            })}
+            })()}
           </nav>
         )}
       </div>
