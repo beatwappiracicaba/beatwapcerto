@@ -506,7 +506,10 @@ export const AdminSettings = () => {
     }
     const payload = buildInvitePayload();
     const key = buildInviteKey(payload);
-    if (generatedInviteToken && generatedInviteKey === key) return generatedInviteToken;
+    // O cache so vale para o fluxo de "criar link". Quando o usuario pede o
+    // envio por email e obrigatorio chamar a API de novo, senao o botao
+    // responderia sucesso sem tentar enviar nada.
+    if (!sendEmail && generatedInviteToken && generatedInviteKey === key) return generatedInviteToken;
     const resp = await apiClient.post('/auth/admin/create-invite', { ...payload, send_email: !!sendEmail });
     const token = String(resp?.invite?.token || '').trim();
     if (!token) throw new Error('Falha ao gerar convite');
@@ -545,7 +548,15 @@ export const AdminSettings = () => {
       addToast('Convite enviado por email.', 'success');
       fetchInvites();
     } catch (e) {
-      addToast(e?.message || 'Falha ao enviar convite', 'error');
+      // O convite pode ter sido criado mesmo sem o email ter saido. Nesse caso
+      // o token volta na resposta e o link continua valendo para envio manual.
+      const fallbackToken = String(e?.response?.invite?.token || '').trim();
+      if (fallbackToken) {
+        setGeneratedInviteToken(fallbackToken);
+        addToast(`Convite criado, mas o email nao foi enviado: ${e?.message || 'falha no servidor'}. Use "Copiar link" para enviar manualmente.`, 'error');
+      } else {
+        addToast(e?.message || 'Falha ao enviar convite', 'error');
+      }
     }
   };
 

@@ -23,6 +23,36 @@ function createTransport() {
 
 const transporter = createTransport();
 
+class MailerConfigError extends Error {
+  constructor(message, code) {
+    super(message);
+    this.name = 'MailerConfigError';
+    this.code = code;
+  }
+}
+
+/**
+ * Falha rapida quando o SMTP nao esta configurado.
+ *
+ * Sem isso o nodemailer tenta conectar e so falha depois do timeout da rede
+ * (o que no VPS leva minutos e devolve "sucesso" para o usuario final).
+ */
+function assertMailerConfigured() {
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    throw new MailerConfigError(
+      'Envio de email desativado: SMTP_USER/SMTP_PASS nao configurados no servidor.',
+      'SMTP_NOT_CONFIGURED'
+    );
+  }
+  if (!/^https?:\/\//i.test(host)) {
+    throw new MailerConfigError(
+      `SMTP_HOST invalido: "${host}". Use o hostname do servidor SMTP (ex: smtp.gmail.com).`,
+      'SMTP_INVALID_HOST'
+    );
+  }
+}
+
 function getPlansFromEnv() {
   const raw = process.env.REG_PLANS || '';
   return raw
@@ -87,6 +117,7 @@ function resetPasswordTemplate(link, code) {
 }
 
 async function sendInviteEmail(email, token, opts = {}) {
+  assertMailerConfigured();
   const base = process.env.APP_PUBLIC_URL || 'https://www.beatwap.com.br';
   const envUseQuery = String(process.env.INVITE_LINK_STYLE || '').toLowerCase() === 'query';
   const roleRaw = opts.role ? String(opts.role).trim() : '';
@@ -147,6 +178,7 @@ async function sendInviteEmail(email, token, opts = {}) {
 }
 
 async function sendCodeEmail(email, code) {
+  assertMailerConfigured();
   const info = await transporter.sendMail({
     from: process.env.SMTP_FROM || process.env.SMTP_USER,
     to: email,
@@ -164,6 +196,7 @@ async function sendCodeEmail(email, code) {
 }
 
 async function sendPasswordResetEmail(email, link, code) {
+  assertMailerConfigured();
   const info = await transporter.sendMail({
     from: process.env.SMTP_FROM || process.env.SMTP_USER,
     to: email,
@@ -182,6 +215,8 @@ async function sendPasswordResetEmail(email, link, code) {
 
 module.exports = {
   transporter,
+  assertMailerConfigured,
+  MailerConfigError,
   sendInviteEmail,
   sendCodeEmail,
   sendPasswordResetEmail

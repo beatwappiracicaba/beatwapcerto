@@ -482,10 +482,23 @@ router.post('/admin/create-invite', auth, async (req, res) => {
       created_by: req.user.id
     });
     if (send_email) {
-      await sendInviteEmail(email, token, { forceToken: true, plano, role, name, p_chat, p_musics, p_work, p_marketing, p_finance })
-        .catch(err => console.error('Erro ao enviar convite:', err));
+      // O convite ja foi gravado, entao uma falha de email nao pode perder o
+      // registro nem mentir "ok". Devolvemos o erro real para a interface
+      // avisar que o link precisa ser enviado por outro canal.
+      try {
+        await sendInviteEmail(email, token, { forceToken: true, plano, role, name, p_chat, p_musics, p_work, p_marketing, p_finance });
+        return res.json({ ok: true, email_sent: true, invite: { id: invite.id, email, token, expires_at, role, plano, name } });
+      } catch (err) {
+        console.error('Erro ao enviar convite:', err);
+        return res.status(502).json({
+          ok: false,
+          email_sent: false,
+          error: err?.message || 'Falha ao enviar email do convite.',
+          invite: { id: invite.id, email, token, expires_at, role, plano, name }
+        });
+      }
     }
-    return res.json({ ok: true, invite: { id: invite.id, email, token, expires_at, role, plano, name } });
+    return res.json({ ok: true, email_sent: false, invite: { id: invite.id, email, token, expires_at, role, plano, name } });
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'Erro interno' });
   }
@@ -702,9 +715,13 @@ router.post('/admin/invites/:id/resend', auth, async (req, res) => {
     if (invite.used) return res.status(400).json({ ok: false, error: 'Convite já utilizado' });
     const now = new Date();
     if (new Date(invite.expires_at) <= now) return res.status(400).json({ ok: false, error: 'Convite expirado' });
-    await sendInviteEmail(invite.email, invite.token, { forceToken: true, role: invite.role, plano: invite.plano, name: invite.name })
-      .catch(err => console.error('Erro ao reenviar convite:', err));
-    return res.json({ ok: true });
+    try {
+      await sendInviteEmail(invite.email, invite.token, { forceToken: true, role: invite.role, plano: invite.plano, name: invite.name });
+      return res.json({ ok: true, email_sent: true });
+    } catch (err) {
+      console.error('Erro ao reenviar convite:', err);
+      return res.status(502).json({ ok: false, email_sent: false, error: err?.message || 'Falha ao reenviar email do convite.' });
+    }
   } catch {
     return res.status(500).json({ ok: false, error: 'Erro interno' });
   }
@@ -721,9 +738,18 @@ router.post('/admin/invites/:id/regenerate', auth, async (req, res) => {
     const ttl = Number(process.env.INVITE_TTL_HOURS || 24);
     invite.expires_at = new Date(Date.now() + ttl * 60 * 60 * 1000);
     await invite.save();
-    await sendInviteEmail(invite.email, invite.token, { forceToken: true, role: invite.role, plano: invite.plano, name: invite.name })
-      .catch(err => console.error('Erro ao enviar convite regenerado:', err));
-    return res.json({ ok: true, invite: { id: invite.id, token: invite.token, expires_at: invite.expires_at } });
+    try {
+      await sendInviteEmail(invite.email, invite.token, { forceToken: true, role: invite.role, plano: invite.plano, name: invite.name });
+      return res.json({ ok: true, email_sent: true, invite: { id: invite.id, token: invite.token, expires_at: invite.expires_at } });
+    } catch (err) {
+      console.error('Erro ao enviar convite regenerado:', err);
+      return res.status(502).json({
+        ok: false,
+        email_sent: false,
+        error: err?.message || 'Falha ao enviar email do convite.',
+        invite: { id: invite.id, token: invite.token, expires_at: invite.expires_at }
+      });
+    }
   } catch {
     return res.status(500).json({ ok: false, error: 'Erro interno' });
   }
