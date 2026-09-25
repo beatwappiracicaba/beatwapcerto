@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useNotification } from '../context/NotificationContext';
+import { useNotification, CONTEXT_FEED } from '../context/NotificationContext';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { AdminLayout } from '../components/AdminLayout';
 import { Clock, CheckCircle, AlertTriangle, Info, ArrowLeft, Bell, XCircle } from 'lucide-react';
@@ -9,22 +9,26 @@ import { Clock, CheckCircle, AlertTriangle, Info, ArrowLeft, Bell, XCircle } fro
 const NotificationDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, profile } = useAuth();
   const { getNotifications, markAsRead } = useNotification();
   const [notification, setNotification] = useState(null);
 
+  // A URL traz o contexto de quem abriu, entao a busca e feita na lista certa.
+  const ctx = searchParams.get('context') === CONTEXT_FEED ? CONTEXT_FEED : 'admin';
+
   useEffect(() => {
     if (user && id) {
-      const notifs = getNotifications(user.id);
-      const found = notifs.find(n => n.id === id);
+      const notifs = getNotifications(ctx);
+      const found = notifs.find((n) => n.id === id);
       if (found) {
         setNotification(found);
         if (!found.read) {
-          markAsRead(id);
+          markAsRead(id, ctx);
         }
       }
     }
-  }, [user, id, getNotifications, markAsRead]);
+  }, [user, id, getNotifications, markAsRead, ctx]);
 
   const Layout = profile?.cargo === 'Produtor' ? AdminLayout : DashboardLayout;
 

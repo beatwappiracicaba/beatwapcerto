@@ -31,7 +31,8 @@ async function notifyPostOwner({ post, actorId, type, title, message, link }) {
   try {
     const ownerId = ownerIdOfPost(post);
     if (!ownerId || ownerId === normId(actorId)) return null;
-    return createNotification({ recipient_id: ownerId, type, title, message, link });
+    // context 'feed': interacao social pertence exclusivamente ao Feed.
+    return createNotification({ recipient_id: ownerId, type, title, message, link, context: 'feed' });
   } catch {
     return null;
   }
@@ -347,7 +348,8 @@ router.post('/follow/:id', auth, async (req, res) => {
           type: 'follow',
           title: 'Novo seguidor',
           message: `${who} começou a seguir você.`,
-          link: `/profile/${meId}`
+          link: `/profile/${meId}`,
+          context: 'feed'
         });
       } catch {
         void 0;

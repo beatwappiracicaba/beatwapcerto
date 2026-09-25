@@ -516,6 +516,7 @@ router.put('/admin/musics/:id', auth, async (req, res) => {
         createNotification({
           recipient_id: updated.artista_id,
           type: 'success',
+      context: 'admin',
           title: 'Música aprovada',
           message: `Sua música "${updated?.titulo || 'Sem título'}" foi aprovada.`,
           link: '/dashboard/musicas'
@@ -525,6 +526,7 @@ router.put('/admin/musics/:id', auth, async (req, res) => {
         createNotification({
           recipient_id: updated.artista_id,
           type: 'error',
+      context: 'admin',
           title: 'Música reprovada',
           message: reason
             ? `Sua música "${updated?.titulo || 'Sem título'}" foi reprovada. Motivo: ${reason}`

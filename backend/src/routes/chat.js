@@ -7,6 +7,7 @@ const {
   listNotificationsByRecipient,
   markAsRead,
   markAllAsRead,
+  getUnreadCount,
 } = require('../services/notifications');
 const { memory } = require('../memoryStore');
 
@@ -126,16 +127,40 @@ router.post('/queue', (req, res) => {
 });
 
 // Notifications
+//
+// Cada contexto e consultado separado no servidor: `?context=feed` devolve
+// somente interacoes sociais e `?context=admin` somente avisos de plataforma.
+// Pedir `admin` exige cargo administrativo (comprovado aqui, nao no front).
+const ADMIN_CARGOS = ['produtor', 'vendedor'];
+
+function isAdminCargo(cargo) {
+  return ADMIN_CARGOS.includes(String(cargo || '').trim().toLowerCase());
+}
+
 router.get('/notifications', auth, async (req, res) => {
-  const list = listNotificationsByRecipient(req.user?.id);
+  const requested = String(req.query?.context || '').trim().toLowerCase();
+  const admin = isAdminCargo(req.user?.cargo);
+
+  if (requested === 'admin' && !admin) {
+    return res.status(403).json({ error: 'Acesso restrito a notificacoes administrativas' });
+  }
+
+  const context = requested === 'admin' ? 'admin' : (requested === 'feed' ? 'feed' : null);
+  const list = listNotificationsByRecipient(req.user?.id, context);
   res.json(list);
 });
+
 router.post('/notifications', auth, async (req, res) => {
+  const requested = String(req.body?.context || '').trim().toLowerCase();
+  if (requested === 'admin' && !isAdminCargo(req.user?.cargo)) {
+    return res.status(403).json({ error: 'Acesso restrito a notificacoes administrativas' });
+  }
   const item = createNotification({
     recipient_id: req.body?.recipient_id || req.body?.recipientId || req.user?.id,
     title: req.body?.title || 'Notificação',
     message: req.body?.message || '',
     type: req.body?.type || 'info',
+    context: requested,
     link: req.body?.link || null,
   });
   if (!item) return res.status(400).json({ error: 'recipient_id obrigatório' });
@@ -160,6 +185,7 @@ router.post('/broadcast-notifications', auth, async (req, res) => {
         title: req.body?.title || 'Aviso',
         message: req.body?.message || '',
         type: 'info',
+        context: 'admin',
         link: req.body?.link || null,
       })
     )
@@ -167,13 +193,21 @@ router.post('/broadcast-notifications', auth, async (req, res) => {
   res.json({ ok: true, count: created.length });
 });
 router.post('/notifications/:id/read', auth, async (req, res) => {
+  // A leitura e por contexto: so a notificacao pedida e marcada, e o
+  // contador recalculado apenas dentro daquele contexto.
   const out = markAsRead(req.user?.id, req.params.id);
   if (!out.ok) return res.status(404).json({ error: 'Notificação não encontrada' });
-  res.json({ ok: true });
+  const context = String(req.query?.context || req.body?.context || '').trim().toLowerCase() || null;
+  res.json({ ok: true, unread_count: getUnreadCount(req.user?.id, context) });
 });
 router.post('/notifications/read-all', auth, async (req, res) => {
-  markAllAsRead(req.user?.id);
-  res.json({ ok: true });
+  const requested = String(req.query?.context || req.body?.context || '').trim().toLowerCase();
+  if (requested === 'admin' && !isAdminCargo(req.user?.cargo)) {
+    return res.status(403).json({ error: 'Acesso restrito a notificacoes administrativas' });
+  }
+  const context = requested === 'admin' ? 'admin' : (requested === 'feed' ? 'feed' : null);
+  markAllAsRead(req.user?.id, context);
+  res.json({ ok: true, unread_count: getUnreadCount(req.user?.id, context) });
 });
 
 // AI Assistant (history + chat)

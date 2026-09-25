@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useChat } from '../../context/ChatContext';
 import { NotificationBell } from '../notifications/NotificationBell';
+import { CONTEXT_FEED } from '../../context/NotificationContext';
 import { ProfileButton } from '../ProfileButton';
 import { ChatButton } from '../FloatingChat/ChatButton';
 import { ChatWindow } from '../FloatingChat/ChatWindow';
@@ -159,7 +160,7 @@ export const FeedShell = ({
             altura da area de conteudo. Os dropdowns abrem para a direita. */}
         <div className="mt-auto flex flex-col items-center gap-2 border-t border-white/10 px-1 py-3">
           <div ref={bellRef} className="relative z-50 flex items-center justify-center">
-            {currentUserId && <NotificationBell userId={currentUserId} />}
+            {currentUserId && <NotificationBell userId={currentUserId} context={CONTEXT_FEED} />}
           </div>
           <div className="flex items-center justify-center">
             <ProfileButton profile={profile} />

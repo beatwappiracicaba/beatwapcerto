@@ -11,7 +11,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { apiClient, uploadApi } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { useNotification } from '../context/NotificationContext';
+import { useNotification, CONTEXT_FEED } from '../context/NotificationContext';
 import { useChat } from '../context/ChatContext';
 import { connectRealtime, subscribe, unsubscribe } from '../services/realtime';
 import { getCroppedImg } from '../utils/cropImage';
@@ -1885,7 +1885,8 @@ const Feed = () => {
     setPostModalOpen(true);
   }, []);
 
-  const unreadCount = Number(getUnreadCount?.() || 0);
+  // Contador do Feed: somente interacoes sociais, nunca avisos de plataforma.
+  const unreadCount = Number(getUnreadCount?.(CONTEXT_FEED) || 0);
   const chatUnread = useMemo(() => {
     const list = Array.isArray(chats) ? chats : [];
     return list.reduce((sum, c) => sum + (Number(c?.unreadCount) || 0), 0);

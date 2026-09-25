@@ -326,7 +326,7 @@ export const DashboardLayout = ({ children }) => {
           </div>
           <div className="flex items-center gap-3 md:gap-6 shrink-0">
             <div className="relative z-50">
-              {currentUserId && <NotificationBell userId={currentUserId} />}
+              {currentUserId && <NotificationBell userId={currentUserId} context="admin" />}
             </div>
             <div className="h-6 w-px bg-white/10 hidden md:block"></div>
             <ProfileButton profile={profile} />

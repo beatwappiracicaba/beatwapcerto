@@ -38,7 +38,7 @@ export const SettingsShell = ({ onBack, children }) => {
           </div>
 
           <div className="relative z-50 shrink-0">
-            {currentUserId && <NotificationBell userId={currentUserId} />}
+            {currentUserId && <NotificationBell userId={currentUserId} context="admin" />}
           </div>
           <ProfileButton profile={profile} />
         </div>

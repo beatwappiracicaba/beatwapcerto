@@ -1,15 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Check, Clock, Info, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Bell, Check, Clock, Info, AlertTriangle, CheckCircle, XCircle, Heart, MessageCircle, UserPlus, AtSign, Send } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useNotification } from '../../context/NotificationContext';
+import { useNotification, CONTEXT_FEED } from '../../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
 
-export const NotificationBell = ({ userId }) => {
+// `context` separa as caixas: o Feed pede 'feed' e os dashboards usam
+// 'admin'. Cada uma so enxerga o proprio bucket e o proprio contador.
+export const NotificationBell = ({ userId, context }) => {
   const navigate = useNavigate();
   const { getNotifications, getUnreadCount, markAsRead, markAllAsRead } = useNotification();
-  const notifications = getNotifications(userId);
-  const unreadCount = getUnreadCount(userId);
+  const ctx = context === CONTEXT_FEED ? CONTEXT_FEED : 'admin';
+  const isFeed = ctx === CONTEXT_FEED;
+  const notifications = getNotifications(ctx);
+  const unreadCount = getUnreadCount(ctx);
 
   const [open, setOpen] = useState(false);
   const [hovering, setHovering] = useState(false);
@@ -25,8 +29,20 @@ export const NotificationBell = ({ userId }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const iconFor = (type) => {
-    switch (type) {
+  // No Feed o icone segue a natureza da interacao social; no Admin segue a
+  // tonalidade classica (sucesso/erro/aviso).
+  const iconFor = (notif) => {
+    if (isFeed) {
+      switch (notif?.type) {
+        case 'like': return <Heart size={18} className="text-red-400" />;
+        case 'comment': return <MessageCircle size={18} className="text-beatwap-gold" />;
+        case 'follow': return <UserPlus size={18} className="text-beatwap-gold" />;
+        case 'mention': return <AtSign size={18} className="text-beatwap-gold" />;
+        case 'message': return <Send size={18} className="text-beatwap-gold" />;
+        default: return <Info size={18} className="text-blue-500" />;
+      }
+    }
+    switch (notif?.type) {
       case 'success': return <CheckCircle className="text-green-500" size={18} />;
       case 'error': return <XCircle className="text-red-500" size={18} />;
       case 'warning': return <AlertTriangle className="text-yellow-500" size={18} />;
@@ -35,9 +51,15 @@ export const NotificationBell = ({ userId }) => {
   };
 
   const handleNotificationClick = async (notif) => {
-    await markAsRead(notif.id);
+    // Marca como lida apenas no bucket desta caixa.
+    await markAsRead(notif.id, ctx);
     setOpen(false);
-    navigate(`/notifications/${notif.id}`);
+    const link = String(notif.link || '').trim();
+    if (link) {
+      navigate(link);
+      return;
+    }
+    navigate(`/notifications/${notif.id}?context=${ctx}`);
   };
 
   return (
@@ -75,7 +97,7 @@ export const NotificationBell = ({ userId }) => {
             <div className="p-3">
               <div className="flex items-start gap-3">
                 <div className="shrink-0 p-1.5 bg-white/5 rounded-lg">
-                  {iconFor(notifications[0].type)}
+                  {iconFor(notifications[0])}
                 </div>
                 <div className="flex-1">
                   <div className="font-bold text-white text-sm">{notifications[0].title}</div>
@@ -98,11 +120,13 @@ export const NotificationBell = ({ userId }) => {
             <div className="flex items-center justify-between p-3 border-b border-white/10">
               <div className="flex items-center gap-2">
                 <Bell size={18} className="text-beatwap-gold" />
-                <span className="font-bold">Notificações</span>
+                <span className="font-bold">
+                  {isFeed ? 'Notificações do Feed' : 'Notificações'}
+                </span>
               </div>
               {unreadCount > 0 && (
                 <button
-                  onClick={() => markAllAsRead(userId)}
+                  onClick={() => markAllAsRead(ctx)}
                   className="text-xs px-3 py-1 rounded-lg bg-beatwap-gold text-black font-bold hover:bg-yellow-500 transition-colors flex items-center gap-1"
                 >
                   <Check size={14} /> Marcar todas
@@ -114,7 +138,14 @@ export const NotificationBell = ({ userId }) => {
               {notifications.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
                   <Bell size={40} className="mb-3 opacity-20 mx-auto" />
-                  <div className="text-sm">Sem notificações</div>
+                  <div className="text-sm font-bold text-gray-400">
+                    {isFeed ? 'Nenhuma notificação no Feed' : 'Sem notificações'}
+                  </div>
+                  <div className="mt-1 text-xs text-gray-600">
+                    {isFeed
+                      ? 'Curtidas, comentários e menções aparecem aqui.'
+                      : 'Avisos da plataforma aparecem aqui.'}
+                  </div>
                 </div>
               ) : (
                 notifications.map((notif) => (
@@ -125,7 +156,7 @@ export const NotificationBell = ({ userId }) => {
                   >
                     <div className="flex items-start gap-3">
                       <div className="shrink-0 p-1.5 bg-white/5 rounded-lg">
-                        {iconFor(notif.type)}
+                        {iconFor(notif)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start">
