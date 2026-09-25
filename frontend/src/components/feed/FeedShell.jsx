@@ -2,12 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Lock, X, Plus, Search } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
-import { useChat } from '../../context/ChatContext';
 import { NotificationBell } from '../notifications/NotificationBell';
 import { CONTEXT_FEED } from '../../context/NotificationContext';
 import { ProfileButton } from '../ProfileButton';
-import { ChatButton } from '../FloatingChat/ChatButton';
-import { ChatWindow } from '../FloatingChat/ChatWindow';
+import { FeedChatPanel } from './FeedChatPanel';
 
 const iconBtn =
   'flex h-10 w-10 items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-beatwap-gold/60';
@@ -31,17 +29,29 @@ export const FeedShell = ({
   bottomItems = [],
   menuItems = [],
   rightRail = null,
+  chatUnread = 0,
+  chatRequest = null,
   children
 }) => {
   const { user, profile } = useAuth();
-  const { setIsOpen: openChat } = useChat();
   const currentUserId = user?.id;
-  const chatAllowed = profile?.access_control?.chat !== false;
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatTarget, setChatTarget] = useState(null);
   const bellRef = useRef(null);
   const panelRef = useRef(null);
   const burgerRef = useRef(null);
+
+  // `chatRequest` vem da pagina como { targetId?, nonce }. Quando muda, o
+  // Chat Social abre (ja escolhendo a conversa, se veio do perfil social).
+  const lastRequest = useRef(chatRequest);
+  useEffect(() => {
+    if (!chatRequest || chatRequest === lastRequest.current) return;
+    lastRequest.current = chatRequest;
+    setChatTarget(chatRequest.targetId || null);
+    setChatOpen(true);
+  }, [chatRequest]);
 
   const searchItem = bottomItems.find((i) => i.key === 'search') || null;
 
@@ -95,7 +105,9 @@ export const FeedShell = ({
       return;
     }
     if (item.key === 'messages') {
-      openChat?.(true);
+      // Chat Social do Feed. Nao abre o chat administrativo.
+      setChatTarget(null);
+      setChatOpen(true);
       return;
     }
     item.onSelect?.();
@@ -135,7 +147,7 @@ export const FeedShell = ({
               >
                 <span className="relative">
                   {Icon ? <Icon size={21} /> : null}
-                  {renderBadge(item.badge)}
+                  {renderBadge(item.key === 'messages' ? chatUnread : item.badge)}
                 </span>
                 <span className="text-[9px] font-semibold leading-none">{item.label}</span>
               </button>
@@ -237,7 +249,7 @@ export const FeedShell = ({
                   >
                     <span className="relative">
                       {Icon ? <Icon size={21} /> : null}
-                      {renderBadge(item.badge)}
+                      {renderBadge(item.key === 'messages' ? chatUnread : item.badge)}
                     </span>
                     <span className="max-w-full truncate px-0.5 text-[9px] font-semibold leading-none">
                       {item.label}
@@ -337,15 +349,15 @@ export const FeedShell = ({
         )}
       </AnimatePresence>
 
-      {chatAllowed && (
-        <>
-          {/* No celular o botao flutuante some: mensagens ja estao na barra inferior. */}
-          <div className="hidden md:block">
-            <ChatButton />
-          </div>
-          <ChatWindow currentUserId={currentUserId} allowAI />
-        </>
-      )}
+      {/* O chat administrativo NAO existe dentro do Feed. Quem conversa aqui e
+          o Chat Social (painel acima), alimentado por `context=social`.
+          O ChatButton/ChatWindow de atendimento ficam so no Admin/Dashboard. */}
+      <FeedChatPanel
+        open={chatOpen}
+        onClose={() => { setChatOpen(false); setChatTarget(null); }}
+        meId={currentUserId}
+        startChatWith={chatTarget}
+      />
     </div>
   );
 };

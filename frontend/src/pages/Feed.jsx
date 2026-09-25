@@ -12,7 +12,7 @@ import { apiClient, uploadApi } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useNotification, CONTEXT_FEED } from '../context/NotificationContext';
-import { useChat } from '../context/ChatContext';
+import { useSocialChats } from '../hooks/useSocialChats';
 import { connectRealtime, subscribe, unsubscribe } from '../services/realtime';
 import { getCroppedImg } from '../utils/cropImage';
 import { useGlobalAudioPlayer } from '../context/GlobalAudioPlayerContext';
@@ -109,7 +109,6 @@ const Feed = () => {
   const { profile } = useAuth();
   const { addToast } = useToast();
   const { getUnreadCount } = useNotification();
-  const { chats } = useChat();
   const { toggleTrack } = useGlobalAudioPlayer();
   const roleLower = String(profile?.cargo || '').toLowerCase();
   const isProdutor = roleLower === 'produtor';
@@ -1281,6 +1280,19 @@ const Feed = () => {
                 </button>
 
                 <div className="flex shrink-0 items-center gap-2">
+                  {/* Conversa direta no Chat Social do Feed. So aparece
+                      quando o post e de outra pessoa. */}
+                  {!isMine && meId && (
+                    <button
+                      type="button"
+                      onClick={() => openChatWith(ownerId)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-2 text-sm font-bold text-gray-200 transition hover:border-beatwap-gold/50 hover:text-beatwap-gold md:px-3 md:py-1.5 md:text-xs"
+                      aria-label={`Enviar mensagem para ${ownerName}`}
+                    >
+                      <MessageCircle size={14} />
+                      <span>Mensagem</span>
+                    </button>
+                  )}
                   {canFollow && (
                     <button
                       type="button"
@@ -1698,7 +1710,7 @@ const Feed = () => {
         )}
       </div>
     );
-  }, [buildWhatsAppHref, commentDraftByPostId, commentPostingById, commentsByPostId, commentsLoadingById, commentsOpenById, deleteMyPost, displayName, feedAlbums, feedError, feedFilter, feedSubTab, followLoadingById, followingCount, getEmbedUrl, isFollowing, items, loading, loadingMore, location.pathname, meId, myPosts, myPostsError, myPostsLoading, navigate, openEditPost, openMenuPostId, postActionLoadingById, refresh, roleLabel, sanitizeUrl, sendComment, setFeedFilter, shareFeedbackId, sharePost, timeAgo, toggleComments, toggleFollow, togglePlay, togglePostLike]);
+  }, [buildWhatsAppHref, commentDraftByPostId, commentPostingById, commentsByPostId, commentsLoadingById, commentsOpenById, deleteMyPost, displayName, feedAlbums, feedError, feedFilter, feedSubTab, followLoadingById, followingCount, getEmbedUrl, isFollowing, items, loading, loadingMore, location.pathname, meId, myPosts, myPostsError, myPostsLoading, navigate, openChatWith, openEditPost, openMenuPostId, postActionLoadingById, refresh, roleLabel, sanitizeUrl, sendComment, setFeedFilter, shareFeedbackId, sharePost, timeAgo, toggleComments, toggleFollow, togglePlay, togglePostLike]);
 
   const filteredProfiles = useMemo(() => {
     const term = String(searchQuery || '').trim().toLowerCase();
@@ -1885,12 +1897,19 @@ const Feed = () => {
     setPostModalOpen(true);
   }, []);
 
+  // Contador do Chat Social: separado do chat administrativo, que tem o
+  // proprio contador na bolinha flutuante do dashboard.
+  const { unreadCount: socialUnread } = useSocialChats();
   // Contador do Feed: somente interacoes sociais, nunca avisos de plataforma.
   const unreadCount = Number(getUnreadCount?.(CONTEXT_FEED) || 0);
-  const chatUnread = useMemo(() => {
-    const list = Array.isArray(chats) ? chats : [];
-    return list.reduce((sum, c) => sum + (Number(c?.unreadCount) || 0), 0);
-  }, [chats]);
+
+  // Abre o Chat Social ja na conversa de alguem (usado pelo botao
+  // "Mensagem" do post). O nonce faz o painel abrir de novo mesmo se
+  // a pessoa for a mesma.
+  const [chatRequest, setChatRequest] = useState(null);
+  const openChatWith = useCallback((targetId) => {
+    setChatRequest({ targetId, nonce: Date.now() });
+  }, []);
 
   const myProfileRoute = isProdutor ? '/admin/profile' : '/dashboard/profile';
 
@@ -1901,7 +1920,7 @@ const Feed = () => {
     const items = [
       { key: 'home', label: 'Voltar', icon: ArrowLeft, short: 'Voltar', onSelect: handleBack },
       { key: 'search', label: 'Buscar', icon: Search, short: 'Busca', onSelect: focusSearch },
-      { key: 'messages', label: 'Mensagens', icon: MessageCircle, short: 'Msg', badge: chatUnread },
+      { key: 'messages', label: 'Mensagens', icon: MessageCircle, short: 'Msg', badge: 0 },
       { key: 'notifications', label: 'Notificações', icon: Bell, short: 'Alerta', badge: unreadCount }
     ];
 
@@ -1912,7 +1931,7 @@ const Feed = () => {
     }
 
     return items;
-  }, [chatUnread, focusSearch, handleBack, meId, myProfileRoute, navigate, openComposer, unreadCount]);
+  }, [focusSearch, handleBack, meId, myProfileRoute, navigate, openComposer, unreadCount]);
 
   const feedBottomItems = useMemo(
     () => feedNavItems.map((i) => ({ ...i, label: i.short })),
@@ -2081,6 +2100,8 @@ const Feed = () => {
       bottomItems={feedBottomItems}
       menuItems={feedMenuItems}
       rightRail={feedRightRail}
+      chatUnread={socialUnread}
+      chatRequest={chatRequest}
     >
       <div className="space-y-4 md:space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
