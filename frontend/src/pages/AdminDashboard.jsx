@@ -18,6 +18,12 @@ import { useNotification } from '../context/NotificationContext';
 import { useChat } from '../context/ChatContext';
 import { useToast } from '../context/ToastContext';
 import { apiClient } from '../services/apiClient';
+import {
+  PRODUCER_AREA_OPTIONS,
+  OTHER_AREA_OPTION,
+  buildProducerArea,
+  splitProducerArea
+} from '../constants/producerArea';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../utils/cropImage';
 import logo from '../assets/images/beatwap-logo.png';
@@ -2715,6 +2721,8 @@ export const AdminProfile = () => {
     instagram_url: '',
     site_url: '',
     genero_musical: '',
+    area_producao_selected: '',
+    area_producao_custom: '',
     tema: 'dark',
     cep: '',
     logradouro: '',
@@ -2733,6 +2741,7 @@ export const AdminProfile = () => {
 
   useEffect(() => {
     if (user && profile) {
+      const area = splitProducerArea(profile.area_producao);
       setFormData(prev => ({
         ...prev,
         nome_completo_razao_social: profile.nome_completo_razao_social || profile.nome || '',
@@ -2742,6 +2751,8 @@ export const AdminProfile = () => {
         instagram_url: profile.instagram_url || '',
         site_url: profile.site_url || '',
         genero_musical: profile.genero_musical || '',
+        area_producao_selected: area.selected,
+        area_producao_custom: area.custom,
         tema: profile.tema || 'dark',
         cep: decryptData(profile.cep || ''),
         logradouro: decryptData(profile.logradouro || ''),
@@ -2787,6 +2798,7 @@ export const AdminProfile = () => {
         instagram_url: formData.instagram_url,
         site_url: formData.site_url,
         genero_musical: formData.genero_musical,
+        area_producao: buildProducerArea(formData.area_producao_selected, formData.area_producao_custom),
         tema: formData.tema,
         cep: encryptData(formData.cep),
         logradouro: encryptData(formData.logradouro),
@@ -2933,13 +2945,35 @@ export const AdminProfile = () => {
                       value={formData.celular} 
                       onChange={(e) => setFormData({...formData, celular: e.target.value})} 
                     />
-                    <AnimatedInput 
-                      label="Gênero Musical" 
-                      value={formData.genero_musical} 
-                      onChange={(e) => setFormData({...formData, genero_musical: e.target.value})} 
+                    <AnimatedInput
+                      label="Gênero Musical"
+                      value={formData.genero_musical}
+                      onChange={(e) => setFormData({...formData, genero_musical: e.target.value})}
                       placeholder="Ex.: Sertanejo, Funk, Rap..."
                       className="md:col-span-2"
                     />
+                    <div className="md:col-span-2 space-y-2">
+                      <label className="block text-sm text-gray-400">Você é produtor de qual área?</label>
+                      <select
+                        value={formData.area_producao_selected}
+                        onChange={(e) => setFormData({ ...formData, area_producao_selected: e.target.value })}
+                        className="w-full bg-beatwap-graphite/50 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-beatwap-gold/50 transition-colors"
+                      >
+                        <option value="">Selecione uma área</option>
+                        {PRODUCER_AREA_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {formData.area_producao_selected === OTHER_AREA_OPTION && (
+                      <AnimatedInput
+                        label="Especifique a área"
+                        value={formData.area_producao_custom}
+                        onChange={(e) => setFormData({ ...formData, area_producao_custom: e.target.value })}
+                        placeholder="Ex: produtor de games"
+                        className="md:col-span-2"
+                      />
+                    )}
                   </div>
                   <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10 mt-4 gap-3">
                     <span className="text-gray-300">Tema da Interface</span>
