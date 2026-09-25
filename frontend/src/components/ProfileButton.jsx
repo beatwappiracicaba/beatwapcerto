@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, User, LogOut, Camera } from 'lucide-react';
+import { Home, User, Users, LogOut, Camera } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { apiClient } from '../services/apiClient';
@@ -13,8 +13,25 @@ export const ProfileButton = ({ profile }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const dropdownRef = useRef(null);
   const isProdutor = profile?.cargo === 'Produtor';
+
+  // Mesma regra do DashboardLayout: o Perfil Publico e liberado por permissao
+  // ou por plano (Mensal/Anual/Vitalicio), com override do produtor.
+  const normalizedPlan = String(profile?.plano || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+  const planAllowsPublicProfile =
+    normalizedPlan.includes('mensal') ||
+    normalizedPlan.includes('anual') ||
+    normalizedPlan.includes('vitalicio') ||
+    normalizedPlan.includes('lifetime');
+  const publicProfileAllowed =
+    (profile?.access_control?.public_profile !== false) &&
+    (planAllowsPublicProfile || !!profile?.access_control?.plan_override);
 
   // Close on click outside
   useEffect(() => {
@@ -30,6 +47,15 @@ export const ProfileButton = ({ profile }) => {
   const handleProfileClick = () => {
     setIsOpen(false);
     navigate(isProdutor ? '/admin/profile' : '/dashboard/profile');
+  };
+
+  const handlePublicProfileClick = () => {
+    setIsOpen(false);
+    if (!publicProfileAllowed) {
+      setShowUpgradeModal(true);
+      return;
+    }
+    navigate(isProdutor ? '/admin/public-profile' : '/dashboard/gestao/perfil-publico');
   };
 
   const handleEditClick = () => {
@@ -116,12 +142,19 @@ export const ProfileButton = ({ profile }) => {
 
       {isOpen && (
         <div className="absolute right-0 mt-2 w-48 bg-[#161616] border border-white/10 rounded-xl shadow-2xl py-2 z-50">
-            <button 
+            <button
                 onClick={handleProfileClick}
                 className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors"
             >
                 <User size={16} />
                 Meu Perfil
+            </button>
+            <button
+                onClick={handlePublicProfileClick}
+                className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors"
+            >
+                <Users size={16} />
+                Perfil Publico
             </button>
             <button
                 onClick={handleEditClick}
@@ -166,6 +199,34 @@ export const ProfileButton = ({ profile }) => {
         onSave={handleSaveProfile}
         uploading={isSaving}
       />
+
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setShowUpgradeModal(false)} />
+          <div className="relative w-full max-w-md bg-[#121212] border border-white/10 rounded-2xl p-6 space-y-4">
+            <div className="text-lg font-bold text-white">Recurso exclusivo de planos</div>
+            <div className="text-sm text-gray-300">
+              O Perfil Publico esta disponivel nos planos Mensal e Anual. Faca upgrade para ativar sua pagina publica e aparecer na Home.
+            </div>
+            <div className="flex gap-2 justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setShowUpgradeModal(false)}
+                className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-white/10"
+              >
+                Agora nao
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowUpgradeModal(false); navigate(isProdutor ? '/admin/profile' : '/dashboard/profile'); }}
+                className="px-4 py-2 rounded-xl bg-beatwap-gold text-beatwap-black font-bold hover:brightness-95"
+              >
+                Ir para Plano
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

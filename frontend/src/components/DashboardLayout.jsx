@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { LayoutGrid, Music, Menu, X, TrendingUp, Lock, Users, User, Calendar, Target, FileText, MessageCircle, DollarSign, Home, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ChatButton } from './FloatingChat/ChatButton';
@@ -9,7 +9,6 @@ import { ProfileButton } from './ProfileButton';
 
 export const DashboardLayout = ({ children }) => {
   const { user, profile } = useAuth();
-  const navigate = useNavigate();
   const isProdutor = profile?.cargo?.toLowerCase() === 'produtor';
   const isVendedor = profile?.cargo?.toLowerCase() === 'vendedor';
   const isAdmin = isProdutor || isVendedor; // Treat Vendor as Admin for Chat purposes
@@ -78,9 +77,6 @@ export const DashboardLayout = ({ children }) => {
   }
 
   const location = useLocation();
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const openUpgradeModal = useCallback(() => setShowUpgradeModal(true), []);
-  const closeUpgradeModal = () => setShowUpgradeModal(false);
 
   const hasAccess = () => {
     const path = location.pathname;
@@ -112,24 +108,19 @@ export const DashboardLayout = ({ children }) => {
 
   const sectionTitleClass = 'px-3 text-[11px] font-bold uppercase tracking-[0.22em] text-gray-500';
 
-  const profilePublicItem = useMemo(() => (
-    (permissions.public_profile !== false) && (planAllowsPublicProfile || planOverride)
-      ? { type: 'link', to: '/dashboard/gestao/perfil-publico', label: 'Perfil Publico', icon: Users }
-      : { type: 'button', label: 'Perfil Publico', icon: Users, onClick: openUpgradeModal }
-  ), [permissions.public_profile, planAllowsPublicProfile, planOverride, openUpgradeModal]);
-
   const commonViewItems = useMemo(() => ([
     permissions.dashboard_panel !== false ? { type: 'link', to: '/dashboard/painel', label: 'Painel', icon: LayoutGrid } : null,
     permissions.dashboard_feed !== false ? { type: 'link', to: '/dashboard/feed', label: 'Feed', icon: TrendingUp } : null
   ].filter(Boolean)), [permissions.dashboard_panel, permissions.dashboard_feed]);
 
-  const sidebarSections = useMemo(() => {
-    const accountItems = [
-      permissions.dashboard_profile !== false ? { type: 'link', to: '/dashboard/profile', label: 'Perfil', icon: User } : null,
-      profilePublicItem,
-      { type: 'link', to: '/', label: 'Voltar ao site', icon: Home }
-    ].filter(Boolean);
+  // Itens soltos no fim do menu. O "Perfil Publico" saiu daqui e passou a
+  // ficar dentro do botao de perfil (ProfileButton).
+  const footerItems = useMemo(() => ([
+    permissions.dashboard_profile !== false ? { type: 'link', to: '/dashboard/profile', label: 'Perfil', icon: User } : null,
+    { type: 'link', to: '/', label: 'Voltar ao site', icon: Home }
+  ].filter(Boolean)), [permissions.dashboard_profile]);
 
+  const sidebarSections = useMemo(() => {
     if (isVendedor) {
       return [
         { title: 'Visao', items: commonViewItems },
@@ -153,8 +144,7 @@ export const DashboardLayout = ({ children }) => {
           items: [
             permissions.seller_finance !== false ? { type: 'link', to: '/seller/finance', label: 'Comissoes', icon: DollarSign } : null
           ].filter(Boolean)
-        },
-        { title: 'Conta', items: accountItems }
+        }
       ];
     }
 
@@ -180,8 +170,7 @@ export const DashboardLayout = ({ children }) => {
             permissions.marketing !== false ? { type: 'link', to: '/dashboard/marketing', label: 'Carreira e negocios', icon: TrendingUp } : null,
             permissions.finance !== false ? { type: 'link', to: '/dashboard/finance', label: 'Financeiro', icon: DollarSign } : null
           ].filter(Boolean)
-        },
-        { title: 'Conta', items: accountItems }
+        }
       ];
     }
 
@@ -207,10 +196,9 @@ export const DashboardLayout = ({ children }) => {
           permissions.marketing !== false ? { type: 'link', to: '/dashboard/marketing', label: 'Marketing e mentoria', icon: TrendingUp } : null,
           permissions.finance !== false ? { type: 'link', to: '/dashboard/finance', label: 'Financeiro', icon: DollarSign } : null
         ].filter(Boolean)
-      },
-      { title: 'Conta', items: accountItems }
+      }
     ];
-  }, [commonViewItems, isCompositor, isVendedor, permissions.chat, permissions.compositions, permissions.dashboard_auditions, permissions.dashboard_profile, permissions.finance, permissions.musics, permissions.seller_artists, permissions.seller_calendar, permissions.seller_communications, permissions.seller_finance, permissions.seller_leads, permissions.seller_proposals, permissions.work, permissions.marketing, profilePublicItem]);
+  }, [commonViewItems, isCompositor, isVendedor, permissions.chat, permissions.compositions, permissions.dashboard_auditions, permissions.finance, permissions.musics, permissions.seller_artists, permissions.seller_calendar, permissions.seller_communications, permissions.seller_finance, permissions.seller_leads, permissions.seller_proposals, permissions.work, permissions.marketing]);
 
   const isSectionActive = useCallback((section) =>
     section.items.some((item) => {
@@ -316,6 +304,12 @@ export const DashboardLayout = ({ children }) => {
               </div>
             </div>
           ))}
+
+          {footerItems.length > 0 && (
+            <div className="space-y-1 border-t border-white/10 pt-4">
+              {footerItems.map(renderNavItem)}
+            </div>
+          )}
         </nav>
       </aside>
 
@@ -361,34 +355,6 @@ export const DashboardLayout = ({ children }) => {
           <ChatButton isAdmin={isAdmin} currentUserId={currentUserId} />
           <ChatWindow currentUserId={currentUserId} allowAI={allowAI} />
         </>
-      )}
-      
-      {showUpgradeModal && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70" onClick={closeUpgradeModal} />
-          <div className="relative w-full max-w-md bg-[#121212] border border-white/10 rounded-2xl p-6 space-y-4">
-            <div className="text-lg font-bold text-white">Recurso exclusivo de planos</div>
-            <div className="text-sm text-gray-300">
-              O Perfil Público está disponível nos planos Mensal e Anual. Faça upgrade para ativar sua página pública e aparecer na Home.
-            </div>
-            <div className="flex gap-2 justify-end pt-2">
-              <button
-                type="button"
-                onClick={closeUpgradeModal}
-                className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-white/10"
-              >
-                Agora não
-              </button>
-              <button
-                type="button"
-                onClick={() => { closeUpgradeModal(); navigate('/dashboard/profile'); }}
-                className="px-4 py-2 rounded-xl bg-beatwap-gold text-beatwap-black font-bold hover:brightness-95"
-              >
-                Ir para Plano
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

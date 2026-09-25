@@ -123,16 +123,16 @@ export const AdminLayout = ({ children }) => {
         permissions.admin_finance !== false ? { to: '/admin/finance', label: 'Financeiro', icon: DollarSign } : null
       ].filter(Boolean)
     },
-    {
-      title: 'Conta',
-      items: [
-        permissions.admin_profile !== false ? { to: '/admin/profile', label: 'Perfil', icon: User } : null,
-        permissions.admin_public_profile !== false ? { to: '/admin/public-profile', label: 'Perfil Publico', icon: Users } : null,
-        permissions.admin_settings !== false ? { to: '/admin/settings', label: 'Configuracoes', icon: Settings } : null,
-        { to: '/', label: 'Voltar ao site', icon: Home }
-      ].filter(Boolean)
-    }
-  ]), [permissions.admin_artists, permissions.admin_auditions, permissions.admin_composers, permissions.admin_events, permissions.admin_feed, permissions.admin_finance, permissions.admin_musics, permissions.admin_compositions, permissions.admin_panel, permissions.admin_podcasts, permissions.admin_profile, permissions.admin_public_profile, permissions.admin_scanner, permissions.admin_settings, permissions.admin_sellers, permissions.admin_sponsors, permissions.chat]);
+  ]), [permissions.admin_artists, permissions.admin_auditions, permissions.admin_composers, permissions.admin_compositions, permissions.admin_events, permissions.admin_feed, permissions.admin_finance, permissions.admin_musics, permissions.admin_panel, permissions.admin_podcasts, permissions.admin_scanner, permissions.admin_sellers, permissions.admin_sponsors, permissions.chat]);
+
+  // Itens soltos no fim do menu. O "Perfil Publico" saiu daqui e passou a
+  // ficar dentro do botao de perfil (ProfileButton). "Configuracoes" e
+  // exclusiva do produtor e fica por ultimo.
+  const footerItems = useMemo(() => ([
+    permissions.admin_profile !== false ? { to: '/admin/profile', label: 'Perfil', icon: User } : null,
+    { to: '/', label: 'Voltar ao site', icon: Home },
+    permissions.admin_settings !== false ? { to: '/admin/settings', label: 'Configuracoes', icon: Settings } : null
+  ].filter(Boolean)), [permissions.admin_profile, permissions.admin_settings]);
 
   const isSectionActive = useCallback((section) =>
     section.items.some((item) => {
@@ -216,12 +216,18 @@ export const AdminLayout = ({ children }) => {
               >
                 <div className="space-y-1 pt-1">
                   {section.items.map(renderNavItem)}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </nav>
-      </aside>
+            ))}
+
+            {footerItems.length > 0 && (
+              <div className="space-y-1 border-t border-white/10 pt-4">
+                {footerItems.map(renderNavItem)}
+              </div>
+            )}
+          </nav>
+        </aside>
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />}
       <main className="flex-1 md:ml-0 ml-0 w-full min-w-0">
         <div className="container max-w-7xl mx-auto px-4 md:px-6 py-4">
