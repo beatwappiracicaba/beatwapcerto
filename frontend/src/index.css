@@ -258,6 +258,34 @@
   }
 }
 
+/* Tela independente do Feed: ocupa 100% da viewport, sem depender do layout
+   do dashboard. min-height 100dvh evita o "salto" da barra do navegador no
+   mobile; o 100vh antes dele mantem suporte em navegadores antigos. */
+.feed-shell {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header em 100% da largura, com o conteudo alinhado as bordas reais da tela. */
+.feed-header {
+  position: sticky;
+  top: 0;
+  z-index: 70;
+  width: 100%;
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Coluna de leitura do feed, com respiro para a barra inferior do aparelho. */
+.feed-body {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+}
+
 /* Hide scrollbar on mobile horizontal scroll for plans */
 .scrollbar-hide {
   -ms-overflow-style: none;

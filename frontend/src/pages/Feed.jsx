@@ -72,16 +72,16 @@ const InlineAudioPlayer = ({ trackId, title, artist, coverUrl, onPlay }) => {
         </button>
 
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-bold text-white">{title}</div>
-          <div className="truncate text-xs text-gray-400">{artist || 'BeatWap'}</div>
+          <div className="truncate text-[15px] font-bold text-white md:text-sm">{title}</div>
+          <div className="truncate text-[13px] text-gray-400 md:text-xs">{artist || 'BeatWap'}</div>
         </div>
 
-        <span className="shrink-0 text-[11px] tabular-nums text-gray-400">
+        <span className="shrink-0 text-xs tabular-nums text-gray-400 md:text-[11px]">
           {active ? formatClock(safeCurrent) : '--:--'}
         </span>
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-3 flex items-center gap-2.5 md:gap-2">
         <input
           type="range"
           min="0"
@@ -91,9 +91,9 @@ const InlineAudioPlayer = ({ trackId, title, artist, coverUrl, onPlay }) => {
           onChange={(event) => seekTo(event.target.value)}
           disabled={!active || safeDuration <= 0}
           aria-label={`Progresso de ${title}`}
-          className="h-1.5 min-w-0 flex-1 cursor-pointer accent-[#f5c542] disabled:cursor-default disabled:opacity-40"
+          className="h-2.5 min-w-0 flex-1 cursor-pointer accent-[#f5c542] disabled:cursor-default disabled:opacity-40 md:h-1.5"
         />
-        <span className="shrink-0 text-[11px] tabular-nums text-gray-400">{formatClock(safeDuration)}</span>
+        <span className="shrink-0 text-xs tabular-nums text-gray-400 md:text-[11px]">{formatClock(safeDuration)}</span>
       </div>
     </div>
   );
@@ -1033,7 +1033,7 @@ const Feed = () => {
                 </div>
                 {mediaType === 'text' && (
                   <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
-                    {caption && <div className="text-sm text-white whitespace-pre-line break-words" style={{ overflowWrap: 'anywhere' }}>{caption}</div>}
+                    {caption && <div className="text-[15px] text-white whitespace-pre-line break-words md:text-sm" style={{ overflowWrap: 'anywhere' }}>{caption}</div>}
                     {linkUrl && (
                       <button
                         type="button"
@@ -1050,7 +1050,7 @@ const Feed = () => {
                   <div className="space-y-3">
                     {(caption || linkUrl) && (
                       <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
-                        {caption && <div className="text-sm text-white whitespace-pre-line break-words" style={{ overflowWrap: 'anywhere' }}>{caption}</div>}
+                        {caption && <div className="text-[15px] text-white whitespace-pre-line break-words md:text-sm" style={{ overflowWrap: 'anywhere' }}>{caption}</div>}
                         {linkUrl && (
                           <button
                             type="button"
@@ -1124,7 +1124,7 @@ const Feed = () => {
       return (
         <div className="space-y-4" aria-busy="true" aria-live="polite">
           {[0, 1, 2].map((i) => (
-            <Card key={`feed-skeleton-${i}`} className="p-4 sm:p-5">
+            <Card key={`feed-skeleton-${i}`} className="p-3.5 sm:p-5">
               <div className="flex items-center gap-3">
                 <Skeleton width={44} height={44} rounded="rounded-full" />
                 <div className="flex-1 space-y-2">
@@ -1241,12 +1241,12 @@ const Feed = () => {
           const isMine = !!meId && ownerId === meId;
 
           return (
-            <Card key={`${it.type}-${it.id}-${owner?.id || 'x'}`} className="p-4 sm:p-5">
+            <Card key={`${it.type}-${it.id}-${owner?.id || 'x'}`} className="p-3.5 sm:p-5">
               <div className="mb-4 flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => { if (ownerHref) navigate(ownerHref); }}
-                  className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5"
+                  className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5 md:h-10 md:w-10"
                   aria-label={`Ver perfil de ${ownerName}`}
                 >
                   {owner?.avatar_url ? (
@@ -1264,12 +1264,12 @@ const Feed = () => {
                   className="min-w-0 flex-1 text-left"
                 >
                   <div className="flex items-center gap-1.5">
-                    <span className="truncate text-sm font-bold text-white sm:text-base">{ownerName}</span>
+                    <span className="truncate text-[15px] font-bold text-white sm:text-base">{ownerName}</span>
                     {owner?.verified === true && (
                       <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-beatwap-gold">Verificado</span>
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-gray-400 md:gap-y-1.5 md:text-xs">
                     <span className="truncate">{ownerRole}</span>
                     <span aria-hidden="true">&middot;</span>
                     <span className="shrink-0">{at}</span>
@@ -1282,7 +1282,7 @@ const Feed = () => {
                       type="button"
                       disabled={followLoading}
                       onClick={() => toggleFollow(ownerId)}
-                      className={`rounded-full px-3 py-1.5 text-xs font-bold border transition ${
+                      className={`rounded-full px-3.5 py-2 text-sm font-bold border transition md:px-3 md:py-1.5 md:text-xs ${
                         following
                           ? 'bg-white/10 border-white/10 text-gray-200 hover:bg-white/15'
                           : 'bg-beatwap-gold text-black border-beatwap-gold hover:bg-white hover:border-white'
@@ -1296,7 +1296,7 @@ const Feed = () => {
                     <button
                       type="button"
                       onClick={() => setOpenMenuPostId((prev) => (prev === `${it.type}-${it.id}` ? null : `${it.type}-${it.id}`))}
-                      className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-gray-300 transition hover:bg-white/10 hover:text-white"
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-gray-300 transition hover:bg-white/10 hover:text-white md:h-9 md:w-9"
                       aria-label="Mais opcoes"
                       aria-expanded={openMenuPostId === `${it.type}-${it.id}`}
                     >
@@ -1307,7 +1307,7 @@ const Feed = () => {
                         <button
                           type="button"
                           onClick={() => { setShareFeedbackId(`${it.type}-${it.id}`); sharePost(it.data || {}); setOpenMenuPostId(null); }}
-                          className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-bold text-gray-200 transition hover:bg-white/5"
+                          className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-bold text-gray-200 tran md:py-2.5 md:text-xssition hover:bg-white/5"
                         >
                           <Share2 size={14} />
                           <span>{shareFeedbackId === `${it.type}-${it.id}` ? 'Link copiado' : 'Compartilhar'}</span>
@@ -1317,7 +1317,7 @@ const Feed = () => {
                             <button
                               type="button"
                               onClick={() => { setOpenMenuPostId(null); openEditPost(it.data || {}); }}
-                              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-bold text-gray-200 transition hover:bg-white/5"
+                              className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-bold text-gray-200 tran md:py-2.5 md:text-xssition hover:bg-white/5"
                             >
                               <Pencil size={14} />
                               <span>Editar</span>
@@ -1325,7 +1325,7 @@ const Feed = () => {
                             <button
                               type="button"
                               onClick={() => { setOpenMenuPostId(null); deleteMyPost(String(it?.id || it?.data?.id || '')); }}
-                              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-bold text-red-300 transition hover:bg-red-500/10"
+                              className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-bold text-red-300 trans md:py-2.5 md:text-xsition hover:bg-red-500/10"
                             >
                               <Trash2 size={14} />
                               <span>Apagar</span>
@@ -1336,7 +1336,7 @@ const Feed = () => {
                           <button
                             type="button"
                             onClick={() => { setOpenMenuPostId(null); navigate(ownerHref); }}
-                            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-bold text-gray-200 transition hover:bg-white/5"
+                            className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-bold text-gray-200 tran md:py-2.5 md:text-xssition hover:bg-white/5"
                           >
                             <Users size={14} />
                             <span>Ver perfil</span>
@@ -1472,7 +1472,7 @@ const Feed = () => {
                 if (mediaType === 'text') {
                   return (
                     <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
-                      {caption && <div className="text-sm text-white whitespace-pre-line break-words" style={{ overflowWrap: 'anywhere' }}>{caption}</div>}
+                      {caption && <div className="text-[15px] text-white whitespace-pre-line break-words md:text-sm" style={{ overflowWrap: 'anywhere' }}>{caption}</div>}
                       {linkUrl && (
                         <button
                           type="button"
@@ -1489,7 +1489,7 @@ const Feed = () => {
                           type="button"
                           disabled={likeLoading}
                           onClick={() => togglePostLike(postId)}
-                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                          className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-bold border transition md:px-3 md:py-2 md:text-xs ${
                             liked ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
                           } ${likeLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
                         >
@@ -1499,7 +1499,7 @@ const Feed = () => {
                         <button
                           type="button"
                           onClick={() => toggleComments(postId)}
-                          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border bg-black/20 border-white/5 text-gray-300 hover:bg-white/5 transition"
+                          className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-bold border bg-black/20 border-white/5 text-gray-300 hover:bg-white/5 transition md:px-3 md:py-2 md:text-xs"
                         >
                           <MessageCircle size={14} />
                           <span>{commentsCount}</span>
@@ -1507,7 +1507,7 @@ const Feed = () => {
                         <button
                           type="button"
                           onClick={() => { setShareFeedbackId(`post-${postId}`); sharePost(p); }}
-                          className="ml-auto inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border bg-black/20 border-white/5 text-gray-300 hover:bg-white/5 transition"
+                          className="ml-auto inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-bold border bg-black/20 border-white/5 text-gray-300 hover:bg-white/5 transition md:px-3 md:py-2 md:text-xs"
                           aria-label="Compartilhar publicacao"
                         >
                           <Share2 size={14} />
@@ -1524,7 +1524,7 @@ const Feed = () => {
                           {!commentsLoading && comments && comments.length > 0 && (
                             <div className="space-y-2">
                               {comments.slice(-6).map((c) => (
-                                <div key={c.id} className="text-xs text-gray-200">
+                                <div key={c.id} className="text-[13px] text-gray-200 break-words md:text-xs">
                                   <span className="text-gray-400 font-bold">{displayName(c.owner)}:</span>{' '}
                                   <span className="text-gray-200">{String(c.text || '')}</span>
                                 </div>
@@ -1536,13 +1536,13 @@ const Feed = () => {
                               value={draft}
                               onChange={(e) => setCommentDraftByPostId((prev) => ({ ...prev, [postId]: e.target.value }))}
                               placeholder="Escreva um comentário..."
-                              className="flex-1 px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-sm text-white placeholder:text-gray-500 outline-none focus:border-white/20"
+                              className="flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-[15px] text-white placeholder:text-gray-500 outline-none focus:border-white/20 md:py-2 md:text-sm"
                             />
                             <button
                               type="button"
                               disabled={sending || !String(draft || '').trim()}
                               onClick={() => sendComment(postId)}
-                              className={`px-3 py-2 rounded-xl border transition ${
+                              className={`px-3.5 py-2.5 rounded-xl border transition md:px-3 md:py-2 ${
                                 sending || !String(draft || '').trim()
                                   ? 'bg-white/5 border-white/10 text-gray-500 cursor-not-allowed'
                                   : 'bg-beatwap-gold border-beatwap-gold text-black hover:bg-white hover:border-white'
@@ -1594,7 +1594,7 @@ const Feed = () => {
                     </div>
                     {(caption || linkUrl) && (
                       <div className="p-4 space-y-3">
-                        {caption && <div className="text-sm text-white whitespace-pre-line break-words" style={{ overflowWrap: 'anywhere' }}>{caption}</div>}
+                        {caption && <div className="text-[15px] text-white whitespace-pre-line break-words md:text-sm" style={{ overflowWrap: 'anywhere' }}>{caption}</div>}
                         {linkUrl && (
                           <button
                             type="button"
@@ -1612,7 +1612,7 @@ const Feed = () => {
                         type="button"
                         disabled={likeLoading}
                         onClick={() => togglePostLike(postId)}
-                        className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                        className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-bold border transition md:px-3 md:py-2 md:text-xs ${
                           liked ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
                         } ${likeLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
                       >
@@ -1622,7 +1622,7 @@ const Feed = () => {
                       <button
                         type="button"
                         onClick={() => toggleComments(postId)}
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border bg-black/20 border-white/5 text-gray-300 hover:bg-white/5 transition"
+                        className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-bold border bg-black/20 border-white/5 text-gray-300 hover:bg-white/5 transition md:px-3 md:py-2 md:text-xs"
                       >
                         <MessageCircle size={14} />
                         <span>{commentsCount}</span>
@@ -1630,7 +1630,7 @@ const Feed = () => {
                       <button
                         type="button"
                         onClick={() => { setShareFeedbackId(`post-${postId}`); sharePost(p); }}
-                        className="ml-auto inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border bg-black/20 border-white/5 text-gray-300 hover:bg-white/5 transition"
+                        className="ml-auto inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-bold border bg-black/20 border-white/5 text-gray-300 hover:bg-white/5 transition md:px-3 md:py-2 md:text-xs"
                         aria-label="Compartilhar publicacao"
                       >
                         <Share2 size={14} />
@@ -1658,13 +1658,13 @@ const Feed = () => {
                             value={draft}
                             onChange={(e) => setCommentDraftByPostId((prev) => ({ ...prev, [postId]: e.target.value }))}
                             placeholder="Escreva um comentário..."
-                            className="flex-1 px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-sm text-white placeholder:text-gray-500 outline-none focus:border-white/20"
+                            className="flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-[15px] text-white placeholder:text-gray-500 outline-none focus:border-white/20 md:py-2 md:text-sm"
                           />
                           <button
                             type="button"
                             disabled={sending || !String(draft || '').trim()}
                             onClick={() => sendComment(postId)}
-                            className={`px-3 py-2 rounded-xl border transition ${
+                            className={`px-3.5 py-2.5 rounded-xl border transition md:px-3 md:py-2 ${
                               sending || !String(draft || '').trim()
                                 ? 'bg-white/5 border-white/10 text-gray-500 cursor-not-allowed'
                                 : 'bg-beatwap-gold border-beatwap-gold text-black hover:bg-white hover:border-white'
@@ -1920,7 +1920,7 @@ const Feed = () => {
   return (
     <FeedShell onBack={handleBack} canAccess={canAccessFeed}>
       <div className="flex items-start gap-6">
-        <div className="min-w-0 flex-1 space-y-5">
+        <div className="min-w-0 flex-1 space-y-4 md:space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div className="min-w-0">
             <div className="text-2xl font-bold text-white truncate">BeatWap</div>
@@ -1997,7 +1997,7 @@ const Feed = () => {
                           <Image size={16} className="text-beatwap-gold" />
                         )}
                       </span>
-                      <span className="min-w-0 flex-1 text-sm text-gray-400">
+                      <span className="min-w-0 flex-1 text-[15px] text-gray-400 md:text-sm">
                         O que você está produzindo hoje?
                       </span>
                     </button>
@@ -2023,7 +2023,7 @@ const Feed = () => {
                       key={`subtab-${tab.key}`}
                       type="button"
                       onClick={() => setFeedSubTab(tab.key)}
-                      className={`rounded-full border px-4 py-2 text-xs font-bold transition ${
+                      className={`rounded-full border px-4 py-2.5 text-sm font-bold transition md:py-2 md:text-xs ${
                         feedSubTab === tab.key
                           ? 'border-beatwap-gold bg-beatwap-gold text-black'
                           : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
@@ -2041,7 +2041,7 @@ const Feed = () => {
                         key={`filter-${f.key}`}
                         type="button"
                         onClick={() => setFeedFilter(f.key)}
-                        className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[11px] font-bold transition ${
+                        className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-bold transition md:py-1.5 md:text-[11px] ${
                           feedFilter === f.key
                             ? 'border-white/20 bg-white/10 text-white'
                             : 'border-white/5 bg-black/20 text-gray-400 hover:bg-white/5'
