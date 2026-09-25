@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Cropper from 'react-easy-crop';
-import { Play, Pause, Music, Image, Video, ExternalLink, Search, Plus, X, TrendingUp, Heart, MessageCircle, Send, Pencil, Trash2, Share2, MoreHorizontal, RefreshCw, AlertCircle, Compass, Users } from 'lucide-react';
+import { Play, Pause, Music, Image, Video, ExternalLink, Search, Plus, X, TrendingUp, Heart, MessageCircle, Send, Pencil, Trash2, Share2, MoreHorizontal, RefreshCw, AlertCircle, Compass, Users, Bell, Home, User, Settings, ChevronUp } from 'lucide-react';
 import { FeedShell } from '../components/feed/FeedShell';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -11,6 +11,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { apiClient, uploadApi } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useNotification } from '../context/NotificationContext';
 import { connectRealtime, subscribe, unsubscribe } from '../services/realtime';
 import { getCroppedImg } from '../utils/cropImage';
 import { useGlobalAudioPlayer } from '../context/GlobalAudioPlayerContext';
@@ -106,6 +107,7 @@ const Feed = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { addToast } = useToast();
+  const { getUnreadCount } = useNotification();
   const { toggleTrack } = useGlobalAudioPlayer();
   const roleLower = String(profile?.cargo || '').toLowerCase();
   const isProdutor = roleLower === 'produtor';
@@ -1853,43 +1855,127 @@ const Feed = () => {
     { key: 'mine', label: 'Minhas postagens' }
   ]), []);
 
-  const sideRail = useMemo(() => {
-    if (activeTab !== 'feed') return null;
-    const highlights = (Array.isArray(boostedProfiles) ? boostedProfiles : []).slice(0, 5);
-    if (!meId && highlights.length === 0) return null;
+  // --- Navegacao do Feed -------------------------------------------------
+  // Todos os itens reaproveitam o que ja existe: o campo de busca atual, o
+  // modal de publicacao atual e as rotas de perfil ja cadastradas. Nenhuma
+  // chamada de API nova e feita aqui.
+  const focusSearch = useCallback(() => {
+    setActiveTab('feed');
+    setSearchQuery('');
+    requestAnimationFrame(() => {
+      searchInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      searchInputRef.current?.focus();
+    });
+  }, []);
+
+  const openComposer = useCallback(() => {
+    setActiveTab('feed');
+    setPostType('text');
+    setPostModalOpen(true);
+  }, []);
+
+  const goToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const unreadCount = Number(getUnreadCount?.() || 0);
+
+  const feedMenuItems = useMemo(() => {
+    const items = [
+      { key: 'feed', label: 'Feed', icon: TrendingUp, onSelect: goToTop },
+      { key: 'search', label: 'Buscar', icon: Search, onSelect: focusSearch }
+    ];
+
+    if (meId) {
+      items.push({ key: 'compose', label: 'Criar publicação', icon: Plus, onSelect: openComposer });
+    }
+
+    items.push({ key: 'notifications', label: 'Notificações', icon: Bell, badge: unreadCount });
+
+    if (meId) {
+      items.push({
+        key: 'profile',
+        label: 'Meu perfil',
+        icon: User,
+        onSelect: () => navigate(isProdutor ? '/admin/profile' : '/dashboard/profile')
+      });
+    }
+
+    // Configuracoes e exclusiva do produtor e so entra se ele puder acessar.
+    if (isProdutor && profile?.access_control?.admin_settings !== false) {
+      items.push({ key: 'settings', label: 'Configurações', icon: Settings, onSelect: () => navigate('/admin/settings') });
+    }
+
+    items.push({ key: 'site', label: 'Voltar para o BeatWap', icon: Home, onSelect: () => navigate('/') });
+
+    return items;
+  }, [focusSearch, goToTop, isProdutor, meId, navigate, openComposer, profile?.access_control?.admin_settings, unreadCount]);
+
+  // Coluna lateral do desktop: dados reais ja carregados (perfil logado,
+  // destaques vindos de boostedProfiles e os contadores que a tela ja usa).
+  const feedRightRail = useMemo(() => {
+    if (activeTab !== 'feed' || !meId) return null;
+
+    const highlights = (Array.isArray(boostedProfiles) ? boostedProfiles : []).slice(0, 4);
+    const shortcuts = [
+      { key: 'search', label: 'Buscar perfis', icon: Search, onSelect: focusSearch },
+      { key: 'feed', label: 'Voltar ao topo', icon: ChevronUp, onSelect: goToTop }
+    ];
+
     return (
-      <aside className="hidden w-[300px] shrink-0 space-y-4 lg:block">
+      <div className="space-y-4">
         <Card className="p-4">
-          <div className="text-sm font-bold text-white">Atalhos</div>
-          <div className="mt-3 space-y-1.5">
+          <div className="flex items-center gap-3">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/30">
+              {profile?.avatar_url ? (
+                <img src={sanitizeUrl(profile.avatar_url)} alt="Meu perfil" className="h-full w-full object-cover" loading="lazy" />
+              ) : (
+                <User size={22} className="text-gray-400" />
+              )}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-bold text-white">
+                {profile?.nome || profile?.nome_completo_razao_social || 'Usuário'}
+              </div>
+              <div className="truncate text-xs text-beatwap-gold">{profile?.cargo || ''}</div>
+            </div>
+          </div>
+
+          <div className="mt-3 space-y-1">
             <button
               type="button"
-              onClick={() => navigate('/dashboard/profile')}
-              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-bold text-gray-200 transition hover:bg-white/5"
+              onClick={() => navigate(isProdutor ? '/admin/profile' : '/dashboard/profile')}
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-gray-200 transition hover:bg-white/5"
             >
-              <Users size={16} className="shrink-0 text-beatwap-gold" />
-              <span className="truncate">Meu Perfil</span>
+              <User size={15} className="shrink-0 text-beatwap-gold" />
+              <span className="truncate">Meu perfil</span>
             </button>
-            <button
-              type="button"
-              onClick={() => navigate('/dashboard/musics')}
-              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-bold text-gray-200 transition hover:bg-white/5"
-            >
-              <Music size={16} className="shrink-0 text-beatwap-gold" />
-              <span className="truncate">Minhas Músicas</span>
-            </button>
+            {shortcuts.map((s) => {
+              const Icon = s.icon;
+              return (
+                <button
+                  key={`rail-${s.key}`}
+                  type="button"
+                  onClick={s.onSelect}
+                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-gray-200 transition hover:bg-white/5"
+                >
+                  <Icon size={15} className="shrink-0 text-beatwap-gold" />
+                  <span className="truncate">{s.label}</span>
+                </button>
+              );
+            })}
           </div>
         </Card>
 
         {highlights.length > 0 && (
           <Card className="p-4">
-            <div className="text-sm font-bold text-white">Artistas em destaque</div>
+            <div className="text-sm font-bold text-white">Destaques</div>
             <div className="mt-3 space-y-2">
               {highlights.map((p) => {
                 const name = String(p?.nome || 'Usuário');
                 return (
                   <button
-                    key={`rail-${p.id}`}
+                    key={`rail-hl-${p.id}`}
                     type="button"
                     onClick={() => navigate(`/profile/${p.id}`)}
                     className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition hover:bg-white/5"
@@ -1913,14 +1999,18 @@ const Feed = () => {
             </div>
           </Card>
         )}
-      </aside>
+      </div>
     );
-  }, [activeTab, boostedProfiles, meId, navigate, sanitizeUrl]);
+  }, [activeTab, boostedProfiles, focusSearch, goToTop, isProdutor, meId, navigate, profile, sanitizeUrl]);
 
   return (
-    <FeedShell onBack={handleBack} canAccess={canAccessFeed}>
-      <div className="flex items-start gap-6">
-        <div className="min-w-0 flex-1 space-y-4 md:space-y-5">
+    <FeedShell
+      onBack={handleBack}
+      canAccess={canAccessFeed}
+      menuItems={feedMenuItems}
+      rightRail={feedRightRail}
+    >
+      <div className="space-y-4 md:space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div className="min-w-0">
             <div className="text-2xl font-bold text-white truncate">BeatWap</div>
@@ -2174,9 +2264,6 @@ const Feed = () => {
             )}
           </div>
         )}
-      </div>
-        {sideRail}
-      </div>
 
       {videoModalPost && (
         <div className="fixed inset-0 z-[100]">
@@ -2487,6 +2574,7 @@ const Feed = () => {
             </div>
           </div>
         )}
+      </div>
     </FeedShell>
   );
 };
