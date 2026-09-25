@@ -32,27 +32,112 @@ class MailerConfigError extends Error {
 }
 
 /**
- * Falha rapida quando o SMTP nao esta configurado.
+ * Transporte HTTPS (API do Brevo) x SMTP.
+ *
+ * O VPS nao consegue sair por portas SMTP (587/465/25 sao bloqueadas pelo
+ * provedor), mas HTTPS/443 funciona. Por isso a API HTTP tem preferencia e o
+ * SMTP fica como fallback para ambientes onde ele funciona (ex: local).
+ */
+function getBrevoApiKey() {
+  return String(process.env.BREVO_API_KEY || '').trim();
+}
+
+function hasSmtpCredentials() {
+  return !!(process.env.SMTP_USER && process.env.SMTP_PASS);
+}
+
+function resolveSender() {
+  return String(process.env.SMTP_FROM || process.env.SMTP_USER || '').trim();
+}
+
+async function sendViaBrevoApi({ to, subject, html }) {
+  const apiKey = getBrevoApiKey();
+  const from = resolveSender();
+  if (!from) {
+    throw new MailerConfigError(
+      'Envio de email desativado: defina SMTP_FROM (remetente) no servidor.',
+      'MAIL_FROM_MISSING'
+    );
+  }
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': apiKey,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: { email: from, name: process.env.SMTP_FROM_NAME || 'BeatWap' },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html
+    })
+  });
+  const raw = await res.text();
+  let data = null;
+  try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
+  if (!res.ok) {
+    const message = (data && (data.message || data.code)) || `HTTP ${res.status}`;
+    const err = new Error(`Falha ao enviar email (Brevo API): ${message}`);
+    err.status = res.status;
+    err.provider = 'brevo-api';
+    err.response = data;
+    throw err;
+  }
+  return { provider: 'brevo-api', status: res.status, data };
+}
+
+/**
+ * Falha rapida quando nao ha nenhum transporte utilizavel.
  *
  * Sem isso o nodemailer tenta conectar e so falha depois do timeout da rede
  * (o que no VPS leva minutos e devolve "sucesso" para o usuario final).
  */
 function assertMailerConfigured() {
+  if (getBrevoApiKey()) return;
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    throw new MailerConfigError(
-      'Envio de email desativado: SMTP_USER/SMTP_PASS nao configurados no servidor.',
-      'SMTP_NOT_CONFIGURED'
-    );
+  if (hasSmtpCredentials()) {
+    // Hostname puro e o esperado. Rejeita URL colada por engano
+    // (ex: "https://smtp.gmail.com"), que o nodemailer nao aceita.
+    if (/^https?:\/\//i.test(host) || /[/?#]/.test(host)) {
+      throw new MailerConfigError(
+        `SMTP_HOST invalido: "${host}". Use apenas o hostname do servidor SMTP (ex: smtp.gmail.com).`,
+        'SMTP_INVALID_HOST'
+      );
+    }
+    return;
   }
-  // Hostname puro e o esperado. Rejeita URL colada por engano
-  // (ex: "https://smtp.gmail.com"), que o nodemailer nao aceita.
-  if (/^https?:\/\//i.test(host) || /[/?#]/.test(host)) {
-    throw new MailerConfigError(
-      `SMTP_HOST invalido: "${host}". Use apenas o hostname do servidor SMTP (ex: smtp.gmail.com).`,
-      'SMTP_INVALID_HOST'
-    );
+  throw new MailerConfigError(
+    'Envio de email desativado: defina BREVO_API_KEY (recomendado) ou SMTP_USER/SMTP_PASS no servidor.',
+    'MAILER_NOT_CONFIGURED'
+  );
+}
+
+async function dispatch({ to, subject, html, logLabel, log }) {
+  assertMailerConfigured();
+  if (getBrevoApiKey()) {
+    const info = await sendViaBrevoApi({ to, subject, html });
+    if (log) {
+      console.log(logLabel, {
+        provider: info.provider,
+        to,
+        messageId: info.data && info.data.messageId
+      });
+    }
+    return info;
   }
+  const info = await transporter.sendMail({ from: resolveSender(), to, subject, html });
+  if (log) {
+    console.log(logLabel, {
+      provider: 'smtp',
+      to,
+      messageId: info && info.messageId,
+      accepted: info && info.accepted,
+      rejected: info && info.rejected,
+      response: info && info.response
+    });
+  }
+  return info;
 }
 
 function getPlansFromEnv() {
@@ -163,56 +248,34 @@ async function sendInviteEmail(email, token, opts = {}) {
   } else {
     link = `${base}/register/invite?token=${encodeURIComponent(String(token || '').trim())}`;
   }
-  const info = await transporter.sendMail({
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+  const info = await dispatch({
     to: email,
     subject: 'Convite para cadastro',
-    html: inviteTemplate(link)
-  });
-  console.log('invite-email', {
-    to: email,
-    messageId: info && info.messageId,
-    accepted: info && info.accepted,
-    rejected: info && info.rejected,
-    response: info && info.response
+    html: inviteTemplate(link),
+    logLabel: 'invite-email',
+    log: true
   });
   return info;
 }
 
 async function sendCodeEmail(email, code) {
-  assertMailerConfigured();
-  const info = await transporter.sendMail({
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+  return dispatch({
     to: email,
     subject: 'Seu código de verificação',
-    html: codeTemplate(code)
+    html: codeTemplate(code),
+    logLabel: 'code-email',
+    log: true
   });
-  console.log('code-email', {
-    to: email,
-    messageId: info && info.messageId,
-    accepted: info && info.accepted,
-    rejected: info && info.rejected,
-    response: info && info.response
-  });
-  return info;
 }
 
 async function sendPasswordResetEmail(email, link, code) {
-  assertMailerConfigured();
-  const info = await transporter.sendMail({
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+  return dispatch({
     to: email,
     subject: 'Redefinição de Senha',
-    html: resetPasswordTemplate(link, code)
+    html: resetPasswordTemplate(link, code),
+    logLabel: 'reset-email',
+    log: true
   });
-  console.log('reset-email', {
-    to: email,
-    messageId: info && info.messageId,
-    accepted: info && info.accepted,
-    rejected: info && info.rejected,
-    response: info && info.response
-  });
-  return info;
 }
 
 module.exports = {
