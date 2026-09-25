@@ -59,7 +59,29 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,woff}'],
+        // Desliga o navigateFallback padrao. Ele servia o index.html do
+        // precache em qualquer navegacao, e como os assets tem hash no nome,
+        // um index.html antigo apontava para CSS/JS que ja nao existem no
+        // servidor: a pagina abria sem estilo. Com o fallback desligado, as
+        // navegacoes vao para a rota NetworkFirst abaixo.
+        navigateFallback: undefined,
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
+          {
+            // HTML sempre fresco da rede; offline cai no shell em cache.
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'pages-cache',
+              networkTimeoutSeconds: 3,
+              expiration: {
+                maxEntries: 20
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
           {
             urlPattern: /^https:\/\/api\.beatwap\.com\/.*$/i,
             handler: 'NetworkFirst',
