@@ -18,7 +18,7 @@ function PWAInstallButton() {
           fill="currentColor"
           aria-hidden="true"
         >
-          <path d="M19 13h-6v7h-2v-7H5c-1.1 0-2-.9-2-2V5c0-1.1.9-2 2-2h14c1.1 0 2 .9 2 2vz" />
+          <path d="M19 13h-6v7h-2v-7H5c-1.1 0-2-.9-2-2V5c0-1.1.9-2 2-2h14c1.1 0 2 .9 2 2" />
         </svg>
         Instalar
       </button>
