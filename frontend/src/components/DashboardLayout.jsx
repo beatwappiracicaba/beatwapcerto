@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutGrid, Music, Menu, X, TrendingUp, Lock, Users, User, Calendar, Target, FileText, MessageCircle, DollarSign, Home, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -79,7 +79,7 @@ export const DashboardLayout = ({ children }) => {
 
   const location = useLocation();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const openUpgradeModal = () => setShowUpgradeModal(true);
+  const openUpgradeModal = useCallback(() => setShowUpgradeModal(true), []);
   const closeUpgradeModal = () => setShowUpgradeModal(false);
 
   const hasAccess = () => {
@@ -112,14 +112,16 @@ export const DashboardLayout = ({ children }) => {
 
   const sectionTitleClass = 'px-3 text-[11px] font-bold uppercase tracking-[0.22em] text-gray-500';
 
-  const profilePublicItem = (permissions.public_profile !== false) && (planAllowsPublicProfile || planOverride)
-    ? { type: 'link', to: '/dashboard/gestao/perfil-publico', label: 'Perfil Publico', icon: Users }
-    : { type: 'button', label: 'Perfil Publico', icon: Users, onClick: openUpgradeModal };
+  const profilePublicItem = useMemo(() => (
+    (permissions.public_profile !== false) && (planAllowsPublicProfile || planOverride)
+      ? { type: 'link', to: '/dashboard/gestao/perfil-publico', label: 'Perfil Publico', icon: Users }
+      : { type: 'button', label: 'Perfil Publico', icon: Users, onClick: openUpgradeModal }
+  ), [permissions.public_profile, planAllowsPublicProfile, planOverride, openUpgradeModal]);
 
-  const commonViewItems = [
+  const commonViewItems = useMemo(() => ([
     permissions.dashboard_panel !== false ? { type: 'link', to: '/dashboard/painel', label: 'Painel', icon: LayoutGrid } : null,
     permissions.dashboard_feed !== false ? { type: 'link', to: '/dashboard/feed', label: 'Feed', icon: TrendingUp } : null
-  ].filter(Boolean);
+  ].filter(Boolean)), [permissions.dashboard_panel, permissions.dashboard_feed]);
 
   const sidebarSections = useMemo(() => {
     const accountItems = [
@@ -208,14 +210,14 @@ export const DashboardLayout = ({ children }) => {
       },
       { title: 'Conta', items: accountItems }
     ];
-  }, [commonViewItems, isCompositor, isVendedor, permissions.chat, permissions.compositions, permissions.dashboard_auditions, permissions.dashboard_profile, permissions.dashboard_search, permissions.dashboard_feed, permissions.dashboard_panel, permissions.finance, permissions.musics, permissions.public_profile, permissions.seller_artists, permissions.seller_calendar, permissions.seller_communications, permissions.seller_finance, permissions.seller_leads, permissions.seller_proposals, permissions.work, permissions.marketing, planAllowsPublicProfile, planOverride, profilePublicItem]);
+  }, [commonViewItems, isCompositor, isVendedor, permissions.chat, permissions.compositions, permissions.dashboard_auditions, permissions.dashboard_profile, permissions.finance, permissions.musics, permissions.seller_artists, permissions.seller_calendar, permissions.seller_communications, permissions.seller_finance, permissions.seller_leads, permissions.seller_proposals, permissions.work, permissions.marketing, profilePublicItem]);
 
-  const isSectionActive = (section) =>
+  const isSectionActive = useCallback((section) =>
     section.items.some((item) => {
       if (item.type !== 'link' || !item.to) return false;
       if (item.to === '/dashboard/painel') return location.pathname === item.to;
       return location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
-    });
+    }), [location.pathname]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -236,7 +238,7 @@ export const DashboardLayout = ({ children }) => {
 
       return changed ? next : prev;
     });
-  }, [location.pathname, sidebarSections]);
+  }, [location.pathname, sidebarSections, isSectionActive]);
 
   const toggleSection = (title) => {
     setOpenSections((prev) => ({ ...prev, [title]: !prev[title] }));

@@ -114,10 +114,6 @@ const Feed = () => {
     return Number.isFinite(t) ? t > Date.now() : false;
   }, []);
 
-  const isVisibleOnHome = useCallback((row) => {
-    return row?.access_control?.show_on_home !== false;
-  }, []);
-
   const feedAlbums = useMemo(() => {
     const map = new Map();
     (items || []).forEach((it) => {
@@ -724,7 +720,7 @@ const Feed = () => {
       setBoostedProfilesLoading(false);
       boostedProfilesLoadingRef.current = false;
     }
-  }, [featuredWeight, isFeaturedActive, meId]);
+  }, [featuredWeight, isFeaturedActive]);
 
   const formatSeconds = useCallback((totalSeconds) => {
     const s = Math.max(0, Number(totalSeconds || 0));
@@ -951,7 +947,6 @@ const Feed = () => {
                           frameBorder="0"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                           allowFullScreen
-                          playsInline
                           webkitallowfullscreen
                           mozallowfullscreen
                         />
@@ -1358,7 +1353,6 @@ const Feed = () => {
                             frameBorder="0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                             allowFullScreen
-                            playsInline
                             webkitallowfullscreen
                             mozallowfullscreen
                           />
@@ -1867,7 +1861,6 @@ const Feed = () => {
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
-                  playsInline
                   webkitallowfullscreen
                   mozallowfullscreen
                 />

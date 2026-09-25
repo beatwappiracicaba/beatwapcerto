@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { LayoutGrid, Users, User, Music, Menu, X, Settings, DollarSign, ClipboardList, Ticket, MessageCircle, Home, ChevronDown, Mic } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -132,14 +132,14 @@ export const AdminLayout = ({ children }) => {
         { to: '/', label: 'Voltar ao site', icon: Home }
       ].filter(Boolean)
     }
-  ]), [permissions.admin_artists, permissions.admin_auditions, permissions.admin_composers, permissions.admin_events, permissions.admin_feed, permissions.admin_finance, permissions.admin_musics, permissions.admin_compositions, permissions.admin_panel, permissions.admin_profile, permissions.admin_public_profile, permissions.admin_scanner, permissions.admin_search, permissions.admin_settings, permissions.admin_sellers, permissions.admin_sponsors, permissions.chat]);
+  ]), [permissions.admin_artists, permissions.admin_auditions, permissions.admin_composers, permissions.admin_events, permissions.admin_feed, permissions.admin_finance, permissions.admin_musics, permissions.admin_compositions, permissions.admin_panel, permissions.admin_podcasts, permissions.admin_profile, permissions.admin_public_profile, permissions.admin_scanner, permissions.admin_settings, permissions.admin_sellers, permissions.admin_sponsors, permissions.chat]);
 
-  const isSectionActive = (section) =>
+  const isSectionActive = useCallback((section) =>
     section.items.some((item) => {
       if (!item?.to) return false;
       if (item.to === '/admin') return location.pathname === item.to;
       return location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
-    });
+    }), [location.pathname]);
 
   useEffect(() => {
     setOpenSections((prev) => {
@@ -159,7 +159,7 @@ export const AdminLayout = ({ children }) => {
 
       return changed ? next : prev;
     });
-  }, [location.pathname, sidebarSections]);
+  }, [location.pathname, sidebarSections, isSectionActive]);
 
   const toggleSection = (title) => {
     setOpenSections((prev) => ({ ...prev, [title]: !prev[title] }));
