@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutGrid, Music, Menu, X, TrendingUp, Lock, Users, User, Calendar, Target, FileText, MessageCircle, DollarSign, Home, ChevronDown } from 'lucide-react';
+import { LayoutGrid, Music, Menu, X, TrendingUp, Lock, Users, Calendar, Target, FileText, MessageCircle, DollarSign, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ChatButton } from './FloatingChat/ChatButton';
 import { ChatWindow } from './FloatingChat/ChatWindow';
@@ -113,12 +113,9 @@ export const DashboardLayout = ({ children }) => {
     permissions.dashboard_feed !== false ? { type: 'link', to: '/dashboard/feed', label: 'Feed', icon: TrendingUp } : null
   ].filter(Boolean)), [permissions.dashboard_panel, permissions.dashboard_feed]);
 
-  // Itens soltos no fim do menu. O "Perfil Publico" saiu daqui e passou a
-  // ficar dentro do botao de perfil (ProfileButton).
-  const footerItems = useMemo(() => ([
-    permissions.dashboard_profile !== false ? { type: 'link', to: '/dashboard/profile', label: 'Perfil', icon: User } : null,
-    { type: 'link', to: '/', label: 'Voltar ao site', icon: Home }
-  ].filter(Boolean)), [permissions.dashboard_profile]);
+  // "Perfil" e "Voltar ao site" sairam do menu hamburguer: ambos continuam
+  // acessiveis pelo botao de perfil (Meu Perfil e Pagina inicial).
+  const footerItems = [];
 
   const sidebarSections = useMemo(() => {
     if (isVendedor) {

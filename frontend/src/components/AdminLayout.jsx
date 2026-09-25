@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, User, Music, Menu, X, Settings, DollarSign, ClipboardList, Ticket, MessageCircle, Home, ChevronDown, Mic } from 'lucide-react';
+import { LayoutGrid, Users, Music, Menu, X, Settings, DollarSign, ClipboardList, Ticket, MessageCircle, ChevronDown, Mic } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { NotificationBell } from './notifications/NotificationBell';
 import { ProfileButton } from './ProfileButton';
@@ -125,14 +125,12 @@ export const AdminLayout = ({ children }) => {
     },
   ]), [permissions.admin_artists, permissions.admin_auditions, permissions.admin_composers, permissions.admin_compositions, permissions.admin_events, permissions.admin_feed, permissions.admin_finance, permissions.admin_musics, permissions.admin_panel, permissions.admin_podcasts, permissions.admin_scanner, permissions.admin_sellers, permissions.admin_sponsors, permissions.chat]);
 
-  // Itens soltos no fim do menu. O "Perfil Publico" saiu daqui e passou a
-  // ficar dentro do botao de perfil (ProfileButton). "Configuracoes" e
-  // exclusiva do produtor e fica por ultimo.
+  // Itens soltos no fim do menu. "Perfil" e "Voltar ao site" sairam daqui e
+  // continuam acessiveis pelo botao de perfil (Meu Perfil e Pagina inicial).
+  // "Configuracoes" e exclusiva do produtor e fica por ultimo.
   const footerItems = useMemo(() => ([
-    permissions.admin_profile !== false ? { to: '/admin/profile', label: 'Perfil', icon: User } : null,
-    { to: '/', label: 'Voltar ao site', icon: Home },
     permissions.admin_settings !== false ? { to: '/admin/settings', label: 'Configuracoes', icon: Settings } : null
-  ].filter(Boolean)), [permissions.admin_profile, permissions.admin_settings]);
+  ].filter(Boolean)), [permissions.admin_settings]);
 
   const isSectionActive = useCallback((section) =>
     section.items.some((item) => {
