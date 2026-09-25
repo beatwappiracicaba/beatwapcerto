@@ -15,10 +15,13 @@ export const ProfileButton = ({ profile }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const dropdownRef = useRef(null);
-  const isProdutor = profile?.cargo === 'Produtor';
+  const cargo = String(profile?.cargo || '');
+  const isProdutor = cargo === 'Produtor';
+  const isVendedor = cargo === 'Vendedor';
 
-  // Mesma regra do DashboardLayout: o Perfil Publico e liberado por permissao
-  // ou por plano (Mensal/Anual/Vitalicio), com override do produtor.
+  // Mesma regra do DashboardLayout: a trava por plano so vale para quem nao e
+  // produtor nem vendedor. Esses dois cargos tem acesso liberado mesmo sem
+  // plano, entao o Perfil Publico precisa abrir direto para eles.
   const normalizedPlan = String(profile?.plano || '')
     .toLowerCase()
     .normalize('NFD')
@@ -29,9 +32,11 @@ export const ProfileButton = ({ profile }) => {
     normalizedPlan.includes('anual') ||
     normalizedPlan.includes('vitalicio') ||
     normalizedPlan.includes('lifetime');
+  const planOverride = !!profile?.access_control?.plan_override;
+  const exemptFromPlan = isProdutor || isVendedor;
   const publicProfileAllowed =
     (profile?.access_control?.public_profile !== false) &&
-    (planAllowsPublicProfile || !!profile?.access_control?.plan_override);
+    (exemptFromPlan || planAllowsPublicProfile || planOverride);
 
   // Close on click outside
   useEffect(() => {
