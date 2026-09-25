@@ -1,6 +1,12 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import Cropper from 'react-easy-crop';
+import {
+  PRODUCER_AREA_OPTIONS,
+  OTHER_AREA_OPTION,
+  buildProducerArea,
+  splitProducerArea
+} from '../../constants/producerArea';
 // removed framer-motion to avoid unmount glitches
 import { X, Save, Check, Camera, User } from 'lucide-react';
 import { getCroppedImg } from '../../utils/cropImage';
@@ -13,6 +19,8 @@ export const ProfileEditModal = ({
   currentEmail,
   currentBio, 
   currentGenre,
+  currentProducerArea,
+  currentCargo,
   currentSocials = {},
   currentPhone,
   currentCep,
@@ -29,6 +37,9 @@ export const ProfileEditModal = ({
   const [email, setEmail] = useState(currentEmail || '');
   const [bio, setBio] = useState(currentBio || '');
   const [genre, setGenre] = useState(currentGenre || '');
+  const isProdutor = String(currentCargo || '').trim().toLowerCase() === 'produtor';
+  const [areaSelected, setAreaSelected] = useState(() => splitProducerArea(currentProducerArea).selected);
+  const [areaCustom, setAreaCustom] = useState(() => splitProducerArea(currentProducerArea).custom);
   const [socials, setSocials] = useState({
     youtube: currentSocials?.youtube || '',
     spotify: currentSocials?.spotify || '',
@@ -85,12 +96,15 @@ export const ProfileEditModal = ({
       setBairro(currentBairro || '');
       setCidade(currentCidade || '');
       setEstado(currentEstado || '');
+      const area = splitProducerArea(currentProducerArea);
+      setAreaSelected(area.selected);
+      setAreaCustom(area.custom);
       setPreviewUrl(null);
       setBlobToUpload(null);
       setImageSrc(null);
       setFileOriginal(null);
     }
-  }, [isOpen, currentName, currentEmail, currentBio, currentGenre, currentSocials]);
+  }, [isOpen, currentName, currentEmail, currentBio, currentGenre, currentProducerArea, currentSocials]);
 
   const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
     setCroppedAreaPixels(croppedAreaPixels);
@@ -136,7 +150,8 @@ export const ProfileEditModal = ({
       genre,
       socials,
       phone,
-      blob: finalBlob
+      blob: finalBlob,
+      ...(isProdutor ? { areaProducao: buildProducerArea(areaSelected, areaCustom) } : {})
     });
   };
 
@@ -287,16 +302,44 @@ export const ProfileEditModal = ({
                         />
                     </div>
 
-                    <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">Gênero Musical</label>
-                        <input
-                            type="text"
-                            value={genre}
-                            onChange={(e) => setGenre(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors"
-                            placeholder="Ex: Funk, Trap, Rap..."
-                        />
-                    </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">Gênero Musical</label>
+              <input
+                type="text"
+                value={genre}
+                onChange={(e) => setGenre(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors"
+                placeholder="Ex: Funk, Trap, Rap..."
+              />
+            </div>
+
+            {isProdutor && (
+              <div>
+                <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">
+                  Você é produtor de qual área?
+                </label>
+                <select
+                  value={areaSelected}
+                  onChange={(e) => setAreaSelected(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors"
+                >
+                  <option value="">Selecione uma área</option>
+                  {PRODUCER_AREA_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+
+                {areaSelected === OTHER_AREA_OPTION && (
+                  <input
+                    type="text"
+                    value={areaCustom}
+                    onChange={(e) => setAreaCustom(e.target.value)}
+                    className="mt-2 w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-beatwap-gold/50 transition-colors"
+                    placeholder="Ex: produtor de games"
+                  />
+                )}
+              </div>
+            )}
 
                     <div className="space-y-3">
                         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Redes Sociais & Links</label>

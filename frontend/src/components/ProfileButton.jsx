@@ -78,7 +78,7 @@ export const ProfileButton = ({ profile }) => {
     navigate('/');
   };
 
-  const handleSaveProfile = async ({ name, bio, genre, socials, blob }) => {
+  const handleSaveProfile = async ({ name, bio, genre, areaProducao, socials, blob }) => {
     try {
       setIsSaving(true);
       let avatar_url = null;
@@ -99,6 +99,7 @@ export const ProfileButton = ({ profile }) => {
       if (typeof name === 'string' && clean(name)) updateData.nome = clean(name);
       if (typeof bio === 'string' && clean(bio)) updateData.bio = clean(bio);
       if (typeof genre === 'string' && clean(genre)) updateData.genero_musical = clean(genre);
+      if (typeof areaProducao === 'string') updateData.area_producao = clean(areaProducao);
       if (socials && typeof socials === 'object') {
         const y = clean(socials.youtube); if (y) updateData.youtube_url = y;
         const s = clean(socials.spotify); if (s) updateData.spotify_url = s;
@@ -193,6 +194,8 @@ export const ProfileButton = ({ profile }) => {
         currentName={profile?.nome || profile?.nome_completo_razao_social || ''}
         currentBio={profile?.bio || ''}
         currentGenre={profile?.genero_musical || ''}
+        currentProducerArea={profile?.area_producao || ''}
+        currentCargo={profile?.cargo || ''}
         currentSocials={{
           youtube: profile?.youtube_url || null,
           spotify: profile?.spotify_url || null,

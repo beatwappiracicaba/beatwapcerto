@@ -46,6 +46,11 @@ const Profile = sequelize.define('Profile', {
     type: DataTypes.STRING,
     allowNull: true
   },
+  // Area de atuacao escolhida pelo produtor no cadastro (ex: "Produtor musical").
+  area_producao: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   cpf: {
     type: DataTypes.STRING,
     allowNull: true

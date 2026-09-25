@@ -7,6 +7,11 @@ import { useToast } from '../context/ToastContext';
 import { apiClient, authApi } from '../services/apiClient';
 import { Mail, Lock, User, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import {
+  PRODUCER_AREA_OPTIONS,
+  OTHER_AREA_OPTION,
+  buildProducerArea
+} from '../constants/producerArea';
 
 export default function RegisterInvite() {
   const nav = useNavigate();
@@ -24,6 +29,8 @@ export default function RegisterInvite() {
   const [nome, setNome] = useState('');
   const [nomeCompleto, setNomeCompleto] = useState('');
   const [razaoSocial, setRazaoSocial] = useState('');
+  const [producerAreaSelected, setProducerAreaSelected] = useState('');
+  const [producerAreaCustom, setProducerAreaCustom] = useState('');
   const [cpf, setCpf] = useState('');
   const [cnpj, setCnpj] = useState('');
   const [celular, setCelular] = useState('');
@@ -39,6 +46,7 @@ export default function RegisterInvite() {
   const [code, setCode] = useState('');
   const [cargo, setCargo] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const isProdutor = String(cargo || '').trim().toLowerCase() === 'produtor';
 
   useEffect(() => {
     const run = async () => {
@@ -146,6 +154,7 @@ export default function RegisterInvite() {
         nome,
         nome_completo: nomeCompleto,
         razao_social: razaoSocial,
+    area_producao: buildProducerArea(producerAreaSelected, producerAreaCustom),
         cpf,
         cnpj,
         celular,
@@ -252,6 +261,32 @@ export default function RegisterInvite() {
                     onChange={(e) => setRazaoSocial(e.target.value)}
                     placeholder="(opcional)"
                   />
+
+                  {isProdutor && (
+                    <div className="w-full space-y-2">
+                      <label className="text-sm text-gray-400 ml-1">Você é produtor de qual área?</label>
+                      <select
+                        value={producerAreaSelected}
+                        onChange={(e) => setProducerAreaSelected(e.target.value)}
+                        className="w-full bg-beatwap-graphite/50 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-beatwap-gold/50 transition-colors"
+                      >
+                        <option value="">Selecione uma área</option>
+                        {PRODUCER_AREA_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+
+                      {producerAreaSelected === OTHER_AREA_OPTION && (
+                        <AnimatedInput
+                          label="Especifique a área"
+                          icon={User}
+                          value={producerAreaCustom}
+                          onChange={(e) => setProducerAreaCustom(e.target.value)}
+                          placeholder="Ex: produtor de games"
+                        />
+                      )}
+                    </div>
+                  )}
                 </>
               )}
 

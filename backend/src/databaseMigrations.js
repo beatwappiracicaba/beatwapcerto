@@ -115,6 +115,27 @@ const MIGRATIONS = [
         });
       }
     }
+  },
+  {
+    // Area de atuacao do produtor. Coluna nova e anulavel: nao altera nem apaga
+    // dado existente de outros cargos.
+    name: '005-profiles-area-producao',
+    up: async () => {
+      const queryInterface = sequelize.getQueryInterface();
+      let columns = {};
+      try {
+        columns = await queryInterface.describeTable('profiles');
+      } catch {
+        columns = {};
+      }
+
+      if (!columns.area_producao) {
+        await queryInterface.addColumn('profiles', 'area_producao', {
+          type: DataTypes.STRING,
+          allowNull: true
+        });
+      }
+    }
   }
 ];
 

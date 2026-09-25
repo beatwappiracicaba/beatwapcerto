@@ -537,6 +537,7 @@ router.post('/register-with-invite', async (req, res) => {
 
     const nome_completo = String(req.body?.nome_completo || '').trim();
     const razao_social = String(req.body?.razao_social || '').trim();
+    const area_producao = String(req.body?.area_producao || '').trim();
     const cpf = String(req.body?.cpf || '').trim();
     const cnpj = String(req.body?.cnpj || '').trim();
     const celular = String(req.body?.celular || '').trim();
@@ -588,6 +589,7 @@ router.post('/register-with-invite', async (req, res) => {
       nome: nome || null,
       nome_completo,
       razao_social: razao_social || null,
+      area_producao: area_producao || null,
       cpf: cpf || null,
       cnpj: cnpj || null,
       telefone: telefone || null,

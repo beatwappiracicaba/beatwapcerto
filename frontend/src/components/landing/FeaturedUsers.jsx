@@ -94,6 +94,12 @@ const UserCard = ({ user, type, onSelect }) => {
             <div className="text-white text-base sm:text-sm font-bold leading-snug">{user.nome || user.name || roleLabel}</div>
             <div className="text-xs sm:text-[11px] text-gray-300 flex items-center gap-2">
               <span>{roleLabel}</span>
+              {type === 'producer' && user.area_producao && (
+                <>
+                  <span className="opacity-50" aria-hidden="true">&middot;</span>
+                  <span className="truncate text-beatwap-gold">{user.area_producao}</span>
+                </>
+              )}
               <span className="hidden sm:flex items-center gap-1 text-beatwap-gold">
                 <Info size={14} /> <span>Ver Perfil</span>
               </span>

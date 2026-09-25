@@ -407,6 +407,7 @@ const PublicProfile = () => {
 
   const displayName = profile.nome || profile.nome_completo_razao_social || 'Compositor';
   const cargoLower = String(profile.cargo || '').toLowerCase().trim();
+  const isProdutorProfile = cargoLower === 'produtor';
   const baseItemsToRender = cargoLower === 'produtor'
     ? (producerTab === 'composicoes' ? producerCompositions : producerProductions)
     : items;
@@ -504,6 +505,12 @@ const PublicProfile = () => {
                 {profile.genero_musical && (
                   <div className="inline-block px-4 py-1 rounded-full bg-white/10 text-sm text-gray-300">
                     {profile.genero_musical}
+                  </div>
+                )}
+
+                {isProdutorProfile && profile.area_producao && (
+                  <div className="inline-block px-4 py-1 rounded-full bg-beatwap-gold/10 border border-beatwap-gold/30 text-sm font-bold text-beatwap-gold">
+                    {profile.area_producao}
                   </div>
                 )}
 

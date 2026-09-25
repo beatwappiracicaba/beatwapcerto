@@ -158,7 +158,7 @@ router.put('/profile', auth, async (req, res) => {
       'youtube_url','spotify_url','deezer_url','tiktok_url','instagram_url','site_url',
       'avatar_url','email',
       'nome_completo_razao_social','cpf_cnpj','celular','tema',
-      'nome_completo','razao_social','cpf','cnpj','telefone',
+      'nome_completo','razao_social','area_producao','cpf','cnpj','telefone',
       'cep','logradouro','complemento','bairro','cidade','estado'
     ];
     const patch = {};
