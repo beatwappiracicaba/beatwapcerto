@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '../components/landing/Header';
 import Hero from '../components/landing/Hero';
 import { BoostedProfilesStories } from '../components/BoostedProfilesStories';
+import { SponsorsCarousel } from '../components/home/SponsorsCarousel';
 import FeaturedUsers from '../components/landing/FeaturedUsers';
 import HowItWorks from '../components/landing/HowItWorks';
 import Benefits from '../components/landing/Benefits';
@@ -16,7 +17,7 @@ import { apiClient } from '../services/apiClient';
 import { Play, Pause, BadgeCheck, Music, MessageCircle, ChevronLeft, ChevronRight, User, Info, X, Heart, Share2, Ticket, QrCode, ShieldCheck, Smartphone } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
-import { Instagram, Globe, Youtube, Video } from 'lucide-react';
+import { Instagram, Youtube, Video } from 'lucide-react';
 import { decryptData } from '../utils/security';
 import { useAuth } from '../context/AuthContext';
 import { useGlobalAudioPlayer } from '../context/GlobalAudioPlayerContext';
@@ -49,8 +50,7 @@ const Home = () => {
   const [hitWinner, setHitWinner] = useState(null);
   const [hitEntries, setHitEntries] = useState([]);
   const [hitVotingId, setHitVotingId] = useState(null);
-  const [activeSponsorMenu, setActiveSponsorMenu] = useState(null);
-  const [ipHash, setIpHash] = useState(null);
+    const [ipHash, setIpHash] = useState(null);
   const [activeProjectVideo, setActiveProjectVideo] = useState(null);
   const [openDescriptionId, setOpenDescriptionId] = useState(null);
   const [highlightedHitEntryId, setHighlightedHitEntryId] = useState(null);
@@ -58,9 +58,8 @@ const Home = () => {
   const upcomingRef = useRef(null);
   const releasedRef = useRef(null);
   const compositionsRef = useRef(null);
-  const composersRef = useRef(null);
-  const sponsorsRef = useRef(null);
-  const makeScroll = (ref, dir) => () => {
+    const composersRef = useRef(null);
+    const makeScroll = (ref, dir) => () => {
     const el = ref.current;
     if (!el) return;
     const delta = Math.max(240, Math.round(el.clientWidth * 0.8));
@@ -800,6 +799,10 @@ const Home = () => {
       <Header />
       <main>
         <Hero />
+        <SponsorsCarousel
+          sponsors={sponsors}
+          onRegistrarClique={(s) => recordEvent({ type: 'sponsor_click', sponsor_id: s.id })}
+        />
         <section className="py-8 px-4 sm:px-6 bg-black/25 border-b border-white/10">
           <div className="max-w-7xl mx-auto">
             <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-6">
@@ -2302,83 +2305,6 @@ const Home = () => {
             </AnimatedButton>
           </div>
         </section>
-        )}
-
-        {/* Sponsors Section */}
-        {showProfilesTab && sponsors.length > 0 && (
-          <section className="py-20 px-6 bg-black/25">
-            <div className="max-w-7xl mx-auto">
-              <div className="text-center mb-12">
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 break-words leading-snug">Patrocinadores/Parcerias</h2>
-                <p className="text-gray-400">Marcas que apoiam nossos artistas e projetos</p>
-              </div>
-              <div className="text-xs text-gray-400 mb-2 px-4 md:hidden text-center">
-                Arraste para o lado e veja todas as marcas
-              </div>
-              <div className="relative -mx-6">
-                <div ref={sponsorsRef} className="overflow-x-auto scroll-smooth whitespace-nowrap px-6 pb-2">
-                  <div className="flex gap-6 justify-center md:justify-start">
-                    {sponsors.map((s, index) => (
-                      <motion.div
-                        key={s.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="flex-none w-[280px]"
-                      >
-                        <div
-                          className="group relative w-full aspect-square rounded-xl overflow-hidden bg-gray-800 border-2 border-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105 shadow-lg"
-                          onClick={() => setActiveSponsorMenu(activeSponsorMenu === s.id ? null : s.id)}
-                        >
-                          {s.logo_url ? (
-                            <img src={s.logo_url} alt={s.name} className="w-full h-full object-contain" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-white text-sm">Sem logo</div>
-                          )}
-                          <div className={`absolute inset-0 rounded-xl bg-black/40 opacity-0 transition-opacity flex items-center justify-center ${activeSponsorMenu === s.id ? 'opacity-100' : 'group-hover:opacity-100'}`}>
-                            <div className="flex items-center gap-4">
-                              {s.instagram_url && (
-                                <button
-                                  className="p-2 rounded-full bg-beatwap-gold text-black hover:bg-white transition-colors"
-                                  onClick={(e) => { e.stopPropagation(); recordEvent({ type: 'sponsor_click', sponsor_id: s.id }); window.open(s.instagram_url, '_blank'); }}
-                                  aria-label="Instagram"
-                                >
-                                  <Instagram size={18} />
-                                </button>
-                              )}
-                              {s.site_url && (
-                                <button
-                                  className="p-2 rounded-full bg-beatwap-gold text-black hover:bg-white transition-colors"
-                                  onClick={(e) => { e.stopPropagation(); recordEvent({ type: 'sponsor_click', sponsor_id: s.id }); window.open(s.site_url, '_blank'); }}
-                                  aria-label="Site"
-                                >
-                                  <Globe size={18} />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-                <button
-                  aria-label="Anterior"
-                  className="hidden md:flex items-center justify-center absolute left-0 top-1/2 -translate-y-1/2 ml-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
-                  onClick={makeScroll(sponsorsRef, -1)}
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <button
-                  aria-label="Próximo"
-                  className="hidden md:flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 mr-2 w-10 h-10 rounded-full bg-black/60 text-white border border-white/10 hover:bg-beatwap-gold hover:text-black transition"
-                  onClick={makeScroll(sponsorsRef, 1)}
-                >
-                  <ChevronRight size={20} />
-                </button>
-              </div>
-            </div>
-          </section>
         )}
 
         {showProfilesTab && (
