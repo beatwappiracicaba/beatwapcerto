@@ -440,6 +440,25 @@ router.get('/feed/my-posts', auth, async (req, res) => {
   }
 });
 
+const SOCIAL_USERNAME_RE = /^[a-z0-9._]{3,24}$/;
+
+function normalizeUsername(raw) {
+  return String(raw || '').trim().toLowerCase();
+}
+
+// Valida o @ do Feed. Devolve sempre { ok, error } para o front explicar.
+function validateSocialUsername(value) {
+  const v = String(value || '').trim();
+  if (!v) return { ok: true, value: null };
+  if (/\s/.test(v)) return { ok: false, error: 'O @ não pode conter espaços.' };
+  if (v.length < 3) return { ok: false, error: 'O @ precisa ter ao menos 3 caracteres.' };
+  if (v.length > 24) return { ok: false, error: 'O @ pode ter no máximo 24 caracteres.' };
+  if (!SOCIAL_USERNAME_RE.test(v.toLowerCase())) {
+    return { ok: false, error: 'Use apenas letras, números, ponto e underscore.' };
+  }
+  return { ok: true, value: v.toLowerCase() };
+}
+
 // Publicacoes de um usuario especifico, para o Perfil Social do Feed.
 // Le os MESMOS posts do feed (nada e copiado) e devolve o mesmo formato de
 // /feed/my-posts, entao a publicacao continua sendo a mesma nos dois lugares.
@@ -477,12 +496,75 @@ router.get('/feed/users/:userId/posts', auth, async (req, res) => {
       id: profile.id,
       nome: profile.nome || profile.nome_completo_razao_social || 'Usuário',
       cargo: profile.cargo || null,
-      avatar_url: profile.avatar_url || null
+      avatar_url: profile.avatar_url || null,
+      // Perfil Social: @ e bio proprios, independentes do Perfil Publico.
+      social_username: profile.social_username || null,
+      social_bio: profile.social_bio || null
     } : null;
 
     res.json({ items: mine, profile: publicProfile });
   } catch {
     res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+// Confere se um @ esta livre. excludeId permite validar o proprio usuario sem
+// conflito com o @ que ele ja tem.
+router.get('/feed/social/username-available', auth, async (req, res) => {
+  try {
+    const meId = normId(req.user?.id);
+    if (!meId) return res.status(401).json({ error: 'Não autorizado' });
+
+    const check = validateSocialUsername(req.query?.username);
+    if (!check.ok) return res.json({ available: false, error: check.error });
+
+    // Vazio significa "quero remover o meu @".
+    if (!check.value) return res.json({ available: true, username: null });
+
+    const taken = await Profile.findOne({
+      where: { social_username: check.value }
+    });
+    if (taken && normId(taken.id) !== meId) {
+      return res.json({ available: false, error: 'Este @ já está em uso.' });
+    }
+    res.json({ available: true, username: check.value });
+  } catch {
+    res.status(500).json({ error: 'Erro ao verificar o @' });
+  }
+});
+
+// Salva apenas o que pertence ao Feed: @ e bio social.
+// Foto, nome e cargo NAO sao aceitos aqui; continuam na identidade global.
+router.put('/feed/social/profile', auth, async (req, res) => {
+  try {
+    const meId = normId(req.user?.id);
+    if (!meId) return res.status(401).json({ error: 'Não autorizado' });
+
+    const check = validateSocialUsername(req.body?.social_username);
+    if (!check.ok) return res.status(400).json({ error: check.error, field: 'social_username' });
+
+    if (check.value) {
+      const taken = await Profile.findOne({ where: { social_username: check.value } });
+      if (taken && normId(taken.id) !== meId) {
+        return res.status(409).json({ error: 'Este @ já está em uso.', field: 'social_username' });
+      }
+    }
+
+    const bio = String(req.body?.social_bio ?? '').trim().slice(0, 300);
+
+    await Profile.update(
+      { social_username: check.value, social_bio: bio || null },
+      { where: { id: meId } }
+    );
+
+    const updated = await Profile.findByPk(meId);
+    res.json({
+      ok: true,
+      social_username: updated?.social_username || null,
+      social_bio: updated?.social_bio || null
+    });
+  } catch {
+    res.status(500).json({ error: 'Erro ao salvar o perfil social' });
   }
 });
 

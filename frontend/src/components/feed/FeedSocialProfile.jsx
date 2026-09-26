@@ -3,6 +3,7 @@ import { ArrowLeft, MessageCircle, Heart, Video, AlertCircle, Pencil, ExternalLi
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
 import { useAuth } from '../../context/AuthContext';
+import { FeedSocialEditModal } from './FeedSocialEditModal';
 
 // Mesmo criterio do Feed: aceita http(s) e data:, nao inventa esquema novo.
 const sanitizeUrl = (raw) => {
@@ -63,6 +64,11 @@ export const FeedSocialProfile = ({ onBack }) => {
   const cargo = String(info?.cargo || '').trim();
   const cargoLabel = cargo.charAt(0).toUpperCase() + cargo.slice(1);
   const avatar = info?.avatar_url ? sanitizeUrl(info.avatar_url) : null;
+  // @ e bio vem do Perfil Social, independentes do Perfil Publico.
+  const socialUsername = String(info?.social_username || '').trim();
+  const socialBio = String(info?.social_bio || '').trim();
+
+  const [editOpen, setEditOpen] = useState(false);
 
   const totalLikes = posts.reduce((sum, p) => sum + (Number(p?.likes_count) || 0), 0);
 
@@ -103,7 +109,14 @@ export const FeedSocialProfile = ({ onBack }) => {
         {cargoLabel && (
           <p className="mt-1 text-xs font-bold uppercase tracking-wider text-beatwap-gold">{cargoLabel}</p>
         )}
-        <p className="mt-0.5 text-xs text-gray-500">@{String(nome).trim().toLowerCase().replace(/\s+/g, '_')}</p>
+        {/* @ do Perfil Social. Nao vem do Perfil Publico. */}
+        <p className="mt-1 text-xs text-gray-500">
+          {socialUsername ? `@${socialUsername}` : 'sem @ definido'}
+        </p>
+
+        {socialBio && (
+          <p className="mx-auto mt-3 max-w-md text-sm text-gray-300">{socialBio}</p>
+        )}
 
         <div className="mt-4 flex items-center justify-center gap-6 text-sm">
           <div>
@@ -120,8 +133,8 @@ export const FeedSocialProfile = ({ onBack }) => {
           {isMe ? (
             <button
               type="button"
-              onClick={() => navigate('/dashboard/profile')}
-              className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-4 py-2 text-xs font-bold text-gray-200 transition hover:border-beatwap-gold/50 hover:text-beatwap-gold"
+              onClick={() => setEditOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-beatwap-gold/40 bg-beatwap-gold/10 px-4 py-2 text-xs font-bold text-beatwap-gold transition hover:bg-beatwap-gold/20"
             >
               <Pencil size={14} />
               <span>Editar perfil</span>
@@ -247,6 +260,13 @@ export const FeedSocialProfile = ({ onBack }) => {
           ))}
         </div>
       )}
+
+      <FeedSocialEditModal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        profile={info}
+        onSaved={() => load()}
+      />
     </div>
   );
 };

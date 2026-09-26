@@ -136,6 +136,43 @@ const MIGRATIONS = [
         });
       }
     }
+  },
+  {
+    // Perfil Social do Feed: @username e bio proprios do ambiente social.
+    // Foto, nome e cargo NAO entram aqui: continuam vindo da identidade global.
+    name: '006-profiles-social-feed',
+    up: async () => {
+      const queryInterface = sequelize.getQueryInterface();
+      let columns = {};
+      try {
+        columns = await queryInterface.describeTable('profiles');
+      } catch {
+        columns = {};
+      }
+
+      if (!columns.social_username) {
+        await queryInterface.addColumn('profiles', 'social_username', {
+          type: DataTypes.STRING,
+          allowNull: true
+        });
+      }
+      if (!columns.social_bio) {
+        await queryInterface.addColumn('profiles', 'social_bio', {
+          type: DataTypes.STRING,
+          allowNull: true
+        });
+      }
+
+      // Unicidade do @ sem diferenciar maiusculas/minusculas.
+      try {
+        await queryInterface.addIndex('profiles', ['social_username'], {
+          name: 'profiles_social_username_unique',
+          unique: true
+        });
+      } catch {
+        // Indice ja existe: nada a fazer.
+      }
+    }
   }
 ];
 

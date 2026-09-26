@@ -51,6 +51,17 @@ const Profile = sequelize.define('Profile', {
     type: DataTypes.STRING,
     allowNull: true
   },
+  // Perfil Social do Feed. Sao dados PROPRIOS do ambiente social e
+  // independentes do Perfil Publico profissional. Foto, nome e cargo nao
+  // entram aqui: continuam vindo da identidade global do usuario.
+  social_username: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  social_bio: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   cpf: {
     type: DataTypes.STRING,
     allowNull: true
