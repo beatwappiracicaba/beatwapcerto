@@ -348,7 +348,8 @@ router.post('/follow/:id', auth, async (req, res) => {
           type: 'follow',
           title: 'Novo seguidor',
           message: `${who} começou a seguir você.`,
-          link: `/profile/${meId}`,
+          // Contexto social: leva ao Perfil Social, nunca ao Perfil Publico.
+          link: `/feed/perfil/${meId}`,
           context: 'feed'
         });
       } catch {

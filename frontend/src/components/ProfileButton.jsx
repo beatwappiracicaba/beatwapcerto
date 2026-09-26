@@ -6,7 +6,11 @@ import { useToast } from '../context/ToastContext';
 import { apiClient } from '../services/apiClient';
 import { ProfileEditModal } from './ui/ProfileEditModal';
 
-export const ProfileButton = ({ profile }) => {
+// `extraItems` permite a tela injetar acoes no menu sem duplicar este
+// componente. Usado pelo Feed para oferecer "Voltar" junto das demais.
+// `myProfilePath` sobrescreve o destino de "Meu Perfil": dentro do Feed ele
+// precisa apontar para o Perfil Social, nao para o profissional.
+export const ProfileButton = ({ profile, extraItems, myProfilePath }) => {
   const navigate = useNavigate();
   const { signOut, refreshProfile } = useAuth();
   const { addToast } = useToast();
@@ -51,7 +55,8 @@ export const ProfileButton = ({ profile }) => {
 
   const handleProfileClick = () => {
     setIsOpen(false);
-    navigate(isProdutor ? '/admin/profile' : '/dashboard/profile');
+    // myProfilePath permite que o Feed aponte para o Perfil Social.
+    navigate(myProfilePath || (isProdutor ? '/admin/profile' : '/dashboard/profile'));
   };
 
   const handlePublicProfileClick = () => {
@@ -170,12 +175,26 @@ export const ProfileButton = ({ profile }) => {
                 Modificar foto
             </button>
             <button
-                onClick={handleGoHome}
-                className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors"
+              onClick={handleGoHome}
+              className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors"
             >
-                <Home size={16} />
-                Página inicial
+              <Home size={16} />
+              Página inicial
             </button>
+            {(extraItems || []).map((item) => {
+              const Icon = item?.icon;
+              return (
+                <button
+                  key={item?.key}
+                  type="button"
+                  onClick={() => { setIsOpen(false); item?.onClick?.(); }}
+                  className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors"
+                >
+                  {Icon ? <Icon size={16} /> : null}
+                  {item?.label}
+                </button>
+              );
+            })}
             <div className="h-px bg-white/10 my-1 mx-2"></div>
             <button 
                 onClick={handleSignOut}

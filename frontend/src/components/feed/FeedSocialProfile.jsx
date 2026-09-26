@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
 import { useAuth } from '../../context/AuthContext';
 import { FeedSocialEditModal } from './FeedSocialEditModal';
+import { FeedChatPanel } from './FeedChatPanel';
 
 // Mesmo criterio do Feed: aceita http(s) e data:, nao inventa esquema novo.
 const sanitizeUrl = (raw) => {
@@ -69,6 +70,8 @@ export const FeedSocialProfile = ({ onBack }) => {
   const socialBio = String(info?.social_bio || '').trim();
 
   const [editOpen, setEditOpen] = useState(false);
+  // id da pessoa com quem o Chat Social sera aberto ("Mensagem").
+  const [chatWith, setChatWith] = useState(null);
 
   const totalLikes = posts.reduce((sum, p) => sum + (Number(p?.likes_count) || 0), 0);
 
@@ -142,9 +145,9 @@ export const FeedSocialProfile = ({ onBack }) => {
           ) : (
             <button
               type="button"
-              // Devolve ao Feed pedindo a abertura do Chat Social com essa
-              // pessoa. O chat vive no Feed entao o pedido viaja por state.
-              onClick={() => navigate('/dashboard/feed', { state: { socialChatWith: String(id) } })}
+              // Abre o Chat Social direto nesta tela, ja com a conversa da
+              // pessoa selecionada. Nao passa pelo Feed nem pelo chat admin.
+              onClick={() => setChatWith(String(id))}
               className="inline-flex items-center gap-1.5 rounded-full bg-beatwap-gold px-4 py-2 text-xs font-bold text-black transition hover:brightness-95"
             >
               <MessageCircle size={14} />
@@ -266,6 +269,13 @@ export const FeedSocialProfile = ({ onBack }) => {
         onClose={() => setEditOpen(false)}
         profile={info}
         onSaved={() => load()}
+      />
+
+      <FeedChatPanel
+        open={!!chatWith}
+        onClose={() => setChatWith(null)}
+        meId={user?.id}
+        startChatWithId={chatWith}
       />
     </div>
   );

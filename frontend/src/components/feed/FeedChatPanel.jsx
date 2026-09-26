@@ -42,11 +42,11 @@ const Avatar = ({ url, nome, size = 'md' }) => {
  * `context=social` e nunca soma mensagens do atendimento. No desktop fica
  * em duas colunas; no celular abre a lista e a conversa ocupa a tela toda.
  */
-export const FeedChatPanel = ({ open, onClose, meId, startChatWith }) => {
+export const FeedChatPanel = ({ open, onClose, meId, startChatWithId }) => {
   const navigate = useNavigate();
   const {
     chats, active, activeId, setActiveId,
-    loading, sending, error, refresh, sendMessage, markRead
+    loading, sending, error, refresh, startChat, sendMessage, markRead
   } = useSocialChats();
 
   const [draft, setDraft] = useState('');
@@ -65,15 +65,19 @@ export const FeedChatPanel = ({ open, onClose, meId, startChatWith }) => {
     if (open && active) endRef.current?.scrollIntoView({ block: 'end' });
   }, [open, active]);
 
-  // Vindo do perfil social: abre/seleciona a conversa com a pessoa.
+  // Vindo do Perfil Social: abre/seleciona a conversa com a pessoa pedida.
+  // `startChatWithId` e o id do usuario (string); a criacao da conversa usa o
+  // proprio startChat deste hook.
   useEffect(() => {
-    if (!open || !startChatWith) return;
+    if (!open || !startChatWithId) return;
+    let cancelado = false;
     const run = async () => {
-      const chat = await startChatWith();
-      if (chat?.id) setActiveId(chat.id);
+      const chat = await startChat(startChatWithId);
+      if (!cancelado && chat?.id) setActiveId(chat.id);
     };
     run();
-  }, [open, startChatWith, setActiveId]);
+    return () => { cancelado = true; };
+  }, [open, startChatWithId, startChat, setActiveId]);
 
   const submit = async (e) => {
     e?.preventDefault();

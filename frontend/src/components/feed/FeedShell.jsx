@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { Lock, X, Plus, Search, User } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Lock, X, Plus, Search } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
+import { ProfileButton } from '../ProfileButton';
 import { FeedChatPanel } from './FeedChatPanel';
 import { FeedNotificationsPanel } from './FeedNotificationsPanel';
 
@@ -52,6 +53,16 @@ export const FeedShell = ({
   }, [chatRequest]);
 
   const searchItem = bottomItems.find((i) => i.key === 'search') || null;
+
+  // Acoes extras do menu da bolinha: o Voltar do Feed vive aqui, e nao mais
+  // como item solto no rail/barra inferior.
+  const profileMenuExtras = useMemo(
+    () => (typeof onBack === 'function' ? [{ key: 'back', label: 'Voltar', icon: ArrowLeft, onClick: onBack }] : []),
+    [onBack]
+  );
+
+  // Dentro do Feed, "Meu Perfil" do menu abre o Perfil Social.
+  const socialProfilePath = currentUserId ? `/feed/perfil/${currentUserId}` : null;
 
   const closeMenu = () => {
     setMenuOpen(false);
@@ -153,6 +164,11 @@ export const FeedShell = ({
             );
           })}
         </div>
+
+        {/* Mesma bolinha com o mesmo menu no desktop. */}
+        <div className="mt-auto flex flex-col items-center border-t border-white/10 px-1 py-3">
+          <ProfileButton profile={profile} extraItems={profileMenuExtras} myProfilePath={socialProfilePath} />
+        </div>
       </aside>
 
       {/* ---------- Coluna principal ---------- */}
@@ -171,27 +187,8 @@ export const FeedShell = ({
               </button>
             )}
             <div className="min-w-0 flex-1" />
-            {/* A bolinha da foto e o botao de voltar do Feed. */}
-            {typeof onBack === 'function' && (
-              <button
-                type="button"
-                onClick={onBack}
-                className="h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-beatwap-gold/40 bg-white/5 transition hover:border-beatwap-gold"
-                aria-label="Voltar para o Dashboard"
-              >
-                {profile?.avatar_url ? (
-                  <img
-                    src={profile.avatar_url}
-                    alt="Voltar"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <span className="flex h-full w-full items-center justify-center">
-                    <User size={16} className="text-gray-400" />
-                  </span>
-                )}
-              </button>
-            )}
+            {/* Bolinha = menu do usuario. O "Voltar" entra nesse menu. */}
+            <ProfileButton profile={profile} extraItems={profileMenuExtras} myProfilePath={socialProfilePath} />
           </div>
         </header>
 
@@ -354,7 +351,7 @@ export const FeedShell = ({
         open={chatOpen}
         onClose={() => { setChatOpen(false); setChatTarget(null); }}
         meId={currentUserId}
-        startChatWith={chatTarget}
+        startChatWithId={chatTarget}
       />
     </div>
   );

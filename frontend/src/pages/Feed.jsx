@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Cropper from 'react-easy-crop';
-import { Play, Pause, Music, Image, Video, ExternalLink, Search, Plus, X, TrendingUp, Heart, MessageCircle, Send, Pencil, Trash2, Share2, MoreHorizontal, RefreshCw, AlertCircle, Compass, Users, Bell, User, Settings, ArrowLeft } from 'lucide-react';
+import { Play, Pause, Music, Image, Video, ExternalLink, Search, Plus, X, TrendingUp, Heart, MessageCircle, Send, Pencil, Trash2, Share2, MoreHorizontal, RefreshCw, AlertCircle, Compass, Users, Bell, User, Settings } from 'lucide-react';
 import { FeedShell } from '../components/feed/FeedShell';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -1913,15 +1913,6 @@ const Feed = () => {
   // Contador do Chat Social: separado do chat administrativo, que tem o
   // proprio contador na bolinha flutuante do dashboard.
   const { unreadCount: socialUnread } = useSocialChats();
-  // Volvendo do Perfil Social com "Mensagem": abre o Chat Social com a pessoa.
-  useEffect(() => {
-    const alvo = location?.state?.socialChatWith;
-    if (!alvo) return;
-    openChatWith(alvo);
-    // limpa o state para nao reabrir a cada re-render
-    navigate(location.pathname, { replace: true, state: {} });
-  }, [location?.state, location?.pathname, navigate, openChatWith]);
-
   // Contador do Feed: somente interacoes sociais, nunca avisos de plataforma.
   const unreadCount = Number(getUnreadCount?.(CONTEXT_FEED) || 0);
 
@@ -1931,9 +1922,8 @@ const Feed = () => {
   // Menu lateral do desktop e barra inferior do celular apontam para as
   // mesmas acoes reais: nenhuma tela nova e criada aqui.
   const feedNavItems = useMemo(() => {
-    // Home virou "Voltar": no feed quem entra pela Home quer retornar.
+    // "Voltar" saiu daqui: virou item do menu da bolinha de perfil.
     const items = [
-      { key: 'home', label: 'Voltar', icon: ArrowLeft, short: 'Voltar', onSelect: handleBack },
       { key: 'search', label: 'Buscar', icon: Search, short: 'Busca', onSelect: focusSearch },
       { key: 'messages', label: 'Mensagens', icon: MessageCircle, short: 'Msg', badge: 0 },
       { key: 'notifications', label: 'Notificações', icon: Bell, short: 'Alerta', badge: unreadCount }
@@ -1941,12 +1931,12 @@ const Feed = () => {
 
     if (meId) {
       // "compose" precisa existir e ficar no meio da barra inferior.
-      items.splice(3, 0, { key: 'compose', label: 'Criar', icon: Plus, short: 'Criar', onSelect: openComposer });
+      items.splice(2, 0, { key: 'compose', label: 'Criar', icon: Plus, short: 'Criar', onSelect: openComposer });
       items.push({ key: 'profile', label: 'Perfil', icon: User, short: 'Perfil', onSelect: () => navigate(myProfileRoute) });
     }
 
     return items;
-  }, [focusSearch, handleBack, meId, myProfileRoute, navigate, openComposer, unreadCount]);
+  }, [focusSearch, meId, myProfileRoute, navigate, openComposer, unreadCount]);
 
   const feedBottomItems = useMemo(
     () => feedNavItems.map((i) => ({ ...i, label: i.short })),
