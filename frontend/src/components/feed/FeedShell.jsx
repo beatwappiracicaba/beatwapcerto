@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Lock, X, Plus, Search } from 'lucide-react';
+import { Lock, X, Plus, Search, User } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
-import { ProfileButton } from '../ProfileButton';
 import { FeedChatPanel } from './FeedChatPanel';
 import { FeedNotificationsPanel } from './FeedNotificationsPanel';
 
@@ -22,6 +21,7 @@ const iconBtn =
  * cabecalho.
  */
 export const FeedShell = ({
+  onBack,
   canAccess = true,
   railItems = [],
   bottomItems = [],
@@ -171,9 +171,27 @@ export const FeedShell = ({
               </button>
             )}
             <div className="min-w-0 flex-1" />
-            <div className="shrink-0">
-              <ProfileButton profile={profile} />
-            </div>
+            {/* A bolinha da foto e o botao de voltar do Feed. */}
+            {typeof onBack === 'function' && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-beatwap-gold/40 bg-white/5 transition hover:border-beatwap-gold"
+                aria-label="Voltar para o Dashboard"
+              >
+                {profile?.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt="Voltar"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center">
+                    <User size={16} className="text-gray-400" />
+                  </span>
+                )}
+              </button>
+            )}
           </div>
         </header>
 

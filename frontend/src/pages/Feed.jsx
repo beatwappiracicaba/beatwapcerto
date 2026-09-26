@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Cropper from 'react-easy-crop';
-import { Play, Pause, Music, Image, Video, ExternalLink, Search, Plus, X, TrendingUp, Heart, MessageCircle, Send, Pencil, Trash2, Share2, MoreHorizontal, RefreshCw, AlertCircle, Compass, Users, Bell, Home, User, Settings, ArrowLeft } from 'lucide-react';
+import { Play, Pause, Music, Image, Video, ExternalLink, Search, Plus, X, TrendingUp, Heart, MessageCircle, Send, Pencil, Trash2, Share2, MoreHorizontal, RefreshCw, AlertCircle, Compass, Users, Bell, User, Settings, ArrowLeft } from 'lucide-react';
 import { FeedShell } from '../components/feed/FeedShell';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -1964,10 +1964,14 @@ const Feed = () => {
       items.push({ key: 'settings', label: 'Configurações', icon: Settings, onSelect: () => navigate('/admin/settings') });
     }
 
-    items.push({ key: 'site', label: 'Voltar para o BeatWap', icon: Home, onSelect: () => navigate('/') });
+    // O "Voltar" saiu do menu hamburguer: no celular ele virou a bolinha da
+    // foto no cabecalho. Aqui fica o acesso ao proprio Perfil Social.
+    if (meId) {
+      items.push({ key: 'profile', label: 'Meu perfil', icon: User, onSelect: () => navigate(myProfileRoute) });
+    }
 
     return items;
-  }, [isProdutor, navigate, profile?.access_control?.admin_settings, unreadCount]);
+  }, [isProdutor, meId, myProfileRoute, navigate, profile?.access_control?.admin_settings, unreadCount]);
 
   // Coluna lateral do desktop: dados reais ja carregados (perfil logado e a
   // lista de perfis que a propria busca do feed usa). Nada aqui e ficticio.
@@ -2109,6 +2113,7 @@ const Feed = () => {
 
   return (
     <FeedShell
+      onBack={handleBack}
       canAccess={canAccessFeed}
       railItems={feedNavItems}
       bottomItems={feedBottomItems}
