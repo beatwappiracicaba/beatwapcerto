@@ -1976,34 +1976,9 @@ const Feed = () => {
       .filter((p) => isFollowing(String(p?.id || '')))
       .slice(0, 3);
 
-    return (
-      <div className="space-y-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-black/30">
-              {profile?.avatar_url ? (
-                <img src={sanitizeUrl(profile.avatar_url)} alt="Meu perfil" className="h-full w-full object-cover" loading="lazy" />
-              ) : (
-                <User size={18} className="text-gray-400" />
-              )}
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-bold text-white">
-                {profile?.nome || profile?.nome_completo_razao_social || 'Usuário'}
-              </div>
-              <div className="truncate text-xs text-beatwap-gold">{profile?.cargo || ''}</div>
-              <button
-                type="button"
-                onClick={() => navigate(isProdutor ? '/admin/profile' : '/dashboard/profile')}
-                className="mt-1 text-xs font-bold text-gray-300 underline-offset-2 hover:underline"
-              >
-                Ver perfil
-              </button>
-            </div>
-          </div>
-        </Card>
-
-        {suggestions.length > 0 && (
+  return (
+    <div className="space-y-4">
+      {suggestions.length > 0 && (
           <Card className="p-4">
             <div className="text-sm font-bold text-white">Sugestões para você</div>
             <div className="mt-3 space-y-3">
@@ -2099,7 +2074,43 @@ const Feed = () => {
         )}
       </div>
     );
-  }, [activeTab, focusSearch, followLoadingById, isFollowing, isProdutor, meId, navigate, profile, profiles, sanitizeUrl, toggleFollow]);
+  }, [activeTab, focusSearch, followLoadingById, isFollowing, meId, navigate, profiles, sanitizeUrl, toggleFollow]);
+  // Card do usuario logado, exibido no rodape do Feed. "Ver perfil" abre o
+  // Perfil Social, nunca o profissional: dentro do Feed o contexto e o social.
+  const feedFooter = useMemo(() => {
+    if (activeTab !== 'feed' || !meId) return null;
+    return (
+      <Card className="p-4">
+        <div className="flex items-center gap-3">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-black/30">
+            {profile?.avatar_url ? (
+              <img
+                src={sanitizeUrl(profile.avatar_url)}
+                alt="Meu perfil"
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <User size={18} className="text-gray-400" />
+            )}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-bold text-white">
+              {profile?.nome || profile?.nome_completo_razao_social || 'Usuário'}
+            </div>
+            <div className="truncate text-xs text-beatwap-gold">{profile?.cargo || ''}</div>
+            <button
+              type="button"
+              onClick={() => navigate(myProfileRoute)}
+              className="mt-1 text-xs font-bold text-gray-300 underline-offset-2 hover:underline"
+            >
+              Ver perfil
+            </button>
+          </div>
+        </div>
+      </Card>
+    );
+  }, [activeTab, meId, myProfileRoute, navigate, profile, sanitizeUrl]);
 
   return (
     <FeedShell
@@ -2231,10 +2242,12 @@ const Feed = () => {
             {content}
               </>
             )}
+
+            {feedFooter}
           </>
         )}
 
-        {activeTab === 'painel' && (
+            {activeTab === 'painel' && (
           <div className="space-y-4">
             {panelLoading && (
               <Card className="p-6">

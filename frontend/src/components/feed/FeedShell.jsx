@@ -164,11 +164,6 @@ export const FeedShell = ({
             );
           })}
         </div>
-
-        {/* Mesma bolinha com o mesmo menu no desktop. */}
-        <div className="mt-auto flex flex-col items-center border-t border-white/10 px-1 py-3">
-          <ProfileButton profile={profile} extraItems={profileMenuExtras} myProfilePath={socialProfilePath} />
-        </div>
       </aside>
 
       {/* ---------- Coluna principal ---------- */}
