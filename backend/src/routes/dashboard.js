@@ -569,6 +569,51 @@ router.put('/feed/social/profile', auth, async (req, res) => {
   }
 });
 
+// Avisa quem foi marcado com @usuario em um texto do Feed.
+// Usa o @ do Perfil Social (social_username) e nunca notifica o proprio autor.
+async function notifyMentions({ text, authorId, kind }) {
+  try {
+    const bruto = String(text || '');
+    if (!bruto.includes('@') || !authorId) return 0;
+
+    const nomes = [...bruto.matchAll(/@([a-z0-9._]{3,24})/gi)]
+      .map((m) => String(m[1] || '').toLowerCase())
+      .filter(Boolean);
+    if (!nomes.length) return 0;
+
+    const unicos = [...new Set(nomes)];
+    if (unicos.length > 20) return 0;
+
+    const profiles = await Profile.findAll({ where: { social_username: unicos } });
+    if (!profiles.length) return 0;
+
+    const autor = await Profile.findByPk(authorId);
+    const quem = autor?.nome || autor?.nome_completo_razao_social || 'Alguém';
+    const link = `/feed/perfil/${authorId}`;
+    // "publicação" e feminino, "comentário" e masculino: o artigo precisa
+    // acompanhar para não sair "em uma comentário".
+    const onde = kind === 'comment' ? 'em um comentário' : 'em uma publicação';
+
+    let enviados = 0;
+    for (const alvo of profiles) {
+      if (normId(alvo.id) === normId(authorId)) continue;
+      // Nao duplica: quem foi marcado e o proprio autor nao recebe aviso.
+      createNotification({
+        recipient_id: alvo.id,
+        type: 'mention',
+        title: 'Você foi marcado',
+        message: `${quem} mencionou você ${onde}.`,
+        link,
+        context: 'feed'
+      });
+      enviados += 1;
+    }
+    return enviados;
+  } catch {
+    return 0;
+  }
+}
+
 router.post('/feed/posts', auth, async (req, res) => {
   try {
     const meId = normId(req.user?.id);
@@ -638,6 +683,7 @@ router.post('/feed/posts', auth, async (req, res) => {
     memory.posts.unshift(item);
     scheduleSave();
     emitEvent('posts.created', item, `profile:${meId}`);
+    await notifyMentions({ text: caption, authorId: meId, kind: 'post' });
 
     const arr = Array.isArray(memory.likes && memory.likes[id]) ? memory.likes[id] : [];
     res.json({ ...item, likes_count: arr.length });
@@ -831,6 +877,7 @@ router.post('/feed/posts/:id/comments', auth, async (req, res) => {
     memory.comments[id] = arr;
     scheduleSave();
     emitEvent('posts.comments.created', { post_id: id }, `profile:${meId}`);
+    await notifyMentions({ text, authorId: meId, kind: 'comment' });
 
     {
       const who = await actorName(meId);

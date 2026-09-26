@@ -15,29 +15,41 @@ import { NewConversationModal } from './NewConversationModal';
  * Usa apenas `context=social` e o realtime que ja existe: nada de dados
  * ficticios nem um segundo sistema de mensagens.
  */
-export const ChatHub = ({ open, onClose, meId, onBack, me }) => {
-  const { chats, active, activeId, setActiveId, loading, sending, refresh, startChat, sendMessage, markRead, unreadCount } = useSocialChats();
+export const ChatHub = ({ open, onClose, meId, autoTarget, me }) => {
+  const { chats, active, activeId, setActiveId, loading, sending, startChat, sendMessage, markRead, unreadCount } = useSocialChats();
   const { getUnreadCount } = useNotification();
   const [busca, setBusca] = useState('');
   const [nova, setNova] = useState(false);
-  const [autoTarget, setAutoTarget] = useState(null);
   const fimRef = useRef(null);
 
   const notifUnread = Number(getUnreadCount?.(CONTEXT_FEED) || 0);
+  const [abrindo, setAbrindo] = useState(false);
+  const [erroAbrindo, setErroAbrindo] = useState('');
 
-  // Vindo do Perfil Social com um alvo: abre/cria a conversa direto.
+  // Vindo do Perfil Social com um alvo: abre direto a conversa com essa
+  // pessoa. Nao cai na lista para o usuario escolher de novo.
   useEffect(() => {
-    if (!open || !autoTarget) return;
+    if (!open || !autoTarget) return undefined;
     let vivo = true;
+    setAbrindo(true);
+    setErroAbrindo('');
     (async () => {
-      const c = await startChat(autoTarget);
-      if (vivo && c?.id) setActiveId(c.id);
+      try {
+        const c = await startChat(autoTarget);
+        if (!vivo) return;
+        if (c?.id) setActiveId(c.id);
+        else setErroAbrindo('Nao foi possivel abrir a conversa.');
+      } catch (e) {
+        if (vivo) setErroAbrindo(e?.message || 'Nao foi possivel abrir a conversa.');
+      } finally {
+        if (vivo) setAbrindo(false);
+      }
     })();
     return () => { vivo = false; };
   }, [open, autoTarget, startChat, setActiveId]);
 
   useEffect(() => {
-    if (!open) { setActiveId(null); setBusca(''); setAutoTarget(null); }
+    if (!open) { setActiveId(null); setBusca(''); setAbrindo(false); setErroAbrindo(''); }
   }, [open, setActiveId]);
 
   useEffect(() => {
@@ -50,14 +62,15 @@ export const ChatHub = ({ open, onClose, meId, onBack, me }) => {
 
   const termo = busca.trim().toLowerCase();
   const filtradas = useMemo(() => {
-    if (!termo) return chats;
+    if (!busca.trim()) return chats;
+    const alvo = busca.trim().toLowerCase();
     return chats.filter((c) => {
       const nome = String(c?.peer?.nome || '').toLowerCase();
       const social = String(c?.peer?.social_username || '').toLowerCase();
       const conversa = (c?.messages || [])
         .map((m) => String(m?.content || '')).join(' ').toLowerCase();
-      return nome.includes(termo) || social.includes(termo)
-        || String(c?.id) === termo || conversa.includes(termo);
+      return nome.includes(alvo) || social.includes(alvo)
+        || String(c?.id) === alvo || conversa.includes(alvo);
     });
   }, [busca, chats]);
 
@@ -181,8 +194,24 @@ export const ChatHub = ({ open, onClose, meId, onBack, me }) => {
   );
 
   const conversa = (
-    <div className={`min-h-0 flex-1 flex-col ${active ? 'flex' : 'hidden md:flex'}`}>
-      {!active ? (
+    <div className={`min-h-0 flex-1 flex-col ${active || abrindo ? 'flex' : 'hidden md:flex'}`}>
+      {abrindo ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
+          <Loader size={26} className="animate-spin text-beatwap-gold" />
+          <div className="text-sm text-gray-400">Abrindo conversa...</div>
+        </div>
+      ) : erroAbrindo ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+          <div className="text-sm text-red-400">{erroAbrindo}</div>
+          <button
+            type="button"
+            onClick={() => setActiveId(null)}
+            className="rounded-full border border-white/10 px-4 py-2 text-xs font-bold text-gray-300 transition hover:bg-white/5"
+          >
+            Voltar para a lista
+          </button>
+        </div>
+      ) : !active ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
           <MessageCircle size={34} className="opacity-20" />
           <div className="text-sm text-gray-500">Escolha uma conversa</div>
