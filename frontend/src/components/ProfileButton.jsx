@@ -10,7 +10,8 @@ import { ProfileEditModal } from './ui/ProfileEditModal';
 // componente. Usado pelo Feed para oferecer "Voltar" junto das demais.
 // `myProfilePath` sobrescreve o destino de "Meu Perfil": dentro do Feed ele
 // precisa apontar para o Perfil Social, nao para o profissional.
-export const ProfileButton = ({ profile, extraItems, myProfilePath }) => {
+// `variant="feed"` reduz o menu para o que faz sentido naquele contexto.
+export const ProfileButton = ({ profile, extraItems, myProfilePath, variant }) => {
   const navigate = useNavigate();
   const { signOut, refreshProfile } = useAuth();
   const { addToast } = useToast();
@@ -153,20 +154,24 @@ export const ProfileButton = ({ profile, extraItems, myProfilePath }) => {
 
       {isOpen && (
         <div className="absolute right-0 mt-2 w-48 bg-[#161616] border border-white/10 rounded-xl shadow-2xl py-2 z-50">
-            <button
-                onClick={handleProfileClick}
-                className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors"
-            >
-                <User size={16} />
-                Meu Perfil
-            </button>
-            <button
-                onClick={handlePublicProfileClick}
-                className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors"
-            >
-                <Users size={16} />
-                Perfil Publico
-            </button>
+            {variant === 'feed' ? null : (
+              <>
+                <button
+                    onClick={handleProfileClick}
+                    className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors"
+                >
+                    <User size={16} />
+                    Meu Perfil
+                </button>
+                <button
+                    onClick={handlePublicProfileClick}
+                    className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors"
+                >
+                    <Users size={16} />
+                    Perfil Publico
+                </button>
+              </>
+            )}
             <button
                 onClick={handleEditClick}
                 className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors"
@@ -174,13 +179,15 @@ export const ProfileButton = ({ profile, extraItems, myProfilePath }) => {
                 <Camera size={16} />
                 Modificar foto
             </button>
-            <button
-              onClick={handleGoHome}
-              className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors"
-            >
-              <Home size={16} />
-              Página inicial
-            </button>
+            {variant === 'feed' ? null : (
+              <button
+                onClick={handleGoHome}
+                className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors"
+              >
+                <Home size={16} />
+                Página inicial
+              </button>
+            )}
             {(extraItems || []).map((item) => {
               const Icon = item?.icon;
               return (
@@ -195,14 +202,18 @@ export const ProfileButton = ({ profile, extraItems, myProfilePath }) => {
                 </button>
               );
             })}
-            <div className="h-px bg-white/10 my-1 mx-2"></div>
-            <button 
-                onClick={handleSignOut}
-                className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 flex items-center gap-3 transition-colors"
-            >
-                <LogOut size={16} />
-                Sair
-            </button>
+            {variant === 'feed' ? null : (
+              <>
+                <div className="h-px bg-white/10 my-1 mx-2"></div>
+                <button
+                    onClick={handleSignOut}
+                    className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 flex items-center gap-3 transition-colors"
+                >
+                    <LogOut size={16} />
+                    Sair
+                </button>
+              </>
+            )}
         </div>
       )}
 

@@ -66,6 +66,10 @@ export const CreatePostModal = ({ open, onClose, profile, meId, onPublished }) =
     setCrop({ x: 0, y: 0 });
     setZoom(1);
     setAreaPixels(null);
+    setPessoas([]);
+    setBuscaPessoa('');
+    setMenuMarcar(false);
+    setLocal(null);
   }, []);
 
   // Foca o texto ao abrir, sem roubar o foco do botao que abriu o modal.
@@ -173,7 +177,63 @@ export const CreatePostModal = ({ open, onClose, profile, meId, onPublished }) =
 
   useEffect(() => () => { previews.forEach((p) => URL.revokeObjectURL(p.url)); }, [previews]);
 
-  // --- envio ---------------------------------------------------------------
+  // --- marcar pessoas -----------------------------------------------------
+  const [menuMarcar, setMenuMarcar] = useState(false);
+  const [pessoas, setPessoas] = useState([]);
+  const [buscaPessoa, setBuscaPessoa] = useState('');
+  const [carregandoPessoas, setCarregandoPessoas] = useState(false);
+
+  useEffect(() => {
+    if (!open || !menuMarcar || pessoas.length) return;
+    setCarregandoPessoas(true);
+    apiClient.get('/profiles', { cache: false })
+      .then((r) => {
+        const arr = Array.isArray(r) ? r : (r?.profiles || []);
+        setPessoas(arr.filter((p) => p?.id && String(p.id) !== String(meId)));
+      })
+      .catch(() => setPessoas([]))
+      .finally(() => setCarregandoPessoas(false));
+  }, [open, menuMarcar, pessoas.length, meId]);
+
+  const inserirMarca = (p) => {
+    const usuario = String(p?.social_username || '').trim() || String(p?.nome || '').trim().toLowerCase().replace(/\s+/g, '.');
+    if (!usuario) return;
+    setCaption((v) => `${v}${v && !v.endsWith(' ') ? ' ' : ''}@${usuario} `);
+    setMenuMarcar(false);
+    setBuscaPessoa('');
+  };
+
+  const pessoasFiltradas = buscaPessoa.trim()
+    ? pessoas.filter((p) => String(p?.nome || '').toLowerCase().includes(buscaPessoa.trim().toLowerCase()))
+    : pessoas;
+
+  // --- localizacao --------------------------------------------------------
+  const [local, setLocal] = useState(null);
+  const [buscandoLocal, setBuscandoLocal] = useState(false);
+
+  const usarLocalizacao = () => {
+    if (!navigator?.geolocation) {
+      setError('Seu navegador nao suporta localizacao.');
+      return;
+    }
+    setBuscandoLocal(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocal({
+          lat: Number(pos.coords.latitude.toFixed(6)),
+          lng: Number(pos.coords.longitude.toFixed(6))
+        });
+        setBuscandoLocal(false);
+      },
+      () => {
+        setError('Nao foi possivel obter sua localizacao.');
+        setBuscandoLocal(false);
+      },
+      { enableHighAccuracy: false, timeout: 8000 }
+    );
+  };
+
+
   const enviar = useCallback(async () => {
     if (!podePublicar) return;
     setPosting(true);
@@ -208,6 +268,7 @@ export const CreatePostModal = ({ open, onClose, profile, meId, onPublished }) =
         media_url: urls[0] || null,
         media_urls: urls.slice(1),
         visibility,
+        localizacao: local || null,
       });
 
       onPublished?.(created);
@@ -218,7 +279,7 @@ export const CreatePostModal = ({ open, onClose, profile, meId, onPublished }) =
     } finally {
       setPosting(false);
     }
-  }, [caption, files, linkUrl, meId, onClose, onPublished, podePublicar, reset, type, visibility]);
+  }, [caption, files, linkUrl, local, meId, onClose, onPublished, podePublicar, reset, type, visibility]);
 
   if (!open) return null;
 
@@ -334,23 +395,96 @@ export const CreatePostModal = ({ open, onClose, profile, meId, onPublished }) =
               </div>
             )}
 
-            <div className="mt-4 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              {[
-                { icon: Music, label: 'Música' },
-                { icon: AtSign, label: 'Marcar' },
-                { icon: MapPin, label: 'Localização' }
-              ].map((o) => (
+            {/* Opcoes: Musica segue inativa. Marcar e Localizacao funcionam. */}
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled
+                title="Em breve"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-400 opacity-60"
+              >
+                <Music size={13} />
+                Música
+              </button>
+
+              <div className="relative">
                 <button
-                  key={o.label}
                   type="button"
-                  disabled
-                  title="Em breve"
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-400 opacity-70"
+                  onClick={() => setMenuMarcar((v) => !v)}
+                  aria-expanded={menuMarcar}
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                    menuMarcar
+                      ? 'border-beatwap-gold/50 bg-beatwap-gold/10 text-beatwap-gold'
+                      : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
+                  }`}
                 >
-                  <o.icon size={13} />
-                  {o.label}
+                  <AtSign size={13} />
+                  Marcar
                 </button>
-              ))}
+
+                {menuMarcar && (
+                  <>
+                    <button
+                      type="button"
+                      aria-label="Fechar"
+                      className="fixed inset-0 z-10 cursor-default"
+                      onClick={() => setMenuMarcar(false)}
+                    />
+                    <div className="absolute left-0 top-11 z-20 w-64 overflow-hidden rounded-2xl border border-white/10 bg-[#151515] shadow-2xl">
+                      <div className="border-b border-white/10 p-2">
+                        <input
+                          value={buscaPessoa}
+                          onChange={(e) => setBuscaPessoa(e.target.value)}
+                          placeholder="Pesquisar pessoa"
+                          aria-label="Pesquisar pessoa para marcar"
+                          className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none placeholder:text-gray-600 focus:border-beatwap-gold/50"
+                        />
+                      </div>
+                      <div className="max-h-56 overflow-y-auto">
+                        {carregandoPessoas ? (
+                          <div className="px-3 py-4 text-center text-xs text-gray-500">Carregando...</div>
+                        ) : pessoasFiltradas.length === 0 ? (
+                          <div className="px-3 py-4 text-center text-xs text-gray-500">Ninguém encontrado.</div>
+                        ) : pessoasFiltradas.slice(0, 30).map((p) => (
+                          <button
+                            key={`mencao-${p.id}`}
+                            type="button"
+                            onClick={() => inserirMarca(p)}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left transition hover:bg-white/5"
+                          >
+                            <span className="h-7 w-7 shrink-0 overflow-hidden rounded-full border border-white/10 bg-black/30">
+                              {p.avatar_url ? (
+                                <img src={p.avatar_url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                              ) : (
+                                <span className="flex h-full w-full items-center justify-center text-[10px] font-bold text-white">
+                                  {String(p.nome || 'U').trim().charAt(0).toUpperCase()}
+                                </span>
+                              )}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-gray-200">
+                              {p.nome}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={usarLocalizacao}
+                disabled={buscandoLocal}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-60 ${
+                  local
+                    ? 'border-green-500/40 bg-green-500/10 text-green-300'
+                    : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
+                }`}
+              >
+                <MapPin size={13} />
+                {buscandoLocal ? 'Buscando...' : (local ? 'Localizacao ok' : 'Localização')}
+              </button>
             </div>
 
             <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">

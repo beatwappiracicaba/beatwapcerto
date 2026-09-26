@@ -2022,42 +2022,6 @@ const Feed = () => {
       </div>
     );
   }, [activeTab, focusSearch, followLoadingById, isFollowing, meId, navigate, profiles, sanitizeUrl, toggleFollow]);
-  // Card do usuario logado, exibido no rodape do Feed. "Ver perfil" abre o
-  // Perfil Social, nunca o profissional: dentro do Feed o contexto e o social.
-  const feedFooter = useMemo(() => {
-    if (activeTab !== 'feed' || !meId) return null;
-    return (
-      <Card className="p-4">
-        <div className="flex items-center gap-3">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-black/30">
-            {profile?.avatar_url ? (
-              <img
-                src={sanitizeUrl(profile.avatar_url)}
-                alt="Meu perfil"
-                className="h-full w-full object-cover"
-                loading="lazy"
-              />
-            ) : (
-              <User size={18} className="text-gray-400" />
-            )}
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-bold text-white">
-              {profile?.nome || profile?.nome_completo_razao_social || 'Usuário'}
-            </div>
-            <div className="truncate text-xs text-beatwap-gold">{profile?.cargo || ''}</div>
-            <button
-              type="button"
-              onClick={() => navigate(myProfileRoute)}
-              className="mt-1 text-xs font-bold text-gray-300 underline-offset-2 hover:underline"
-            >
-              Ver perfil
-            </button>
-          </div>
-        </div>
-      </Card>
-    );
-  }, [activeTab, meId, myProfileRoute, navigate, profile, sanitizeUrl]);
 
   return (
     <FeedShell
@@ -2190,7 +2154,6 @@ const Feed = () => {
               </>
             )}
 
-            {feedFooter}
           </>
         )}
 

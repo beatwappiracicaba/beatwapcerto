@@ -621,6 +621,15 @@ router.post('/feed/posts', auth, async (req, res) => {
       const v = String(req.body?.visibility || '').trim().toLowerCase();
       return ['publico', 'amigos', 'seguidores', 'privado'].includes(v) ? v : 'publico';
     })(),
+    // Localizacao opcional, anexada pelo compositor.
+    localizacao: (() => {
+      const l = req.body?.localizacao;
+      if (!l || typeof l !== 'object') return null;
+      const lat = Number(l.lat);
+      const lng = Number(l.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+      return { lat, lng };
+    })(),
     scope: 'feed',
     created_at: new Date().toISOString()
   };

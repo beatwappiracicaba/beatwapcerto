@@ -168,7 +168,18 @@ export const FeedShell = ({
 
       {/* ---------- Coluna principal ---------- */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Header compacto (celular): lupa a esquerda, avatar a direita. */}
+        {/* Barra superior do desktop: a bolinha de perfil fica no canto
+            superior, como no celular. */}
+        <div className="feed-topbar items-center justify-end border-b border-white/10 bg-black/85 px-4 py-2.5 backdrop-blur-xl">
+          <ProfileButton
+            profile={profile}
+            extraItems={profileMenuExtras}
+            myProfilePath={socialProfilePath}
+            variant="feed"
+          />
+        </div>
+
+        {/* Header compacto (celular): lupa a esquerda, bolinha a direita. */}
         <header className="feed-header border-b border-white/10 bg-black/85 backdrop-blur-xl md:hidden">
           <div className="flex w-full items-center gap-2 px-3 py-2.5">
             {searchItem && (
@@ -182,8 +193,14 @@ export const FeedShell = ({
               </button>
             )}
             <div className="min-w-0 flex-1" />
-            {/* Bolinha = menu do usuario. O "Voltar" entra nesse menu. */}
-            <ProfileButton profile={profile} extraItems={profileMenuExtras} myProfilePath={socialProfilePath} />
+            <div className="shrink-0">
+              <ProfileButton
+                profile={profile}
+                extraItems={profileMenuExtras}
+                myProfilePath={socialProfilePath}
+                variant="feed"
+              />
+            </div>
           </div>
         </header>
 

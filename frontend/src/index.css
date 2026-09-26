@@ -310,6 +310,19 @@
   }
 }
 
+/* Barra superior do desktop: mostra a bolinha de perfil no canto superior,
+   com a mesma safe-area do header do celular. */
+.feed-topbar {
+  display: none;
+  padding-top: env(safe-area-inset-top);
+}
+
+@media (min-width: 768px) {
+  .feed-topbar {
+    display: flex;
+  }
+}
+
 /* Corpo do feed. O padding inferior reserva espaco para a barra de
    navegacao do celular, senao o ultimo post fica escondido atras dela. */
 .feed-body {
