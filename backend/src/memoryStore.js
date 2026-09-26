@@ -170,6 +170,13 @@ async function initializeMemoryStore() {
       await saveToDatabase(memory);
     }
     hydratedFromDatabase = true;
+    // Havia escritas enfileiradas durante a hidratacao (o servidor ja aceita
+    // requisicoes antes dela terminar). Agora que o estado real esta no lugar,
+    // elas podem ser gravadas.
+    if (saveQueued) {
+      saveQueued = false;
+      scheduleSave();
+    }
     return memory;
   })();
   try {
@@ -180,6 +187,13 @@ async function initializeMemoryStore() {
 }
 
 async function doSave() {
+  // Sem esta trava, uma requisicao que chegue durante a hidratacao salva o
+  // `memory` ainda vazio por cima do estado persistido e apaga tudo: posts,
+  // likes, comentarios e follows somem a cada reinicio.
+  if (!hydratedFromDatabase) {
+    saveQueued = true;
+    return;
+  }
   if (saving) {
     saveQueued = true;
     return;

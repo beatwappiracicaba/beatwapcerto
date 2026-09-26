@@ -10,19 +10,51 @@ const {
   markAllAsRead,
   getUnreadCount,
 } = require('../services/notifications');
-const { memory } = require('../memoryStore');
+const { memory, scheduleSave } = require('../memoryStore');
 
 const router = express.Router();
 
 // In-memory stores (simulation for VPS API parity)
+// Conversas e mensagens passam a viver no memory store, para sobreviverem a
+// reinicios do servidor. `streams` continua so em memoria: sao conexoes SSE
+// ativas, nao dados.
+//
+// A leitura do store NAO pode acontecer na carga deste modulo: o servidor
+// so hidrata o memory store depois do listen, entao capturar os arrays aqui
+// guardaria a versao ainda vazia e o proximo save sobrescreveria os dados
+// reais. Por isso `ensureChatStore` roda na primeira requisicao.
 const state = {
-  chats: [],
-  messages: [],
-  queue: [],
-  notifications: [],
+  chats: null,
+  messages: null,
+  queue: null,
+  aiHistory: null,
   streams: new Set(),
-  aiHistory: [],
 };
+
+function ensureChatStore() {
+  if (Array.isArray(state.chats)) return;
+  state.chats = Array.isArray(memory.chats) ? memory.chats : [];
+  state.messages = Array.isArray(memory.messages) ? memory.messages : [];
+  state.queue = Array.isArray(memory.queue) ? memory.queue : [];
+  state.aiHistory = Array.isArray(memory.aiHistory) ? memory.aiHistory : [];
+}
+
+// Espelha o estado local no store e agenda a gravacao. Chamar sempre que
+// conversas ou mensagens mudarem.
+function persistChats() {
+  ensureChatStore();
+  memory.chats = state.chats;
+  memory.messages = state.messages;
+  memory.queue = state.queue;
+  memory.aiHistory = state.aiHistory;
+  scheduleSave();
+}
+
+// Garante o store hidratado antes de qualquer rota de chat tocar nele.
+router.use((req, res, next) => {
+  ensureChatStore();
+  next();
+});
 
 function purgeUserChatData(userIdRaw) {
   const userId = String(userIdRaw || '').trim();
@@ -48,6 +80,7 @@ function purgeUserChatData(userIdRaw) {
   state.queue = (Array.isArray(state.queue) ? state.queue : []).filter((q) => String(q?.requester_id || '').trim() !== userId);
   memory.notifications = (Array.isArray(memory.notifications) ? memory.notifications : []).filter((n) => String(n?.recipient_id || '').trim() !== userId);
   state.aiHistory = (Array.isArray(state.aiHistory) ? state.aiHistory : []).filter((h) => String(h?.user_id || '').trim() !== userId);
+  persistChats();
 }
 
 router.purgeUserChatData = purgeUserChatData;
@@ -123,6 +156,7 @@ router.post('/queue', (req, res) => {
     status: 'open',
   };
   state.queue.push(item);
+  persistChats();
   emitStreamEvent('queue', { action: 'created', item });
   res.json(item);
 });
@@ -229,11 +263,13 @@ router.post('/ai/history', auth, (req, res) => {
     created_at: nowIso(),
   };
   state.aiHistory.push(item);
+  persistChats();
   res.json(item);
 });
 router.post('/ai/history/clear', auth, (req, res) => {
   const uid = String(req.user?.id || '');
   state.aiHistory = state.aiHistory.filter(h => String(h.user_id) !== uid);
+  persistChats();
   res.json({ ok: true });
 });
 router.post('/ai/chat', auth, async (req, res) => {
@@ -401,6 +437,7 @@ router.post('/chats', auth, async (req, res) => {
       created_at: nowIso(),
     };
     state.chats.push(chat);
+    persistChats();
     return res.json(chat);
   }
 
@@ -437,6 +474,7 @@ router.post('/chats', auth, async (req, res) => {
     created_at: nowIso(),
   };
   state.chats.push(chat);
+  persistChats();
   emitStreamEvent('chat', { action: 'created', chat });
   res.json(chat);
 });
@@ -460,6 +498,7 @@ router.put('/chats/:id/mark-read', auth, (req, res) => {
   }
   const msgs = state.messages.filter(m => m.chat_id === id);
   msgs.forEach(m => (m.read = true));
+  persistChats();
   emitStreamEvent('chat', { action: 'mark_read', chatId: id });
   res.json({ ok: true });
 });
@@ -473,6 +512,7 @@ router.delete('/chats/:id', auth, (req, res) => {
   }
   state.chats = state.chats.filter(c => c.id !== id);
   state.messages = state.messages.filter(m => m.chat_id !== id);
+  persistChats();
   emitStreamEvent('chat', { action: 'deleted', chatId: id });
   res.json({ ok: true });
 });
@@ -517,6 +557,7 @@ router.post('/messages', auth, (req, res) => {
     created_at: nowIso(),
   };
   state.messages.push(message);
+  persistChats();
 
   if (chatContextOf(chat) === CHAT_CONTEXT_SOCIAL) {
     // Chat Social: entrega apenas aos dois participantes da conversa.

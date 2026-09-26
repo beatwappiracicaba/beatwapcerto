@@ -290,6 +290,53 @@ const Feed = () => {
     return v || 'Perfil';
   }, []);
 
+  // Card de sugestao de seguir. Usado na tela vazia (quando a pessoa nao segue
+  // ninguem) e intercalado entre os posts durante a rolagem.
+  const SuggestionCard = ({ profile: pf, onOpen, onFollow, following, loading }) => {
+    const nome = String(pf?.nome || 'Usuário');
+    return (
+      <div className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-center transition hover:border-beatwap-gold/30">
+        <button
+          type="button"
+          onClick={onOpen}
+          className="h-16 w-16 overflow-hidden rounded-full border border-white/10 bg-black/30"
+          aria-label={`Ver perfil de ${nome}`}
+        >
+          {pf?.avatar_url ? (
+            <img
+              src={sanitizeUrl(pf.avatar_url)}
+              alt={nome}
+              className="h-full w-full object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <span className="flex h-full w-full items-center justify-center text-lg font-bold text-white">
+              {nome.trim().charAt(0).toUpperCase()}
+            </span>
+          )}
+        </button>
+        <button type="button" onClick={onOpen} className="w-full truncate text-sm font-bold text-white hover:underline">
+          {nome}
+        </button>
+        <div className="-mt-1 text-[11px] uppercase tracking-wide text-beatwap-gold">
+          {String(pf?.cargo || '')}
+        </div>
+        <button
+          type="button"
+          onClick={onFollow}
+          disabled={loading}
+          className={`w-full rounded-full px-3 py-1.5 text-xs font-bold transition disabled:opacity-60 ${
+            following
+              ? 'bg-white/10 text-gray-200'
+              : 'bg-beatwap-gold text-black hover:brightness-95'
+          }`}
+        >
+          {loading ? '...' : (following ? 'Seguindo' : 'Seguir')}
+        </button>
+      </div>
+    );
+  };
+
   const timeAgo = useCallback((iso) => {
     const d = new Date(String(iso || ''));
     const t = d.getTime();
@@ -1132,6 +1179,41 @@ const Feed = () => {
       return String(it?.owner?.cargo || '').toLowerCase() === feedFilter;
     });
 
+    // Sugestoes de seguir: perfis que a pessoa ainda nao segue.
+    const seguido = new Set(
+      (Array.isArray(followingIds) ? followingIds : []).map((x) => String(x))
+    );
+    const feedSuggestions = (Array.isArray(profiles) ? profiles : [])
+      .filter((p) => p?.id && !seguido.has(String(p.id)) && String(p.id) !== meId)
+      .slice(0, 12);
+
+    // Mistura os posts com cartoes de sugestao. O embaralhamento acontece a
+    // cada atualizacao do feed, porque `refresh` entra como dependencia: ele
+    // muda a cada reload/paginacao e embaralha as posicoes de novo.
+    let feedTimeline = feedItems.map((item) => ({ kind: 'post', item }));
+    if (
+      followingCount > 0 &&
+      feedSuggestions.length > 0 &&
+      feedFilter === 'todos' &&
+      feedSubTab === 'posts' &&
+      feedItems.length > 0
+    ) {
+      const embaralhadas = [...feedSuggestions].sort(() => Math.random() - 0.5);
+      const passo = 3;
+      const deslocamento = Math.floor(Math.random() * passo);
+      const mix = [];
+      let usados = 0;
+      feedItems.forEach((item, i) => {
+        mix.push({ kind: 'post', item });
+        const pos = i - deslocamento;
+        if (pos > 0 && pos % passo === 0 && usados < 2 && embaralhadas[usados]) {
+          mix.push({ kind: 'sugestao', profile: embaralhadas[usados] });
+          usados += 1;
+        }
+      });
+      feedTimeline = mix;
+    }
+
     if (loading && items.length === 0) {
       return (
         <div className="space-y-4" aria-busy="true" aria-live="polite">
@@ -1187,6 +1269,28 @@ const Feed = () => {
     }
 
     if (!loading && feedItems.length === 0) {
+      // Sem ninguem seguido: em vez de tela vazia, mostra quem seguir.
+      if (followingCount === 0 && feedSuggestions.length > 0 && feedFilter === 'todos' && feedSubTab === 'posts') {
+        return (
+          <div className="space-y-4">
+            <div className="px-1 text-sm text-gray-400">
+              Voce ainda nao segue ninguem. Que tal comecar por aqui?
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {feedSuggestions.map((p) => (
+                <SuggestionCard
+                  key={`sug-empty-${p.id}`}
+                  profile={p}
+                  onOpen={() => navigate(`/feed/perfil/${p.id}`)}
+                  onFollow={() => toggleFollow(String(p.id))}
+                  following={isFollowing(String(p.id))}
+                  loading={followLoadingById?.[String(p.id)] === true}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      }
       return (
         <EmptyState
           icon={feedFilter === 'todos' ? Compass : Search}
@@ -1240,7 +1344,23 @@ const Feed = () => {
             </div>
           </Card>
         )}
-        {feedItems.map((it) => {
+        {feedTimeline.map((entry) => {
+          // Cartao de sugestao intercalado na rolagem.
+          if (entry.kind === 'sugestao') {
+            const pf = entry.profile;
+            const pid = String(pf?.id || '');
+            return (
+              <SuggestionCard
+                key={`sug-feed-${pid}-${entry.pos}`}
+                profile={pf}
+                onOpen={() => navigate(`/feed/perfil/${pid}`)}
+                onFollow={() => toggleFollow(pid)}
+                following={isFollowing(pid)}
+                loading={followLoadingById?.[pid] === true}
+              />
+            );
+          }
+          const it = entry.item;
           const owner = it?.owner || {};
           const ownerName = displayName(owner);
           const ownerRole = roleLabel(owner);
@@ -1719,7 +1839,7 @@ const Feed = () => {
         )}
       </div>
     );
-  }, [buildWhatsAppHref, commentDraftByPostId, commentPostingById, commentsByPostId, commentsLoadingById, commentsOpenById, deleteMyPost, displayName, feedAlbums, feedError, feedFilter, feedSubTab, followLoadingById, followingCount, getEmbedUrl, isFollowing, items, loading, loadingMore, location.pathname, meId, myPosts, myPostsError, myPostsLoading, navigate, openChatWith, openEditPost, openMenuPostId, postActionLoadingById, refresh, roleLabel, sanitizeUrl, sendComment, setFeedFilter, shareFeedbackId, sharePost, timeAgo, toggleComments, toggleFollow, togglePlay, togglePostLike]);
+  }, [buildWhatsAppHref, commentDraftByPostId, commentPostingById, commentsByPostId, commentsLoadingById, commentsOpenById, deleteMyPost, displayName, feedAlbums, feedError, feedFilter, feedSubTab, followLoadingById, followingCount, followingIds, getEmbedUrl, isFollowing, items, loading, loadingMore, location.pathname, meId, myPosts, myPostsError, myPostsLoading, navigate, openChatWith, openEditPost, openMenuPostId, postActionLoadingById, profiles, refresh, roleLabel, sanitizeUrl, sendComment, setFeedFilter, shareFeedbackId, sharePost, timeAgo, toggleComments, toggleFollow, togglePlay, togglePostLike]);
 
   const filteredProfiles = useMemo(() => {
     const term = String(searchQuery || '').trim().toLowerCase();
