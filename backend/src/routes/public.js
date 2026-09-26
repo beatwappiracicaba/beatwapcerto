@@ -488,6 +488,19 @@ router.get('/home', async (req, res) => {
         void 0;
       }
     }
+    // Os sponsors do Home precisam vir da mesma fonte de /sponsors. Antes era
+    // uma lista fixa vazia, entao a Home recebia zero e escondia os cards.
+    const activeSponsors = (Array.isArray(memory.sponsors) ? memory.sponsors : [])
+      .filter((s) => s && s.active !== false)
+      .map((s) => ({
+        id: s.id,
+        name: s.name,
+        instagram_url: s.instagram_url || null,
+        site_url: s.site_url || null,
+        logo_url: s.logo_url || null,
+        active: s.active !== false
+      }));
+
     return res.json({
       hero: { title: 'Beatwap', subtitle: 'Plataforma musical' },
       producers: producers.slice(0, 6),
@@ -497,7 +510,7 @@ router.get('/home', async (req, res) => {
       releases: [],
       compositions: compositionsApproved,
       projects: [],
-      sponsors: [],
+      sponsors: activeSponsors,
       hit_of_week: publicHit,
       hit_winner: publicHitWinner,
       featured_plans: featuredPlans
@@ -516,7 +529,16 @@ router.get('/home', async (req, res) => {
       releases: [],
       compositions: compositionsApproved,
       projects: [],
-      sponsors: [],
+      sponsors: (Array.isArray(memory.sponsors) ? memory.sponsors : [])
+        .filter((s) => s && s.active !== false)
+        .map((s) => ({
+          id: s.id,
+          name: s.name,
+          instagram_url: s.instagram_url || null,
+          site_url: s.site_url || null,
+          logo_url: s.logo_url || null,
+          active: s.active !== false
+        })),
       hit_of_week: null,
       hit_winner: null,
       featured_plans: null

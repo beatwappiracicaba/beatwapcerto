@@ -378,7 +378,9 @@ const Home = () => {
       setHitWinner((data && data.hit_winner) ? data.hit_winner : null);
       fetchHitEntries().catch(() => void 0);
       setComposers(sortProfilesWithFeaturedFirst(filterNoAvulso((data && Array.isArray(data.composers)) ? data.composers : [])));
-      setSponsors((data && Array.isArray(data.sponsors)) ? data.sponsors : []);
+        // Os patrocinadores vem sempre de /sponsors. Pegar do /home deixava a
+        // Home sem cards quando o /home vinha sem a lista.
+        fetchSponsors().catch(() => void 0);
       setArtists(sortProfilesWithFeaturedFirst(filterNoAvulso((data && Array.isArray(data.artists)) ? data.artists : [])));
       setProducers(sortProfilesWithFeaturedFirst((data && Array.isArray(data.producers)) ? data.producers : []));
       setSellers(sortProfilesWithFeaturedFirst((data && Array.isArray(data.sellers)) ? data.sellers : []));
