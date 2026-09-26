@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Send, MessageCircle, RefreshCw, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useSocialChats } from '../../hooks/useSocialChats';
 
 const clock = (iso) => {
@@ -42,6 +43,7 @@ const Avatar = ({ url, nome, size = 'md' }) => {
  * em duas colunas; no celular abre a lista e a conversa ocupa a tela toda.
  */
 export const FeedChatPanel = ({ open, onClose, meId, startChatWith }) => {
+  const navigate = useNavigate();
   const {
     chats, active, activeId, setActiveId,
     loading, sending, error, refresh, sendMessage, markRead
@@ -162,10 +164,21 @@ export const FeedChatPanel = ({ open, onClose, meId, startChatWith }) => {
             >
               <ArrowLeft size={18} />
             </button>
-            <Avatar url={active.peer.avatar_url} nome={active.peer.nome} />
-            <div className="min-w-0 flex-1 truncate text-sm font-bold text-white">
+            <button
+              type="button"
+              onClick={() => navigate(`/feed/perfil/${active.peer.id}`)}
+              className="rounded-full transition hover:ring-2 hover:ring-beatwap-gold/50"
+              aria-label={`Perfil social de ${active.peer.nome}`}
+            >
+              <Avatar url={active.peer.avatar_url} nome={active.peer.nome} />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(`/feed/perfil/${active.peer.id}`)}
+              className="min-w-0 flex-1 truncate text-left text-sm font-bold text-white hover:text-beatwap-gold"
+            >
               {active.peer.nome}
-            </div>
+            </button>
           </div>
 
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3">

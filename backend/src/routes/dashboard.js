@@ -440,6 +440,52 @@ router.get('/feed/my-posts', auth, async (req, res) => {
   }
 });
 
+// Publicacoes de um usuario especifico, para o Perfil Social do Feed.
+// Le os MESMOS posts do feed (nada e copiado) e devolve o mesmo formato de
+// /feed/my-posts, entao a publicacao continua sendo a mesma nos dois lugares.
+router.get('/feed/users/:userId/posts', auth, async (req, res) => {
+  try {
+    const meId = normId(req.user?.id);
+    if (!meId) return res.status(401).json({ error: 'Não autorizado' });
+    const targetId = normId(req.params.userId);
+    if (!targetId) return res.status(400).json({ error: 'Usuário inválido' });
+
+    const posts = Array.isArray(memory.posts) ? memory.posts : [];
+    const likes = memory.likes && typeof memory.likes === 'object' ? memory.likes : {};
+    const comments = memory.comments && typeof memory.comments === 'object' ? memory.comments : {};
+
+    // Publicacoes escopadas ao Feed. As que o autor Liberou para o Perfil
+    // Publico continuam aqui tambem: o perfil social mostra tudo que ele fez
+    // no Feed, e o publico mostra so o que ele autorizou.
+    const mine = posts
+      .filter((p) => normId(p?.user_id) === targetId)
+      .map((p) => {
+        const id = String(p?.id || '').trim();
+        const arrLikes = Array.isArray(likes[id]) ? likes[id] : [];
+        const arrComments = Array.isArray(comments[id]) ? comments[id] : [];
+        return {
+          ...p,
+          likes_count: arrLikes.length,
+          comments_count: arrComments.length,
+          liked: arrLikes.includes(meId)
+        };
+      })
+      .sort((a, b) => new Date(b?.created_at || 0) - new Date(a?.created_at || 0));
+
+    const profile = await Profile.findByPk(targetId);
+    const publicProfile = profile ? {
+      id: profile.id,
+      nome: profile.nome || profile.nome_completo_razao_social || 'Usuário',
+      cargo: profile.cargo || null,
+      avatar_url: profile.avatar_url || null
+    } : null;
+
+    res.json({ items: mine, profile: publicProfile });
+  } catch {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 router.post('/feed/posts', auth, async (req, res) => {
   try {
     const meId = normId(req.user?.id);

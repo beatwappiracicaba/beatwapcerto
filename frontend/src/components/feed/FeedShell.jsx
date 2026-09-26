@@ -205,7 +205,6 @@ export const FeedShell = ({
             </div>
           )}
         </main>
-
         {/* ---------- Barra inferior (celular) ---------- */}
         {bottomItems.length > 0 && (
           <nav

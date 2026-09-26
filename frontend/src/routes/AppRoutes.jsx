@@ -37,6 +37,8 @@ import { AdminSettings } from '../pages/AdminSettings';
 import { DashboardCompositions } from '../pages/DashboardCompositions';
 import DashboardFinance from '../pages/DashboardFinance';
 import PublicProfile from '../pages/PublicProfile';
+// Perfil Social do Feed: tela propria, separada do Perfil Publico profissional.
+import FeedSocialProfile from '../components/feed/FeedSocialProfile';
 import AlbumPage from '../pages/AlbumPage';
 import SellerDashboard from '../pages/SellerDashboard';
 import SellerArtists from '../pages/SellerArtists';
@@ -138,6 +140,11 @@ export const AppRoutes = () => {
         <Route path="/como-funciona" element={<ComoFunciona />} />
         <Route path="/composicoes" element={<AllCompositions />} />
         <Route path="/profile/:id" element={<PublicProfile />} />
+        {/* Perfil Social do Feed: tela propria, separada do Perfil Publico. */}
+        <Route
+          path="/feed/perfil/:id"
+          element={profile ? <ProtectedRoute element={<FeedSocialProfile />} /> : <Navigate to="/" replace />}
+        />
         <Route path="/album/:id" element={<AlbumPage />} />
         
         {/* Auth Routes */}

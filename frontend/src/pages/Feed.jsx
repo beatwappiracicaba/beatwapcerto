@@ -1245,7 +1245,7 @@ const Feed = () => {
           const ownerName = displayName(owner);
           const ownerRole = roleLabel(owner);
           const at = timeAgo(it?.created_at);
-          const ownerHref = owner?.id ? `/profile/${owner.id}` : null;
+          const ownerHref = owner?.id ? `/feed/perfil/${owner.id}` : null;
           const ownerId = String(owner?.id || '').trim();
           const canFollow = !!meId && !!ownerId && ownerId !== meId;
           const following = canFollow ? isFollowing(ownerId) : false;
@@ -1746,7 +1746,7 @@ const Feed = () => {
               <button
                 key={p.id}
                 type="button"
-                onClick={() => navigate(`/profile/${p.id}`)}
+                onClick={() => navigate(`/feed/perfil/${p.id}`)}
                 className="w-20 shrink-0 text-center"
               >
                 <div className="w-16 h-16 mx-auto rounded-full overflow-hidden border-2 border-beatwap-gold/60 bg-black/30 flex items-center justify-center">
@@ -1778,7 +1778,7 @@ const Feed = () => {
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => navigate(`/profile/${p.id}`)}
+                    onClick={() => navigate(`/feed/perfil/${p.id}`)}
                     className="w-12 h-12 rounded-full overflow-hidden border border-white/10 bg-black/30 flex items-center justify-center shrink-0"
                   >
                     {p.avatar_url ? (
@@ -1845,7 +1845,7 @@ const Feed = () => {
               <div key={p.id} className="shrink-0 w-[78px] text-center">
                 <button
                   type="button"
-                  onClick={() => navigate(`/profile/${p.id}`)}
+                  onClick={() => navigate(`/feed/perfil/${p.id}`)}
                   className="block mx-auto w-[64px] h-[64px] rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                   aria-label={`Ver perfil de ${name}`}
                 >
@@ -1913,10 +1913,20 @@ const Feed = () => {
   // Contador do Chat Social: separado do chat administrativo, que tem o
   // proprio contador na bolinha flutuante do dashboard.
   const { unreadCount: socialUnread } = useSocialChats();
+  // Volvendo do Perfil Social com "Mensagem": abre o Chat Social com a pessoa.
+  useEffect(() => {
+    const alvo = location?.state?.socialChatWith;
+    if (!alvo) return;
+    openChatWith(alvo);
+    // limpa o state para nao reabrir a cada re-render
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location?.state, location?.pathname, navigate, openChatWith]);
+
   // Contador do Feed: somente interacoes sociais, nunca avisos de plataforma.
   const unreadCount = Number(getUnreadCount?.(CONTEXT_FEED) || 0);
 
-  const myProfileRoute = isProdutor ? '/admin/profile' : '/dashboard/profile';
+  // "Meu perfil" dentro do Feed abre o MEU Perfil Social, nao o profissional.
+  const myProfileRoute = meId ? `/feed/perfil/${meId}` : (isProdutor ? '/admin/profile' : '/dashboard/profile');
 
   // Menu lateral do desktop e barra inferior do celular apontam para as
   // mesmas acoes reais: nenhuma tela nova e criada aqui.
@@ -2011,7 +2021,7 @@ const Feed = () => {
                   <div key={`sug-${pid}`} className="flex items-center gap-2.5">
                     <button
                       type="button"
-                      onClick={() => navigate(`/profile/${pid}`)}
+                      onClick={() => navigate(`/feed/perfil/${pid}`)}
                       className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5"
                       aria-label={`Ver perfil de ${name}`}
                     >
@@ -2026,7 +2036,7 @@ const Feed = () => {
                     <div className="min-w-0 flex-1">
                       <button
                         type="button"
-                        onClick={() => navigate(`/profile/${pid}`)}
+                        onClick={() => navigate(`/feed/perfil/${pid}`)}
                         className="block max-w-full truncate text-xs font-bold text-white hover:underline"
                       >
                         {name}
@@ -2071,7 +2081,7 @@ const Feed = () => {
                   <button
                     key={`fol-${p.id}`}
                     type="button"
-                    onClick={() => navigate(`/profile/${p.id}`)}
+                    onClick={() => navigate(`/feed/perfil/${p.id}`)}
                     className="flex w-full items-center gap-2.5 text-left"
                   >
                     <span className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5">
