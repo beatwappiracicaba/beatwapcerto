@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
 import { useAuth } from '../../context/AuthContext';
 import { FeedSocialEditModal } from './FeedSocialEditModal';
-import { FeedChatPanel } from './FeedChatPanel';
+import { ChatHub } from '../chat/ChatHub';
 
 // Mesmo criterio do Feed: aceita http(s) e data:, nao inventa esquema novo.
 const sanitizeUrl = (raw) => {
@@ -271,11 +271,11 @@ export const FeedSocialProfile = ({ onBack }) => {
         onSaved={() => load()}
       />
 
-      <FeedChatPanel
+      <ChatHub
         open={!!chatWith}
         onClose={() => setChatWith(null)}
         meId={user?.id}
-        startChatWithId={chatWith}
+        autoTarget={chatWith}
       />
     </div>
   );

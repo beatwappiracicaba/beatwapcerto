@@ -162,12 +162,19 @@ export const useSocialChats = () => {
     return chat;
   }, [meId, refresh]);
 
-  const sendMessage = useCallback(async (chatId, text) => {
+  const sendMessage = useCallback(async (chatId, text, media) => {
     const content = strip(text);
     if (!chatId || !content) return null;
     setSending(true);
     try {
-      const msg = await apiClient.post('/messages', { chat_id: chatId, content });
+      // `media` vira metadata.media, campo que o backend ja persiste.
+      const payload = { chat_id: chatId, content: content || '' };
+      if (media && media.url) {
+        payload.metadata = {
+          media: [{ url: media.url, type: media.type || 'image', id: `m_${Date.now()}` }]
+        };
+      }
+      const msg = await apiClient.post('/messages', payload);
       await refresh();
       return msg;
     } catch (e) {

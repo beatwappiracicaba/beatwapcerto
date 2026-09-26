@@ -3,7 +3,7 @@ import { ArrowLeft, Lock, X, Plus, Search } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { ProfileButton } from '../ProfileButton';
-import { FeedChatPanel } from './FeedChatPanel';
+import { ChatHub } from '../chat/ChatHub';
 import { FeedNotificationsPanel } from './FeedNotificationsPanel';
 
 const iconBtn =
@@ -342,11 +342,12 @@ export const FeedShell = ({
       {/* O chat administrativo NAO existe dentro do Feed. Quem conversa aqui e
           o Chat Social (painel acima), alimentado por `context=social`.
           O ChatButton/ChatWindow de atendimento ficam so no Admin/Dashboard. */}
-      <FeedChatPanel
+      <ChatHub
         open={chatOpen}
         onClose={() => { setChatOpen(false); setChatTarget(null); }}
         meId={currentUserId}
-        startChatWithId={chatTarget}
+        me={profile}
+        autoTarget={chatTarget}
       />
     </div>
   );
