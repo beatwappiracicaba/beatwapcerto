@@ -1,5 +1,6 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Cropper from 'react-easy-crop';
 import {
   PRODUCER_AREA_OPTIONS,
@@ -170,7 +171,11 @@ export const ProfileEditModal = ({
 
   if (!isOpen) return null;
 
-  return (
+  // Renderizado por portal direto no body: o cabecalho do Feed usa
+  // backdrop-blur, que cria um "stacking context" e prenderia o modal
+  // (mesmo com z-index alto) abaixo dos outros overlays do Feed.
+  return createPortal(
+    (
       <div className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto p-3 sm:p-4 bg-black/90 backdrop-blur-sm pointer-events-auto">
         <div
           className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[92vh] my-auto"
@@ -425,5 +430,7 @@ export const ProfileEditModal = ({
           </div>
         </div>
       </div>
+    ),
+    document.body
   );
 };

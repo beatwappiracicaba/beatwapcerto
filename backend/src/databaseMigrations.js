@@ -173,6 +173,50 @@ const MIGRATIONS = [
         // Indice ja existe: nada a fazer.
       }
     }
+  },
+  {
+    // Stories do Perfil Social do Feed. Vivem em tabelas proprias porque
+    // precisam de validade (expires_at) e de consulta frequente. Nao toca em
+    // posts, perfis, chat nem notificacoes.
+    name: '007-stories',
+    up: async () => {
+      const queryInterface = sequelize.getQueryInterface();
+      let columns = {};
+      try {
+        columns = await queryInterface.describeTable('profiles');
+      } catch {
+        columns = {};
+      }
+      if (!columns.id) return; // banco ainda nao inicializado
+
+      await queryInterface.createTable('stories', {
+        id: { type: DataTypes.STRING, primaryKey: true },
+        user_id: { type: DataTypes.STRING, allowNull: false },
+        type: { type: DataTypes.STRING, allowNull: false, defaultValue: 'image' },
+        media_url: { type: DataTypes.TEXT, allowNull: true },
+        text_content: { type: DataTypes.TEXT, allowNull: true },
+        background: { type: DataTypes.STRING, allowNull: true },
+        created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+        expires_at: { type: DataTypes.DATE, allowNull: false }
+      }).catch(() => {});
+
+      await queryInterface.addIndex('stories', ['user_id'], { name: 'stories_user_idx' }).catch(() => {});
+      await queryInterface.addIndex('stories', ['expires_at'], { name: 'stories_expires_idx' }).catch(() => {});
+
+      await queryInterface.createTable('story_views', {
+        id: { type: DataTypes.STRING, primaryKey: true },
+        story_id: { type: DataTypes.STRING, allowNull: false },
+        viewer_user_id: { type: DataTypes.STRING, allowNull: false },
+        viewed_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW }
+      }).catch(() => {});
+
+      await queryInterface.addIndex('story_views', ['story_id'], { name: 'story_views_story_idx' }).catch(() => {});
+      // 1 visualizacao por pessoa por story: evita duplicar ao reabrir.
+      await queryInterface.addIndex('story_views', ['story_id', 'viewer_user_id'], {
+        name: 'story_views_unique',
+        unique: true
+      }).catch(() => {});
+    }
   }
 ];
 

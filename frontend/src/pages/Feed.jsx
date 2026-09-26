@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Play, Pause, Music, Image, Video, ExternalLink, Search, Plus, X, TrendingUp, Heart, MessageCircle, Send, Pencil, Trash2, Share2, MoreHorizontal, RefreshCw, AlertCircle, Compass, Users, Bell, User, Settings } from 'lucide-react';
 import { CreatePostModal } from '../components/feed/CreatePostModal';
+import { StoryBar } from '../components/feed/StoryBar';
 import { FeedShell } from '../components/feed/FeedShell';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -2073,7 +2074,9 @@ const Feed = () => {
 
             {profileResults || (
               <>
-                {boostedStories}
+                <StoryBar impulsionados={boostedProfiles} />
+
+            {boostedStories}
 
                 {meId && composerOpen && (
                   <Card className="p-4">

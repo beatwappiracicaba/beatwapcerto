@@ -8,6 +8,7 @@ const { AuditionSubmission } = require('./AuditionSubmission');
 const { AppState } = require('./AppState');
 const { Event } = require('./Event');
 const { EventTicket } = require('./EventTicket');
+const { Story, StoryView } = require('./Story');
 
 module.exports = {
   sequelize,
@@ -19,5 +20,7 @@ module.exports = {
   AuditionSubmission,
   AppState,
   Event,
-  EventTicket
+  EventTicket,
+  Story,
+  StoryView
 };
