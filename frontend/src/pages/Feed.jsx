@@ -205,6 +205,15 @@ const Feed = () => {
   const [myPostsError, setMyPostsError] = useState('');
   const [myPosts, setMyPosts] = useState([]);
   const [editingPostId, setEditingPostId] = useState(null);
+  // Abre o Chat Social ja na conversa de alguem (usado pelo botao
+  // "Mensagem" do post). Precisa ser declarado ANTES do useMemo `content`,
+  // porque esse memo roda durante o render e o acessa: se a declaracao
+  // viesse depois, o `const` cairia em temporal dead zone.
+  const [chatRequest, setChatRequest] = useState(null);
+  const openChatWith = useCallback((targetId) => {
+    setChatRequest({ targetId, nonce: Date.now() });
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef(null);
   const sentinelRef = useRef(null);
@@ -1897,19 +1906,15 @@ const Feed = () => {
     setPostModalOpen(true);
   }, []);
 
+  // Abre o Chat Social ja na conversa de alguem (usado pelo botao
+  // "Mensagem" do post). Declarado no topo do componente, antes do
+  // useMemo `content`, que roda durante o render e o acessa.
+
   // Contador do Chat Social: separado do chat administrativo, que tem o
   // proprio contador na bolinha flutuante do dashboard.
   const { unreadCount: socialUnread } = useSocialChats();
   // Contador do Feed: somente interacoes sociais, nunca avisos de plataforma.
   const unreadCount = Number(getUnreadCount?.(CONTEXT_FEED) || 0);
-
-  // Abre o Chat Social ja na conversa de alguem (usado pelo botao
-  // "Mensagem" do post). O nonce faz o painel abrir de novo mesmo se
-  // a pessoa for a mesma.
-  const [chatRequest, setChatRequest] = useState(null);
-  const openChatWith = useCallback((targetId) => {
-    setChatRequest({ targetId, nonce: Date.now() });
-  }, []);
 
   const myProfileRoute = isProdutor ? '/admin/profile' : '/dashboard/profile';
 
