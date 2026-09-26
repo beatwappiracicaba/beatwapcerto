@@ -171,23 +171,25 @@ export const ProfileEditModal = ({
   if (!isOpen) return null;
 
   return (
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm pointer-events-auto">
+      <div className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto p-3 sm:p-4 bg-black/90 backdrop-blur-sm pointer-events-auto">
         <div
-          className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
+          className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[92vh] my-auto"
         >
-          <div className="p-4 border-b border-white/10 flex justify-between items-center bg-beatwap-black">
-            <h3 className="text-xl font-bold text-white">Editar Perfil</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-white">
-              <X size={24} />
+          <div className="p-3 sm:p-4 border-b border-white/10 flex justify-between items-center bg-beatwap-black shrink-0">
+            <h3 className="text-base sm:text-xl font-bold text-white">Editar Perfil</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-white" aria-label="Fechar">
+              <X size={22} />
             </button>
           </div>
 
-          <div className="p-6 flex-1 overflow-y-auto">
+          <div className="p-3 sm:p-6 flex-1 min-h-0 overflow-y-auto">
             {imageSrc ? (
               // Crop Mode
               <div className="space-y-4">
+                {/* Limite pela altura da viewport: o recorte nunca empurra o
+                    titulo nem os botoes para fora da tela. */}
                 <div
-                  className="relative w-full max-w-sm aspect-square bg-transparent rounded-lg overflow-hidden pointer-events-auto mx-auto"
+                  className="relative w-full max-w-[min(24rem,42dvh)] aspect-square bg-transparent rounded-lg overflow-hidden pointer-events-auto mx-auto"
                   style={{ touchAction: 'none' }}
                 >
                   <Cropper
