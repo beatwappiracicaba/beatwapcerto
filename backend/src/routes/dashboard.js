@@ -93,6 +93,7 @@ router.get('/dashboard/profile', auth, async (req, res) => {
       nome: user.nome,
       nome_completo: user.nome_completo,
       razao_social: user.razao_social,
+      area_producao: user.area_producao,
       nome_completo_razao_social: user.nome_completo_razao_social,
       avatar_url: user.avatar_url,
       bio: user.bio,
@@ -128,7 +129,6 @@ router.get('/dashboard/profile', auth, async (req, res) => {
   }
 });
 
-// Alias GET /profile to match client expectations
 router.get('/profile', auth, async (req, res) => {
   try {
     const user = await Profile.findByPk(req.user.id);
@@ -141,6 +141,7 @@ router.get('/profile', auth, async (req, res) => {
       nome: user.nome,
       nome_completo: user.nome_completo,
       razao_social: user.razao_social,
+      area_producao: user.area_producao,
       nome_completo_razao_social: user.nome_completo_razao_social,
       avatar_url: user.avatar_url,
       bio: user.bio,
@@ -207,7 +208,6 @@ router.put('/profile', auth, async (req, res) => {
       const b = String(cnpj || '').trim();
       patch.cpf_cnpj = (a && b) ? `${a} / ${b}` : (a || b || null);
     }
-    console.log('[PUT /profile]', { userId: req.user.id, keys: Object.keys(patch) });
     await Profile.update(patch, { where: { id: req.user.id } });
     const user = await Profile.findByPk(req.user.id);
     res.json({ ok: true, profile: user });

@@ -165,7 +165,7 @@ function displayNameFromEmail(email) {
     .split(' ')
     .filter(Boolean);
   if (!parts.length) return '';
-  return parts.map((s) => s.charAt(0).toUpperCase() + s.slice(1).join('')).join(' ');
+  return parts.map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
 }
 
 const GOLD = '#F5C542';
