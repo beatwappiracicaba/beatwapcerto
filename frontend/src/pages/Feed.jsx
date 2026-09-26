@@ -1009,11 +1009,23 @@ const Feed = () => {
     });
 
     // Sugestoes de seguir: perfis que a pessoa ainda nao segue.
+    // Ordena por perfil verificado e, no empate, pelos mais recentes, para a
+    // lista nao sair sempre em ordem alfabetica (repetindo os mesmos nomes).
     const seguido = new Set(
       (Array.isArray(followingIds) ? followingIds : []).map((x) => String(x))
     );
     const feedSuggestions = (Array.isArray(profiles) ? profiles : [])
       .filter((p) => p?.id && !seguido.has(String(p.id)) && String(p.id) !== meId)
+      .slice()
+      .sort((a, b) => {
+        const va = a.verified === true ? 1 : 0;
+        const vb = b.verified === true ? 1 : 0;
+        if (va !== vb) return vb - va;
+        const ta = new Date(a.created_at || 0).getTime() || 0;
+        const tb = new Date(b.created_at || 0).getTime() || 0;
+        if (ta !== tb) return tb - ta;
+        return String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR');
+      })
       .slice(0, 12);
 
     // Mistura os posts com cartoes de sugestao. O embaralhamento acontece a
@@ -1082,7 +1094,40 @@ const Feed = () => {
       );
     }
 
-    if ((followingCount === 0 || followingCount === null) && !loading) {
+    // Sem ninguem seguido, o Feed mostra quem seguir. O EmptyState so entra
+    // quando nao existe nenhuma sugestao para oferecer, senao as sugestoes
+    // ficavam escondidas atras do "Feed vazio".
+    const semSeguidores = followingCount === 0 || followingCount === null;
+    const mostrarSugestoes = semSeguidores
+      && feedSuggestions.length > 0
+      && feedFilter === 'todos'
+      && feedSubTab === 'posts';
+
+    const blocoSugestoes = mostrarSugestoes ? (
+      <div className="space-y-3">
+        <div className="px-1">
+          <h2 className="text-sm font-bold text-white">Sugestões para você seguir</h2>
+          <p className="mt-0.5 text-xs text-gray-400">
+            Você ainda não segue ninguém. Siga artistas, compositores, produtores e vendedores
+            para acompanhar as novidades por aqui.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {feedSuggestions.map((p) => (
+            <SuggestionCard
+              key={`sug-bloco-${p.id}`}
+              profile={p}
+              onOpen={() => navigate(`/feed/perfil/${p.id}`)}
+              onFollow={() => toggleFollow(String(p.id))}
+              following={isFollowing(String(p.id))}
+              loading={followLoadingById?.[String(p.id)] === true}
+            />
+          ))}
+        </div>
+      </div>
+    ) : null;
+
+    if (semSeguidores && !mostrarSugestoes && !loading) {
       return (
         <EmptyState
           icon={Users}
@@ -1099,26 +1144,8 @@ const Feed = () => {
 
     if (!loading && feedItems.length === 0) {
       // Sem ninguem seguido: em vez de tela vazia, mostra quem seguir.
-      if (followingCount === 0 && feedSuggestions.length > 0 && feedFilter === 'todos' && feedSubTab === 'posts') {
-        return (
-          <div className="space-y-4">
-            <div className="px-1 text-sm text-gray-400">
-              Voce ainda nao segue ninguem. Que tal comecar por aqui?
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {feedSuggestions.map((p) => (
-                <SuggestionCard
-                  key={`sug-empty-${p.id}`}
-                  profile={p}
-                  onOpen={() => navigate(`/feed/perfil/${p.id}`)}
-                  onFollow={() => toggleFollow(String(p.id))}
-                  following={isFollowing(String(p.id))}
-                  loading={followLoadingById?.[String(p.id)] === true}
-                />
-              ))}
-            </div>
-          </div>
-        );
+      if (mostrarSugestoes) {
+        return <div className="space-y-4">{blocoSugestoes}</div>;
       }
       return (
         <EmptyState
@@ -1140,6 +1167,7 @@ const Feed = () => {
 
     return (
       <div className="space-y-4">
+        {blocoSugestoes}
         {feedSubTab === 'musics' && feedAlbums.length > 0 && (
           <Card className="p-4 sm:p-6">
             <div className="flex items-center gap-2 text-white font-bold">
