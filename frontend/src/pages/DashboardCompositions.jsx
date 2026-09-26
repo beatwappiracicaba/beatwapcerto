@@ -1,25 +1,29 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Card } from '../components/ui/Card';
 import { BoostedProfilesStories } from '../components/BoostedProfilesStories';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { HighlightRailCard } from '../components/ui/HighlightRailCard';
 import { PanelSection } from '../components/ui/PanelSection';
-import { PanelHero } from '../components/ui/PanelHero';
 import { PersistentPanelTabs } from '../components/ui/PersistentPanelTabs';
 import { PremiumMetricCard } from '../components/ui/PremiumMetricCard';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { CompositionsUploadModal } from '../components/artist/CompositionsUploadModal';
-import { Plus, Music, Bell, Clock, MessageCircle, LayoutGrid, User, Sparkles, Target, ArrowUpRight, BadgeCheck } from 'lucide-react';
+import { Plus, Music, Clock, MessageCircle, User, Sparkles, Target, ArrowUpRight, BadgeCheck, DollarSign } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 import { useChat } from '../context/ChatContext';
 import { useNavigate } from 'react-router-dom';
 import { usePersistentState } from '../hooks/usePersistentState';
+import { PainelCabecalho } from '../components/dashboard/PainelCabecalho';
+import { IndicadoresPainel } from '../components/dashboard/IndicadoresPainel';
+import { AcoesRapidas } from '../components/dashboard/AcoesRapidas';
+import { AtividadeRecente, PendenciasPainel } from '../components/dashboard/ListasPainel';
+import { SecaoPainel } from '../components/dashboard/SecaoPainel';
+import { atalhosDoCargo } from '../components/dashboard/atalhos';
 
 export const DashboardCompositions = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { notifications = [] } = useNotification();
   const { chats = [], supportQueue = [] } = useChat();
@@ -193,6 +197,8 @@ export const DashboardCompositions = () => {
     hottestValue: pitchRadarItems.reduce((acc, item) => acc + item.price, 0)
   }), [pitchRadarItems]);
 
+  const atalhosCompositor = useMemo(() => atalhosDoCargo('Compositor'), []);
+
   const panelTabs = useMemo(
     () => [
       { id: 'resumo', label: 'Resumo', helper: 'Catalogo, radar e atalhos do dia', count: compositions.length },
@@ -245,32 +251,18 @@ export const DashboardCompositions = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <PanelHero
-          eyebrow="Painel do Compositor"
-          title="Catalogo, pitch e atividade em um so lugar"
-          description="Agora o painel mantem a leitura mais executiva, com busca rapida, recomendacao do dia e retorno exatamente na aba em que voce parou."
-          recommendation={pitchSummary.readyForPitch > 0
-            ? `Voce tem ${pitchSummary.readyForPitch} composicoes prontas para ataque comercial. Priorize as de maior score no radar.`
-            : 'Suba ou ajuste composicoes para destravar o radar de pitch e aumentar o potencial comercial.'}
-          badges={[
-            { label: 'Catalogo', value: compositions.length },
-            { label: 'Aprovadas', value: approvedCount },
-            { label: 'Chats', value: activeChatsCount }
-          ]}
+        <PainelCabecalho
+          cargo="Painel do Compositor"
+          saudacao={`Ola, ${String(profile?.nome || user?.nome || '').trim() || 'compositor'}. Seu catalogo em um so lugar.`}
+          resumo="Tamanho do catalogo, o que esta pronto para pitch, atalhos, atividade recente e o que ainda pede atencao."
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
           searchPlaceholder="Buscar composicao, status, acao ou notificacao..."
-          actions={(
-            <>
-              <AnimatedButton onClick={() => setIsUploadModalOpen(true)} icon={Plus}>
-                Nova composicao
-              </AnimatedButton>
-              <AnimatedButton onClick={() => navigate('/dashboard/chat')} variant="secondary" icon={MessageCircle}>
-                Abrir conversas
-              </AnimatedButton>
-            </>
-          )}
-        />
+        >
+          <AnimatedButton onClick={() => setIsUploadModalOpen(true)} icon={Plus}>
+            Nova composicao
+          </AnimatedButton>
+        </PainelCabecalho>
 
         <BoostedProfilesStories
           limit={14}
@@ -281,264 +273,182 @@ export const DashboardCompositions = () => {
         <PersistentPanelTabs tabs={panelTabs} activeTab={activePanelTab} onChange={setActivePanelTab} />
 
         {activePanelTab === 'resumo' && (
-          <>
-            <PanelSection
-              eyebrow="Resumo Executivo"
-              title="Visao instantanea do seu catalogo"
-              description="Os principais numeros aparecem com mais contraste e leitura premium, deixando claro o tamanho do catalogo, o que ja foi aprovado e onde existe dinheiro parado."
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-                <PremiumMetricCard icon={Music} tone="purple" title="Total de composicoes" value={compositions.length} description="Faixas cadastradas no seu catalogo atual" />
-                <PremiumMetricCard icon={BadgeCheck} tone="green" title="Aprovadas" value={approvedCount} description="Itens prontos para atacar mercado" />
-                <PremiumMetricCard icon={Clock} tone="gold" title="Pendentes" value={pendingCount} description="Materiais aguardando proximo passo" />
-                <PremiumMetricCard icon={Sparkles} tone="blue" title="Valor do catalogo" value={revenueFormatter.format(totalCatalogValue)} description="Potencial financeiro do seu acervo" />
-              </div>
-            </PanelSection>
+          <div className="space-y-8">
 
-            <PanelSection
-              eyebrow="Pulso Do Painel"
-              title="Alertas e atalhos em destaque"
-              description="Essa faixa deixa o topo mais bonito e mais funcional, agrupando notificacoes, conversas e proximos movimentos."
-            >
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <PremiumMetricCard icon={Bell} tone="gold" title="Notificacoes" value={unreadNotifications} description="Itens nao lidos no momento" />
-                <PremiumMetricCard icon={MessageCircle} tone="purple" title="Chats ativos" value={activeChatsCount} description="Conversas abertas dentro do sistema" />
-                <HighlightRailCard title="Atalhos do compositor" description="Acesso rapido para agir sem sair do contexto." badge="acao">
-                  <div className="flex flex-wrap gap-2">
-                    <AnimatedButton onClick={() => setIsUploadModalOpen(true)} className="w-full sm:w-auto justify-center">
-                      Nova composicao
-                    </AnimatedButton>
-                    <AnimatedButton onClick={() => navigate('/dashboard/profile')} variant="secondary" className="w-full sm:w-auto justify-center">
-                      Perfil
-                    </AnimatedButton>
-                  </div>
-                </HighlightRailCard>
-              </div>
-            </PanelSection>
+            {/* 1. Indicadores principais */}
+            <SecaoPainel titulo="Seu catalogo em numeros">
+              <IndicadoresPainel
+                itens={[
+                  { icon: Music, title: 'Composicoes', value: compositions.length, hint: 'Faixas no catalogo', tone: 'purple' },
+                  { icon: BadgeCheck, title: 'Aprovadas', value: approvedCount, hint: 'Liberadas para o mercado', tone: 'green' },
+                  { icon: Clock, title: 'Pendentes', value: pendingCount, hint: 'Aguardando proximo passo', tone: 'gold' },
+                  { icon: Sparkles, title: 'Prontas para pitch', value: pitchSummary.readyForPitch, hint: 'Com score para ataque', tone: 'blue' },
+                  { icon: Target, title: 'Sem preco', value: pitchSummary.missingPricing, hint: 'Travam oportunidades', tone: 'red' },
+                  { icon: DollarSign, title: 'Valor do catalogo', value: revenueFormatter.format(totalCatalogValue), hint: 'Potencial do acervo', tone: 'gold' }
+                ]}
+              />
+            </SecaoPainel>
 
-            <PanelSection
-              eyebrow="Pitch Prioritario"
-              title="Veja o que tem mais chance de virar negocio"
-              description="Organizei o catalogo pelo que esta pronto para venda, pelo que ainda trava e pelo que precisa de ajuste para chamar mais atencao."
-              className="border-beatwap-gold/20 bg-[linear-gradient(135deg,rgba(245,197,66,0.10),rgba(255,255,255,0.02),rgba(0,0,0,0.28))] shadow-[0_0_35px_rgba(245,197,66,0.08)]"
-            >
-              <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5 mb-6">
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-beatwap-gold/30 bg-beatwap-gold/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em] text-beatwap-gold">
-                    <Sparkles size={14} />
-                    Radar de Pitch
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <AnimatedButton onClick={() => setIsUploadModalOpen(true)} icon={Plus}>
-                    Nova composicao
-                  </AnimatedButton>
-                  <AnimatedButton onClick={() => navigate('/dashboard/chat')} variant="secondary" icon={MessageCircle}>
-                    Abrir conversas
-                  </AnimatedButton>
-                </div>
-              </div>
+            {/* 2. Acoes rapidas */}
+            <AcoesRapidas
+              atalhos={atalhosCompositor}
+              descricao="Atalhos do compositor para as areas mais usadas."
+            />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Prontas para pitch</div>
-                  <div className="text-3xl font-extrabold text-white mt-2">{pitchSummary.readyForPitch}</div>
-                  <div className="text-xs text-gray-500 mt-2">Composicoes aprovadas para atacar mercado</div>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Sem preco</div>
-                  <div className="text-3xl font-extrabold text-white mt-2">{pitchSummary.missingPricing}</div>
-                  <div className="text-xs text-gray-500 mt-2">Oportunidades travadas por precificacao</div>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Validadas por plays</div>
-                  <div className="text-3xl font-extrabold text-white mt-2">{pitchSummary.validatedByMarket}</div>
-                  <div className="text-xs text-gray-500 mt-2">Faixas com algum sinal de interesse</div>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Valor priorizado</div>
-                  <div className="text-3xl font-extrabold text-white mt-2">{revenueFormatter.format(pitchSummary.hottestValue)}</div>
-                  <div className="text-xs text-gray-500 mt-2">Catalogo mais quente do momento</div>
-                </div>
-              </div>
+            {/* 3. Atividades recentes e 4. Pendencias */}
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              <AtividadeRecente
+                itens={filteredActivityItems}
+                descricao="Composicoes, conversas, fila e notificacoes."
+                vazio="Sem atividade registrada por aqui."
+                maximo={7}
+              />
+              <PendenciasPainel
+                titulo="Pendencias e avisos"
+                descricao="O que ainda pede a sua atencao."
+                itens={[
+                  { id: 'notif', rotulo: 'Nao lidas', valor: unreadNotifications, dica: 'Notificacoes em aberto' },
+                  { id: 'chats', rotulo: 'Conversas ativas', valor: activeChatsCount, dica: 'Sem resposta sua', para: '/dashboard/chat' },
+                  { id: 'preco', rotulo: 'Sem preco', valor: pitchSummary.missingPricing, dica: 'Oportunidades travadas' },
+                  { id: 'revisar', rotulo: 'Para revisar', valor: pitchBoardSummary.revision, dica: 'Itens fora do pitch' }
+                ]}
+                notificacoes={filteredRecentNotifications}
+              />
+            </div>
 
-              <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_0.8fr] gap-6">
-                <div className="space-y-3">
-                  <div>
-                    <div className="text-lg font-bold text-white">Top oportunidades do catalogo</div>
-                    <div className="text-sm text-gray-400">Score por aprovacao, plays, preco e maturidade comercial</div>
-                  </div>
-                  {filteredPitchRadarItems.length === 0 ? (
-                    <EmptyState
-                      icon={Target}
-                      title="Nenhuma composicao combina com a busca"
-                      description={normalizedSearch ? 'Tente outro termo para localizar itens do radar ou limpe a busca.' : 'Envie composicoes para liberar o radar de pitch.'}
-                      action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
-                    />
-                  ) : filteredPitchRadarItems.map((item) => (
-                    <div key={item.id} className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                        <div className="space-y-3 min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${getPitchTone(item.score)}`}>
-                              Score {item.score}
-                            </span>
-                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-300">
-                              {item.statusLabel}
-                            </span>
-                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-300">
-                              {item.genre}
-                            </span>
-                          </div>
-                          <div>
-                            <div className="text-xl font-extrabold text-white">{item.title}</div>
-                            <div className="text-sm text-gray-300 mt-1">
-                              {item.plays} plays • {revenueFormatter.format(item.price || 0)}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Travas atuais</div>
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {item.blockers.length > 0 ? item.blockers.map((blocker) => (
-                                <span key={`${item.id}-${blocker}`} className="rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-300">
-                                  {blocker}
-                                </span>
-                              )) : (
-                                <span className="rounded-full border border-green-500/20 bg-green-500/10 px-2.5 py-1 text-xs font-semibold text-green-300">
-                                  Sem travas criticas
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="w-full lg:w-72 shrink-0 space-y-3">
-                          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                            <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Acao recomendada</div>
-                            <div className="text-sm text-white mt-2">{item.nextAction}</div>
-                            {item.feedback ? (
-                              <div className="mt-3 text-xs text-red-300">{item.feedback}</div>
-                            ) : null}
-                          </div>
-                          <AnimatedButton onClick={() => setIsUploadModalOpen(true)} className="w-full justify-center" icon={ArrowUpRight}>
-                            Melhorar catalogo
-                          </AnimatedButton>
-                          <AnimatedButton onClick={() => navigate('/dashboard/profile')} variant="secondary" className="w-full justify-center" icon={Target}>
-                            Ajustar perfil
-                          </AnimatedButton>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-white/10 bg-black/25 p-5">
-                    <div className="flex items-center gap-2 text-white font-bold">
-                      <BadgeCheck size={18} className="text-beatwap-gold" />
-                      Valor de assinatura
-                    </div>
-                    <div className="text-sm text-gray-300 mt-3">
-                      Esse radar deixa claro para o compositor o que vender primeiro, o que revisar e onde esta o dinheiro mais facil do catalogo.
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-white/10 bg-black/25 p-5 space-y-4">
-                    <div className="text-white font-bold">Ataque rapido</div>
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="text-gray-400">Pendencias do painel</span>
-                      <span className="text-white font-bold">{pendingCount}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="text-gray-400">Notificacoes nao lidas</span>
-                      <span className="text-white font-bold">{unreadNotifications}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="text-gray-400">Chats ativos</span>
-                      <span className="text-white font-bold">{activeChatsCount}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </PanelSection>
-
-            <PanelSection
-              eyebrow="Catalogo Visual"
-              title="Minhas composicoes"
-              description="A lista ganhou mais respiracao e se conecta melhor com o restante do dashboard, deixando a leitura mais premium."
-            >
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-3">
-                <div className="text-xl font-semibold text-white"><span>Minhas Composicoes</span></div>
-                <AnimatedButton 
-                  onClick={() => setIsUploadModalOpen(true)}
-                  icon={Plus}
-                >
-                  Nova Composição
+            {/* 5. Complemento: radar de pitch */}
+            <SecaoPainel
+              titulo="Oportunidades do catalogo"
+              descricao="Composicoes priorizadas por aprovacao, plays, preco e maturidade comercial."
+              aside={(
+                <AnimatedButton onClick={() => setIsUploadModalOpen(true)} icon={Plus}>
+                  Nova composicao
                 </AnimatedButton>
-              </div>
-
-              <div className="space-y-3">
-                {loading && <div className="text-gray-400"><span>Carregando...</span></div>}
-                {!loading && filteredCompositions.length === 0 && (
-                  <EmptyState
-                    icon={Music}
-                    title={normalizedSearch ? 'Nenhuma composicao encontrada nessa busca' : 'Nenhuma composicao encontrada'}
-                    description={normalizedSearch ? 'Ajuste o termo buscado ou limpe o filtro para ver todo o catalogo.' : 'Clique em "Nova Composicao" para enviar seu primeiro material.'}
-                    action={<AnimatedButton onClick={() => normalizedSearch ? setSearchTerm('') : setIsUploadModalOpen(true)}>{normalizedSearch ? 'Limpar busca' : 'Nova composicao'}</AnimatedButton>}
-                  />
-                )}
-                {!loading && filteredCompositions.map((comp) => (
-                  <div key={comp.id} className="flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
-                    <div className="w-12 h-12 rounded-lg bg-gray-800 overflow-hidden shrink-0">
-                      {comp.cover_url ? (
-                        <img src={comp.cover_url} alt={comp.title} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">
-                          <Music size={20} />
+              )}
+            >
+              {filteredPitchRadarItems.length === 0 ? (
+                <EmptyState
+                  icon={Target}
+                  title="Nenhuma composicao combina com a busca"
+                  description={normalizedSearch ? 'Tente outro termo para localizar itens do radar ou limpe a busca.' : 'Envie composicoes para liberar o radar de pitch.'}
+                  action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
+                />
+              ) : (
+                <ul className="grid grid-cols-1 gap-2.5 xl:grid-cols-2">
+                  {filteredPitchRadarItems.map((item) => (
+                    <li
+                      key={item.id}
+                      className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-beatwap-gold/30"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-bold text-white">{item.title}</div>
+                          <div className="mt-0.5 truncate text-xs text-gray-400">
+                            {item.genre} &middot; {item.plays} plays &middot; {revenueFormatter.format(item.price || 0)}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-bold text-white"><span>{comp.title}</span></div>
-                      <div className="text-xs text-gray-400"><span>{comp.genre} • {new Date(comp.created_at).toLocaleDateString()}</span></div>
-                      {comp.status === 'approved' && (
-                        <div className="mt-1 text-xs text-gray-300">
-                          <span>
-                          {(() => {
-                            const mm = compMetrics[comp.id] || { plays: 0, totalSeconds: 0 };
-                            const hh = Math.floor(mm.totalSeconds / 3600);
-                            const mmn = Math.floor((mm.totalSeconds % 3600) / 60);
-                            const ss = mm.totalSeconds % 60;
-                            const totalFmt = `${hh}h ${mmn}m ${ss}s`;
-                            return `Plays: ${mm.plays} • Tempo total: ${totalFmt}`;
-                          })()}
-                          </span>
-                        </div>
-                      )}
-                      {comp.price && (
-                          <div className="text-xs text-beatwap-gold mt-1 font-bold"><span>R$ {comp.price}</span></div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className={`text-xs px-3 py-1 rounded-full font-bold uppercase ${
-                        comp.status === 'approved' ? 'bg-green-500/20 text-green-500' :
-                        comp.status === 'rejected' ? 'bg-red-500/20 text-red-500' :
-                        'bg-yellow-500/20 text-yellow-500'
-                      }`}>
-                        <span>{comp.status === 'approved' ? 'Aprovado' : comp.status === 'rejected' ? 'Recusado' : 'Pendente'}</span>
+                        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ${getPitchTone(item.score)}`}>
+                          {item.score}
+                        </span>
                       </div>
-                      {comp.admin_feedback && (
-                        <div className="text-xs text-red-400 max-w-[150px] truncate" title={comp.admin_feedback}>
-                          <span>{comp.admin_feedback}</span>
+
+                      <div className="mt-3 text-xs leading-relaxed text-gray-300">{item.nextAction}</div>
+
+                      {item.feedback ? (
+                        <div className="mt-2 text-[11px] leading-relaxed text-red-300">{item.feedback}</div>
+                      ) : null}
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-gray-300">
+                          {item.statusLabel}
+                        </span>
+                        {item.blockers.length > 0 ? (
+                          <span className="rounded-lg border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-[11px] text-red-300">
+                            {item.blockers[0]}
+                          </span>
+                        ) : (
+                          <span className="rounded-lg border border-green-500/20 bg-green-500/10 px-2.5 py-1 text-[11px] text-green-300">
+                            Sem travas
+                          </span>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </SecaoPainel>
+
+            {/* Complemento: catalogo completo */}
+            <SecaoPainel
+              titulo="Minhas composicoes"
+              descricao={loading ? 'Carregando...' : `${filteredCompositions.length} de ${compositions.length} itens no catalogo.`}
+              aside={(
+                <AnimatedButton onClick={() => setIsUploadModalOpen(true)} icon={Plus}>
+                  Nova composicao
+                </AnimatedButton>
+              )}
+            >
+              {loading ? (
+                <p className="py-6 text-sm text-gray-500">Carregando...</p>
+              ) : filteredCompositions.length === 0 ? (
+                <EmptyState
+                  icon={Music}
+                  title={normalizedSearch ? 'Nenhuma composicao encontrada nessa busca' : 'Nenhuma composicao encontrada'}
+                  description={normalizedSearch ? 'Ajuste o termo buscado ou limpe o filtro para ver todo o catalogo.' : 'Use o botao acima para enviar seu primeiro material.'}
+                  action={<AnimatedButton onClick={() => (normalizedSearch ? setSearchTerm('') : setIsUploadModalOpen(true))}>{normalizedSearch ? 'Limpar busca' : 'Nova composicao'}</AnimatedButton>}
+                />
+              ) : (
+                <ul className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+                  {filteredCompositions.map((comp) => {
+                    const mm = compMetrics[comp.id] || { plays: 0, totalSeconds: 0 };
+                    const tempoTotal = `${Math.floor(mm.totalSeconds / 3600)}h ${Math.floor((mm.totalSeconds % 3600) / 60)}m ${mm.totalSeconds % 60}s`;
+                    return (
+                      <li key={comp.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 transition hover:border-beatwap-gold/25">
+                        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-800">
+                          {comp.cover_url ? (
+                            <img src={comp.cover_url} alt={comp.title} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-gray-500">
+                              <Music size={16} />
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </PanelSection>
-          </>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-bold text-white">{comp.title}</div>
+                          <div className="truncate text-[11px] text-gray-400">
+                            {comp.genre} &middot; {new Date(comp.created_at).toLocaleDateString('pt-BR')}
+                          </div>
+                          {comp.status === 'approved' ? (
+                            <div className="truncate text-[11px] text-gray-500">
+                              {mm.plays} plays &middot; {tempoTotal}
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
+                              comp.status === 'approved'
+                                ? 'bg-green-500/20 text-green-400'
+                                : comp.status === 'rejected'
+                                  ? 'bg-red-500/20 text-red-400'
+                                  : 'bg-yellow-500/20 text-yellow-400'
+                            }`}
+                          >
+                            {comp.status === 'approved' ? 'Aprovado' : comp.status === 'rejected' ? 'Recusado' : 'Pendente'}
+                          </span>
+                          {comp.price ? (
+                            <span className="text-[11px] font-bold text-beatwap-gold">R$ {comp.price}</span>
+                          ) : null}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </SecaoPainel>
+          </div>
         )}
+
 
         {activePanelTab === 'pitch' && (
           <div className="space-y-6">

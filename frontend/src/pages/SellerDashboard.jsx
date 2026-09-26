@@ -1,21 +1,25 @@
 import { useState, useEffect, useMemo } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { BoostedProfilesStories } from '../components/BoostedProfilesStories';
-import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { HighlightRailCard } from '../components/ui/HighlightRailCard';
 import { PanelSection } from '../components/ui/PanelSection';
-import { PanelHero } from '../components/ui/PanelHero';
 import { PersistentPanelTabs } from '../components/ui/PersistentPanelTabs';
 import { PremiumMetricCard } from '../components/ui/PremiumMetricCard';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { useChat } from '../context/ChatContext';
 import { apiClient } from '../services/apiClient';
-import { TrendingUp, Calendar, Users, DollarSign, Target, Award, Bell, Clock, LayoutGrid, MessageSquare, FileText, Sparkles, BadgeCheck, ArrowUpRight } from 'lucide-react';
+import { TrendingUp, Calendar, DollarSign, Target, Award, Clock, MessageSquare, FileText, Sparkles, ArrowUpRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { usePersistentState } from '../hooks/usePersistentState';
+import { PainelCabecalho } from '../components/dashboard/PainelCabecalho';
+import { IndicadoresPainel } from '../components/dashboard/IndicadoresPainel';
+import { AcoesRapidas } from '../components/dashboard/AcoesRapidas';
+import { AtividadeRecente, PendenciasPainel } from '../components/dashboard/ListasPainel';
+import { SecaoPainel } from '../components/dashboard/SecaoPainel';
+import { atalhosDoCargo } from '../components/dashboard/atalhos';
 
 const SellerDashboard = () => {
   const { profile } = useAuth();
@@ -346,6 +350,8 @@ const SellerDashboard = () => {
     [activityItems, normalizedSearch]
   );
 
+  const atalhosVendedor = useMemo(() => atalhosDoCargo('Vendedor'), []);
+
   const pipelineSummary = useMemo(() => ({
     hotDeals: filteredDealRoomItems.filter((item) => item.score >= 80).length,
     blockedDeals: filteredDealRoomItems.filter((item) => item.blockers.length > 0).length,
@@ -356,32 +362,21 @@ const SellerDashboard = () => {
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        <PanelHero
-          eyebrow="Painel do Vendedor"
-          title={`Bem-vindo, ${profile?.nome || 'Vendedor'}. Vamos bater as metas!`}
-          description="Agora voce volta sempre para a ultima aba aberta, filtra oportunidades e atividade pela busca rapida e enxerga o proximo melhor movimento no topo."
-          recommendation={filteredDealRoomItems.length > 0
-            ? `Voce tem ${dealRoomSummary.negotiationLeadsCount} leads em negociacao. Priorize os deals com proposta enviada e maior score.`
-            : 'Alimente o pipeline com novos leads e propostas para destravar o deal room inteligente.'}
-          badges={[
-            { label: 'Meta restante', value: Math.max(remainingShows, 0) },
-            { label: 'Propostas', value: dealRoomSummary.sentProposalsCount },
-            { label: 'Conversas', value: activeChatsCount }
-          ]}
+        <PainelCabecalho
+          cargo="Painel do Vendedor"
+          saudacao={`Bem-vindo, ${profile?.nome || 'Vendedor'}. Vamos bater as metas!`}
+          resumo="Leads, propostas, negociacoes e os acompanhamentos que ainda dependem de voce."
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
           searchPlaceholder="Buscar lead, cliente, artista, acao ou atividade..."
-          actions={(
-            <>
-              <AnimatedButton onClick={() => navigate('/seller/leads')} variant="primary" icon={Target}>
-                Novas oportunidades
-              </AnimatedButton>
-              <AnimatedButton onClick={() => navigate('/seller/proposals')} variant="secondary" icon={FileText}>
-                Abrir propostas
-              </AnimatedButton>
-            </>
-          )}
-        />
+        >
+          <AnimatedButton onClick={() => navigate('/seller/leads')} icon={Target}>
+            Novas oportunidades
+          </AnimatedButton>
+          <AnimatedButton onClick={() => navigate('/seller/proposals')} variant="secondary" icon={FileText}>
+            Abrir propostas
+          </AnimatedButton>
+        </PainelCabecalho>
 
         <BoostedProfilesStories
           limit={14}
@@ -392,361 +387,118 @@ const SellerDashboard = () => {
         <PersistentPanelTabs tabs={panelTabs} activeTab={activePanelTab} onChange={setActivePanelTab} />
 
         {activePanelTab === 'resumo' && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-              <Card className="p-5 bg-white/5 border border-white/10">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm text-gray-400">Notificacoes</div>
-                    <div className="text-3xl font-extrabold text-white mt-1">{unreadNotifications}</div>
-                    <div className="text-xs text-gray-500 mt-2">Itens ainda nao lidos</div>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400">
-                    <Bell size={22} />
-                  </div>
-                </div>
-              </Card>
-              <Card className="p-5 bg-white/5 border border-white/10">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm text-gray-400">Chats ativos</div>
-                    <div className="text-3xl font-extrabold text-white mt-1">{activeChatsCount}</div>
-                    <div className="text-xs text-gray-500 mt-2">Conversas em andamento</div>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-400">
-                    <MessageSquare size={22} />
-                  </div>
-                </div>
-              </Card>
-              <Card className="p-5 bg-white/5 border border-white/10">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm text-gray-400">Fila comercial</div>
-                    <div className="text-3xl font-extrabold text-white mt-1">{sellerQueue.length}</div>
-                    <div className="text-xs text-gray-500 mt-2">Pedidos aguardando retorno</div>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-red-500/10 text-red-400">
-                    <Clock size={22} />
-                  </div>
-                </div>
-              </Card>
-              <Card className="p-5 bg-white/5 border border-white/10">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm text-gray-400">Meta restante</div>
-                    <div className="text-3xl font-extrabold text-white mt-1">{Math.max(remainingShows, 0)}</div>
-                    <div className="text-xs text-gray-500 mt-2">Shows para fechar a meta</div>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-beatwap-gold/10 text-beatwap-gold">
-                    <LayoutGrid size={22} />
-                  </div>
-                </div>
-              </Card>
+          <div className="space-y-8">
+
+            {/* 1. Indicadores comerciais */}
+            <SecaoPainel titulo="Metas e pipeline">
+              <IndicadoresPainel
+                itens={[
+                  { icon: Target, title: 'Leads ativos', value: dealRoomSummary.activeLeadsCount, hint: 'Oportunidades abertas', tone: 'gold' },
+                  { icon: Clock, title: 'Em negociacao', value: dealRoomSummary.negotiationLeadsCount, hint: 'Conversas em andamento', tone: 'blue' },
+                  { icon: Award, title: 'Propostas aceitas', value: dealRoomSummary.acceptedProposalsCount, hint: 'Fechados no periodo', tone: 'green' },
+                  { icon: FileText, title: 'Propostas enviadas', value: dealRoomSummary.sentProposalsCount, hint: 'Aguardando retorno', tone: 'purple' },
+                  { icon: DollarSign, title: 'Pipeline', value: revenueFormatter.format(dealRoomSummary.dealRoomValue), hint: 'Soma dos leads ativos', tone: 'gold' },
+                  { icon: TrendingUp, title: 'Shows restantes', value: remainingShows, hint: `Meta de ${goals?.shows_target || 0} shows`, tone: 'slate' }
+                ]}
+              />
+            </SecaoPainel>
+
+            {/* 2. Acoes rapidas */}
+            <AcoesRapidas
+              atalhos={atalhosVendedor}
+              descricao="Atalhos para pipeline, propostas e agenda."
+            />
+
+            {/* 3. Atividades recentes e 4. Pendencias */}
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              <AtividadeRecente
+                itens={filteredActivityItems}
+                descricao="Leads, propostas, conversas e notificacoes."
+                vazio="Sem atividade registrada por aqui."
+                maximo={7}
+              />
+              <PendenciasPainel
+                titulo="Acompanhamentos pendentes"
+                descricao="O que trava ou espera sua acao."
+                itens={[
+                  { id: 'notif', rotulo: 'Nao lidas', valor: unreadNotifications, dica: 'Notificacoes em aberto' },
+                  { id: 'bloqueados', rotulo: 'Com travas', valor: pipelineSummary.blockedDeals, dica: 'Dependem de acao', para: '/seller/leads' },
+                  { id: 'sem-proposta', rotulo: 'Sem proposta', valor: pipelineSummary.proposalMissing, dica: 'Lead sem proposta', para: '/seller/proposals' },
+                  { id: 'chats', rotulo: 'Conversas ativas', valor: activeChatsCount, dica: 'Sem resposta sua', para: '/seller/communications' }
+                ]}
+                notificacoes={recentNotifications}
+              />
             </div>
 
-            <Card className="p-6 border border-beatwap-gold/20 bg-[linear-gradient(135deg,rgba(245,197,66,0.10),rgba(255,255,255,0.02),rgba(0,0,0,0.30))] shadow-[0_0_40px_rgba(245,197,66,0.08)]">
-              <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5 mb-6">
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-beatwap-gold/30 bg-beatwap-gold/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em] text-beatwap-gold">
-                    <Sparkles size={14} />
-                    Deal Room Inteligente
-                  </div>
-                  <div className="text-2xl font-extrabold text-white mt-3">Radar comercial para vender mais rapido</div>
-                  <div className="text-sm text-gray-300 mt-2 max-w-3xl">
-                    Reuni leads, propostas, conversas e gargalos num mesmo lugar para destacar o que merece ataque imediato.
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <AnimatedButton onClick={() => navigate('/seller/leads')} icon={Target}>
-                    Gerir pipeline
-                  </AnimatedButton>
-                  <AnimatedButton onClick={() => navigate('/seller/proposals')} variant="secondary" icon={FileText}>
-                    Abrir propostas
-                  </AnimatedButton>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Leads ativos</div>
-                  <div className="text-3xl font-extrabold text-white mt-2">{dealRoomSummary.activeLeadsCount}</div>
-                  <div className="text-xs text-gray-500 mt-2">Negocios ainda vivos no pipeline</div>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Em negociacao</div>
-                  <div className="text-3xl font-extrabold text-white mt-2">{dealRoomSummary.negotiationLeadsCount}</div>
-                  <div className="text-xs text-gray-500 mt-2">Pontes quentes para fechar</div>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Propostas enviadas</div>
-                  <div className="text-3xl font-extrabold text-white mt-2">{dealRoomSummary.sentProposalsCount}</div>
-                  <div className="text-xs text-gray-500 mt-2">Materiais ja em decisao</div>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Valor em jogo</div>
-                  <div className="text-3xl font-extrabold text-white mt-2">{revenueFormatter.format(dealRoomSummary.dealRoomValue || dealRoomSummary.proposalValue || 0)}</div>
-                  <div className="text-xs text-gray-500 mt-2">Oportunidade financeira do momento</div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_0.8fr] gap-6">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-lg font-bold text-white">Oportunidades priorizadas</div>
-                      <div className="text-sm text-gray-400">Score automatico por fase, proposta, data e aquecimento comercial</div>
-                    </div>
-                    <div className="text-xs text-gray-500">Top 5 do pipeline</div>
-                  </div>
-
-                  {dealRoomLoading ? (
-                    <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-gray-400">
-                      Carregando oportunidades do Deal Room...
-                    </div>
-                  ) : filteredDealRoomItems.length > 0 ? filteredDealRoomItems.map((item) => (
-                    <div key={item.id} className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                        <div className="space-y-3 min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${getStageTone(item.score)}`}>
-                              Score {item.score}
-                            </span>
-                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-300">
-                              {item.leadStatusLabel}
-                            </span>
-                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-300">
-                              {item.proposalStatusLabel}
-                            </span>
-                          </div>
-                          <div>
-                            <div className="text-xl font-extrabold text-white">{item.title}</div>
-                            <div className="text-sm text-gray-300 mt-1">
-                              {item.artistName} • {item.clientName}{item.city ? ` • ${item.city}` : ''}
-                            </div>
-                          </div>
-                          <div className="grid sm:grid-cols-3 gap-3">
-                            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                              <div className="text-xs text-gray-500 uppercase tracking-[0.18em]">Valor</div>
-                              <div className="text-white font-bold mt-1">{revenueFormatter.format(item.budget || 0)}</div>
-                            </div>
-                            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                              <div className="text-xs text-gray-500 uppercase tracking-[0.18em]">Data</div>
-                              <div className="text-white font-bold mt-1">
-                                {item.eventDate ? new Date(item.eventDate).toLocaleDateString('pt-BR') : 'Definir'}
-                              </div>
-                            </div>
-                            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                              <div className="text-xs text-gray-500 uppercase tracking-[0.18em]">Proximo passo</div>
-                              <div className="text-white font-bold mt-1">Ataque agora</div>
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Gargalos atuais</div>
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {item.blockers.length > 0 ? item.blockers.map((blocker) => (
-                                <span key={`${item.id}-${blocker}`} className="rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-300">
-                                  {blocker}
-                                </span>
-                              )) : (
-                                <span className="rounded-full border border-green-500/20 bg-green-500/10 px-2.5 py-1 text-xs font-semibold text-green-300">
-                                  Sem travas criticas
-                                </span>
-                              )}
-                            </div>
+            {/* 5. Complemento: oportunidades com score */}
+            <SecaoPainel
+              titulo="Oportunidades com maior potencial"
+              descricao="Leads e propostas priorizados por valor e proximidade de fechamento."
+              aside={(
+                <AnimatedButton onClick={() => navigate('/seller/leads')} variant="secondary" icon={Target}>
+                  Abrir pipeline
+                </AnimatedButton>
+              )}
+            >
+              {filteredDealRoomItems.length === 0 ? (
+                <EmptyState
+                  icon={Target}
+                  title="Nenhuma oportunidade encontrada"
+                  description={normalizedSearch ? 'Sua busca nao encontrou itens no pipeline.' : 'Assim que houver leads e propostas, o painel organiza por prioridade.'}
+                  action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
+                />
+              ) : (
+                <ul className="grid grid-cols-1 gap-2.5 xl:grid-cols-2">
+                  {filteredDealRoomItems.map((item) => (
+                    <li
+                      key={item.id}
+                      className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-beatwap-gold/30"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-bold text-white">{item.title}</div>
+                          <div className="mt-0.5 truncate text-xs text-gray-400">
+                            {item.clientName}{item.artistName ? ` · ${item.artistName}` : ''}
                           </div>
                         </div>
-
-                        <div className="w-full lg:w-64 shrink-0 space-y-3">
-                          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                            <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Acao recomendada</div>
-                            <div className="text-sm text-white mt-2">{item.nextAction}</div>
-                          </div>
-                          <AnimatedButton onClick={() => navigate('/seller/leads')} className="w-full justify-center" icon={ArrowUpRight}>
-                            Abrir lead
-                          </AnimatedButton>
-                          <AnimatedButton onClick={() => navigate(item.matchedProposalId ? '/seller/proposals' : '/seller/communications')} variant="secondary" className="w-full justify-center" icon={item.matchedProposalId ? FileText : MessageSquare}>
-                            {item.matchedProposalId ? 'Ir para proposta' : 'Aquecer contato'}
-                          </AnimatedButton>
-                        </div>
+                        {Number.isFinite(item.score) ? (
+                          <span className="shrink-0 rounded-full border border-beatwap-gold/30 bg-beatwap-gold/10 px-2.5 py-1 text-[11px] font-bold text-beatwap-gold">
+                            {item.score}
+                          </span>
+                        ) : null}
                       </div>
-                    </div>
-                  )) : (
-                    <EmptyState
-                      icon={Target}
-                      title="Nenhum deal encontrado"
-                      description={normalizedSearch ? 'A busca atual nao encontrou oportunidades no pipeline.' : 'Ainda nao ha leads ou propostas suficientes para o Deal Room ranquear seu pipeline.'}
-                      action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
-                    />
-                  )}
-                </div>
 
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-white/10 bg-black/25 p-5">
-                    <div className="flex items-center gap-2 text-white font-bold">
-                      <BadgeCheck size={18} className="text-beatwap-gold" />
-                      BeatWap Intelligence
-                    </div>
-                    <div className="text-sm text-gray-300 mt-3">
-                      Este modulo entrega uma leitura que chama muita atencao para assinatura porque mostra dinheiro, urgencia e proximo passo num unico quadro.
-                    </div>
-                  </div>
+                      {item.nextAction ? (
+                        <div className="mt-3 text-xs leading-relaxed text-gray-300">{item.nextAction}</div>
+                      ) : null}
 
-                  <div className="rounded-2xl border border-white/10 bg-black/25 p-5 space-y-4">
-                    <div className="text-white font-bold">Foco do dia</div>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="text-gray-400">Leads sem proposta</span>
-                        <span className="text-white font-bold">{dealRoomItems.filter((item) => !item.matchedProposalId).length}</span>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {item.budget ? (
+                          <span className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-gray-200">
+                            {revenueFormatter.format(item.budget)}
+                          </span>
+                        ) : null}
+                        {item.eventDate ? (
+                          <span className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-gray-400">
+                            {new Date(item.eventDate).toLocaleDateString('pt-BR')}
+                          </span>
+                        ) : null}
+                        {item.blockers && item.blockers.length > 0 ? (
+                          <span className="rounded-lg border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-[11px] text-red-300">
+                            {item.blockers[0]}
+                          </span>
+                        ) : (
+                          <span className="rounded-lg border border-green-500/20 bg-green-500/10 px-2.5 py-1 text-[11px] text-green-300">
+                            Sem travas
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="text-gray-400">Aceites prontos para operar</span>
-                        <span className="text-white font-bold">{dealRoomSummary.acceptedProposalsCount}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="text-gray-400">Conversas quentes</span>
-                        <span className="text-white font-bold">{activeChatsCount}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="text-gray-400">Fila comercial viva</span>
-                        <span className="text-white font-bold">{sellerQueue.length}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-white/10 bg-black/25 p-5 space-y-3">
-                    <div className="text-white font-bold">Atalhos de fechamento</div>
-                    <AnimatedButton onClick={() => navigate('/seller/proposals')} className="w-full justify-center" icon={FileText}>
-                      Resolver propostas
-                    </AnimatedButton>
-                    <AnimatedButton onClick={() => navigate('/seller/communications')} variant="secondary" className="w-full justify-center" icon={MessageSquare}>
-                      Abrir comunicacao
-                    </AnimatedButton>
-                    <AnimatedButton onClick={() => navigate('/seller/finance')} variant="secondary" className="w-full justify-center" icon={DollarSign}>
-                      Ver impacto financeiro
-                    </AnimatedButton>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="p-6 relative overflow-hidden group hover:border-beatwap-gold/50 transition-colors">
-                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                  <Award size={100} className="text-beatwap-gold" />
-                </div>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-3 rounded-xl bg-beatwap-gold/10 text-beatwap-gold">
-                    <Target size={24} />
-                  </div>
-                  <h2 className="text-xl font-bold text-white">Meta de Shows</h2>
-                </div>
-                <div className="space-y-4 relative z-10">
-                  <div className="flex justify-between items-end">
-                    <div className="text-4xl font-bold text-white">{goals?.current_shows || 0}</div>
-                    <div className="text-sm text-gray-400">de {goals?.shows_target || 0} shows</div>
-                  </div>
-                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-beatwap-gold transition-all duration-1000"
-                      style={{ width: `${calculateProgress(goals?.current_shows || 0, goals?.shows_target || 1)}%` }}
-                    />
-                  </div>
-                  <p className="text-sm text-gray-300">
-                    {remainingShows > 0
-                      ? `Faltam ${remainingShows} shows para bater sua meta 🎯`
-                      : 'Meta batida! Parabéns! 🚀'}
-                  </p>
-                </div>
-              </Card>
-
-              <Card className="p-6 relative overflow-hidden group hover:border-green-500/50 transition-colors">
-                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                  <DollarSign size={100} className="text-green-500" />
-                </div>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-3 rounded-xl bg-green-500/10 text-green-500">
-                    <TrendingUp size={24} />
-                  </div>
-                  <h2 className="text-xl font-bold text-white">Meta de Faturamento</h2>
-                </div>
-                <div className="space-y-4 relative z-10">
-                  <div className="flex justify-between items-end">
-                    <div className="text-4xl font-bold text-white">
-                      {revenueFormatter.format(goals?.current_revenue || 0)}
-                    </div>
-                    <div className="text-sm text-gray-400">
-                      de {revenueFormatter.format(goals?.revenue_target || 0)}
-                    </div>
-                  </div>
-                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-green-500 transition-all duration-1000"
-                      style={{ width: `${calculateProgress(goals?.current_revenue || 0, goals?.revenue_target || 1)}%` }}
-                    />
-                  </div>
-                  <p className="text-sm text-gray-300">
-                    {calculateProgress(goals?.current_revenue || 0, goals?.revenue_target || 1) >= 100
-                      ? 'Faturamento extraordinário! 💸'
-                      : 'Continue prospectando para alcançar o objetivo.'}
-                  </p>
-                </div>
-              </Card>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="p-4 hover:bg-white/5 cursor-pointer transition-colors" onClick={() => navigate('/seller/artists')}>
-                <Users className="text-blue-400 mb-3" size={32} />
-                <h3 className="font-bold text-white">Artistas</h3>
-                <p className="text-xs text-gray-400">Base de trabalho</p>
-              </Card>
-              <Card className="p-4 hover:bg-white/5 cursor-pointer transition-colors" onClick={() => navigate('/seller/calendar')}>
-                <Calendar className="text-purple-400 mb-3" size={32} />
-                <h3 className="font-bold text-white">Agenda</h3>
-                <p className="text-xs text-gray-400">Disponibilidade</p>
-              </Card>
-              <Card className="p-4 hover:bg-white/5 cursor-pointer transition-colors" onClick={() => navigate('/seller/leads')}>
-                <Target className="text-red-400 mb-3" size={32} />
-                <h3 className="font-bold text-white">Leads</h3>
-                <p className="text-xs text-gray-400">Oportunidades</p>
-              </Card>
-              <Card className="p-4 hover:bg-white/5 cursor-pointer transition-colors" onClick={() => navigate('/seller/finance')}>
-                <DollarSign className="text-green-400 mb-3" size={32} />
-                <h3 className="font-bold text-white">Comissões</h3>
-                <p className="text-xs text-gray-400">Seus ganhos</p>
-              </Card>
-            </div>
-
-            <Card className="p-6 bg-white/5 border border-white/10">
-              <div className="flex items-center justify-between gap-3 mb-4">
-                <div>
-                  <div className="text-lg font-bold text-white">Ultimas notificacoes</div>
-                  <div className="text-sm text-gray-400">Atualizacoes importantes do seu fluxo comercial</div>
-                </div>
-                <Bell className="text-beatwap-gold" size={20} />
-              </div>
-              <div className="space-y-3">
-                {recentNotifications.length > 0 ? recentNotifications.map((item) => (
-                  <div key={item.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="font-bold text-white">{item.title || 'Notificacao'}</div>
-                        <div className="text-sm text-gray-300 mt-1">{item.message || 'Atualizacao recebida.'}</div>
-                      </div>
-                      {!item.read && (
-                        <span className="shrink-0 rounded-full bg-beatwap-gold/15 px-2 py-1 text-[11px] font-bold text-beatwap-gold">
-                          Nova
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )) : (
-                  <div className="rounded-2xl border border-dashed border-white/10 p-4 text-sm text-gray-400">
-                    Nenhuma notificacao recente por aqui.
-                  </div>
-                )}
-              </div>
-            </Card>
-          </>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </SecaoPainel>
+          </div>
         )}
 
         {activePanelTab === 'pipeline' && (

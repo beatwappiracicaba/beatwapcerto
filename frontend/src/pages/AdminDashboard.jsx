@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause, Check, FolderDown, CheckCircle2, ChevronDown, ChevronRight, Plus, Music, X, Trash2, Bell, Clock, LayoutGrid, MessageSquare, TrendingUp, DollarSign, BadgeCheck, Target, ArrowUpRight } from 'lucide-react';
+import { User, MapPin, FileText, Lock, Save, Download, Moon, Sun, AlertTriangle, Image as ImageIcon, Play, Pause, Check, FolderDown, CheckCircle2, ChevronDown, ChevronRight, Plus, Music, X, Trash2, Bell, Clock, LayoutGrid, MessageSquare, TrendingUp, DollarSign, BadgeCheck, Target, ArrowUpRight, Award } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { usePersistentState } from '../hooks/usePersistentState';
 import { BoostedProfilesStories } from '../components/BoostedProfilesStories';
 import { Card } from '../components/ui/Card';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
@@ -9,7 +10,6 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { HighlightRailCard } from '../components/ui/HighlightRailCard';
 import { PanelSection } from '../components/ui/PanelSection';
-import { PanelHero } from '../components/ui/PanelHero';
 import { PersistentPanelTabs } from '../components/ui/PersistentPanelTabs';
 import { PremiumMetricCard } from '../components/ui/PremiumMetricCard';
 import { AdminLayout } from '../components/AdminLayout';
@@ -37,14 +37,20 @@ import { useData } from '../context/DataContext';
 import { buildDistributionContractHTML } from '../utils/contractTemplate';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { usePersistentState } from '../hooks/usePersistentState';
+import { PainelCabecalho } from '../components/dashboard/PainelCabecalho';
+import { IndicadoresPainel } from '../components/dashboard/IndicadoresPainel';
+import { AcoesRapidas } from '../components/dashboard/AcoesRapidas';
+import { AtividadeRecente, PendenciasPainel } from '../components/dashboard/ListasPainel';
+import { SecaoPainel } from '../components/dashboard/SecaoPainel';
+import { atalhosDoCargo } from '../components/dashboard/atalhos';
 import { useGlobalAudioPlayer } from '../context/GlobalAudioPlayerContext';
 
 import { encryptData, decryptData, downloadDecryptedFile } from '../utils/security';
 
 export const AdminHome = () => {
   const [counts, setCounts] = useState({ artists: 0, musics: 0, pending: 0 });
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const navigate = useNavigate();
   const { notifications = [] } = useNotification();
   const { chats = [], supportQueue = [] } = useChat();
   const { addToast } = useToast();
@@ -288,6 +294,8 @@ export const AdminHome = () => {
     supportPressure: Array.isArray(supportQueue) ? supportQueue.length : 0
   }), [leads, proposals, supportQueue]);
 
+  const atalhosProdutor = useMemo(() => atalhosDoCargo('Produtor'), []);
+
   const panelTabs = useMemo(
     () => [
       { id: 'resumo', label: 'Resumo', helper: 'KPIs, conversao e projetos', count: counts.pending + unreadNotifications },
@@ -339,32 +347,21 @@ export const AdminHome = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <PanelHero
-          eyebrow="Painel Central"
-          title="Operacao, conversao e decisao em tempo real"
-          description="A leitura do produtor/admin agora fica mais executiva: busca rapida, persistencia de aba, acao recomendada no topo e visual consistente com os demais paineis."
-          recommendation={executiveConversion.activeLeads > 0
-            ? `Existem ${executiveAlerts.stalledLeads} leads travados. Priorize deals sem data ou sem proposta para acelerar a conversao.`
-            : 'Alimente a operacao com projetos, leads e propostas para transformar o painel em centro real de decisao.'}
-          badges={[
-            { label: 'Pendentes', value: counts.pending },
-            { label: 'Taxa de aceite', value: `${executiveConversion.acceptanceRate}%` },
-            { label: 'Fila', value: executiveAlerts.supportPressure }
-          ]}
+        <PainelCabecalho
+          cargo="Painel do Produtor"
+          saudacao={`Ola, ${String(profile?.nome || user?.nome || '').trim() || 'produtor'}. Operacao, conversao e decisao em um lugar.`}
+          resumo="Numeros da operacao, atalhos, atividade recente, pendencias e o pipeline comercial com maior potencial."
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
           searchPlaceholder="Buscar projeto, lead, cliente, alerta ou atividade..."
-          actions={(
-            <>
-              <AnimatedButton onClick={() => window.location.assign('/admin/chat')} icon={MessageSquare}>
-                Abrir chat admin
-              </AnimatedButton>
-              <AnimatedButton onClick={() => window.location.assign('/admin/artists')} variant="secondary" icon={User}>
-                Revisar artistas
-              </AnimatedButton>
-            </>
-          )}
-        />
+        >
+          <AnimatedButton onClick={() => navigate('/admin/chat')} icon={MessageSquare}>
+            Abrir chat admin
+          </AnimatedButton>
+          <AnimatedButton onClick={() => navigate('/admin/artists')} variant="secondary" icon={User}>
+            Revisar artistas
+          </AnimatedButton>
+        </PainelCabecalho>
 
         <BoostedProfilesStories
           limit={16}
@@ -375,315 +372,146 @@ export const AdminHome = () => {
         <PersistentPanelTabs tabs={panelTabs} activeTab={activePanelTab} onChange={setActivePanelTab} />
 
         {activePanelTab === 'resumo' && (
-          <>
-            <PanelSection eyebrow="Panorama Central" title="Leitura rapida da operacao" description="Os principais numeros da produtora agora aparecem em cards com cara de cockpit executivo, reforcando prioridade e contexto.">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-                <PremiumMetricCard icon={User} tone="blue" title="Artistas" value={counts.artists} description="Perfis ativos cadastrados" />
-                <PremiumMetricCard icon={Music} tone="purple" title="Musicas" value={counts.musics} description="Catalogo monitorado" />
-                <PremiumMetricCard icon={LayoutGrid} tone="red" title="Pendentes" value={counts.pending} description="Itens aguardando acao" />
-                <PremiumMetricCard icon={Bell} tone="gold" title="Notificacoes" value={unreadNotifications} description="Atualizacoes nao lidas" />
-              </div>
-            </PanelSection>
+          <div className="space-y-8">
 
-            <PanelSection eyebrow="Pulso De Audiencia" title="Visitas e alcance com leitura mais nobre" description="A camada de analytics ficou com aspecto mais profissional e menos cru.">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <PremiumMetricCard icon={TrendingUp} tone="green" title="Visitas diarias" value={dashboardMetrics?.totals?.home_page_views_24h ?? 0} description={`Acumulado 24h: ${dashboardMetrics?.totals?.home_page_views_total ?? 0}`} />
-                <PremiumMetricCard icon={Target} tone="blue" title="IPs unicos" value={dashboardMetrics?.totals?.home_unique_visitors_total ?? 0} description={`IPs unicos em 24h: ${dashboardMetrics?.totals?.home_unique_visitors_24h ?? 0}`} />
-              </div>
-            </PanelSection>
+            {/* 1. Indicadores principais */}
+            <SecaoPainel titulo="Operacao em numeros">
+              <IndicadoresPainel
+                itens={[
+                  { icon: User, title: 'Artistas', value: counts.artists, hint: 'Perfis ativos', tone: 'blue' },
+                  { icon: Music, title: 'Musicas', value: counts.musics, hint: 'Catalogo monitorado', tone: 'purple' },
+                  { icon: LayoutGrid, title: 'Pendentes', value: counts.pending, hint: 'Aguardando acao', tone: 'red' },
+                  { icon: TrendingUp, title: 'Visitas 24h', value: dashboardMetrics?.totals?.home_page_views_24h ?? 0, hint: `Acumulado ${dashboardMetrics?.totals?.home_page_views_total ?? 0}`, tone: 'green' },
+                  { icon: Target, title: 'Leads ativos', value: executiveConversion.activeLeads, hint: `${executiveConversion.negotiationLeads} em negociacao`, tone: 'gold' },
+                  { icon: Award, title: 'Taxa de aceite', value: `${executiveConversion.acceptanceRate}%`, hint: `${executiveConversion.acceptedProposals} de ${executiveConversion.sentProposals} propostas`, tone: 'slate' }
+                ]}
+              />
+            </SecaoPainel>
 
-            <PanelSection className="border border-beatwap-gold/20 bg-[linear-gradient(135deg,rgba(245,197,66,0.10),rgba(255,255,255,0.02),rgba(0,0,0,0.28))] shadow-[0_0_35px_rgba(245,197,66,0.08)]">
-              <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5 mb-6">
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-beatwap-gold/30 bg-beatwap-gold/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em] text-beatwap-gold">
-                    <TrendingUp size={14} />
-                    Visao Executiva de Conversao
-                  </div>
-                  <div className="text-2xl font-extrabold text-white mt-3">Leia a saude comercial da plataforma em segundos</div>
-                  <div className="text-sm text-gray-300 mt-2 max-w-3xl">
-                    Reuni leads, propostas e gargalos num quadro unico para mostrar potencial de receita, travas operacionais e urgencias do negocio.
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <AnimatedButton onClick={() => window.location.assign('/admin/chat')} icon={MessageSquare}>
-                    Abrir chat admin
-                  </AnimatedButton>
-                  <AnimatedButton onClick={() => window.location.assign('/admin/artists')} variant="secondary" icon={Target}>
-                    Revisar artistas
-                  </AnimatedButton>
-                </div>
-              </div>
+            {/* 2. Acoes rapidas */}
+            <AcoesRapidas
+              atalhos={atalhosProdutor}
+              descricao="Atalhos para as areas mais usadas do produtor."
+            />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Leads ativos</div>
-                  <div className="text-3xl font-extrabold text-white mt-2">{executiveConversion.activeLeads}</div>
-                  <div className="text-xs text-gray-500 mt-2">Oportunidades comerciais vivas</div>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Propostas enviadas</div>
-                  <div className="text-3xl font-extrabold text-white mt-2">{executiveConversion.sentProposals}</div>
-                  <div className="text-xs text-gray-500 mt-2">Materiais em fase de decisao</div>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Taxa de aceite</div>
-                  <div className="text-3xl font-extrabold text-white mt-2">{executiveConversion.acceptanceRate}%</div>
-                  <div className="text-xs text-gray-500 mt-2">Aceites sobre propostas enviadas</div>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Valor no pipeline</div>
-                  <div className="text-3xl font-extrabold text-white mt-2">{currencyFormatter.format(executiveConversion.pipelineValue || executiveConversion.proposalsValue || 0)}</div>
-                  <div className="text-xs text-gray-500 mt-2">Potencial financeiro em jogo</div>
-                </div>
-              </div>
+            {/* 3. Atividades recentes e 4. Pendencias */}
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              <AtividadeRecente
+                itens={filteredActivityItems}
+                descricao="Projetos, leads, conversas e notificacoes."
+                vazio="Sem atividade registrada por aqui."
+                maximo={7}
+              />
+              <PendenciasPainel
+                titulo="Pendencias operacionais"
+                descricao="O que trava a operacao agora."
+                itens={[
+                  { id: 'notif', rotulo: 'Nao lidas', valor: unreadNotifications, dica: 'Notificacoes em aberto' },
+                  { id: 'travados', rotulo: 'Leads travados', valor: executiveAlerts.stalledLeads, dica: 'Sem data ou orcamento', para: '/admin/artists' },
+                  { id: 'sem-proposta', rotulo: 'Sem proposta', valor: executiveAlerts.noProposal, dica: 'Lead sem proposta', para: '/admin/sellers' },
+                  { id: 'fila', rotulo: 'Fila de suporte', valor: executiveAlerts.supportPressure, dica: 'Chamados aguardando', para: '/admin/chat' },
+                  { id: 'pendentes', rotulo: 'Cadastros', valor: counts.pending, hint: '', dica: 'Itens aguardando acao', para: '/admin/artists' }
+                ].filter((i) => i.hint !== '')}
+                notificacoes={recentNotifications}
+              />
+            </div>
 
-              <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_0.8fr] gap-6">
-                <div className="space-y-3">
-                  <div>
-                    <div className="text-lg font-bold text-white">Deals que mais merecem atencao</div>
-                    <div className="text-sm text-gray-400">Prioridade por fase, proposta e valor</div>
-                  </div>
-                  {dealRoomLoading ? (
-                    <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-gray-400">
-                      Carregando leitura executiva do pipeline...
-                    </div>
-                  ) : filteredExecutivePipelineItems.length > 0 ? filteredExecutivePipelineItems.map((item) => (
-                    <div key={item.id} className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                        <div className="space-y-3 min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-300">
-                              Score {item.score}
-                            </span>
-                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-300">
-                              {item.leadStatus}
-                            </span>
-                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-300">
-                              {item.proposalStatus}
-                            </span>
-                          </div>
-                          <div>
-                            <div className="text-xl font-extrabold text-white">{item.title}</div>
-                            <div className="text-sm text-gray-300 mt-1">{item.artistName} • {item.clientName}</div>
-                          </div>
-                          <div className="text-sm text-white font-bold">{currencyFormatter.format(item.budget || 0)}</div>
-                          <div className="flex flex-wrap gap-2">
-                            {item.blockers.length > 0 ? item.blockers.map((blocker) => (
-                              <span key={`${item.id}-${blocker}`} className="rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-300">
-                                {blocker}
-                              </span>
-                            )) : (
-                              <span className="rounded-full border border-green-500/20 bg-green-500/10 px-2.5 py-1 text-xs font-semibold text-green-300">
-                                Operacao saudavel
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="w-full lg:w-72 shrink-0 space-y-3">
-                          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                            <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Leitura executiva</div>
-                            <div className="text-sm text-white mt-2">Acompanhar este deal ajuda a destravar faturamento e reduzir gargalos da operacao comercial.</div>
-                          </div>
-                          <AnimatedButton onClick={() => window.location.assign('/admin/chat')} className="w-full justify-center" icon={ArrowUpRight}>
-                            Acionar operacao
-                          </AnimatedButton>
-                        </div>
-                      </div>
-                    </div>
-                  )) : (
-                    <EmptyState
-                      icon={TrendingUp}
-                      title="Nenhum deal localizado"
-                      description={normalizedSearch ? 'A busca atual nao encontrou deals na leitura executiva.' : 'Ainda nao ha leads suficientes para montar a leitura executiva.'}
-                      action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
-                    />
-                  )}
-                </div>
-
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-white/10 bg-black/25 p-5">
-                    <div className="flex items-center gap-2 text-white font-bold">
-                      <BadgeCheck size={18} className="text-beatwap-gold" />
-                      Porque vende plano
-                    </div>
-                    <div className="text-sm text-gray-300 mt-3">
-                      Quando o produtor enxerga dinheiro em jogo, gargalos e conversao no mesmo lugar, o painel deixa de ser operacional e passa a ser ferramenta de decisao.
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-white/10 bg-black/25 p-5 space-y-4">
-                    <div className="text-white font-bold">Alertas do negocio</div>
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="text-gray-400">Leads travados</span>
-                      <span className="text-white font-bold">{executiveAlerts.stalledLeads}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="text-gray-400">Sem proposta vinculada</span>
-                      <span className="text-white font-bold">{executiveAlerts.noProposal}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="text-gray-400">Pressao na fila</span>
-                      <span className="text-white font-bold">{executiveAlerts.supportPressure}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="text-gray-400">Aceites confirmados</span>
-                      <span className="text-white font-bold">{executiveConversion.acceptedProposals}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </PanelSection>
-
-            <Card className="space-y-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="font-bold">Músicas mais ouvidas</div>
-                  <div className="text-sm text-gray-400">
-                    Reproduções (analytics) + curtidas
-                  </div>
-                </div>
-                <div className="text-right text-xs text-gray-400">
-                  <div>Total plays: {dashboardMetrics?.totals?.plays_total ?? 0}</div>
-                  <div>Total curtidas: {dashboardMetrics?.totals?.music_likes_total ?? 0}</div>
-                </div>
-              </div>
-
-              {Array.isArray(dashboardMetrics?.topMusics) && dashboardMetrics.topMusics.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {dashboardMetrics.topMusics.slice(0, 3).map((m, idx) => {
-                    const plays = Number(m?.plays ?? m?.plays_total ?? m?.total_plays ?? 0);
-                    const likes = Number(m?.likes ?? 0);
-                    return (
-                    <div key={m.id || idx} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
-                      <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center text-xs text-gray-300">
-                        {m.cover_url ? (
-                          <img src={String(m.cover_url).trim().replace(/^[`'"]+|[`'"]+$/g, '')} alt={m.titulo || 'Capa'} className="w-full h-full object-cover" />
-                        ) : (
-                          <Music size={18} />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold text-white text-sm truncate">{m.titulo || 'Sem título'}</div>
-                        <div className="text-xs text-gray-400 truncate">{m.nome_artista || 'Artista'}</div>
-                        <div className="text-xs text-gray-400 mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                          <span className="inline-flex items-center gap-1"><Play size={14} /> {Number.isFinite(plays) && plays > 0 ? plays : 0}</span>
-                          <span className="inline-flex items-center gap-1"><CheckCircle2 size={14} /> {Number.isFinite(likes) && likes > 0 ? likes : 0}</span>
-                        </div>
-                      </div>
-                    </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-sm text-gray-400">Ainda não há dados de plays para ranquear.</div>
-              )}
-            </Card>
-
-            <Card className="space-y-4">
-              <div className="font-bold">Projetos da Produtora</div>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <AnimatedInput placeholder="Título" value={projectForm.title} onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })} />
-                <AnimatedInput placeholder="Link do Projeto (YouTube/Spotify)" value={projectForm.url} onChange={(e) => setProjectForm({ ...projectForm, url: e.target.value })} />
-                <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white" value={projectForm.platform} onChange={(e) => setProjectForm({ ...projectForm, platform: e.target.value })}>
-                  <option value="YouTube">YouTube</option>
-                  <option value="Spotify">Spotify</option>
-                  <option value="Outro">Outro</option>
-                </select>
-                <div className="text-xs text-gray-400 flex items-center">A capa será carregada do link (YouTube). Sem thumbnail válida, usamos a logo da BeatWap.</div>
-              </div>
-              <AnimatedButton onClick={createProject}>Adicionar Projeto</AnimatedButton>
-              <div className="pt-4">
-                <div className="text-sm text-gray-400 mb-2">Últimos projetos adicionados</div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {(loadingProjects ? [] : filteredProjects).map((p) => (
-                    <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center text-xs text-gray-300 shrink-0">
-                          {(() => {
-                            const cover = String(p.cover_url || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
-                            const url = String(p.url || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
-                            const isYT = (p.platform || '').toLowerCase() === 'youtube';
-                            const m = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{6,})/);
-                            const vid = m ? m[1] : null;
-                            if (cover) {
-                              return <img src={cover} alt={p.title} className="w-full h-full object-cover" />;
-                            }
-                            if (isYT && vid) {
-                              return <img src={`https://img.youtube.com/vi/${vid}/mqdefault.jpg`} alt={p.title} className="w-full h-full object-cover" />;
-                            }
-                            return <img src={logo} alt="BeatWap" className="w-full h-full object-cover p-2" />;
-                          })()}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="font-bold text-white text-sm truncate">{p.title}</div>
-                          <div className="text-xs text-gray-400 truncate">{p.platform}</div>
-                        </div>
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:shrink-0">
-                        <AnimatedButton
-                          fullWidth
-                          className="sm:w-auto px-4 py-2 sm:px-6 sm:py-3 text-xs sm:text-sm"
-                          onClick={() => window.open(String(p.url || '').trim().replace(/^[`'"]+|[`'"]+$/g, ''), '_blank')}
-                        >
-                          Abrir
-                        </AnimatedButton>
-                        <AnimatedButton
-                          fullWidth
-                          className="sm:w-auto px-4 py-2 sm:px-6 sm:py-3 text-xs sm:text-sm"
-                          onClick={() => deleteProject(p.id)}
-                        >
-                          Excluir
-                        </AnimatedButton>
-                      </div>
-                    </div>
-                  ))}
-                  {(!loadingProjects && filteredProjects.length === 0) && (
-                    <EmptyState
-                      icon={FolderDown}
-                      title="Nenhum projeto encontrado"
-                      description={normalizedSearch ? 'A busca atual nao encontrou projetos da produtora.' : 'Adicione um projeto para alimentar a vitrine da produtora.'}
-                      action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
-                    />
-                  )}
-                </div>
-              </div>
-            </Card>
-
-            <Card className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="font-bold">Ultimas notificacoes</div>
-                  <div className="text-sm text-gray-400">Atualizacoes recentes do painel administrativo</div>
-                </div>
-                <Bell className="text-beatwap-gold" size={18} />
-              </div>
-              <div className="space-y-3">
-                {filteredRecentNotifications.length > 0 ? filteredRecentNotifications.map((item) => (
-                  <div key={item.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="font-bold text-white">{item.title || 'Notificacao'}</div>
-                        <div className="text-sm text-gray-300 mt-1">{item.message || 'Atualizacao recebida.'}</div>
-                      </div>
-                      {!item.read && (
-                        <span className="shrink-0 rounded-full bg-beatwap-gold/15 px-2 py-1 text-[11px] font-bold text-beatwap-gold">
-                          Nova
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )) : (
+            {/* 5. Complemento: pipeline comercial e projetos da vitrine */}
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+              <SecaoPainel
+                titulo="Pipeline com maior potencial"
+                descricao="Leads ordenados por proximidade de fechamento e valor."
+                aside={(
+                  <button
+                    type="button"
+                    onClick={() => navigate('/admin/sellers')}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-200 transition hover:border-beatwap-gold/40 hover:text-beatwap-gold"
+                  >
+                    Ver vendedores
+                  </button>
+                )}
+              >
+                {executivePipelineItems.length === 0 ? (
                   <EmptyState
-                    icon={Bell}
-                    title="Nenhuma notificacao localizada"
-                    description={normalizedSearch ? 'A busca atual nao encontrou notificacoes.' : 'Quando houver movimentacao administrativa, os alertas aparecerao aqui.'}
+                    icon={Target}
+                    title="Nenhum lead em acompanhamento"
+                    description={normalizedSearch ? 'Sua busca nao encontrou leads.' : 'Assim que houver leads cadastrados, o painel organiza por prioridade.'}
                     action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
                   />
+                ) : (
+                  <ul className="grid grid-cols-1 gap-2.5">
+                    {executivePipelineItems.map((item) => (
+                      <li
+                        key={item.id}
+                        className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-beatwap-gold/30"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-bold text-white">{item.title}</div>
+                            <div className="mt-0.5 truncate text-xs text-gray-400">
+                              {item.clientName} &middot; {item.artistName}
+                            </div>
+                          </div>
+                          <span className="shrink-0 rounded-full border border-beatwap-gold/30 bg-beatwap-gold/10 px-2.5 py-1 text-[11px] font-bold text-beatwap-gold">
+                            {item.score}
+                          </span>
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          {item.budget ? (
+                            <span className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-gray-200">
+                              {currencyFormatter.format(item.budget)}
+                            </span>
+                          ) : null}
+                          {item.blockers.length > 0 ? (
+                            <span className="rounded-lg border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-[11px] text-red-300">
+                              {item.blockers[0]}
+                            </span>
+                          ) : (
+                            <span className="rounded-lg border border-green-500/20 bg-green-500/10 px-2.5 py-1 text-[11px] text-green-300">
+                              Completo
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 )}
-              </div>
-            </Card>
-          </>
+              </SecaoPainel>
+
+              <SecaoPainel
+                titulo="Projetos na vitrine"
+                descricao={loadingProjects ? 'Carregando...' : `${filteredProjects.length} de ${projects.length} publicados.`}
+              >
+                {loadingProjects ? (
+                  <p className="py-6 text-sm text-gray-500">Carregando...</p>
+                ) : filteredProjects.length === 0 ? (
+                  <p className="py-6 text-sm text-gray-500">
+                    {normalizedSearch ? 'Nenhum projeto combinou com a busca.' : 'Nenhum projeto publicado na vitrine ainda.'}
+                  </p>
+                ) : (
+                  <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
+                    {filteredProjects.map((p) => {
+                      const url = String(p.url || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
+                      return (
+                        <li key={p.id}>
+                          <button
+                            type="button"
+                            onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+                            className="w-full rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-left transition hover:border-beatwap-gold/35 hover:bg-white/[0.06]"
+                          >
+                            <div className="truncate text-sm font-bold text-white">{p.title}</div>
+                            <div className="mt-0.5 text-[11px] text-gray-400">
+                              {p.platform} &middot; {new Date(p.created_at).toLocaleDateString('pt-BR')}
+                            </div>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </SecaoPainel>
+            </div>
+          </div>
         )}
 
         {activePanelTab === 'inteligencia' && (

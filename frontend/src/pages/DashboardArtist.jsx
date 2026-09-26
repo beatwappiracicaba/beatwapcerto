@@ -6,14 +6,19 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { HighlightRailCard } from '../components/ui/HighlightRailCard';
 import { PanelSection } from '../components/ui/PanelSection';
-import { PanelHero } from '../components/ui/PanelHero';
 import { PersistentPanelTabs } from '../components/ui/PersistentPanelTabs';
 import { PremiumMetricCard } from '../components/ui/PremiumMetricCard';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { MusicUploadModal } from '../components/artist/MusicUploadModal';
-import { Plus, DollarSign, Folder, ChevronDown, ChevronRight, MessageCircle, Play, Pause, Bell, Clock, LayoutGrid, User, Sparkles, Target, ArrowUpRight, BadgeCheck } from 'lucide-react';
+import { Plus, DollarSign, Folder, ChevronDown, ChevronRight, MessageCircle, Play, Pause, Bell, Clock, User, Sparkles, Target, ArrowUpRight, Eye } from 'lucide-react';
+import { PainelCabecalho } from '../components/dashboard/PainelCabecalho';
+import { IndicadoresPainel } from '../components/dashboard/IndicadoresPainel';
+import { AcoesRapidas } from '../components/dashboard/AcoesRapidas';
+import { AtividadeRecente, PendenciasPainel } from '../components/dashboard/ListasPainel';
+import { SecaoPainel } from '../components/dashboard/SecaoPainel';
+import { atalhosDoCargo } from '../components/dashboard/atalhos';
 import { decryptData } from '../utils/security';
 import { useNotification } from '../context/NotificationContext';
 import { useChat } from '../context/ChatContext';
@@ -423,12 +428,12 @@ export const DashboardArtistHome = () => {
       .slice(0, 4);
   }, [latestCompositions, buildWhatsAppHref]);
 
-  const opportunitySummary = useMemo(() => ({
-    actionable: opportunityRadarItems.length,
-    directContacts: opportunityRadarItems.filter((item) => Boolean(item.whatsappHref)).length,
-    withPreview: opportunityRadarItems.filter((item) => item.hasPreview).length,
-    attentionPoints: unreadNotifications + activeChatsCount
-  }), [opportunityRadarItems, unreadNotifications, activeChatsCount]);
+  // Atalhos do artista. Composicoes somem quando o plano nao libera o
+  // catalogo, que e a mesma regra que esconde a secao de repertorio.
+  const atalhosArtista = useMemo(
+    () => atalhosDoCargo('Artista', canViewCompositions ? [] : ['compositions']),
+    [canViewCompositions]
+  );
 
   const panelTabs = useMemo(
     () => [
@@ -484,31 +489,13 @@ export const DashboardArtistHome = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <PanelHero
-          eyebrow="Painel do Artista"
-          title="Desempenho, oportunidades e atividade sincronizados"
-          description="O painel agora guarda sua aba favorita, destaca o proximo melhor movimento e permite localizar repertorio, alertas e oportunidades pela busca rapida."
-          recommendation={opportunitySummary.directContacts > 0
-            ? `Voce tem ${opportunitySummary.directContacts} contatos diretos prontos para abordagem. Ataque primeiro as oportunidades com score mais alto.`
-            : 'Complete contatos e repertorio para transformar mais composicoes em oportunidades acionaveis.'}
-          badges={[
-            { label: 'Chats', value: activeChatsCount },
-            { label: 'Alertas', value: unreadNotifications },
-            { label: 'Receita', value: revenueFormatter.format(metrics?.faturamento_shows || 0) }
-          ]}
+        <PainelCabecalho
+          cargo="Painel do Artista"
+          saudacao={`Ola, ${String(profile?.nome || user?.nome || '').trim() || 'artista'}. Aqui esta o resumo do seu trabalho.`}
+          resumo="Indicadores da carreira, atalhos, atividade recente e as oportunidades que mais valem ataque agora."
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar faixa, compositor, hashtag, alerta ou atividade..."
-          actions={(
-            <>
-              <AnimatedButton onClick={() => navigate('/dashboard/chat')} icon={MessageCircle}>
-                Conversas
-              </AnimatedButton>
-              <AnimatedButton onClick={() => navigate('/dashboard/profile')} variant="secondary" icon={User}>
-                Meu perfil
-              </AnimatedButton>
-            </>
-          )}
+          searchPlaceholder="Buscar faixa, compositor, alerta ou atividade..."
         />
 
         <BoostedProfilesStories
@@ -520,340 +507,226 @@ export const DashboardArtistHome = () => {
         <PersistentPanelTabs tabs={panelTabs} activeTab={activePanelTab} onChange={setActivePanelTab} />
 
         {activePanelTab === 'resumo' && (
-          <>
-            <PanelSection eyebrow="Pulso Do Artista" title="Alertas, conversa e foco do dia" description="Essa abertura deixa a aba mais forte visualmente e ajuda a entender, em segundos, onde vale investir energia.">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <PremiumMetricCard icon={Bell} tone="gold" title="Notificacoes" value={unreadNotifications} description="Nao lidas no momento" />
-                <PremiumMetricCard icon={MessageCircle} tone="purple" title="Chats ativos" value={activeChatsCount} description="Conversas abertas no sistema" />
-                <HighlightRailCard title="Atalhos do artista" description="Acoes principais com cara mais premium e hierarquia melhor." badge="acao">
-                  <div className="flex flex-wrap gap-2">
-                    <AnimatedButton onClick={() => navigate('/dashboard/chat')} className="w-full sm:w-auto justify-center">
-                      Conversas
-                    </AnimatedButton>
-                    <AnimatedButton onClick={() => navigate('/dashboard/profile')} variant="secondary" className="w-full sm:w-auto justify-center">
-                      Perfil
-                    </AnimatedButton>
-                  </div>
-                </HighlightRailCard>
-              </div>
-            </PanelSection>
+          <div className="space-y-8">
 
-            {!isCompositor && (
-              <PanelSection eyebrow="Performance" title="Numeros da carreira em destaque" description="Os indicadores ganharam mais presença visual para passar sensação de plataforma madura e orientada a resultado." className="mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5">
-                  <PremiumMetricCard icon={Play} tone="blue" title="Total de plays" value={loading ? '...' : metrics?.total_plays ?? 0} description="Consumo total do repertorio" />
-                  <PremiumMetricCard icon={User} tone="purple" title="Ouvintes" value={loading ? '...' : metrics?.ouvintes_mensais ?? 0} description="Alcance mensal estimado" />
-                  <PremiumMetricCard icon={Sparkles} tone="gold" title="Receita streaming" value={loading ? '...' : metrics?.receita_estimada ?? 0} description="Estimativa atual das plataformas" />
-                  <PremiumMetricCard icon={Bell} tone="red" title="Curtidas publicas" value={loading ? '...' : metrics?.curtidas_perfil_publico ?? 0} description="Sinais de interesse no perfil" />
-                  <PremiumMetricCard icon={DollarSign} tone="green" title="Faturamento shows" value={loading ? '...' : revenueFormatter.format(metrics?.faturamento_shows || 0)} description="Receita ao vivo ja capturada" />
-                </div>
-              </PanelSection>
-            )}
+            {/* 1. Indicadores principais, em cards compactos */}
+            <SecaoPainel titulo="Seus numeros">
+              <IndicadoresPainel
+                itens={[
+                  { icon: Play, title: 'Plays totais', value: loading ? '...' : (metrics?.total_plays ?? 0), hint: 'Consumo do seu repertoorio', tone: 'blue' },
+                  { icon: User, title: 'Ouvintes', value: loading ? '...' : (metrics?.ouvintes_mensais ?? 0), hint: 'Alcance mensal estimado', tone: 'purple' },
+                  { icon: Eye, title: 'Visitas ao perfil', value: loading ? '...' : (metrics?.visitas_perfil ?? 0), hint: 'Interesse no seu nome', tone: 'slate' },
+                  { icon: Bell, title: 'Curtidas publicas', value: loading ? '...' : (metrics?.curtidas_perfil_publico ?? 0), hint: 'Sinais de interesse', tone: 'red' },
+                  { icon: Sparkles, title: 'Receita streaming', value: loading ? '...' : (metrics?.receita_estimada ?? 0), hint: 'Estimativa das plataformas', tone: 'gold' },
+                  { icon: DollarSign, title: 'Faturamento shows', value: loading ? '...' : revenueFormatter.format(metrics?.faturamento_shows || 0), hint: 'Receita ao vivo capturada', tone: 'green' }
+                ]}
+              />
+            </SecaoPainel>
 
+            {/* 2. Acoes rapidas */}
+            <AcoesRapidas
+              atalhos={atalhosArtista}
+              descricao="Atalhos para as areas que voce mais usa."
+            />
+
+            {/* 3. Atividades recentes e 4. Pendencias, lado a lado */}
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              <AtividadeRecente
+                itens={filteredActivityItems}
+                descricao="Notificacoes, conversas e movimentacoes mais recentes."
+                vazio="Sem atividade registrada por aqui."
+                maximo={7}
+              />
+              <PendenciasPainel
+                titulo="Pendencias e avisos"
+                descricao="O que ainda pede a sua atencao."
+                itens={[
+                  { id: 'notif', rotulo: 'Nao lidas', valor: unreadNotifications, dica: 'Notificacoes em aberto' },
+                  { id: 'chats', rotulo: 'Conversas ativas', valor: activeChatsCount, dica: 'Sem resposta sua', para: '/dashboard/chat' },
+                  { id: 'contatos', rotulo: 'Falta contato', valor: artistOpportunitySummary.missingContact, dica: 'Oportunidades travadas', para: '/dashboard/profile' },
+                  { id: 'prontas', rotulo: 'Prontas agora', valor: artistOpportunitySummary.readyNow, dica: 'Contato e preview juntos' }
+                ]}
+                notificacoes={filteredRecentNotifications}
+              />
+            </div>
+
+            {/* 5. Area complementar: oportunidades com maior potencial */}
             {canViewCompositions && (
-              <PanelSection className="border border-beatwap-gold/20 bg-[linear-gradient(135deg,rgba(245,197,66,0.10),rgba(255,255,255,0.02),rgba(0,0,0,0.28))] shadow-[0_0_35px_rgba(245,197,66,0.08)]">
-                <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5 mb-6">
-                  <div>
-                    <div className="inline-flex items-center gap-2 rounded-full border border-beatwap-gold/30 bg-beatwap-gold/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em] text-beatwap-gold">
-                      <Sparkles size={14} />
-                      Radar de Oportunidades
-                    </div>
-                    <div className="text-2xl font-extrabold text-white mt-3">Descubra repertorio e contatos que merecem ataque agora</div>
-                    <div className="text-sm text-gray-300 mt-2 max-w-3xl">
-                      O painel separa as composicoes com maior chance de virar conversa quente, gravacao ou nova ponte comercial.
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    <AnimatedButton onClick={() => navigate('/dashboard/chat')} icon={MessageCircle}>
-                      Abrir conversas
-                    </AnimatedButton>
-                    <AnimatedButton onClick={() => navigate('/dashboard/profile')} variant="secondary" icon={Target}>
-                      Melhorar perfil
-                    </AnimatedButton>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-                  <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                    <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Oportunidades ativas</div>
-                    <div className="text-3xl font-extrabold text-white mt-2">{opportunitySummary.actionable}</div>
-                    <div className="text-xs text-gray-500 mt-2">Composicoes priorizadas no radar</div>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                    <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Contatos diretos</div>
-                    <div className="text-3xl font-extrabold text-white mt-2">{opportunitySummary.directContacts}</div>
-                    <div className="text-xs text-gray-500 mt-2">WhatsApps prontos para acao</div>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                    <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Com preview</div>
-                    <div className="text-3xl font-extrabold text-white mt-2">{opportunitySummary.withPreview}</div>
-                    <div className="text-xs text-gray-500 mt-2">Faixas que ja ajudam na decisao</div>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                    <div className="text-xs uppercase tracking-[0.2em] text-gray-400">Pulso do painel</div>
-                    <div className="text-3xl font-extrabold text-white mt-2">{opportunitySummary.attentionPoints}</div>
-                    <div className="text-xs text-gray-500 mt-2">Mensagens e alertas pedindo resposta</div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_0.8fr] gap-6">
-                  <div className="space-y-3">
-                    <div>
-                      <div className="text-lg font-bold text-white">Faixas com maior potencial de conexao</div>
-                      <div className="text-sm text-gray-400">Score por contato, preview, capa e contexto do material</div>
-                    </div>
-                    {filteredOpportunityRadarItems.length === 0 ? (
-                      <EmptyState
-                        icon={Target}
-                        title="Nenhuma oportunidade encontrada"
-                        description={normalizedSearch ? 'Sua busca nao encontrou oportunidades no radar atual.' : 'Assim que houver repertorio suficiente, o radar vai destacar as melhores chances.'}
-                        action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
-                      />
-                    ) : filteredOpportunityRadarItems.map((item) => (
-                      <div key={item.id} className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                          <div className="space-y-3 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${getOpportunityTone(item.score)}`}>
-                                Score {item.score}
-                              </span>
-                              <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-300">
-                                {item.composerName}
-                              </span>
-                            </div>
-                            <div>
-                              <div className="text-xl font-extrabold text-white">{item.title}</div>
-                              <div className="text-sm text-gray-300 mt-1">
-                                {item.whatsappHref ? 'Contato pronto para abordagem' : 'Precisa completar o contato antes do pitch'}
-                              </div>
-                            </div>
-                            {item.hashtags.length > 0 ? (
-                              <div className="flex flex-wrap gap-2">
-                                {item.hashtags.map((tag) => (
-                                  <span key={`${item.id}-${tag}`} className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-gray-300">
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : null}
-                            <div>
-                              <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Travas atuais</div>
-                              <div className="flex flex-wrap gap-2 mt-2">
-                                {item.blockers.length > 0 ? item.blockers.map((blocker) => (
-                                  <span key={`${item.id}-${blocker}`} className="rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-300">
-                                    {blocker}
-                                  </span>
-                                )) : (
-                                  <span className="rounded-full border border-green-500/20 bg-green-500/10 px-2.5 py-1 text-xs font-semibold text-green-300">
-                                    Sem travas criticas
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="w-full lg:w-72 shrink-0 space-y-3">
-                            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                              <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Acao recomendada</div>
-                              <div className="text-sm text-white mt-2">{item.nextAction}</div>
-                            </div>
-                            <AnimatedButton
-                              onClick={() => {
-                                if (!item.whatsappHref) return;
-                                window.open(item.whatsappHref, '_blank', 'noopener,noreferrer');
-                              }}
-                              disabled={!item.whatsappHref}
-                              className="w-full justify-center"
-                              icon={ArrowUpRight}
-                            >
-                              {item.whatsappHref ? 'Chamar no WhatsApp' : 'Contato indisponivel'}
-                            </AnimatedButton>
-                            <AnimatedButton onClick={() => navigate('/dashboard/chat')} variant="secondary" className="w-full justify-center" icon={MessageCircle}>
-                              Ir para o chat
-                            </AnimatedButton>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="rounded-2xl border border-white/10 bg-black/25 p-5">
-                      <div className="flex items-center gap-2 text-white font-bold">
-                        <BadgeCheck size={18} className="text-beatwap-gold" />
-                        BeatWap Intelligence
-                      </div>
-                      <div className="text-sm text-gray-300 mt-3">
-                        Esse radar ajuda o artista a agir rapido em cima das melhores composicoes e mostra valor claro para assinatura recorrente.
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-white/10 bg-black/25 p-5 space-y-4">
-                      <div className="text-white font-bold">Indicadores de resposta</div>
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="text-gray-400">Receita de shows</span>
-                        <span className="text-white font-bold">{revenueFormatter.format(metrics?.faturamento_shows || 0)}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="text-gray-400">Chats ativos</span>
-                        <span className="text-white font-bold">{activeChatsCount}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="text-gray-400">Notificacoes nao lidas</span>
-                        <span className="text-white font-bold">{unreadNotifications}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </PanelSection>
-            )}
-      
-            <div className="grid grid-cols-1 gap-6">
-              <PanelSection title="Musica com mais visualizacoes" description="Destaque visual mais nobre para o item mais forte do momento.">
-           <div className="flex items-center justify-between mb-4">
-             <div className="px-2 py-1 bg-green-500/10 rounded-lg text-green-500 text-xs font-bold">TOP 1</div>
-           </div>
-           
-           {(() => {
-             if (loading) return <div className="text-2xl font-bold text-gray-500">...</div>;
-             
-             if (!metrics?.topMusic) {
-               return <div className="text-sm text-gray-500">Nenhuma música com visualizações ainda.</div>;
-             }
-             
-             const tm = metrics.topMusic;
-             return (
-               <div className="flex items-center gap-4">
-                 <div className="w-16 h-16 rounded-lg bg-gray-800 overflow-hidden shrink-0">
-                   {tm.cover_url ? (
-                     <img src={tm.cover_url} alt={tm.titulo} className="w-full h-full object-cover" />
-                   ) : (
-                     <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">Capa</div>
-                   )}
-                 </div>
-                 <div>
-                   <div className="font-bold text-xl text-white line-clamp-1">{tm.titulo}</div>
-                   <div className="text-gray-400 text-sm">
-                     <span className="text-beatwap-gold font-bold">{tm.totalPlays}</span> plays totais
-                   </div>
-                 </div>
-               </div>
-             );
-           })()}
-              </PanelSection>
-              <PanelSection title="Ultimas notificacoes" description="Lista com mais respiro e acabamento visual de dashboard premium.">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="px-2 py-1 bg-white/10 rounded-lg text-white text-xs font-bold">Ao vivo</div>
-                </div>
-                {filteredRecentNotifications.length === 0 ? (
+              <SecaoPainel
+                titulo="Oportunidades com maior potencial"
+                descricao="Composicoes priorizadas por contato direto, preview e contexto do material."
+                aside={(
+                  <AnimatedButton onClick={() => navigate('/dashboard/chat')} variant="secondary" icon={MessageCircle}>
+                    Abrir conversas
+                  </AnimatedButton>
+                )}
+              >
+                {filteredOpportunityRadarItems.length === 0 ? (
                   <EmptyState
-                    icon={Bell}
-                    title="Nenhuma notificacao localizada"
-                    description={normalizedSearch ? 'A busca atual nao encontrou notificacoes.' : 'Quando houver novidades para voce, elas aparecerao aqui.'}
+                    icon={Target}
+                    title="Nenhuma oportunidade encontrada"
+                    description={normalizedSearch ? 'Sua busca nao encontrou oportunidades no radar atual.' : 'Assim que houver repertorio suficiente, o radar destaca as melhores chances.'}
                     action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
                   />
                 ) : (
-                  <div className="space-y-3">
-                    {filteredRecentNotifications.map((item) => (
-                      <div key={item.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="font-bold text-white text-sm">{item.title || 'Notificacao'}</div>
-                          <div className="text-[11px] text-gray-500">{formatActivityTime(item.created_at || item.date)}</div>
+                  <ul className="grid grid-cols-1 gap-2.5 xl:grid-cols-2">
+                    {filteredOpportunityRadarItems.map((item) => (
+                      <li
+                        key={item.id}
+                        className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-beatwap-gold/30"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-bold text-white">{item.title}</div>
+                            <div className="mt-0.5 truncate text-xs text-gray-400">{item.composerName}</div>
+                          </div>
+                          <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ${getOpportunityTone(item.score)}`}>
+                            {item.score}
+                          </span>
                         </div>
-                        <div className="text-xs text-gray-400 mt-2">{item.message || 'Sem detalhes adicionais.'}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </PanelSection>
-              {canViewCompositions && (
-                <PanelSection title="Ultimas composicoes" description="Galeria com leitura mais elegante para explorar repertorio recente.">
-            <div className="flex items-center justify-between mb-4">
-              <div className="px-2 py-1 bg-beatwap-gold/10 rounded-lg text-beatwap-gold text-xs font-bold">Novas</div>
-            </div>
-            {filteredLatestCompositions.length === 0 ? (
-              <EmptyState
-                icon={Folder}
-                title="Nenhuma composicao encontrada"
-                description={normalizedSearch ? 'Nenhuma faixa recente combinou com a busca.' : 'Quando o catalogo parceiro ganhar novidades, elas aparecerao aqui.'}
-                action={normalizedSearch ? <AnimatedButton onClick={() => setSearchTerm('')}>Limpar busca</AnimatedButton> : null}
-              />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {filteredLatestCompositions.map((item) => {
-                  const safeCover = String(item.cover_url || '').replace(/^[`'"]+|[`'"]+$/g, '').trim();
-                  return (
-                  <div key={item.id} className="rounded-xl bg-white/5 border border-white/10 p-4 hover:bg-white/10 transition-colors">
-                    <div
-                      className="w-full aspect-square rounded-xl overflow-hidden bg-gray-800 relative cursor-pointer"
-                      onClick={() => togglePlay(item)}
-                    >
-                      {safeCover ? (
-                        <img src={safeCover} alt={item.titulo || item.title} className="w-full h-full object-cover" draggable={false} style={{ userSelect: 'none' }} />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">Capa</div>
-                      )}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button
-                          className="w-12 h-12 bg-beatwap-gold rounded-full flex items-center justify-center text-black"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            togglePlay(item);
-                          }}
-                        >
-                          {currentTrackId === `composition:${item.id}` && isPlaying
-                            ? <Pause fill="currentColor" className="ml-1" />
-                            : <Play fill="currentColor" className="ml-1" />}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="mt-3">
-                      <div className="text-white font-bold text-sm truncate">{item.titulo || item.title}</div>
-                      <div className="flex items-center gap-2 text-gray-300 text-xs truncate">
-                        <div className="w-5 h-5 rounded-full overflow-hidden bg-gray-700 shrink-0">
-                          {item.composer_avatar ? (
-                            <img src={item.composer_avatar} alt={item.composer_name || 'Autor'} className="w-full h-full object-cover" />
+
+                        <div className="mt-3 text-xs leading-relaxed text-gray-300">{item.nextAction}</div>
+
+                        {item.hashtags.length > 0 ? (
+                          <div className="mt-2.5 flex flex-wrap gap-1.5">
+                            {item.hashtags.slice(0, 4).map((tag) => (
+                              <span key={`${item.id}-${tag}`} className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-gray-400">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          {item.whatsappHref ? (
+                            <button
+                              type="button"
+                              onClick={() => window.open(item.whatsappHref, '_blank', 'noopener,noreferrer')}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-green-500/10 px-3 py-1.5 text-xs font-bold text-green-300 transition hover:bg-green-500/20"
+                            >
+                              Chamar no WhatsApp
+                            </button>
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-[10px] text-black bg-gradient-to-br from-beatwap-gold to-yellow-600">
-                              {(item.composer_name || 'A').charAt(0).toUpperCase()}
-                            </div>
+                            <span className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] text-gray-400">
+                              Contato indisponivel
+                            </span>
+                          )}
+                          {item.blockers.length > 0 ? (
+                            <span className="rounded-lg border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-[11px] text-red-300">
+                              {item.blockers[0]}
+                            </span>
+                          ) : (
+                            <span className="rounded-lg border border-green-500/20 bg-green-500/10 px-2.5 py-1 text-[11px] text-green-300">
+                              Sem travas
+                            </span>
                           )}
                         </div>
-                        <span className="truncate">{item.composer_name || 'Autor'}</span>
-                      </div>
-                      {Array.isArray(item.hashtags) && item.hashtags.length > 0 && (
-                        <div className="mt-1 text-[11px] text-gray-400 truncate">{item.hashtags.slice(0, 6).join(' ')}</div>
-                      )}
-                      {item.composer_phone ? (
-                        <>
-                          <div className="mt-2 text-xs text-gray-400">
-                            {formatWhatsAppPhone(item.composer_phone) || 'WhatsApp não informado'}
-                          </div>
-                          <button
-                            onClick={() => {
-                              const href = buildWhatsAppHref(item.composer_phone, item.titulo || item.title || 'Composição');
-                              if (!href) return;
-                              window.open(href, '_blank');
-                            }}
-                            className="mt-2 flex items-center gap-2 text-xs font-bold text-green-400 bg-green-400/10 px-3 py-2 rounded-lg hover:bg-green-400/20 transition-colors w-full justify-center"
-                          >
-                            <MessageCircle size={14} />
-                            Chamar no WhatsApp
-                          </button>
-                        </>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </SecaoPainel>
+            )}
+
+            {/* Complemento: faixa mais tocada e repertorio recente */}
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[0.85fr_1.15fr]">
+              <SecaoPainel titulo="Musica com mais visualizacoes">
+                {loading ? (
+                  <div className="py-6 text-sm text-gray-500">Carregando...</div>
+                ) : !metrics?.topMusic ? (
+                  <p className="py-6 text-sm text-gray-500">Nenhuma musica com visualizacoes ainda.</p>
+                ) : (
+                  <div className="flex items-center gap-4">
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-gray-800">
+                      {metrics.topMusic.cover_url ? (
+                        <img src={metrics.topMusic.cover_url} alt={metrics.topMusic.titulo} className="h-full w-full object-cover" />
                       ) : (
-                        <div className="mt-2 text-xs text-gray-500">WhatsApp não informado</div>
+                        <div className="flex h-full w-full items-center justify-center text-xs text-gray-500">Capa</div>
                       )}
                     </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-base font-bold text-white">{metrics.topMusic.titulo}</div>
+                      <div className="mt-1 text-sm text-gray-400">
+                        <span className="font-bold text-beatwap-gold">{metrics.topMusic.totalPlays}</span> plays totais
+                      </div>
+                    </div>
                   </div>
-                  );
-                })}
-              </div>
-            )}
-                </PanelSection>
-              )}
+                )}
+              </SecaoPainel>
+
+              <SecaoPainel
+                titulo="Ultimas composicoes"
+                descricao="Repertorio recente disponivel para suas conexoes."
+                aside={canViewCompositions ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/dashboard/compositions')}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-200 transition hover:border-beatwap-gold/40 hover:text-beatwap-gold"
+                  >
+                    Ver composicoes
+                  </button>
+                ) : null}
+              >
+                {filteredLatestCompositions.length === 0 ? (
+                  <p className="py-6 text-sm text-gray-500">
+                    {normalizedSearch ? 'Nenhuma faixa recente combinou com a busca.' : 'Quando o catalogo parceiro ganhar novidades, elas aparecerao aqui.'}
+                  </p>
+                ) : (
+                  <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    {filteredLatestCompositions.map((item) => {
+                      const safeCover = String(item.cover_url || '').replace(/^[`'"]+|[`'"]+$/g, '').trim();
+                      return (
+                        <li key={item.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 transition hover:border-beatwap-gold/25">
+                          <div className="flex items-center gap-3">
+                            <div className="relative h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-xl bg-gray-800" onClick={() => togglePlay(item)}>
+                              {safeCover ? (
+                                <img src={safeCover} alt={item.titulo || item.title} className="h-full w-full object-cover" draggable={false} style={{ userSelect: 'none' }} />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-[11px] text-gray-500">Capa</div>
+                              )}
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity hover:opacity-100">
+                                <button
+                                  type="button"
+                                  className="flex h-9 w-9 items-center justify-center rounded-full bg-beatwap-gold text-black"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    togglePlay(item);
+                                  }}
+                                  aria-label={currentTrackId === `composition:${item.id}` && isPlaying ? 'Pausar' : 'Tocar'}
+                                >
+                                  {currentTrackId === `composition:${item.id}` && isPlaying
+                                    ? <Pause size={14} fill="currentColor" />
+                                    : <Play size={14} fill="currentColor" />}
+                                </button>
+                              </div>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-sm font-bold text-white">{item.titulo || item.title}</div>
+                              <div className="truncate text-xs text-gray-400">{item.composer_name || 'Autor'}</div>
+                            </div>
+                          </div>
+                          {item.composer_phone ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const href = buildWhatsAppHref(item.composer_phone, item.titulo || item.title || 'Composicao');
+                                if (!href) return;
+                                window.open(href, '_blank', 'noopener,noreferrer');
+                              }}
+                              className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-green-500/10 px-3 py-1.5 text-xs font-bold text-green-300 transition hover:bg-green-500/20"
+                            >
+                              <MessageCircle size={13} />
+                              Chamar no WhatsApp
+                            </button>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </SecaoPainel>
             </div>
-          </>
+          </div>
         )}
 
         {activePanelTab === 'oportunidades' && (
