@@ -19,7 +19,7 @@ export const SettingsShell = ({ onBack, children }) => {
   const chatAllowed = profile?.access_control?.chat !== false;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-[#0b0b0b] to-[#161616] text-white flex flex-col">
+    <div className="flex min-h-dvh flex-col bg-gradient-to-br from-black via-[#0b0b0b] to-[#161616] text-white">
       <header className="sticky top-0 z-[70] border-b border-white/10 bg-black/85 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-2 sm:gap-3 px-3 sm:px-5 py-3">
           <button
@@ -44,7 +44,7 @@ export const SettingsShell = ({ onBack, children }) => {
         </div>
       </header>
 
-      <main className="flex-1 w-full min-w-0">
+      <main className="min-h-0 w-full flex-1">
         <div className="mx-auto w-full max-w-6xl px-3 sm:px-5 py-6 sm:py-10">{children}</div>
       </main>
 

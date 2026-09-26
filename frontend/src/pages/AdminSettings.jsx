@@ -1102,16 +1102,29 @@ export const AdminSettings = () => {
         </nav>
 
         {activeSettingsSection === 'convites' && (
-        <Card className="space-y-6">
-          <div className="flex items-center gap-2 text-lg md:text-xl font-bold">
-            <Settings size={20} className="text-beatwap-gold" />
-            Sistema e Convites
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-lg font-extrabold text-white sm:text-xl">Sistema e Convites</h2>
+            <p className="mt-1 text-sm text-gray-400">
+              Gerencie convites, cargos e acessos dos usuários.
+            </p>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-            <div className="rounded-2xl border p-4 sm:p-6 shadow-xl space-y-4 bg-white/5 border-white/10 w-full overflow-hidden">
-              <div className="text-base md:text-lg font-bold flex items-center gap-2">
-                <User size={18} /> Criar novo convite
-              </div>
+
+          {/* items-start: cada card usa a propria altura natural, sem esticar o
+              mais curto para "caber" o mais longo. */}
+          <div className="grid items-start gap-4 lg:grid-cols-2 md:gap-6">
+            <section className="w-full space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 shadow-xl sm:p-6">
+              <header className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-beatwap-gold/10 text-beatwap-gold">
+                  <User size={18} />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="text-base font-extrabold text-white md:text-lg">Criar novo convite</h3>
+                  <p className="mt-0.5 text-sm text-gray-400">
+                    Convide novos membros para fazer parte da BeatWap.
+                  </p>
+                </div>
+              </header>
               <div className="w-full">
                 <AnimatedInput
                   label="Nome"
@@ -1238,20 +1251,30 @@ export const AdminSettings = () => {
                   Enviar Convite por Email
                 </AnimatedButton>
               </div>
-            </div>
-            
-            <div className="rounded-2xl border p-4 sm:p-6 shadow-xl space-y-4 bg-white/5 border-white/10 w-full overflow-hidden">
-              <div className="text-base md:text-lg font-bold flex items-center gap-2">
-                <Shield size={18} /> Migração de Cargos
-              </div>
+              </section>
+
+            <section className="w-full space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 shadow-xl sm:p-6">
+              <header className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-beatwap-gold/10 text-beatwap-gold">
+                  <Shield size={18} />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="text-base font-extrabold text-white md:text-lg">Migração de cargos</h3>
+                  <p className="mt-0.5 text-sm text-gray-400">
+                    Altere o cargo de um usuário existente sem perder os dados atuais do perfil.
+                  </p>
+                </div>
+              </header>
               <div className="space-y-4">
-                <div className="text-sm text-gray-300">
-                  Troca o cargo de um perfil existente para qualquer cargo do sistema.
-                  Esta ação preserva os dados do perfil (foto, nome, WhatsApp, endereço e demais informações).
+                <div className="rounded-xl border border-beatwap-gold/20 bg-beatwap-gold/[0.06] p-3">
+                  <div className="text-sm font-bold text-beatwap-gold">Dados preservados</div>
+                  <div className="mt-0.5 text-sm text-gray-400">
+                    Foto, nome, WhatsApp, endereço e demais informações serão mantidos.
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-sm text-gray-300">Usuário</div>
+                  <label className="block text-sm text-gray-300">Usuário</label>
                   <select
                     className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-beatwap-gold outline-none"
                     value={migrateUserId}
@@ -1339,12 +1362,12 @@ export const AdminSettings = () => {
                   </div>
                 )}
               </div>
-            </div>
+            </section>
           </div>
-        </Card>
+          </div>
         )}
 
-        {activeSettingsSection === 'lista' && (
+            {activeSettingsSection === 'lista' && (
         <Card className="space-y-6">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-lg md:text-xl font-bold">
