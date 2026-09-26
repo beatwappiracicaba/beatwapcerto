@@ -1,20 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import Cropper from 'react-easy-crop';
 import { Play, Pause, Music, Image, Video, ExternalLink, Search, Plus, X, TrendingUp, Heart, MessageCircle, Send, Pencil, Trash2, Share2, MoreHorizontal, RefreshCw, AlertCircle, Compass, Users, Bell, User, Settings } from 'lucide-react';
+import { CreatePostModal } from '../components/feed/CreatePostModal';
 import { FeedShell } from '../components/feed/FeedShell';
 import { Card } from '../components/ui/Card';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { AnimatedInput } from '../components/ui/AnimatedInput';
 import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
-import { apiClient, uploadApi } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useNotification, CONTEXT_FEED } from '../context/NotificationContext';
 import { useSocialChats } from '../hooks/useSocialChats';
 import { connectRealtime, subscribe, unsubscribe } from '../services/realtime';
-import { getCroppedImg } from '../utils/cropImage';
 import { useGlobalAudioPlayer } from '../context/GlobalAudioPlayerContext';
 
 const FEED_FILTERS = [
@@ -171,25 +170,12 @@ const Feed = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [videoModalPost, setVideoModalPost] = useState(null);
   const [postModalOpen, setPostModalOpen] = useState(false);
-  const [postType, setPostType] = useState('text'); // text | link | image | video
-  const [postFormat, setPostFormat] = useState('square'); // square (1080x1080) | vertical (1080x1920)
-  const [postCaption, setPostCaption] = useState('');
-  const [postLinkUrl, setPostLinkUrl] = useState('');
-  const [postFile, setPostFile] = useState(null);
-  const [postPreviewUrl, setPostPreviewUrl] = useState('');
-  const [postObjectPos, setPostObjectPos] = useState({ x: 50, y: 50 }); // for video display crop
-  const [postProgress, setPostProgress] = useState(0);
-  const [posting, setPosting] = useState(false);
   const [commentsOpenById, setCommentsOpenById] = useState({});
   const [commentsLoadingById, setCommentsLoadingById] = useState({});
   const [commentsByPostId, setCommentsByPostId] = useState({});
   const [commentDraftByPostId, setCommentDraftByPostId] = useState({});
   const [commentPostingById, setCommentPostingById] = useState({});
   const [postActionLoadingById, setPostActionLoadingById] = useState({});
-  const [imageCropSrc, setImageCropSrc] = useState(null);
-  const [imageCrop, setImageCrop] = useState({ x: 0, y: 0 });
-  const [imageZoom, setImageZoom] = useState(1);
-  const [imageCroppedAreaPixels, setImageCroppedAreaPixels] = useState(null);
   const [panelLoading, setPanelLoading] = useState(false);
   const [panelError, setPanelError] = useState('');
   const [panelTotals, setPanelTotals] = useState(null);
@@ -536,68 +522,12 @@ const Feed = () => {
     };
   }, [activeTab, followingIds, meId, refresh]);
 
+  // O compositor novo (CreatePostModal) cuida de todo o estado do formulario.
   const closePostModal = useCallback(() => {
     setPostModalOpen(false);
     setEditingPostId(null);
-    setPostType('text');
-    setPostFormat('square');
-    setPostCaption('');
-    setPostLinkUrl('');
-    setPostFile(null);
-    setPostPreviewUrl('');
-    setPostObjectPos({ x: 50, y: 50 });
-    setPostProgress(0);
-    setImageCropSrc(null);
-    setImageCrop({ x: 0, y: 0 });
-    setImageZoom(1);
-    setImageCroppedAreaPixels(null);
   }, []);
 
-  useEffect(() => {
-    if (!postModalOpen) {
-      setPostPreviewUrl('');
-      return;
-    }
-    if (!postFile || (postType !== 'image' && postType !== 'video')) {
-      setPostPreviewUrl('');
-      return;
-    }
-    const url = URL.createObjectURL(postFile);
-    setPostPreviewUrl(url);
-    return () => {
-      try { URL.revokeObjectURL(url); } catch { void 0; }
-    };
-  }, [postFile, postModalOpen, postType]);
-
-  const onImageCropComplete = useCallback((_area, croppedPixels) => {
-    setImageCroppedAreaPixels(croppedPixels || null);
-  }, []);
-
-  const readFileAsDataUrl = useCallback((file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = (e) => reject(e);
-      reader.readAsDataURL(file);
-    });
-  }, []);
-
-  const confirmImageCrop = useCallback(async () => {
-    if (!imageCropSrc) return;
-    const w = postFormat === 'vertical' ? 1080 : 1080;
-    const h = postFormat === 'vertical' ? 1920 : 1080;
-    try {
-      const blob = await getCroppedImg(imageCropSrc, imageCroppedAreaPixels, w, h);
-      const file = new File([blob], `post_${Date.now()}.jpg`, { type: 'image/jpeg' });
-      setPostFile(file);
-      setImageCropSrc(null);
-      setImageCrop({ x: 0, y: 0 });
-      setImageZoom(1);
-      setImageCroppedAreaPixels(null);
-    } catch {
-      void 0;
-    }
-  }, [imageCropSrc, imageCroppedAreaPixels, postFormat]);
 
   const togglePostLike = useCallback(async (postId) => {
     const id = String(postId || '').trim();
@@ -682,116 +612,14 @@ const Feed = () => {
     }
   }, [commentDraftByPostId, commentPostingById, meId]);
 
-  const createFeedPost = useCallback(async () => {
-    if (!meId) return;
-    if (posting) return;
-    const caption = String(postCaption || '').trim();
-    const linkUrl = String(postLinkUrl || '').trim();
-    const type = String(postType || 'text').toLowerCase().trim();
-    const isEditing = !!editingPostId;
 
-    if (!isEditing) {
-      if (type === 'text' && !caption) return;
-      if (type === 'link' && !linkUrl) return;
-      if ((type === 'image' || type === 'video') && !postFile) return;
-    } else {
-      if (type === 'text' && !caption) return;
-      if (type === 'link' && !linkUrl) return;
-    }
-
-    setPosting(true);
-    try {
-      if (isEditing) {
-        const res = await apiClient.patch(`/feed/posts/${editingPostId}`, {
-          caption,
-          link_url: type === 'link' ? linkUrl : null,
-          format: (type === 'image' || type === 'video') ? postFormat : null,
-          object_position: type === 'video' ? postObjectPos : null
-        });
-        const updated = res?.post || null;
-        if (updated) {
-          setMyPosts((prev) => (Array.isArray(prev) ? prev.map((p) => (String(p?.id || '') === String(updated.id || '') ? { ...p, ...updated } : p)) : prev));
-          setItems((prev) => (Array.isArray(prev) ? prev.map((it) => {
-            if (it?.type !== 'post') return it;
-            const pid = String(it?.id || it?.data?.id || '').trim();
-            if (pid !== String(updated.id || '').trim()) return it;
-            const data = it?.data || {};
-            return { ...it, data: { ...data, ...updated } };
-          }) : prev));
-        }
-        closePostModal();
-        return;
-      }
-
-      let mediaUrl = null;
-      if (type === 'image' || type === 'video') {
-        setPostProgress(0);
-        const name = String(postFile?.name || '').trim();
-        const mime = String(postFile?.type || '').toLowerCase().trim();
-        const mimeToExt = () => {
-          if (mime.includes('jpeg')) return 'jpg';
-          if (mime.includes('png')) return 'png';
-          if (mime.includes('webp')) return 'webp';
-          if (mime.includes('mp4')) return 'mp4';
-          if (mime.includes('quicktime')) return 'mov';
-          if (mime.includes('webm')) return 'webm';
-          return 'bin';
-        };
-        const ext = name ? (name.split('.').pop() || mimeToExt()) : mimeToExt();
-        const fileName = `feed/${meId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-        const up = await uploadApi.uploadWithMeta(postFile, {
-          bucket: 'feed_media',
-          fileName,
-          onProgress: (pct) => setPostProgress(Number(pct) || 0)
-        });
-        mediaUrl = up?.url || null;
-        setPostProgress(100);
-      }
-
-      const created = await apiClient.post('/feed/posts', {
-        media_type: type,
-        caption,
-        link_url: type === 'link' ? linkUrl : null,
-        media_url: mediaUrl,
-        format: (type === 'image' || type === 'video') ? postFormat : null,
-        object_position: type === 'video' ? postObjectPos : null
-      });
-      if (feedSubTab === 'mine' && created && created.id) {
-        setMyPosts((prev) => {
-          const arr = Array.isArray(prev) ? prev : [];
-          const id = String(created.id || '').trim();
-          const next = arr.filter((p) => String(p?.id || '').trim() !== id);
-          return [created, ...next];
-        });
-      }
-      closePostModal();
-      refresh();
-    } catch {
-      void 0;
-    } finally {
-      setPosting(false);
-    }
-  }, [closePostModal, editingPostId, feedSubTab, meId, postCaption, postFile, postFormat, postLinkUrl, postObjectPos, postType, posting, refresh]);
-
+  // Edicao usa o mesmo compositor: a publicacao existente e carregada la
+  // dentro. Aqui so abrimos a tela com o id do post.
   const openEditPost = useCallback((p) => {
     const id = String(p?.id || '').trim();
     if (!id) return;
-    const type = String(p?.media_type || 'text').toLowerCase().trim() || 'text';
     setEditingPostId(id);
     setPostModalOpen(true);
-    setPostType(type);
-    setPostFormat(String(p?.format || '').toLowerCase().trim() || (type === 'video' ? 'vertical' : 'square'));
-    setPostCaption(String(p?.caption || ''));
-    setPostLinkUrl(String(p?.link_url || ''));
-    const rawPos = p?.object_position && typeof p.object_position === 'object' ? p.object_position : null;
-    setPostObjectPos({ x: Math.max(0, Math.min(100, Number(rawPos?.x ?? 50) || 50)), y: Math.max(0, Math.min(100, Number(rawPos?.y ?? 50) || 50)) });
-    setPostProgress(0);
-    setPostFile(null);
-    setPostPreviewUrl('');
-    setImageCropSrc(null);
-    setImageCrop({ x: 0, y: 0 });
-    setImageZoom(1);
-    setImageCroppedAreaPixels(null);
   }, []);
 
   const deleteMyPost = useCallback(async (postId) => {
@@ -2022,7 +1850,6 @@ const Feed = () => {
   const openComposer = useCallback(() => {
     setActiveTab('feed');
     setComposerOpen(true);
-    setPostType('text');
     setPostModalOpen(true);
   }, []);
 
@@ -2311,7 +2138,7 @@ const Feed = () => {
                         <button
                           key={`composer-${opt.key}`}
                           type="button"
-                          onClick={() => { setPostType(opt.key); setPostModalOpen(true); }}
+                          onClick={() => { setPostModalOpen(true); }}
                           className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-bold text-gray-200 transition hover:border-beatwap-gold/40 hover:text-beatwap-gold"
                         >
                           <Plus size={12} />
@@ -2527,271 +2354,24 @@ const Feed = () => {
         </div>
       )}
 
-      {postModalOpen && (
-        <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={closePostModal}>
-          <div className="w-full max-w-xl bg-[#121212] border border-white/10 rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <div className="text-white font-bold">{editingPostId ? 'Editar post' : 'Novo post'}</div>
-              <button type="button" onClick={closePostModal} className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10">
-                <X size={18} className="text-gray-300" />
-              </button>
-            </div>
-            <div className="p-4 space-y-4">
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { key: 'text', label: 'Texto' },
-                  { key: 'link', label: 'Link' },
-                  { key: 'image', label: 'Foto' },
-                  { key: 'video', label: 'Vídeo' }
-                ].map((opt) => (
-                  <button
-                    key={opt.key}
-                    type="button"
-                    disabled={!!editingPostId}
-                    onClick={() => {
-                      if (editingPostId) return;
-                      setPostType(opt.key);
-                      setPostProgress(0);
-                      setPostFile(null);
-                      setPostPreviewUrl('');
-                      setPostLinkUrl('');
-                      setPostObjectPos({ x: 50, y: 50 });
-                      setImageCropSrc(null);
-                      setImageCrop({ x: 0, y: 0 });
-                      setImageZoom(1);
-                      setImageCroppedAreaPixels(null);
-                      if (opt.key === 'video') setPostFormat('vertical');
-                      else if (opt.key === 'image') setPostFormat('square');
-                      else setPostFormat('square');
-                    }}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
-                      postType === opt.key ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
-                    } ${editingPostId ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-
-              <textarea
-                value={postCaption}
-                onChange={(e) => setPostCaption(e.target.value)}
-                placeholder="Escreva algo..."
-                rows={3}
-                className="w-full rounded-xl bg-white/5 border border-white/10 text-white px-4 py-3 outline-none focus:border-beatwap-gold resize-none"
-              />
-
-              {postType === 'link' && (
-                <AnimatedInput
-                  value={postLinkUrl}
-                  onChange={(e) => setPostLinkUrl(e.target.value)}
-                  placeholder="Cole um link (YouTube ou qualquer URL)"
-                />
-              )}
-
-              {(postType === 'image' || postType === 'video') && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setPostFormat('square')}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
-                        postFormat === 'square' ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
-                      }`}
-                    >
-                      1080x1080
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPostFormat('vertical')}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
-                        postFormat === 'vertical' ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-gray-300 hover:bg-white/5'
-                      }`}
-                    >
-                      1080x1920
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
-                    <div className="text-xs text-gray-300 truncate">{postFile ? postFile.name : 'Nenhum arquivo selecionado'}</div>
-                    <div className="flex items-center gap-2">
-                      {postFile && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPostFile(null);
-                            setPostPreviewUrl('');
-                            setImageCropSrc(null);
-                            setImageCrop({ x: 0, y: 0 });
-                            setImageZoom(1);
-                            setImageCroppedAreaPixels(null);
-                            setPostObjectPos({ x: 50, y: 50 });
-                          }}
-                          className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10"
-                          title="Remover arquivo"
-                        >
-                          <X size={16} className="text-gray-300" />
-                        </button>
-                      )}
-                      <label className={`px-3 py-2 rounded-xl text-xs font-bold bg-white/10 border border-white/10 hover:bg-white/15 cursor-pointer ${editingPostId ? 'opacity-60 cursor-not-allowed' : ''}`}>
-                        Escolher
-                        <input
-                          type="file"
-                          accept={postType === 'image' ? 'image/*' : 'video/*'}
-                          className="hidden"
-                          disabled={!!editingPostId}
-                          onChange={async (e) => {
-                            if (editingPostId) return;
-                            const f = e.target.files?.[0] || null;
-                            setPostFile(f);
-                            setPostObjectPos({ x: 50, y: 50 });
-                            setImageCropSrc(null);
-                            setImageCrop({ x: 0, y: 0 });
-                            setImageZoom(1);
-                            setImageCroppedAreaPixels(null);
-                            if (postType === 'image' && f) {
-                              try {
-                                const dataUrl = await readFileAsDataUrl(f);
-                                setImageCropSrc(String(dataUrl || ''));
-                              } catch {
-                                void 0;
-                              }
-                            }
-                          }}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                  {postType === 'image' && imageCropSrc && (
-                    <div className="space-y-3">
-                      <div className={`relative w-full ${postFormat === 'vertical' ? 'aspect-[9/16]' : 'aspect-square'} rounded-xl overflow-hidden border border-white/10 bg-black/30`}>
-                        <Cropper
-                          image={imageCropSrc}
-                          crop={imageCrop}
-                          zoom={imageZoom}
-                          aspect={postFormat === 'vertical' ? 9 / 16 : 1}
-                          onCropChange={setImageCrop}
-                          onZoomChange={setImageZoom}
-                          onCropComplete={onImageCropComplete}
-                        />
-                      </div>
-                      <input
-                        type="range"
-                        min={1}
-                        max={3}
-                        step={0.05}
-                        value={imageZoom}
-                        onChange={(e) => setImageZoom(Number(e.target.value) || 1)}
-                        className="w-full"
-                      />
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setImageCropSrc(null);
-                            setPostFile(null);
-                            setPostPreviewUrl('');
-                            setImageCrop({ x: 0, y: 0 });
-                            setImageZoom(1);
-                            setImageCroppedAreaPixels(null);
-                          }}
-                          className="px-4 py-2 rounded-xl text-xs font-bold bg-white/5 border border-white/10 text-gray-200 hover:bg-white/10"
-                        >
-                          Cancelar recorte
-                        </button>
-                        <button
-                          type="button"
-                          onClick={confirmImageCrop}
-                          className="px-4 py-2 rounded-xl text-xs font-bold bg-beatwap-gold border border-beatwap-gold text-black hover:bg-white hover:border-white"
-                        >
-                          Confirmar recorte
-                        </button>
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        Ajuste antes de publicar. A foto será salva em {postFormat === 'vertical' ? '1080x1920' : '1080x1080'}.
-                      </div>
-                    </div>
-                  )}
-                  {postPreviewUrl && postType === 'image' && !imageCropSrc && (
-                    <div className={`relative w-full ${postFormat === 'vertical' ? 'aspect-[9/16]' : 'aspect-square'} rounded-xl overflow-hidden border border-white/10 bg-black/30`}>
-                      <img src={postPreviewUrl} alt="Prévia" className="absolute inset-0 w-full h-full object-cover" />
-                    </div>
-                  )}
-                  {postPreviewUrl && postType === 'video' && (
-                    <div className="space-y-3">
-                      <div className={`relative w-full ${postFormat === 'vertical' ? 'aspect-[9/16]' : 'aspect-square'} rounded-xl overflow-hidden border border-white/10 bg-black/30`}>
-                        <video
-                          src={postPreviewUrl}
-                          className="absolute inset-0 w-full h-full object-cover"
-                          style={{ objectPosition: `${postObjectPos.x}% ${postObjectPos.y}%` }}
-                          controls
-                          playsInline
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <div className="text-xs text-gray-400">Ajuste o enquadramento</div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-xs text-gray-400 w-10">X</div>
-                          <input
-                            type="range"
-                            min={0}
-                            max={100}
-                            value={postObjectPos.x}
-                            onChange={(e) => setPostObjectPos((prev) => ({ ...prev, x: Number(e.target.value) || 0 }))}
-                            className="w-full"
-                          />
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-xs text-gray-400 w-10">Y</div>
-                          <input
-                            type="range"
-                            min={0}
-                            max={100}
-                            value={postObjectPos.y}
-                            onChange={(e) => setPostObjectPos((prev) => ({ ...prev, y: Number(e.target.value) || 0 }))}
-                            className="w-full"
-                          />
-                        </div>
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        Vídeos são exibidos em {postFormat === 'vertical' ? '1080x1920' : '1080x1080'} (corte visual).
-                      </div>
-                    </div>
-                  )}
-                  {posting && (
-                    <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
-                      <div className="h-2 bg-beatwap-gold rounded-full transition-all" style={{ width: `${Math.max(0, Math.min(100, Number(postProgress || 0)))}%` }} />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={closePostModal}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-white/5 border border-white/10 text-gray-200 hover:bg-white/10"
-                >
-                  Cancelar
-                </button>
-                <AnimatedButton
-                  onClick={createFeedPost}
-                  disabled={
-                    posting
-                    || (postType === 'text' && !String(postCaption || '').trim())
-                    || (postType === 'link' && !String(postLinkUrl || '').trim())
-                    || (!editingPostId && ((postType === 'image' || postType === 'video') && !postFile))
-                    || (!editingPostId && (postType === 'image' && imageCropSrc))
-                  }
-                >
-                  {posting ? (editingPostId ? 'Salvando...' : 'Publicando...') : (editingPostId ? 'Salvar' : 'Publicar')}
-                </AnimatedButton>
-              </div>
-              <div className="text-xs text-gray-400">
-                Posts feitos aqui aparecem só no feed. Posts do perfil público aparecem no feed também.
-              </div>
-            </div>
-            </div>
-          </div>
+        {postModalOpen && (
+          <CreatePostModal
+            open
+            onClose={closePostModal}
+            profile={profile}
+            meId={meId}
+            onPublished={(created) => {
+              if (feedSubTab === 'mine' && created && created.id) {
+                setMyPosts((prev) => {
+                  const arr = Array.isArray(prev) ? prev : [];
+                  const id = String(created.id || '').trim();
+                  const next = arr.filter((p) => String(p?.id || '').trim() !== id);
+                  return [created, ...next];
+                });
+              }
+              refresh();
+            }}
+          />
         )}
       </div>
     </FeedShell>

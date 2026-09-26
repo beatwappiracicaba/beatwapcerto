@@ -599,19 +599,31 @@ router.post('/feed/posts', auth, async (req, res) => {
       media_url = 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%221200%22 height=%221200%22><rect width=%22100%25%22 height=%22100%25%22 fill=%22%231a1a1a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ffd700%22 font-size=%2236%22 font-family=%22Arial%22>Imagem indisponível</text></svg>';
     }
 
-    const id = `post_${Date.now()}`;
-    const item = {
-      id,
-      user_id: meId,
-      media_url,
-      media_type,
-      link_url,
-      caption,
-      format,
-      object_position,
-      scope: 'feed',
-      created_at: new Date().toISOString()
-    };
+  const id = `post_${Date.now()}`;
+  const item = {
+    id,
+    user_id: meId,
+    media_url,
+    // Galeria: demais midias da mesma publicacao. A primeira continua em
+    // media_url para nao quebrar o que ja existe.
+    media_urls: (Array.isArray(req.body?.media_urls) ? req.body.media_urls : [])
+      .map((u) => String(u || '').trim())
+      .filter((u) => /^https?:\/\//i.test(u))
+      .slice(0, 9),
+    media_type,
+    link_url,
+    caption,
+    format,
+    object_position,
+    // Quem pode ver. Guardado junto da publicacao; 'publico' equivale ao
+    // comportamento atual (aparece no Feed).
+    visibility: (() => {
+      const v = String(req.body?.visibility || '').trim().toLowerCase();
+      return ['publico', 'amigos', 'seguidores', 'privado'].includes(v) ? v : 'publico';
+    })(),
+    scope: 'feed',
+    created_at: new Date().toISOString()
+  };
 
     if (!Array.isArray(memory.posts)) memory.posts = [];
     memory.posts.unshift(item);
